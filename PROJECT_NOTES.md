@@ -520,3 +520,332 @@ MIT
 **Proje Başlangıç:** 2026-01-21
 **Son Güncelleme:** 2026-01-21
 **Durum:** ✅ MVP - IDE Layout + File Explorer + Project-Aware Terminal
+
+---
+
+## Vizyon ve Gelecek Yön Kararları
+
+### Kullanıcının İsteği (Prompt)
+> "gitmek istediğim nokta biraz şöyle bir şey; ben buraya ide dedim fakat aslında bir ide görünümüyle beraber istediğim 2 şey var: birincisi claude code ile geliştirdiğim projeleri organize edip tek bir yerde görebilmek, ikincisi projelerimi yönetebilmek. yönetebilmekten neyi kast ediyorum, mesela bu projeyi varsayalım, ben bu projemizi bu geliştirdiğimiz uygulamamızı açtığımızda ne durumda olduğumuzu, gelecekte neler yapmayı planladığımızı bir resim olarak görmek istiyorum. yani ne yapmaya çalışıyorum, bir interface yapmak istiyorum. claude code un cli nı bir üst noktaya taşımak istiyorum. mesela ben senden neyi istedim, bir notes dosyası hazırlattım, bunun her uygulamada otomatik yapılmasını istiyorum, verdiğimiz kararları ve senle iletişimimizin kilit noktalarını bir dosyada tutmak istiyorum. burada neyi hedefliyorum? seni her kullandığımda aslında senin işini kolaylaştırmak istiyorum. elinde kocaman bir kod dosyasına bakmak yerine, dökümanlarımı takip ederek daha hızlı sonuca ulaşmanı sağlamak istiyorum."
+
+### Vizyon Özeti
+
+**Şu an ne yaptık:**
+- Claude Code için bir terminal wrapper
+
+**Gerçek hedef:**
+- **Claude Code için bir Project Management Layer**
+- Claude Code'u sadece çalıştırmak değil, **organize etmek ve yönetmek**
+
+### Temel İhtiyaçlar
+
+1. **Project Organization**
+   - Tüm Claude Code projeleri tek yerden görünür
+   - Her projenin durumu, son çalışma zamanı
+   - Kart görünümü ile dashboard
+
+2. **Project Management**
+   - Her proje için: "Şu an neredeyiz? Sonra ne yapacağız?"
+   - Görsel bir durum özeti
+   - İlerleme takibi
+
+3. **Auto-Documentation**
+   - Her session otomatik belgelenmeli
+   - Verilen kararlar kaydedilmeli
+   - Conversation'ın kilit noktaları yakalanmalı
+
+4. **Context Optimization**
+   - Claude'un her yeni seansta devasa kod okumak yerine
+   - Optimize edilmiş dokümantasyon okuması
+   - Hızlı context yakalama (10 dk → 30 sn)
+
+### Planlanan Özellikler
+
+#### Phase 1: Project Dashboard (1 hafta)
+```
+┌─────────────────────────┐  ┌─────────────────────────┐
+│ ClaudeCodeIDE          │  │ E-commerce App         │
+│ ─────────────────────  │  │ ─────────────────────  │
+│ Status: 🟢 Active      │  │ Status: 🟡 In Progress │
+│ Last worked: 2h ago    │  │ Last worked: 3d ago    │
+│                        │  │                        │
+│ Current:               │  │ Current:               │
+│ • Prompt history panel │  │ • Payment integration  │
+│                        │  │                        │
+│ Next:                  │  │ Next:                  │
+│ • File click → cat     │  │ • Stripe webhooks      │
+│ • Search in files      │  │ • Order emails         │
+│                        │  │                        │
+│ [Open] [Archive]       │  │ [Open] [Archive]       │
+└─────────────────────────┘  └─────────────────────────┘
+```
+
+**Teknik:**
+- `.claude-metadata.json` her proje için
+- Project scanner (tüm projeleri tara)
+- Dashboard UI (kart görünümü)
+- Session tracking (başlangıç/bitiş zamanı)
+
+**Zorluk:** ⭐ (1/5)
+**Tahmini süre:** 4-6 saat
+
+#### Phase 2: Auto-Documentation (1 hafta)
+
+**Otomatik oluşturulacak dosyalar:**
+
+**1. SESSION_LOG.md**
+```markdown
+## Session 1 - Initial Build
+
+**Started:** 14:00
+**Ended:** 18:30
+**Duration:** 4.5 hours
+
+### What We Built
+1. Terminal emulator with real PTY
+2. Project explorer with file tree
+3. Prompt history side panel
+
+### Problems Solved
+- Python Tkinter başarısız → Electron'a geçiş
+- Unicode encoding hatası → UTF-16-le fix
+- Focus management → tabindex=-1
+```
+
+**2. DECISIONS.md**
+```markdown
+## 2026-01-21 - Session 1
+
+### Key Decisions
+- ✅ Electron + xterm.js kullanıldı (Python yerine)
+  - Sebep: Gerçek PTY gerekiyordu
+  - Python subprocess yetersizdi
+
+- ✅ PowerShell Core → fallback pattern
+  - Windows'ta iki PowerShell versiyonu var
+  - Akıllı detection ile her ikisi de destekleniyor
+
+### Features Added
+- IDE layout (3 panel)
+- File tree explorer
+- Prompt history panel
+
+### Next Steps
+- File click → cat command
+- Search in files
+```
+
+**3. QUICKSTART.md** (Claude için optimize)
+```markdown
+# Quick Context for Claude
+
+## What is this project?
+IDE for Claude Code users. 3-panel layout.
+
+## Current Status
+✅ MVP Done - File explorer + Terminal + History
+
+## Tech Stack
+- Electron 28
+- xterm.js (terminal)
+- node-pty (PTY)
+
+## File Guide
+- main.js: PTY + IPC + file tree
+- renderer.js: UI + xterm setup
+- index.html: Layout + styles
+
+## Common Tasks
+- Add menu item: main.js → menuTemplate
+- Add IPC: main.js (handler) + renderer.js (sender)
+- Modify terminal: main.js → startPTY()
+
+## Current Focus
+Working on: Dashboard implementation
+Next up: Auto-documentation
+```
+
+**Teknik:**
+- Template-based generation
+- Session tracking
+- Terminal output parsing
+- Git commit analysis
+- Markdown generator
+
+**Zorluk:** ⭐⭐ (2/5)
+**Tahmini süre:** 6-8 saat
+
+#### Phase 3: Smart Context & Conversation Tracking (2 hafta)
+
+**Özellikler:**
+1. **Conversation Logger**
+   - User prompts kaydedilir
+   - Claude responses parse edilir
+   - Önemli noktalar extract edilir
+
+2. **Decision Tracker**
+   - "We decided...", "The reason...", "I chose..." pattern'leri
+   - Otomatik DECISIONS.md güncelleme
+
+3. **Timeline View**
+   - Görsel proje zaman çizelgesi
+   - Sessions, commits, features
+
+**İki Yaklaşım:**
+
+**Basit Yol:**
+- Pattern matching
+- Keyword extraction
+- Template-based
+
+**Akıllı Yol:**
+- Claude API integration
+- AI-powered summarization
+- Context optimization
+
+**Zorluk:** ⭐⭐⭐ (3/5 basit, 4/5 akıllı)
+**Tahmini süre:** 10-15 saat
+
+#### Phase 4: AI Integration (1 hafta)
+
+**Özellikler:**
+- Claude API ile session summarization
+- Akıllı context generation
+- Auto-generated recommendations
+
+**Zorluk:** ⭐⭐⭐⭐ (4/5)
+**Tahmini süre:** 8-12 saat
+
+### Project Metadata Yapısı
+
+```json
+{
+  "name": "ClaudeCodeIDE",
+  "path": "/Users/kaan/Desktop/deneme",
+  "createdAt": "2026-01-21T14:00:00Z",
+  "lastOpenedAt": "2026-01-21T18:30:00Z",
+  "status": "active",
+  "currentFocus": "Dashboard implementation",
+  "completedFeatures": [
+    "Terminal emulator",
+    "File tree explorer",
+    "Prompt history panel"
+  ],
+  "nextSteps": [
+    "Project dashboard",
+    "Auto-documentation",
+    "Session tracking"
+  ],
+  "techStack": ["Electron", "xterm.js", "node-pty"],
+  "stats": {
+    "totalSessions": 1,
+    "totalHours": 4.5,
+    "filesCount": 7,
+    "linesOfCode": 2433,
+    "commits": 3
+  },
+  "sessions": [
+    {
+      "id": "session-1",
+      "startTime": "2026-01-21T14:00:00Z",
+      "endTime": "2026-01-21T18:30:00Z",
+      "duration": 270,
+      "featuresAdded": ["Terminal", "File tree", "History"],
+      "decisions": 3,
+      "commands": 47
+    }
+  ]
+}
+```
+
+### Hedeflenen Kullanıcı Deneyimi
+
+**Şu anki durum:**
+```
+1. Claude Code aç
+2. README oku (500+ satır)
+3. Kod dosyalarını oku (binlerce satır)
+4. Context yakalamaya çalış (10+ dakika)
+5. Kullanıcıya sor: "Ne yapıyorduk?"
+```
+
+**Hedeflenen durum:**
+```
+1. Claude Code IDE aç
+2. Dashboard'da proje kartını gör
+   → Status: Active
+   → Current: Dashboard implementation
+   → Next: Auto-docs
+3. QUICKSTART.md oku (50 satır, Claude için optimize)
+4. DECISIONS.md oku (son kararlar)
+5. Context anında yakalanır (30 saniye)
+6. Kaldığın yerden devam et
+```
+
+### Teknik Uygulanabilirlik
+
+**Tüm özellikler yapılabilir mi?** ✅ **EVET**
+
+**Zorluk seviyeleri:**
+- Project Dashboard: ⭐ Çok kolay
+- Metadata tracking: ⭐ Çok kolay
+- Session logging: ⭐⭐ Kolay
+- Auto-documentation: ⭐⭐ Kolay-Orta
+- Conversation parsing: ⭐⭐⭐ Orta
+- AI integration: ⭐⭐⭐⭐ Orta-Zor
+
+**Gerekli teknolojiler (zaten bilinen):**
+- Electron (✅ kullanıyoruz)
+- Node.js fs (✅ kullanıyoruz)
+- Markdown generation (template strings)
+- Pattern matching (regex)
+- JSON serialization (native)
+- Optional: Claude API (yeni)
+
+### İlk Adım (Hemen Başlanabilir)
+
+**Bugün yapılabilecek minimal MVP:**
+
+1. **Project Metadata**
+   - `.claude-metadata.json` ekle
+   - Her proje için temel bilgiler
+
+2. **Dashboard UI**
+   - Sidebar'a "Projects" tab
+   - Proje kartları
+   - Click → Projeyi aç
+
+3. **Session Timer**
+   - Başlangıç/bitiş zamanı
+   - Toplam süre hesaplama
+   - metadata'ya kaydet
+
+**Tahmini süre:** 4-5 saat
+
+### Öğrenilen Dersler (Bu Vizyondan)
+
+1. **IDE != sadece terminal**
+   - Kod yazmak sadece bir parça
+   - Proje yönetimi kritik
+   - Context tracking hayat kurtarır
+
+2. **Claude için optimize et**
+   - Her yeni seansta sıfırdan başlamak zaman kaybı
+   - Akıllı dokümantasyon = hızlı onboarding
+   - QUICKSTART.md > 10 dosya okumak
+
+3. **Automation is key**
+   - Manuel dokümantasyon tutulmaz
+   - Otomatik logging şart
+   - Session tracking passive olmalı
+
+4. **Visual representation matters**
+   - Dashboard > Text listeler
+   - Kartlar > Klasörler
+   - Timeline > Commit log
+
+---
+
+**Vizyon Güncelleme Tarihi:** 2026-01-21 (Session 1 sonu)
+**Karar:** Phase 1'den başla (Dashboard + Metadata + Session tracking)
+**Status:** ✅ Vizyon netleşti, implementasyon planı hazır
