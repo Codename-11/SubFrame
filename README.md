@@ -1,4 +1,4 @@
-# Claude Code IDE
+# Frame
 
 A lightweight, IDE-style desktop application built specifically for working with [Claude Code](https://claude.com/claude-code). Think VS Code, but streamlined for Claude Code workflows.
 
@@ -6,7 +6,8 @@ A lightweight, IDE-style desktop application built specifically for working with
 
 This is an Electron-based desktop application that combines:
 - **Project Explorer** (left panel) - Browse your project files with a collapsible tree view
-- **Full Terminal** (center) - A real PTY terminal powered by xterm.js where Claude Code runs
+- **Multi-Terminal** (center) - Multiple terminal instances with tabs or grid view
+- **File Editor** - Quick overlay editor for file viewing and editing
 - **Prompt History** (right panel) - See all your commands with timestamps
 
 The key innovation: **Claude Code launches directly in your selected project directory**, so you don't need to `cd` around. Just select a project, click "Start Claude Code", and you're ready to go.
@@ -18,6 +19,7 @@ When working with Claude Code, you often need to:
 2. Run Claude Code in the right directory
 3. Track what commands you've run
 4. Switch between projects quickly
+5. Work with multiple terminals simultaneously
 
 This app does all of that in one window, with a clean VS Code-inspired interface.
 
@@ -25,14 +27,14 @@ This app does all of that in one window, with a clean VS Code-inspired interface
 
 ```
 ┌──────────────┬─────────────────────────┬──────────────┐
-│   Project    │      Terminal           │   Prompt     │
-│   Explorer   │    (Claude Code)        │   History    │
-│              │                         │              │
-│ 📁 src/      │  $ claude               │ 2026-01-21   │
-│   📄 app.js  │  > Help me refactor...  │ > claude     │
-│ 📁 test/     │                         │              │
-│ 📄 README.md │  [Claude response]      │ 2026-01-21   │
-│              │                         │ > /init      │
+│   Project    │      Terminal Tabs      │   Prompt     │
+│   Explorer   │ [Term 1] [Term 2] [+]   │   History    │
+│              ├─────────────────────────┤              │
+│ 📁 src/      │                         │ 2026-01-21   │
+│   📄 app.js  │  $ claude               │ > claude     │
+│ 📁 test/     │  > Help me refactor...  │              │
+│ 📄 README.md │                         │ 2026-01-21   │
+│              │  [Claude response]      │ > /init      │
 │ [Start       │                         │              │
 │  Claude]     │                         │              │
 └──────────────┴─────────────────────────┴──────────────┘
@@ -40,25 +42,40 @@ This app does all of that in one window, with a clean VS Code-inspired interface
 
 ## Features
 
-### ✅ Core Features
+### Core Features
 - **IDE Layout**: 3-panel design (explorer, terminal, history)
 - **Real Terminal**: Full PTY support via node-pty - not a fake terminal
+- **Multi-Terminal**: Up to 9 terminals with tab or grid view
 - **File Tree**: Collapsible folders, 5 levels deep, filters node_modules
+- **File Editor**: Overlay editor for quick file viewing/editing
 - **Project-Aware**: Terminal starts in your selected project directory
 - **Prompt History**: All commands saved with timestamps, viewable in side panel
 - **Cross-Platform**: Windows, macOS, Linux support
 
-### ✅ Smart Defaults
-- **PowerShell Selection**: Tries PowerShell Core first, falls back to Windows PowerShell
+### Multi-Terminal Features
+- **Tab View**: Default view with terminal tabs
+- **Grid View**: 2x1, 2x2, 3x1, 3x2, 3x3 layouts
+- **Resizable Grid**: Drag borders to resize grid cells
+- **Terminal Naming**: Double-click tab to rename terminals
+- **Maximum 9 Terminals**: Manage multiple sessions efficiently
+
+### Smart Defaults
+- **Shell Selection**: PowerShell Core (Windows), bash/zsh (macOS/Linux)
 - **Keyboard Shortcuts**:
   - `Ctrl+K` - Start Claude Code
   - `Ctrl+Shift+H` - Toggle history panel
   - `Ctrl+I` - Run /init
   - `Ctrl+Shift+C` - Run /commit
+  - `Ctrl+Shift+T` - New terminal
+  - `Ctrl+Shift+W` - Close current terminal
+  - `Ctrl+Tab` - Next terminal
+  - `Ctrl+Shift+Tab` - Previous terminal
+  - `Ctrl+1-9` - Switch to terminal by number
+  - `Ctrl+Shift+G` - Toggle grid view
 - **Focus Management**: Enter key only works in terminal, never on buttons
 - **Auto-resize**: Terminal adjusts when panels open/close
 
-### ✅ Quality of Life
+### Quality of Life
 - File icons (folders, JS, JSON, MD)
 - Alphabetical sorting (folders first)
 - VS Code dark theme
@@ -72,12 +89,14 @@ This app does all of that in one window, with a clean VS Code-inspired interface
 | Desktop Framework | Electron 28 | Cross-platform, mature, well-documented |
 | Terminal Emulator | xterm.js 5.3 | Industry standard (used by VS Code) |
 | PTY | node-pty 1.0 | Real pseudo-terminal, not subprocess pipes |
+| Bundler | esbuild | Fast bundling for modular renderer code |
 | UI | HTML/CSS/JS | Native Electron renderer |
 
 **Why these choices?**
 - **Electron**: One codebase, works everywhere
 - **xterm.js**: Full VT100/ANSI support, handles colors, progress bars, everything Claude Code outputs
 - **node-pty**: Creates a real PTY so Claude Code thinks it's in a real terminal
+- **esbuild**: Sub-second builds for modular development
 
 ## Installation
 
@@ -125,6 +144,21 @@ npm install -g @anthropic-ai/claude-code
    - Press `Ctrl+Shift+H`
    - See all your commands with timestamps
 
+### Multi-Terminal Usage
+
+1. **Create new terminal**: Click [+] button or `Ctrl+Shift+T`
+2. **Switch terminals**: Click tabs or `Ctrl+Tab`
+3. **Grid view**: Click grid icon or `Ctrl+Shift+G`
+4. **Change grid layout**: Use dropdown menu (2x1, 2x2, 3x1, 3x2, 3x3)
+5. **Rename terminal**: Double-click on tab name
+6. **Close terminal**: Click X on tab or `Ctrl+Shift+W`
+
+### File Editor
+
+- Click on any file in the file tree to open the editor overlay
+- Edit and save changes directly
+- Press Escape or click outside to close
+
 ### Tips
 
 **Multiple Projects**
@@ -138,148 +172,139 @@ npm install -g @anthropic-ai/claude-code
 - Open in text editor: `Ctrl+H`
 - View in side panel: `Ctrl+Shift+H`
 
-**Keyboard Shortcuts**
-- See menu bar for all shortcuts
-- Most have `Ctrl` (Windows/Linux) or `Cmd` (macOS) variants
-
 ## Development
 
 ### Project Structure
 
 ```
 ClaudeCodeIDE/
-├── main.js              # Electron main process (backend)
-│                        # - PTY management
-│                        # - File system operations
-│                        # - IPC handlers
+├── src/
+│   ├── main/                # Electron main process
+│   │   ├── index.js         # Main entry, window & IPC management
+│   │   ├── pty.js           # PTY spawning (backward compat)
+│   │   └── ptyManager.js    # Multi-PTY management
+│   │
+│   ├── renderer/            # Electron renderer (bundled by esbuild)
+│   │   ├── index.js         # Entry point
+│   │   ├── terminal.js      # Terminal integration
+│   │   ├── terminalManager.js    # Multi-terminal state
+│   │   ├── terminalTabBar.js     # Tab bar UI
+│   │   ├── terminalGrid.js       # Grid layout UI
+│   │   ├── multiTerminalUI.js    # Terminal orchestrator
+│   │   └── editor.js        # File editor module
+│   │
+│   └── shared/              # Shared between main & renderer
+│       └── ipcChannels.js   # IPC channel constants
 │
-├── renderer.js          # Electron renderer (frontend)
-│                        # - xterm.js setup
-│                        # - UI interactions
-│                        # - File tree rendering
-│
-├── index.html           # UI layout and styles
-│
-├── package.json         # Dependencies and scripts
-│
-├── PROJECT_NOTES.md     # Detailed technical docs
-│                        # - Architecture diagrams
-│                        # - Implementation details
-│                        # - Lessons learned
-│
-└── README.md            # This file
+├── index.html               # UI layout and styles
+├── package.json             # Dependencies and scripts
+├── esbuild.config.js        # esbuild bundler config
+├── PROJECT_NOTES.md         # Detailed technical docs
+└── README.md                # This file
 ```
 
-### Key Files Explained
+### Key Modules Explained
 
-**main.js** - The Node.js backend
-- Spawns the PTY (PowerShell or bash)
-- Reads file system for the file tree
-- Handles folder picker dialogs
-- Manages prompt logging
-- Routes IPC messages between renderer and PTY
+**src/main/index.js** - The Node.js backend
+- Creates application window
+- Handles IPC messages
+- Manages file system operations
+- Integrates PTY manager
 
-**renderer.js** - The browser frontend
-- Sets up xterm.js terminal
-- Renders the collapsible file tree
-- Handles button clicks and keyboard shortcuts
-- Manages panel visibility (history panel)
-- Sends user input to main process
+**src/main/ptyManager.js** - Multi-PTY Management
+- Creates and manages multiple PTY instances
+- Routes input/output by terminal ID
+- Handles terminal lifecycle (create/destroy)
 
-**index.html** - The UI
-- Three-panel flexbox layout
-- Sidebar: project info + file tree
-- Center: terminal container
-- Right: prompt history panel (hidden by default)
-- VS Code-inspired color scheme
+**src/renderer/terminalManager.js** - Terminal State
+- Manages xterm.js instances
+- Tracks active terminal
+- Handles view mode (tabs/grid)
+
+**src/renderer/multiTerminalUI.js** - UI Orchestrator
+- Combines tab bar, grid, and terminal manager
+- Handles keyboard shortcuts
+- Manages view transitions
+
+**src/shared/ipcChannels.js** - IPC Constants
+- Centralized IPC channel definitions
+- Prevents typos in channel names
+- Used by both main and renderer
 
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│           Electron Main Process (Node.js)           │
-│                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌─────────────────┐  │
-│  │ node-pty │  │ File     │  │ Prompt Logger   │  │
-│  │ (PTY)    │  │ System   │  │ (history.txt)   │  │
-│  └──────────┘  └──────────┘  └─────────────────┘  │
-│         │             │                 │          │
-│         └─────────────┴─────────────────┘          │
-│                       │                            │
-│                    IPC Channel                     │
-│                       │                            │
-└───────────────────────┼────────────────────────────┘
-                        │
-┌───────────────────────┼────────────────────────────┐
-│           Electron Renderer (Browser)              │
-│                       │                            │
-│  ┌────────────┬───────┴──────┬──────────────┐     │
-│  │  Sidebar   │   xterm.js   │   History    │     │
-│  │  (File     │   Terminal   │   Panel      │     │
-│  │   Tree)    │              │              │     │
-│  └────────────┴──────────────┴──────────────┘     │
-└────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│           Electron Main Process (Node.js)                │
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │ PTY Manager  │  │ File System  │  │ Prompt Logger│  │
+│  │ (Multi-PTY)  │  │              │  │              │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│         │                 │                  │          │
+│         └─────────────────┴──────────────────┘          │
+│                           │                             │
+│                      IPC Channels                       │
+│                           │                             │
+└───────────────────────────┼─────────────────────────────┘
+                            │
+┌───────────────────────────┼─────────────────────────────┐
+│           Electron Renderer (Browser)                    │
+│                           │                             │
+│  ┌────────────────────────┴────────────────────────┐   │
+│  │              MultiTerminalUI                     │   │
+│  │  ┌───────────┐ ┌────────────┐ ┌──────────────┐  │   │
+│  │  │  TabBar   │ │   Grid     │ │TerminalMgr  │  │   │
+│  │  └───────────┘ └────────────┘ └──────────────┘  │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                         │
+│  ┌────────────┬───────────────┬──────────────┐         │
+│  │  Sidebar   │  Terminal(s)  │   History    │         │
+│  │ (File Tree)│   (xterm.js)  │   Panel      │         │
+│  └────────────┴───────────────┴──────────────┘         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-**IPC Messages:**
-- `start-terminal` - Start the PTY
-- `restart-terminal` - Restart PTY with new working directory
-- `terminal-input` - User typed something
-- `terminal-output` - PTY sent output
-- `select-project-folder` - Show folder picker
-- `project-selected` - User selected a folder
-- `load-file-tree` - Get folder contents
-- `file-tree-data` - Folder contents response
-- `load-prompt-history` - Get history file
-- `prompt-history-data` - History file response
+**IPC Messages (Multi-Terminal):**
+- `terminal-create` - Create new PTY instance
+- `terminal-created` - PTY created response
+- `terminal-destroy` - Destroy PTY instance
+- `terminal-input-id` - Input to specific terminal
+- `terminal-output-id` - Output from specific terminal
+- `terminal-resize-id` - Resize specific terminal
+
+### Building Renderer
+
+The renderer uses esbuild for bundling:
+
+```bash
+# Build renderer (runs automatically on npm start)
+npm run build:renderer
+
+# Watch mode for development
+npm run watch:renderer
+```
 
 ### Adding Features
 
+**Want to add a new terminal feature?**
+1. Add IPC channel in `src/shared/ipcChannels.js`
+2. Add handler in `src/main/ptyManager.js` or `src/main/index.js`
+3. Add UI in `src/renderer/terminalManager.js` or related UI module
+4. Run `npm run build:renderer` to bundle
+
 **Want to add a new panel?**
 1. Add HTML container in `index.html`
-2. Add CSS styles for the panel
-3. Update flexbox layout (`#main-content`)
-4. Add toggle function in `renderer.js`
-5. Add IPC handlers if backend data needed
-
-**Want to add a command shortcut?**
-1. Add menu item in `main.js` (menuTemplate)
-2. Add IPC message sender
-3. Add IPC receiver in `renderer.js`
-4. Implement the command logic
-
-**Want to change the terminal behavior?**
-- PTY spawning: `main.js` → `startPTY()` function
-- Terminal rendering: `renderer.js` → xterm.js setup
-- Terminal theme: `index.html` → terminal color definitions
+2. Add CSS styles
+3. Create module in `src/renderer/`
+4. Import in `src/renderer/index.js`
+5. Build with esbuild
 
 ## Building for Production
 
 ```bash
 # Install electron-builder
 npm install electron-builder --save-dev
-
-# Add to package.json:
-"scripts": {
-  "build": "electron-builder"
-},
-"build": {
-  "appId": "com.claudecode.ide",
-  "productName": "Claude Code IDE",
-  "files": ["main.js", "renderer.js", "index.html", "package.json"],
-  "directories": {
-    "output": "dist"
-  },
-  "win": {
-    "target": "nsis"
-  },
-  "mac": {
-    "target": "dmg"
-  },
-  "linux": {
-    "target": "AppImage"
-  }
-}
 
 # Build
 npm run build
@@ -312,14 +337,21 @@ winget install Microsoft.PowerShell
 - Check console for errors: View → Toggle DevTools
 - Try clicking "Select Project Folder" again
 
-### History panel blank
-- You haven't run any commands yet
-- Or history file doesn't exist yet
-- Run a few terminal commands, then press `Ctrl+Shift+H` again
+### Grid view stuck after switching to tabs
+Fixed in latest version. The grid CSS properties are now properly cleared when switching to tab view.
 
 ## Roadmap
 
 See [PROJECT_NOTES.md](./PROJECT_NOTES.md) for detailed roadmap.
+
+### Completed
+- [x] IDE layout (3 panel)
+- [x] File tree explorer
+- [x] Prompt history panel
+- [x] Multi-terminal (tabs)
+- [x] Multi-terminal (grid view)
+- [x] File editor overlay
+- [x] Modular architecture with esbuild
 
 ### Short-term
 - [ ] Click file in tree → run `cat` command
@@ -328,16 +360,14 @@ See [PROJECT_NOTES.md](./PROJECT_NOTES.md) for detailed roadmap.
 - [ ] Resizable sidebar
 
 ### Medium-term
-- [ ] Mini text editor
 - [ ] Git status integration
-- [ ] Multiple terminal tabs
 - [ ] Settings panel
+- [ ] Theme customization
 
 ### Long-term
 - [ ] Full Claude chat sidebar
 - [ ] Extensions/plugins
 - [ ] Remote development (SSH)
-- [ ] Built-in debugger
 
 ## Contributing
 
@@ -370,7 +400,7 @@ See [PROJECT_NOTES.md](./PROJECT_NOTES.md) for:
 
 ---
 
-**Status**: ✅ MVP Complete - Fully functional IDE layout with file explorer and prompt history
+**Status**: Multi-Terminal MVP Complete - Tabs, Grid View, File Editor
 
 **Started**: January 21, 2026
 **Author**: Built in collaboration with Claude Code

@@ -151,19 +151,27 @@ function startPTY(workingDir = null) {
       console.log('Using Windows PowerShell');
     }
   } else {
-    shell = 'bash';
+    // macOS/Linux: use user's default shell or fallback to zsh/bash
+    shell = process.env.SHELL || '/bin/zsh';
+    console.log('Using shell:', shell);
   }
 
   // Use provided working dir or fallback to home
   const cwd = workingDir || currentProjectPath || process.env.HOME || process.env.USERPROFILE;
 
-  // Spawn PTY
-  ptyProcess = pty.spawn(shell, [], {
-    name: 'xterm-color',
+  // Spawn PTY with interactive and login flags
+  const shellArgs = process.platform === 'win32' ? [] : ['-i', '-l'];
+
+  ptyProcess = pty.spawn(shell, shellArgs, {
+    name: 'xterm-256color',
     cols: 80,
     rows: 24,
     cwd: cwd,
-    env: process.env
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor'
+    }
   });
 
   // Send PTY output to renderer

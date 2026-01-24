@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Claude Code Terminal</title>
+  <title>Frame</title>
   <link rel="stylesheet" href="node_modules/xterm/css/xterm.css" />
   <style>
     * {
@@ -104,6 +104,21 @@
       background-color: #3e3e42;
       color: #666;
       cursor: not-allowed;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      color: #858585;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .btn-icon:hover {
+      color: #cccccc;
+      background-color: #3e3e42;
     }
 
     .file-item {
@@ -251,12 +266,515 @@
       font-size: 12px;
       word-break: break-word;
     }
+
+    /* Projects Section */
+    #projects-section {
+      margin-bottom: 15px;
+      border-bottom: 1px solid #3e3e42;
+      padding-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    #projects-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px;
+      margin-bottom: 8px;
+    }
+
+    #projects-header span {
+      color: #cccccc;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #projects-list {
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .project-item {
+      padding: 6px 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      border-radius: 3px;
+      margin-bottom: 2px;
+    }
+
+    .project-item:hover {
+      background-color: #2d2d30;
+    }
+
+    .project-item.active {
+      background-color: #094771;
+      color: white;
+    }
+
+    .project-item .project-icon {
+      margin-right: 8px;
+      font-size: 14px;
+    }
+
+    .project-item .project-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 13px;
+    }
+
+    .project-item .frame-badge {
+      font-size: 9px;
+      background-color: #0e639c;
+      color: white;
+      padding: 2px 5px;
+      border-radius: 3px;
+      margin-left: 8px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .no-projects-message {
+      color: #858585;
+      font-size: 12px;
+      padding: 10px;
+      text-align: center;
+      font-style: italic;
+    }
+
+    #btn-initialize-frame {
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    /* Editor Overlay */
+    #editor-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #editor-overlay.visible {
+      display: flex;
+    }
+
+    #editor-container {
+      width: 80%;
+      height: 80%;
+      max-width: 1200px;
+      background-color: #1e1e1e;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      border: 1px solid #3e3e42;
+    }
+
+    #editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background-color: #252526;
+      border-bottom: 1px solid #3e3e42;
+      border-radius: 8px 8px 0 0;
+    }
+
+    #editor-title {
+      color: #cccccc;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #editor-title .file-ext {
+      font-size: 11px;
+      background-color: #0e639c;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    #editor-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    #editor-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #editor-textarea {
+      flex: 1;
+      width: 100%;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      border: none;
+      padding: 16px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      tab-size: 2;
+    }
+
+    #editor-textarea:focus {
+      outline: none;
+    }
+
+    #editor-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background-color: #252526;
+      border-top: 1px solid #3e3e42;
+      border-radius: 0 0 8px 8px;
+    }
+
+    #editor-status {
+      color: #858585;
+      font-size: 12px;
+    }
+
+    #editor-status.modified {
+      color: #dcdcaa;
+    }
+
+    #editor-status.saved {
+      color: #4ec9b0;
+    }
+
+    .btn-editor {
+      padding: 6px 14px;
+      font-size: 12px;
+    }
+
+    .btn-editor-close {
+      background: none;
+      border: none;
+      color: #858585;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .btn-editor-close:hover {
+      color: #ffffff;
+      background-color: #c42b1c;
+    }
+
+    /* ==================== MULTI-TERMINAL STYLES ==================== */
+
+    .multi-terminal-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+    }
+
+    .terminal-tab-bar-container {
+      flex-shrink: 0;
+    }
+
+    .terminal-tab-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #252526;
+      border-bottom: 1px solid #3e3e42;
+      padding: 0 8px;
+      height: 35px;
+    }
+
+    .terminal-tabs {
+      display: flex;
+      flex: 1;
+      overflow-x: auto;
+      gap: 2px;
+      padding: 4px 0;
+    }
+
+    .terminal-tabs::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .terminal-tabs::-webkit-scrollbar-thumb {
+      background-color: #3e3e42;
+      border-radius: 2px;
+    }
+
+    .terminal-tab {
+      display: flex;
+      align-items: center;
+      padding: 4px 10px;
+      background-color: #2d2d30;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      user-select: none;
+      color: #858585;
+      font-size: 12px;
+      max-width: 150px;
+      min-width: 80px;
+      transition: background-color 0.15s;
+    }
+
+    .terminal-tab:hover {
+      background-color: #3e3e42;
+    }
+
+    .terminal-tab.active {
+      background-color: #1e1e1e;
+      color: #cccccc;
+      border-bottom: 2px solid #0e639c;
+    }
+
+    .terminal-tab .tab-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .terminal-tab .tab-close {
+      background: none;
+      border: none;
+      color: #858585;
+      cursor: pointer;
+      padding: 0 4px;
+      margin-left: 6px;
+      font-size: 14px;
+      line-height: 1;
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .terminal-tab:hover .tab-close,
+    .terminal-tab.active .tab-close {
+      opacity: 1;
+    }
+
+    .terminal-tab .tab-close:hover {
+      background-color: #c42b1c;
+      color: white;
+    }
+
+    .tab-rename-input {
+      background: #1e1e1e;
+      border: 1px solid #0e639c;
+      color: #cccccc;
+      font-size: 12px;
+      padding: 2px 4px;
+      width: 100px;
+      outline: none;
+      border-radius: 2px;
+    }
+
+    .terminal-tab-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 8px;
+    }
+
+    .terminal-tab-actions button {
+      background-color: transparent;
+      border: none;
+      color: #858585;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+
+    .terminal-tab-actions button:hover {
+      background-color: #3e3e42;
+      color: #cccccc;
+    }
+
+    .terminal-tab-actions button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .terminal-tab-actions select {
+      background-color: #3e3e42;
+      border: none;
+      color: #cccccc;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      outline: none;
+    }
+
+    .terminal-tab-actions select:hover {
+      background-color: #505053;
+    }
+
+    .terminal-content {
+      flex: 1;
+      overflow: hidden;
+      background-color: #1e1e1e;
+    }
+
+    .terminal-content.tab-view .tab-content-area {
+      height: 100%;
+      padding: 4px;
+    }
+
+    .terminal-instance {
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Grid View Styles */
+    .terminal-grid {
+      height: 100%;
+      background-color: #3e3e42;
+    }
+
+    .grid-cell {
+      display: flex;
+      flex-direction: column;
+      background-color: #1e1e1e;
+      border: 1px solid #3e3e42;
+      position: relative;
+      min-width: 200px;
+      min-height: 100px;
+      overflow: hidden;
+    }
+
+    .grid-cell.active {
+      border-color: #0e639c;
+    }
+
+    .grid-cell-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      background-color: #252526;
+      font-size: 11px;
+      color: #858585;
+      flex-shrink: 0;
+    }
+
+    .grid-cell.active .grid-cell-header {
+      background-color: #094771;
+      color: #cccccc;
+    }
+
+    .grid-cell-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .grid-cell-content {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .grid-cell-actions {
+      display: flex;
+      gap: 2px;
+    }
+
+    .grid-cell-actions button {
+      background: none;
+      border: none;
+      color: #858585;
+      cursor: pointer;
+      padding: 2px 4px;
+      font-size: 12px;
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .grid-cell:hover .grid-cell-actions button,
+    .grid-cell.active .grid-cell-actions button {
+      opacity: 1;
+    }
+
+    .grid-cell-actions button:hover {
+      color: #cccccc;
+      background-color: #3e3e42;
+    }
+
+    .grid-cell-actions .btn-grid-close:hover {
+      background-color: #c42b1c;
+      color: white;
+    }
+
+    .grid-resizer {
+      position: absolute;
+      background: transparent;
+      z-index: 10;
+    }
+
+    .grid-resizer-right {
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      cursor: col-resize;
+    }
+
+    .grid-resizer-bottom {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      cursor: row-resize;
+    }
+
+    .grid-resizer:hover,
+    .grid-resizer.active {
+      background-color: #0e639c;
+    }
+
+    /* ==================== END MULTI-TERMINAL STYLES ==================== */
   </style>
 </head>
 <body>
   <!-- Sidebar -->
   <div id="sidebar">
-    <div id="sidebar-header">Project Explorer</div>
+    <div id="sidebar-header">Frame</div>
+
+    <!-- Projects Section -->
+    <div id="projects-section">
+      <div id="projects-header">
+        <span>Projects</span>
+        <button id="btn-add-project" class="btn-icon" tabindex="-1" title="Add Project">+</button>
+      </div>
+      <div id="projects-list">
+        <div class="no-projects-message">No projects yet. Add a project to get started.</div>
+      </div>
+    </div>
 
     <div id="project-info">
       <div>Current Project:</div>
@@ -267,10 +785,14 @@
       <button id="btn-select-project" class="btn" tabindex="-1">Select Project Folder</button>
       <button id="btn-create-project" class="btn btn-secondary" tabindex="-1">Create New Project</button>
       <button id="btn-start-claude" class="btn btn-success" tabindex="-1" disabled>Start Claude Code</button>
+      <button id="btn-initialize-frame" class="btn btn-secondary" tabindex="-1" style="display: none;">Initialize as Frame Project</button>
     </div>
 
     <div id="file-explorer-header" style="display: none;">
-      <div style="color: #cccccc; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 15px 5px 10px 5px;">Files</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin: 15px 5px 10px 5px;">
+        <span style="color: #cccccc; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Files</span>
+        <button id="btn-refresh-tree" class="btn-icon" tabindex="-1" title="Refresh">&#x21bb;</button>
+      </div>
     </div>
 
     <div id="file-tree" style="flex: 1; overflow-y: auto; font-size: 13px; color: #cccccc;">
@@ -297,6 +819,29 @@
     </div>
   </div>
 
-  <script src="renderer.js"></script>
+  <!-- Editor Overlay -->
+  <div id="editor-overlay">
+    <div id="editor-container">
+      <div id="editor-header">
+        <div id="editor-title">
+          <span id="editor-filename">filename.js</span>
+          <span id="editor-ext" class="file-ext">JS</span>
+        </div>
+        <div id="editor-actions">
+          <button id="btn-editor-save" class="btn btn-editor btn-success">Save</button>
+          <button id="btn-editor-close" class="btn-editor-close">✕</button>
+        </div>
+      </div>
+      <div id="editor-content">
+        <textarea id="editor-textarea" spellcheck="false"></textarea>
+      </div>
+      <div id="editor-footer">
+        <span id="editor-status">Ready</span>
+        <span id="editor-path"></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="dist/renderer.js"></script>
 </body>
 </html>

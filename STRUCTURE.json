@@ -1,0 +1,291 @@
+{
+  "version": "1.0",
+  "description": "Claude Code IDE - Module structure and IPC communication map",
+  "lastUpdated": "2026-01-21",
+
+  "architecture": {
+    "type": "electron",
+    "mainProcess": "src/main/index.js",
+    "rendererProcess": "src/renderer/index.js",
+    "preload": null
+  },
+
+  "modules": {
+    "main/index": {
+      "file": "src/main/index.js",
+      "description": "Main process entry point - initializes app, creates window, loads modules",
+      "exports": ["createWindow"],
+      "depends": ["main/pty", "main/menu", "main/dialogs", "main/fileTree", "main/promptLogger"],
+      "ipc": {
+        "listens": [],
+        "emits": []
+      }
+    },
+    "main/pty": {
+      "file": "src/main/pty.js",
+      "description": "PTY management - shell spawning, input/output, resize",
+      "exports": ["startPTY", "writeToPTY", "resizePTY", "killPTY", "getCurrentPTY"],
+      "depends": ["shared/ipcChannels"],
+      "ipc": {
+        "listens": ["start-terminal", "restart-terminal", "terminal-input", "terminal-resize"],
+        "emits": ["terminal-output"]
+      }
+    },
+    "main/menu": {
+      "file": "src/main/menu.js",
+      "description": "Application menu definition and handlers",
+      "exports": ["createMenu", "getMenuTemplate"],
+      "depends": ["shared/ipcChannels"],
+      "ipc": {
+        "listens": [],
+        "emits": ["run-command", "toggle-history-panel"]
+      }
+    },
+    "main/dialogs": {
+      "file": "src/main/dialogs.js",
+      "description": "System dialogs - folder picker, file dialogs",
+      "exports": ["showFolderPicker", "showNewProjectDialog"],
+      "depends": ["shared/ipcChannels"],
+      "ipc": {
+        "listens": ["select-project-folder", "create-new-project"],
+        "emits": ["project-selected"]
+      }
+    },
+    "main/fileTree": {
+      "file": "src/main/fileTree.js",
+      "description": "File system operations - directory tree generation",
+      "exports": ["getFileTree"],
+      "depends": ["shared/ipcChannels"],
+      "ipc": {
+        "listens": ["load-file-tree"],
+        "emits": ["file-tree-data"]
+      }
+    },
+    "main/promptLogger": {
+      "file": "src/main/promptLogger.js",
+      "description": "Prompt history logging - saves terminal input to file",
+      "exports": ["logInput", "getHistory", "getLogFilePath"],
+      "depends": ["shared/ipcChannels"],
+      "ipc": {
+        "listens": ["load-prompt-history"],
+        "emits": ["prompt-history-data"]
+      }
+    },
+    "renderer/index": {
+      "file": "src/renderer/index.js",
+      "description": "Renderer entry point - initializes UI modules",
+      "exports": [],
+      "depends": ["renderer/terminal", "renderer/fileTreeUI", "renderer/historyPanel", "renderer/state"],
+      "ipc": {
+        "listens": [],
+        "emits": []
+      }
+    },
+    "renderer/terminal": {
+      "file": "src/renderer/terminal.js",
+      "description": "Terminal UI - xterm.js setup, input/output handling",
+      "exports": ["initTerminal", "writeToTerminal", "fitTerminal", "getTerminal"],
+      "depends": ["shared/ipcChannels"],
+      "ipc": {
+        "listens": ["terminal-output", "run-command"],
+        "emits": ["start-terminal", "terminal-input", "terminal-resize"]
+      }
+    },
+    "renderer/fileTreeUI": {
+      "file": "src/renderer/fileTreeUI.js",
+      "description": "File tree rendering - collapsible tree view in sidebar",
+      "exports": ["renderFileTree", "clearFileTree", "refreshFileTree"],
+      "depends": ["shared/ipcChannels", "renderer/state"],
+      "ipc": {
+        "listens": ["file-tree-data"],
+        "emits": ["load-file-tree"]
+      }
+    },
+    "renderer/historyPanel": {
+      "file": "src/renderer/historyPanel.js",
+      "description": "Prompt history panel - toggle, load, render history",
+      "exports": ["toggleHistoryPanel", "loadPromptHistory", "isHistoryVisible"],
+      "depends": ["shared/ipcChannels", "renderer/terminal"],
+      "ipc": {
+        "listens": ["prompt-history-data", "toggle-history-panel"],
+        "emits": ["load-prompt-history"]
+      }
+    },
+    "renderer/state": {
+      "file": "src/renderer/state.js",
+      "description": "Application state management - project path, UI state",
+      "exports": ["getProjectPath", "setProjectPath", "updateProjectUI"],
+      "depends": ["shared/ipcChannels"],
+      "ipc": {
+        "listens": ["project-selected"],
+        "emits": ["restart-terminal", "select-project-folder", "create-new-project"]
+      }
+    },
+    "shared/ipcChannels": {
+      "file": "src/shared/ipcChannels.js",
+      "description": "IPC channel name constants - prevents typos, single source of truth",
+      "exports": ["IPC"],
+      "depends": [],
+      "ipc": {
+        "listens": [],
+        "emits": []
+      }
+    }
+  },
+
+  "ipcChannels": {
+    "terminal": {
+      "START_TERMINAL": {
+        "name": "start-terminal",
+        "direction": "renderer → main",
+        "payload": "none",
+        "description": "Request to start PTY process"
+      },
+      "RESTART_TERMINAL": {
+        "name": "restart-terminal",
+        "direction": "renderer → main",
+        "payload": "string (projectPath)",
+        "description": "Restart PTY with new working directory"
+      },
+      "TERMINAL_INPUT": {
+        "name": "terminal-input",
+        "direction": "renderer → main",
+        "payload": "string (user input)",
+        "description": "Send user keystrokes to PTY"
+      },
+      "TERMINAL_OUTPUT": {
+        "name": "terminal-output",
+        "direction": "main → renderer",
+        "payload": "string (PTY output)",
+        "description": "PTY output to display in terminal"
+      },
+      "TERMINAL_RESIZE": {
+        "name": "terminal-resize",
+        "direction": "renderer → main",
+        "payload": "{ cols: number, rows: number }",
+        "description": "Terminal dimensions changed"
+      }
+    },
+    "project": {
+      "SELECT_PROJECT_FOLDER": {
+        "name": "select-project-folder",
+        "direction": "renderer → main",
+        "payload": "none",
+        "description": "Open folder picker dialog"
+      },
+      "CREATE_NEW_PROJECT": {
+        "name": "create-new-project",
+        "direction": "renderer → main",
+        "payload": "none",
+        "description": "Open new project dialog"
+      },
+      "PROJECT_SELECTED": {
+        "name": "project-selected",
+        "direction": "main → renderer",
+        "payload": "string (projectPath)",
+        "description": "User selected a project folder"
+      }
+    },
+    "fileTree": {
+      "LOAD_FILE_TREE": {
+        "name": "load-file-tree",
+        "direction": "renderer → main",
+        "payload": "string (projectPath)",
+        "description": "Request file tree for directory"
+      },
+      "FILE_TREE_DATA": {
+        "name": "file-tree-data",
+        "direction": "main → renderer",
+        "payload": "Array<FileNode>",
+        "description": "File tree data response"
+      }
+    },
+    "history": {
+      "LOAD_PROMPT_HISTORY": {
+        "name": "load-prompt-history",
+        "direction": "renderer → main",
+        "payload": "none",
+        "description": "Request prompt history file contents"
+      },
+      "PROMPT_HISTORY_DATA": {
+        "name": "prompt-history-data",
+        "direction": "main → renderer",
+        "payload": "string (history file contents)",
+        "description": "Prompt history data response"
+      },
+      "TOGGLE_HISTORY_PANEL": {
+        "name": "toggle-history-panel",
+        "direction": "main → renderer",
+        "payload": "none",
+        "description": "Toggle history panel visibility (from menu)"
+      }
+    },
+    "commands": {
+      "RUN_COMMAND": {
+        "name": "run-command",
+        "direction": "main → renderer",
+        "payload": "string (command)",
+        "description": "Execute command in terminal (from menu)"
+      }
+    }
+  },
+
+  "dataTypes": {
+    "FileNode": {
+      "description": "File tree node structure",
+      "schema": {
+        "name": "string",
+        "path": "string",
+        "isDirectory": "boolean",
+        "children": "FileNode[] | undefined"
+      }
+    }
+  },
+
+  "dataFlow": [
+    {
+      "id": "df1",
+      "name": "User types in terminal",
+      "flow": ["renderer/terminal", "→ terminal-input →", "main/pty", "→ terminal-output →", "renderer/terminal"]
+    },
+    {
+      "id": "df2",
+      "name": "User selects project",
+      "flow": ["renderer/state", "→ select-project-folder →", "main/dialogs", "→ project-selected →", "renderer/state", "→ load-file-tree →", "main/fileTree", "→ file-tree-data →", "renderer/fileTreeUI"]
+    },
+    {
+      "id": "df3",
+      "name": "User starts Claude Code",
+      "flow": ["renderer/state", "→ restart-terminal →", "main/pty", "(starts in project dir)", "→ terminal-input (claude\\r) →", "main/pty"]
+    },
+    {
+      "id": "df4",
+      "name": "Menu command execution",
+      "flow": ["main/menu", "→ run-command →", "renderer/terminal", "→ terminal-input →", "main/pty"]
+    }
+  ],
+
+  "files": {
+    "entry": {
+      "main": "src/main/index.js",
+      "renderer": "src/renderer/index.js",
+      "html": "index.html"
+    },
+    "config": {
+      "package": "package.json",
+      "structure": "STRUCTURE.json",
+      "todos": "todos.json"
+    },
+    "docs": {
+      "readme": "README.md",
+      "projectNotes": "PROJECT_NOTES.md"
+    }
+  },
+
+  "conventions": {
+    "ipcNaming": "kebab-case (e.g., terminal-input)",
+    "fileNaming": "camelCase for JS files",
+    "exportStyle": "named exports (not default)",
+    "stateManagement": "centralized in renderer/state.js"
+  }
+}

@@ -1,0 +1,72 @@
+/**
+ * File Editor Module
+ * Handles file reading and writing for the editor overlay
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { IPC } = require('../shared/ipcChannels');
+
+let mainWindow = null;
+
+/**
+ * Initialize file editor module
+ */
+function init(window) {
+  mainWindow = window;
+}
+
+/**
+ * Read file contents
+ */
+function readFile(filePath) {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    return { success: true, content, filePath };
+  } catch (err) {
+    return { success: false, error: err.message, filePath };
+  }
+}
+
+/**
+ * Write file contents
+ */
+function writeFile(filePath, content) {
+  try {
+    fs.writeFileSync(filePath, content, 'utf8');
+    return { success: true, filePath };
+  } catch (err) {
+    return { success: false, error: err.message, filePath };
+  }
+}
+
+/**
+ * Get file extension
+ */
+function getFileExtension(filePath) {
+  return path.extname(filePath).toLowerCase().slice(1);
+}
+
+/**
+ * Setup IPC handlers
+ */
+function setupIPC(ipcMain) {
+  ipcMain.on(IPC.READ_FILE, (event, filePath) => {
+    const result = readFile(filePath);
+    result.extension = getFileExtension(filePath);
+    result.fileName = path.basename(filePath);
+    event.sender.send(IPC.FILE_CONTENT, result);
+  });
+
+  ipcMain.on(IPC.WRITE_FILE, (event, { filePath, content }) => {
+    const result = writeFile(filePath, content);
+    event.sender.send(IPC.FILE_SAVED, result);
+  });
+}
+
+module.exports = {
+  init,
+  readFile,
+  writeFile,
+  setupIPC
+};

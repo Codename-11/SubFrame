@@ -1,0 +1,36 @@
+/**
+ * Frame Constants
+ * Configuration constants for Frame project management
+ */
+
+// Frame project folder name (inside each project)
+const FRAME_DIR = '.frame';
+
+// Frame config file name
+const FRAME_CONFIG_FILE = 'config.json';
+
+// Workspace directory name (in user home: ~/.frame/)
+const WORKSPACE_DIR = '.frame';
+
+// Workspace file name
+const WORKSPACE_FILE = 'workspaces.json';
+
+// Frame auto-generated files
+const FRAME_FILES = {
+  STRUCTURE: 'STRUCTURE.json',
+  NOTES: 'PROJECT_NOTES.md',
+  TODOS: 'todos.json',
+  QUICKSTART: 'QUICKSTART.md'
+};
+
+// Frame version
+const FRAME_VERSION = '1.0';
+
+module.exports = {
+  FRAME_DIR,
+  FRAME_CONFIG_FILE,
+  WORKSPACE_DIR,
+  WORKSPACE_FILE,
+  FRAME_FILES,
+  FRAME_VERSION
+};
