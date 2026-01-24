@@ -17,9 +17,10 @@ const WORKSPACE_FILE = 'workspaces.json';
 
 // Frame auto-generated files
 const FRAME_FILES = {
+  CLAUDE: 'CLAUDE.md',
   STRUCTURE: 'STRUCTURE.json',
   NOTES: 'PROJECT_NOTES.md',
-  TODOS: 'todos.json',
+  TASKS: 'tasks.json',
   QUICKSTART: 'QUICKSTART.md'
 };
 

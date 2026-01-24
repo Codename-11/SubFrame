@@ -7,7 +7,10 @@
     "build": "esbuild src/renderer/index.js --bundle --outfile=dist/renderer.js --platform=node --external:electron",
     "watch": "esbuild src/renderer/index.js --bundle --outfile=dist/renderer.js --platform=node --external:electron --watch",
     "start": "npm run build && electron .",
-    "dev": "npm run watch & electron ."
+    "dev": "npm run watch & electron .",
+    "structure": "node scripts/update-structure.js",
+    "structure:changed": "node scripts/update-structure.js --changed",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "keywords": [
     "electron",

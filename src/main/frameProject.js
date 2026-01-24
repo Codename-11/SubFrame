@@ -75,6 +75,13 @@ function initializeFrameProject(projectPath, projectName) {
   );
 
   // Create root-level Frame files (only if they don't exist)
+
+  // CLAUDE.md - Main instructions file for Claude Code
+  createFileIfNotExists(
+    path.join(projectPath, FRAME_FILES.CLAUDE),
+    templates.getClaudeTemplate(name)
+  );
+
   createFileIfNotExists(
     path.join(projectPath, FRAME_FILES.STRUCTURE),
     templates.getStructureTemplate(name)
@@ -86,8 +93,8 @@ function initializeFrameProject(projectPath, projectName) {
   );
 
   createFileIfNotExists(
-    path.join(projectPath, FRAME_FILES.TODOS),
-    templates.getTodosTemplate(name)
+    path.join(projectPath, FRAME_FILES.TASKS),
+    templates.getTasksTemplate(name)
   );
 
   createFileIfNotExists(

@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# Pre-commit hook: Update STRUCTURE.json if JS files changed
+#
+
+# Check if any JS files in src/ are staged
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep '^src/.*\.js$' || true)
+
+if [ -n "$STAGED_JS" ]; then
+    echo "JS files changed, updating STRUCTURE.json..."
+
+    # Run the structure update script
+    npm run structure:changed --silent
+
+    # Stage the updated STRUCTURE.json
+    git add STRUCTURE.json
+
+    echo "STRUCTURE.json updated and staged."
+fi
+
+exit 0

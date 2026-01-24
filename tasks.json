@@ -1,0 +1,307 @@
+{
+  "_frame_metadata": {
+    "purpose": "Task tracking for the project",
+    "forClaude": "Check this file to understand what tasks are pending, in progress, or completed. Update task status as you work. Add new tasks when discovered during development. Follow the task recognition rules in CLAUDE.md.",
+    "lastUpdated": "2026-01-24",
+    "generatedBy": "Frame"
+  },
+  "project": "Frame",
+  "version": "1.0",
+  "lastUpdated": "2026-01-24T23:22:41.232Z",
+  "tasks": {
+    "pending": [
+      {
+        "id": "task-s5",
+        "title": "Session-based prompt logging",
+        "description": "Log prompts only when Claude is active",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "todos.json - shortTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-m2",
+        "title": "Git status integration",
+        "description": "Show git status, diff in the UI",
+        "status": "pending",
+        "priority": "high",
+        "category": "feature",
+        "context": "todos.json - mediumTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-m5",
+        "title": "Settings panel",
+        "description": "UI for configuring preferences",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "todos.json - mediumTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-m6",
+        "title": "Claude Code chat sidebar",
+        "description": "Dedicated UI for Claude Code interactions",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "todos.json - mediumTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-pn",
+        "title": "PROJECT_NOTES.md kurallarini belirle",
+        "description": "PROJECT_NOTES.md icin guncelleme kurallari ve CLAUDE.md'ye eklenecek detayli talimatlari belirle",
+        "status": "pending",
+        "priority": "medium",
+        "category": "docs",
+        "context": "Session 2026-01-24 - Frame dokuman sistemi",
+        "createdAt": "2026-01-24T16:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
+        "completedAt": null
+      },
+            {
+        "id": "task-rm",
+        "title": "README.md kurallarini belirle",
+        "description": "README.md icin guncelleme kurallari ve CLAUDE.md'ye eklenecek detayli talimatlari belirle",
+        "status": "pending",
+        "priority": "low",
+        "category": "docs",
+        "context": "Session 2026-01-24 - Frame dokuman sistemi",
+        "createdAt": "2026-01-24T16:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-sysprompt",
+        "title": "System prompt standardization",
+        "description": "Standardize all system-generated prompts (task delegation, automated commands) to English. Create a centralized prompt template system.",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-01-25 - Task delegation feature",
+        "createdAt": "2026-01-25T00:00:00Z",
+        "updatedAt": "2026-01-25T00:00:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-struct-desc",
+        "title": "Improve description parsing in structure script",
+        "description": "update-structure.js currently parses file descriptions as single letters. Fix extractDescription() to properly extract JSDoc comments and multi-line descriptions.",
+        "status": "pending",
+        "priority": "low",
+        "category": "fix",
+        "context": "Session 2026-01-25 - Structure auto-update script",
+        "createdAt": "2026-01-25T00:00:00Z",
+        "updatedAt": "2026-01-25T00:00:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-struct-graph",
+        "title": "STRUCTURE.json function call graph",
+        "description": "Add function call relationships to STRUCTURE.json (e.g., functionA calls functionB). This creates a dependency tree that helps Claude navigate code more efficiently.",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-01-25 - Token efficiency discussion",
+        "createdAt": "2026-01-25T00:00:00Z",
+        "updatedAt": "2026-01-25T00:00:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-claude-detect",
+        "title": "Detect if Claude Code is actually running",
+        "description": "Currently we track claudeCodeRunning with a simple boolean. Improve detection to actually check if Claude Code is running in terminal (parse terminal output for Claude prompt patterns).",
+        "status": "pending",
+        "priority": "low",
+        "category": "feature",
+        "context": "Session 2026-01-25 - Task delegation feature",
+        "createdAt": "2026-01-25T00:00:00Z",
+        "updatedAt": "2026-01-25T00:00:00Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-s1",
+        "title": "Click file in tree -> run cat command",
+        "description": "When user clicks a file in the tree, display its contents in terminal",
+        "status": "pending",
+        "priority": "high",
+        "category": "feature",
+        "context": "todos.json - shortTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-24T23:15:10.001Z",
+        "completedAt": null
+      }
+    ],
+    "inProgress": [
+      {
+        "id": "task-s3",
+        "title": "Search in files",
+        "description": "Basic file search functionality within project",
+        "status": "in_progress",
+        "priority": "medium",
+        "category": "feature",
+        "context": "todos.json - shortTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-24T23:22:23.000Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-s4",
+        "title": "Resizable sidebar",
+        "description": "Allow users to drag and resize the sidebar width",
+        "status": "in_progress",
+        "priority": "medium",
+        "category": "feature",
+        "context": "todos.json - shortTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-24T23:22:41.232Z",
+        "completedAt": null
+      }
+    ],
+    "completed": [
+      {
+        "id": "task-st",
+        "title": "STRUCTURE.json kurallarini belirle",
+        "description": "STRUCTURE.json icin guncelleme kurallari, detayli format (fonksiyon seviyesinde), auto-update script ve pre-commit hook eklendi.",
+        "status": "completed",
+        "priority": "medium",
+        "category": "docs",
+        "context": "Session 2026-01-25 - Token efficiency protocol",
+        "createdAt": "2026-01-24T16:00:00Z",
+        "updatedAt": "2026-01-25T00:00:00Z",
+        "completedAt": "2026-01-25T00:00:00Z"
+      },
+      {
+        "id": "task-c1",
+        "title": "IDE layout (sidebar + terminal)",
+        "description": "3-panel IDE layout with project explorer, terminal, and history",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Initial development",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z"
+      },
+      {
+        "id": "task-c2",
+        "title": "File tree explorer",
+        "description": "Hierarchical, collapsible file tree",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Initial development",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z"
+      },
+      {
+        "id": "task-c3",
+        "title": "Prompt history panel",
+        "description": "Side panel showing command history with timestamps",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Initial development",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z"
+      },
+      {
+        "id": "task-c4",
+        "title": "Multi-terminal tabs",
+        "description": "Support multiple terminal instances in tabs",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "todos.json - mediumTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z"
+      },
+      {
+        "id": "task-c5",
+        "title": "Terminal grid view",
+        "description": "Side-by-side terminal panels with grid layout (2x1, 2x2, 3x1, 3x2, 3x3)",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "todos.json - mediumTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z"
+      },
+      {
+        "id": "task-c6",
+        "title": "File editor overlay",
+        "description": "Basic file editing capability within the app",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "todos.json - mediumTerm",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z"
+      },
+      {
+        "id": "task-design",
+        "title": "Modern UI tasarimi",
+        "description": "Claude Desktop benzeri minimalist ve modern tasarim. DM Sans + JetBrains Mono fontlari, warm-neutral renk paleti.",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-01-24 - Kullanici talebi",
+        "createdAt": "2026-01-24T15:00:00Z",
+        "updatedAt": "2026-01-24T15:30:00Z",
+        "completedAt": "2026-01-24T15:30:00Z"
+      },
+      {
+        "id": "task-claude-md",
+        "title": "CLAUDE.md sablonu ve task sistemi",
+        "description": "Frame projeleri icin CLAUDE.md sablonu, task tanima kurallari, dokuman guncelleme stratejileri",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-01-24 - Frame dokuman sistemi",
+        "createdAt": "2026-01-24T15:30:00Z",
+        "updatedAt": "2026-01-24T16:00:00Z",
+        "completedAt": "2026-01-24T16:00:00Z"
+      },
+      {
+        "id": "task-tasks-panel",
+        "title": "Tasks UI paneli",
+        "description": "Sag tarafta toggle edilebilen tasks paneli. Filtreleme, ekleme, duzenleme, silme, durum degistirme ozellikleri.",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-01-24 - Frame dokuman sistemi",
+        "createdAt": "2026-01-24T16:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
+        "completedAt": "2026-01-24T16:30:00Z"
+      }
+    ]
+  },
+  "metadata": {
+    "totalCreated": 19,
+    "totalCompleted": 9
+  },
+  "categories": {
+    "feature": "New features",
+    "fix": "Bug fixes",
+    "refactor": "Code improvements",
+    "docs": "Documentation",
+    "test": "Testing",
+    "research": "Research and exploration"
+  }
+}

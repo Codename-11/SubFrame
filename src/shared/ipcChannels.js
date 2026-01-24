@@ -57,7 +57,16 @@ const IPC = {
   TERMINAL_INPUT_ID: 'terminal-input-id',
   TERMINAL_OUTPUT_ID: 'terminal-output-id',
   TERMINAL_RESIZE_ID: 'terminal-resize-id',
-  TERMINAL_FOCUS: 'terminal-focus'
+  TERMINAL_FOCUS: 'terminal-focus',
+
+  // Tasks Panel
+  LOAD_TASKS: 'load-tasks',
+  TASKS_DATA: 'tasks-data',
+  ADD_TASK: 'add-task',
+  UPDATE_TASK: 'update-task',
+  DELETE_TASK: 'delete-task',
+  TASK_UPDATED: 'task-updated',
+  TOGGLE_TASKS_PANEL: 'toggle-tasks-panel'
 };
 
 module.exports = { IPC };

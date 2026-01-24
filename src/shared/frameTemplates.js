@@ -12,6 +12,146 @@ function getDateString() {
 }
 
 /**
+ * Get current ISO timestamp
+ */
+function getISOTimestamp() {
+  return new Date().toISOString();
+}
+
+/**
+ * CLAUDE.md template - Main instructions file for Claude Code
+ */
+function getClaudeTemplate(projectName) {
+  const date = getDateString();
+  return `# ${projectName} - Frame Project
+
+Bu proje **Frame** ile yönetilmektedir. Aşağıdaki kurallara uyarak dökümanları güncel tut.
+
+---
+
+## Task Yönetimi (tasks.json)
+
+### Task Tanıma Kuralları
+
+**Bunlar TASK'tır - tasks.json'a ekle:**
+- Kullanıcı bir özellik veya değişiklik istediğinde
+- "Şunu yapalım", "Şunu ekleyelim", "Bunu geliştir" gibi kararlar
+- "Bunu sonra yaparız", "Şimdilik bırakalım" dediğimiz ertelenmiş işler
+- Kod yazarken keşfedilen eksiklikler veya iyileştirme fırsatları
+- Bug fix gerektiren durumlar
+
+**Bunlar TASK DEĞİLDİR:**
+- Hata mesajları ve debugging oturumları
+- Sorular, açıklamalar, bilgi alışverişi
+- Geçici denemeler ve testler
+- Zaten tamamlanmış ve kapatılmış işler
+- Anlık düzeltmeler (typo fix gibi)
+
+### Task Oluşturma Akışı
+
+1. Konuşma sırasında task pattern'i algıla
+2. Uygun bir anda kullanıcıya sor: "Bu konuşmadan şu taskları çıkardım, tasks.json'a ekleyeyim mi?"
+3. Kullanıcı onaylarsa tasks.json'a ekle
+
+### Task Yapısı
+
+\`\`\`json
+{
+  "id": "unique-id",
+  "title": "Kısa ve net başlık",
+  "description": "Detaylı açıklama",
+  "status": "pending | in_progress | completed",
+  "priority": "high | medium | low",
+  "context": "Bu task nereden/nasıl çıktı",
+  "createdAt": "ISO date",
+  "updatedAt": "ISO date",
+  "completedAt": "ISO date | null"
+}
+\`\`\`
+
+### Task Durum Güncellemeleri
+
+- Bir task üzerinde çalışmaya başladığında: \`status: "in_progress"\`
+- Task tamamlandığında: \`status: "completed"\`, \`completedAt\` güncelle
+- Commit sonrası: İlgili taskların durumunu kontrol et ve güncelle
+
+---
+
+## PROJECT_NOTES.md Kuralları
+
+### Ne Zaman Güncelle?
+- Önemli bir mimari karar alındığında
+- Teknoloji seçimi yapıldığında
+- Önemli bir problem çözüldüğünde ve çözüm yöntemi kayda değer olduğunda
+- Kullanıcıyla birlikte bir yaklaşım belirlendiğinde
+
+### Format
+\`\`\`markdown
+## [Tarih] Karar/Not Başlığı
+
+**Bağlam:** Neden bu karara ihtiyaç duyuldu?
+**Karar:** Ne karar verildi?
+**Alternatifler:** Değerlendirilen diğer seçenekler (varsa)
+**Sonuç:** Bu kararın etkileri
+\`\`\`
+
+### Güncelleme Akışı
+- Karar alındıktan hemen sonra güncelle
+- Kullanıcıya sormadan ekleyebilirsin (önemli kararlar için)
+- Küçük kararları biriktirip toplu ekleyebilirsin
+
+---
+
+## STRUCTURE.json Kuralları
+
+### Ne Zaman Güncelle?
+- Yeni dosya/klasör oluşturulduğunda
+- Dosya/klasör silindiğinde veya taşındığında
+- Modül yapısı değiştiğinde
+- Commit sonrası (yapısal değişiklik varsa)
+
+### Format
+\`\`\`json
+{
+  "lastUpdated": "ISO date",
+  "overview": "Proje yapısının kısa açıklaması",
+  "modules": {
+    "moduleName": {
+      "path": "src/module",
+      "purpose": "Bu modül ne yapar",
+      "files": ["file1.js", "file2.js"],
+      "dependencies": ["otherModule"]
+    }
+  }
+}
+\`\`\`
+
+---
+
+## QUICKSTART.md Kuralları
+
+### Ne Zaman Güncelle?
+- Kurulum adımları değiştiğinde
+- Yeni gereksinimler eklendiğinde
+- Önemli komutlar değiştiğinde
+
+---
+
+## Genel Kurallar
+
+1. **Dil:** Dökümanları Türkçe yaz (kod örnekleri hariç)
+2. **Tarih Formatı:** ISO 8601 (YYYY-MM-DDTHH:mm:ssZ)
+3. **Commit Sonrası:** tasks.json ve STRUCTURE.json'ı kontrol et
+4. **Session Başlangıcı:** tasks.json'daki pending taskları gözden geçir
+
+---
+
+*Bu dosya Frame tarafından otomatik oluşturulmuştur.*
+*Oluşturulma tarihi: ${date}*
+`;
+}
+
+/**
  * STRUCTURE.json template
  */
 function getStructureTemplate(projectName) {
@@ -86,29 +226,35 @@ function getNotesTemplate(projectName) {
 }
 
 /**
- * todos.json template
+ * tasks.json template
  */
-function getTodosTemplate(projectName) {
+function getTasksTemplate(projectName) {
   return {
     _frame_metadata: {
       purpose: "Task tracking for the project",
-      forClaude: "Check this file to understand what tasks are pending, in progress, or completed. Update task status as you work. Add new tasks when discovered during development.",
+      forClaude: "Check this file to understand what tasks are pending, in progress, or completed. Update task status as you work. Add new tasks when discovered during development. Follow the task recognition rules in CLAUDE.md.",
       lastUpdated: getDateString(),
       generatedBy: "Frame"
     },
     project: projectName,
-    lastUpdated: new Date().toISOString(),
-    todos: {
+    version: "1.0",
+    lastUpdated: getISOTimestamp(),
+    tasks: {
       pending: [],
       inProgress: [],
       completed: []
+    },
+    metadata: {
+      totalCreated: 0,
+      totalCompleted: 0
     },
     categories: {
       feature: "New features",
       fix: "Bug fixes",
       refactor: "Code improvements",
       docs: "Documentation",
-      test: "Testing"
+      test: "Testing",
+      research: "Research and exploration"
     }
   };
 }
@@ -187,25 +333,28 @@ function getFrameConfigTemplate(projectName) {
     version: "1.0",
     name: projectName,
     description: "",
-    createdAt: new Date().toISOString(),
+    createdAt: getISOTimestamp(),
     initializedBy: "Frame",
     settings: {
       autoUpdateStructure: true,
-      autoUpdateNotes: false
+      autoUpdateNotes: false,
+      taskRecognition: true
     },
     files: {
+      claude: "CLAUDE.md",
       structure: "STRUCTURE.json",
       notes: "PROJECT_NOTES.md",
-      todos: "todos.json",
+      tasks: "tasks.json",
       quickstart: "QUICKSTART.md"
     }
   };
 }
 
 module.exports = {
+  getClaudeTemplate,
   getStructureTemplate,
   getNotesTemplate,
-  getTodosTemplate,
+  getTasksTemplate,
   getQuickstartTemplate,
   getFrameConfigTemplate
 };

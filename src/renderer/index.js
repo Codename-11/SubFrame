@@ -6,9 +6,11 @@
 const terminal = require('./terminal');
 const fileTreeUI = require('./fileTreeUI');
 const historyPanel = require('./historyPanel');
+const tasksPanel = require('./tasksPanel');
 const state = require('./state');
 const projectListUI = require('./projectListUI');
 const editor = require('./editor');
+const sidebarResize = require('./sidebarResize');
 
 /**
  * Initialize all modules
@@ -52,6 +54,14 @@ function init() {
     setTimeout(() => terminal.fitTerminal(), 50);
   });
 
+  // Initialize tasks panel
+  tasksPanel.init();
+
+  // Initialize sidebar resize
+  sidebarResize.init(() => {
+    terminal.fitTerminal();
+  });
+
   // Setup state change listeners
   state.onProjectChange((projectPath) => {
     if (projectPath) {
@@ -62,6 +72,11 @@ function init() {
       const projectName = projectPath.split('/').pop() || projectPath.split('\\').pop();
       projectListUI.addProject(projectPath, projectName, state.getIsFrameProject());
       projectListUI.setActiveProject(projectPath);
+
+      // Load tasks if tasks panel is visible
+      if (tasksPanel.isVisible()) {
+        tasksPanel.loadTasks();
+      }
     } else {
       fileTreeUI.clearFileTree();
     }
@@ -76,9 +91,11 @@ function init() {
   // Setup Frame initialized listener
   state.onFrameInitialized((projectPath) => {
     terminal.writelnToTerminal(`\x1b[1;32m✓ Frame project initialized!\x1b[0m`);
-    terminal.writelnToTerminal(`  Created: .frame/, STRUCTURE.json, PROJECT_NOTES.md, todos.json, QUICKSTART.md`);
+    terminal.writelnToTerminal(`  Created: .frame/, CLAUDE.md, STRUCTURE.json, PROJECT_NOTES.md, tasks.json, QUICKSTART.md`);
     // Refresh file tree to show new files
     fileTreeUI.refreshFileTree();
+    // Load tasks for the new project
+    tasksPanel.loadTasks();
   });
 
   // Setup button handlers
@@ -148,6 +165,11 @@ function setupKeyboardShortcuts() {
     if (e.ctrlKey && e.shiftKey && e.key === 'H') {
       e.preventDefault();
       historyPanel.toggleHistoryPanel();
+    }
+    // Ctrl+Shift+T - Toggle tasks panel
+    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+      e.preventDefault();
+      tasksPanel.toggle();
     }
   });
 }

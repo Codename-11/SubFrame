@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "name": "ClaudeCodeIDE",
+  "description": "",
+  "createdAt": "2026-01-24T16:13:04.170Z",
+  "initializedBy": "Frame",
+  "settings": {
+    "autoUpdateStructure": true,
+    "autoUpdateNotes": false,
+    "taskRecognition": true
+  },
+  "files": {
+    "claude": "CLAUDE.md",
+    "structure": "STRUCTURE.json",
+    "notes": "PROJECT_NOTES.md",
+    "tasks": "tasks.json",
+    "quickstart": "QUICKSTART.md"
+  }
+}

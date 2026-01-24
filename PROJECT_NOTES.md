@@ -352,5 +352,76 @@ mainWindow.webContents.openDevTools();
 ---
 
 **Project Start:** 2026-01-21
-**Last Updated:** 2026-01-24
-**Status:** Multi-Terminal MVP Complete
+**Last Updated:** 2026-01-25
+**Status:** Frame System + Task Management Complete
+
+---
+
+## Session Notes
+
+### [2026-01-25] Token Efficiency Protocol
+
+**Bağlam:** Claude Code projeye girdiğinde tüm codebase'i tarıyor ve ~70k token tüketiyor. Bu hem maliyetli hem de yavaş.
+
+**Karar:** STRUCTURE.json'ı detaylı bir "codebase haritası" olarak kullanmak.
+
+**Uygulama:**
+1. CLAUDE.md'ye "Token Efficiency Protocol" eklendi - Claude'a önce STRUCTURE.json okuması talimatı
+2. STRUCTURE.json formatı genişletildi:
+   - Fonksiyon seviyesinde detay (line, params, purpose)
+   - IPC channel mapping
+   - Data flow diagramları
+3. `scripts/update-structure.js` oluşturuldu - otomatik parser
+4. Pre-commit hook eklendi - her commit öncesi STRUCTURE.json güncellenir
+
+**Sonuç:** Claude artık tüm projeyi taramak yerine STRUCTURE.json'dan ilgili dosyayı bulup sadece onu okuyacak. Beklenen token tasarrufu: %80-90.
+
+---
+
+### [2026-01-25] Task Delegation to Claude Code
+
+**Bağlam:** Tasks panelinde play butonuna basınca Claude Code'a task'ı otomatik göndermek istedik.
+
+**Karar:**
+- Play (▶) butonu task'ı Claude Code'a prompt olarak gönderir
+- Claude Code çalışmıyorsa önce `claude` komutu gönderilir, 2 saniye beklenir, sonra task gönderilir
+
+**Uygulama:**
+- `tasksPanel.js` → `sendTaskToClaude()` fonksiyonu
+- `terminal.sendCommand()` ile terminale gönderim
+- `claudeCodeRunning` state tracking
+
+**Gelecek iyileştirme:** Terminal output'unu parse ederek Claude Code'un gerçekten çalışıp çalışmadığını tespit etmek (task-claude-detect).
+
+---
+
+### [2026-01-25] Pre-commit Hook for STRUCTURE.json
+
+**Bağlam:** STRUCTURE.json'ın manuel güncellenmesi zor ve unutuluyor.
+
+**Karar:** Git pre-commit hook ile otomatik güncelleme.
+
+**Uygulama:**
+```bash
+# .githooks/pre-commit
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep '\.js$')
+if [ -n "$STAGED_JS" ]; then
+    npm run structure:changed
+    git add STRUCTURE.json
+fi
+```
+
+**Avantaj:** Sadece değişen dosyalar parse edilir (git diff based), tüm proje taranmaz.
+
+---
+
+### [2026-01-25] Task Action UX Improvement
+
+**Bağlam:** Checkbox ile task status değiştirmek kafa karıştırıcıydı - kullanıcı ne olacağını anlayamıyordu.
+
+**Karar:** Checkbox yerine explicit action butonları:
+- Pending: ▶ Start, ✓ Complete
+- In Progress: ✓ Complete, ⏸ Pause
+- Completed: ↺ Reopen
+
+**Ek:** Toast notification sistemi eklendi - "Task started", "Task completed" gibi geri bildirimler.

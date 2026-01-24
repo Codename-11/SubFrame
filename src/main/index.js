@@ -17,6 +17,7 @@ const promptLogger = require('./promptLogger');
 const workspace = require('./workspace');
 const frameProject = require('./frameProject');
 const fileEditor = require('./fileEditor');
+const tasksManager = require('./tasksManager');
 
 let mainWindow = null;
 
@@ -74,6 +75,7 @@ function setupAllIPC() {
   workspace.setupIPC(ipcMain);
   frameProject.setupIPC(ipcMain);
   fileEditor.setupIPC(ipcMain);
+  tasksManager.setupIPC(ipcMain);
 
   // Terminal input handler (needs prompt logger integration)
   ipcMain.on(IPC.TERMINAL_INPUT, (event, data) => {
@@ -100,6 +102,7 @@ function initModulesWithWindow(window) {
   workspace.init(app, window);
   frameProject.init(window);
   fileEditor.init(window);
+  tasksManager.init(window);
 }
 
 // App lifecycle
