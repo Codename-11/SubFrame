@@ -96,7 +96,13 @@ Bu proje **Frame** ile yönetilmektedir. Aşağıdaki kurallara uyarak döküman
 
 ## PROJECT_NOTES.md Kuralları
 
-Proje vizyonu, kararlar ve session notları. Serbest format - formal şablon yok.
+Proje vizyonu, kararlar ve session notları. Serbest format.
+
+### Ne Zaman Güncelle?
+- Önemli bir mimari karar alındığında
+- Teknoloji seçimi yapıldığında
+- Önemli bir problem çözüldüğünde ve çözüm yöntemi kayda değer olduğunda
+- Kullanıcıyla birlikte bir yaklaşım belirlendiğinde
 
 ### İçerik
 - **Project Vision** - Proje ne için var, kim için
