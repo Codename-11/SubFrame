@@ -79,24 +79,23 @@ Bu proje **Frame** ile yönetilmektedir. Aşağıdaki kurallara uyarak döküman
 
 ## PROJECT_NOTES.md Kuralları
 
-Proje vizyonu, kararlar ve session notları. Serbest format.
-
 ### Ne Zaman Güncelle?
 - Önemli bir mimari karar alındığında
 - Teknoloji seçimi yapıldığında
 - Önemli bir problem çözüldüğünde ve çözüm yöntemi kayda değer olduğunda
 - Kullanıcıyla birlikte bir yaklaşım belirlendiğinde
 
-### İçerik
-- **Project Vision** - Proje ne için var, kim için
-- **Session Notes** - Konuşmalar olduğu gibi, tarihle birlikte
-
 ### Format
-Serbest. Tarih + başlık yeterli:
+Serbest format. Tarih + başlık yeterli:
 \`\`\`markdown
 ### [2026-01-26] Konu başlığı
-Konuşma/karar olduğu gibi...
+Konuşma/karar olduğu gibi, context'iyle birlikte...
 \`\`\`
+
+### Güncelleme Akışı
+- Karar alındıktan hemen sonra güncelle
+- Kullanıcıya sormadan ekleyebilirsin (önemli kararlar için)
+- Küçük kararları biriktirip toplu ekleyebilirsin
 
 ---
 
@@ -141,11 +140,13 @@ Sorun yok, devam et. Kullanıcı önemli gördüğü şeyleri kendisi de söyley
 
 ## STRUCTURE.json Kuralları
 
-Codebase haritası. Hangi modül nerede, ne iş yapıyor.
+**Bu dosya codebase'in haritasıdır.**
 
 ### Ne Zaman Güncelle?
-- Yeni dosya/modül eklendiğinde veya silindiğinde
-- Önemli architectural pattern eklendiğinde (architectureNotes)
+- Yeni dosya/klasör oluşturulduğunda
+- Dosya/klasör silindiğinde veya taşındığında
+- Modül bağımlılıkları değiştiğinde
+- Önemli bir architectural pattern keşfedildiğinde (architectureNotes)
 
 ### Format
 \`\`\`json
