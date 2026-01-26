@@ -23,7 +23,7 @@ function init(window, app) {
  * Get menu template
  */
 function getMenuTemplate() {
-  return [
+  const template = [
     {
       label: 'Claude Commands',
       submenu: [
@@ -86,6 +86,26 @@ function getMenuTemplate() {
       ]
     }
   ];
+
+  // macOS'ta ilk menü app menu olmalı
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: 'Frame',
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    });
+  }
+
+  return template;
 }
 
 /**
@@ -125,8 +145,10 @@ function openHistoryFile() {
  */
 function createMenu() {
   const template = getMenuTemplate();
+  console.log('Creating menu with', template.length, 'items. First item:', template[0]?.label);
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
+  console.log('Menu applied successfully');
   return menu;
 }
 

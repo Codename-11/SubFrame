@@ -32,3 +32,4 @@ __pycache__/
 # Note: Keeping the history file for demo purposes
 # In production, you might want to ignore this
 # prompts-history.txt
+release/

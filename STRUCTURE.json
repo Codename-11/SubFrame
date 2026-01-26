@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-01-25",
+  "lastUpdated": "2026-01-26",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -177,22 +177,22 @@
           "purpose": "Get menu template"
         },
         "sendCommand": {
-          "line": 94,
+          "line": 114,
           "params": [
             "command"
           ],
           "purpose": "Send command to terminal"
         },
         "toggleHistoryPanel": {
-          "line": 103,
+          "line": 123,
           "purpose": "Toggle history panel"
         },
         "openHistoryFile": {
-          "line": 112,
+          "line": 132,
           "purpose": "Open history file in default editor"
         },
         "createMenu": {
-          "line": 126,
+          "line": 146,
           "purpose": "Create and set application menu"
         }
       },

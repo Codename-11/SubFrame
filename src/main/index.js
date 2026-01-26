@@ -107,6 +107,9 @@ function initModulesWithWindow(window) {
 
 // App lifecycle
 app.whenReady().then(() => {
+  // macOS'ta menü bar'da "Frame" görünsün
+  app.setName('Frame');
+
   init();
   createWindow();
 });
