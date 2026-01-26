@@ -489,3 +489,30 @@ Kullanıcı: "end session yapmamalıyız... bir karara vardığımızda, yapalı
 - frameTemplates.js'teki template güncellendi (yeni projeler için)
 
 **İlk Uygulama:** Bu not, tam da bu özelliğin ilk kullanımı oldu. Claude sordu "ekleyeyim mi?", kullanıcı "evet" dedi, ve işte bu not eklendi.
+
+---
+
+### [2026-01-26] CLAUDE.md Sadeleştirme ve "Sadece İstenen Değişiklikler" Dersi
+
+**Bağlam:** Kullanıcı şunları istedi:
+- Token Efficiency iddialarını kaldır (%80-90 tasarruf gerçekçi değil)
+- Line numbers'ı kaldır (bakımı zor)
+- PROJECT_NOTES formatını serbest yap (formal tablo yerine)
+
+**Ne oldu:**
+Claude ilk denemede çok fazla şey sildi - sadeleştirme adı altında önemli içerikleri de kaldırdı:
+- Task kurallarının detayları
+- "Ne Zaman Güncelle?" bölümleri
+- Güncelleme akışları
+
+Kullanıcı uyardı: "aslında claude.md dosyasında sildiğin her yer önemliydi. orada tamamen bir sadeleştirme kararı vermedik. taleplerimiz belliydi."
+
+**Çözüm:**
+1. Git'ten orijinal dosya geri yüklendi
+2. Sadece istenen 3 değişiklik yapıldı:
+   - "Token Efficiency Protocol" → "Project Navigation"
+   - Line numbers kaldırıldı
+   - Format serbest yapıldı
+3. Diğer tüm içerik korundu
+
+**Ders:** Sadeleştirme ≠ içerik silme. Kullanıcı ne istediyse sadece onu yap. "Bence bu da gereksiz" diye ekstra şeyler silme.
