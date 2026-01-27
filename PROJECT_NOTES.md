@@ -2,29 +2,29 @@
 
 ## Project Vision
 
-**Problem:** Claude Code ile geliştirme yaparken VS Code veya Cursor gibi araçlara ihtiyaç yok - onlar kodu elle yazmaya yönelik. Ama terminalde kalınca:
-- Projeler dağınık kalıyor
-- Session'lar arası context kaybediliyor
-- Alınan kararlar unutuluyor
-- Standardizasyon yok
+**Problem:** When developing with Claude Code, there's no need for tools like VS Code or Cursor - they are designed for writing code manually. But when staying in the terminal:
+- Projects remain disorganized
+- Context is lost between sessions
+- Decisions are forgotten
+- There's no standardization
 
-**Solution:** Frame - terminal-merkezli bir geliştirme çerçevesi. Bir IDE değil, bir **framework**.
+**Solution:** Frame - a terminal-centric development framework. Not an IDE, but a **framework**.
 
-**Why "Frame":** Kelime anlamı "çerçeve". Frame içinde "Frame projeleri" oluşturuyoruz - standart dökümanlar (CLAUDE.md, tasks.json, STRUCTURE.json) ile her proje aynı yapıya sahip oluyor.
+**Why "Frame":** The word means "framework". Within Frame, we create "Frame projects" - with standard documents (CLAUDE.md, tasks.json, STRUCTURE.json), every project has the same structure.
 
 **Core Philosophy:**
-- **Terminal-first:** Merkez kod editörü değil, terminal. Hatta çoklu terminal (grid).
-- **Claude Code-native:** Bu araç Claude Code ile geliştirme yapanlar için.
-- **Standardization:** Her proje aynı yapıda, aynı dökümanlarla.
-- **Context preservation:** Session notları, kararlar, tasklar - hiçbir şey kaybolmasın.
-- **Manageability:** Tüm projeler tek yerden görülebilir ve yönetilebilir.
+- **Terminal-first:** The center is not a code editor, but the terminal. Even multiple terminals (grid).
+- **Claude Code-native:** This tool is for those who develop with Claude Code.
+- **Standardization:** Every project has the same structure, the same documents.
+- **Context preservation:** Session notes, decisions, tasks - nothing should be lost.
+- **Manageability:** All projects can be viewed and managed from one place.
 
-**Target User:** Claude Code ile günlük geliştirme yapan, terminal-odaklı çalışan developerlar.
+**Target User:** Developers who do daily development with Claude Code, working terminal-focused.
 
 **What Frame is NOT:**
-- Bir kod editörü değil (dosya editörü var ama merkezi değil)
-- VS Code/Cursor alternatifi değil
-- Manuel kod yazmak için optimize edilmemiş
+- Not a code editor (there's a file editor but it's not central)
+- Not a VS Code/Cursor alternative
+- Not optimized for writing code manually
 
 ---
 
@@ -210,10 +210,10 @@ TERMINAL_RESIZE_ID: 'terminal-resize-id',
 User clicks [+]
     │
     ▼
-TerminalTabBar.createTerminal()
+ TerminalTabBar.createTerminal()
     │
     ▼
-TerminalManager.createTerminal()
+ TerminalManager.createTerminal()
     │
     ├─── Send IPC: TERMINAL_CREATE
     │
@@ -228,7 +228,7 @@ Main Process: ptyManager.createTerminal()
 Send IPC: TERMINAL_CREATED { terminalId }
     │
     ▼
-TerminalManager._initializeTerminal()
+ TerminalManager._initializeTerminal()
     │
     ├─── Create xterm.js instance
     ├─── Create FitAddon
@@ -389,46 +389,46 @@ mainWindow.webContents.openDevTools();
 
 ### [2026-01-25] Project Navigation System
 
-**Bağlam:** Claude Code projeye girdiğinde context'i hızlı yakalaması gerekiyor.
+**Context:** When Claude Code enters a project, it needs to quickly capture the context.
 
-**Karar:** STRUCTURE.json + PROJECT_NOTES.md + tasks.json üçlüsü.
+**Decision:** The trio of STRUCTURE.json + PROJECT_NOTES.md + tasks.json.
 
-**Uygulama:**
-1. CLAUDE.md'ye "Project Navigation" bölümü - session başında okunacak dosyalar
-2. STRUCTURE.json - modül haritası, architectureNotes
-3. Pre-commit hook - STRUCTURE.json otomatik güncellenir
+**Implementation:**
+1. "Project Navigation" section in CLAUDE.md - files to read at session start
+2. STRUCTURE.json - module map, architectureNotes
+3. Pre-commit hook - STRUCTURE.json updates automatically
 
-**[2026-01-26 Güncellemesi]:**
-- "Token Efficiency Protocol" iddiası kaldırıldı (gerçekçi değildi)
-- Line numbers kaldırıldı (sürekli değişiyor, bakımı zor)
-- Format sadeleştirildi - artık daha pratik
+**[2026-01-26 Update]:**
+- "Token Efficiency Protocol" claim removed (wasn't realistic)
+- Line numbers removed (constantly changing, hard to maintain)
+- Format simplified - now more practical
 
 ---
 
 ### [2026-01-25] Task Delegation to Claude Code
 
-**Bağlam:** Tasks panelinde play butonuna basınca Claude Code'a task'ı otomatik göndermek istedik.
+**Context:** We wanted to automatically send tasks to Claude Code when pressing the play button in the Tasks panel.
 
-**Karar:**
-- Play (▶) butonu task'ı Claude Code'a prompt olarak gönderir
-- Claude Code çalışmıyorsa önce `claude` komutu gönderilir, 2 saniye beklenir, sonra task gönderilir
+**Decision:**
+- Play (▶) button sends the task to Claude Code as a prompt
+- If Claude Code is not running, the `claude` command is sent first, waits 2 seconds, then the task is sent
 
-**Uygulama:**
-- `tasksPanel.js` → `sendTaskToClaude()` fonksiyonu
-- `terminal.sendCommand()` ile terminale gönderim
+**Implementation:**
+- `tasksPanel.js` → `sendTaskToClaude()` function
+- Sending to terminal via `terminal.sendCommand()`
 - `claudeCodeRunning` state tracking
 
-**Gelecek iyileştirme:** Terminal output'unu parse ederek Claude Code'un gerçekten çalışıp çalışmadığını tespit etmek (task-claude-detect).
+**Future improvement:** Detecting if Claude Code is actually running by parsing terminal output (task-claude-detect).
 
 ---
 
 ### [2026-01-25] Pre-commit Hook for STRUCTURE.json
 
-**Bağlam:** STRUCTURE.json'ın manuel güncellenmesi zor ve unutuluyor.
+**Context:** Manually updating STRUCTURE.json is difficult and gets forgotten.
 
-**Karar:** Git pre-commit hook ile otomatik güncelleme.
+**Decision:** Automatic update with Git pre-commit hook.
 
-**Uygulama:**
+**Implementation:**
 ```bash
 # .githooks/pre-commit
 STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep '\.js$')
@@ -438,81 +438,81 @@ if [ -n "$STAGED_JS" ]; then
 fi
 ```
 
-**Avantaj:** Sadece değişen dosyalar parse edilir (git diff based), tüm proje taranmaz.
+**Advantage:** Only changed files are parsed (git diff based), the entire project is not scanned.
 
 ---
 
 ### [2026-01-25] Task Action UX Improvement
 
-**Bağlam:** Checkbox ile task status değiştirmek kafa karıştırıcıydı - kullanıcı ne olacağını anlayamıyordu.
+**Context:** Changing task status with a checkbox was confusing - users couldn't understand what would happen.
 
-**Karar:** Checkbox yerine explicit action butonları:
+**Decision:** Explicit action buttons instead of checkbox:
 - Pending: ▶ Start, ✓ Complete
 - In Progress: ✓ Complete, ⏸ Pause
 - Completed: ↺ Reopen
 
-**Ek:** Toast notification sistemi eklendi - "Task started", "Task completed" gibi geri bildirimler.
+**Addition:** Toast notification system added - feedback like "Task started", "Task completed".
 
 ---
 
 ### [2026-01-26] Frame Vision & Context Preservation Feature
 
-**Kullanıcının açıklaması:**
+**User's explanation:**
 
-> "Benim sorunum şuydu, ben claude code ile geliştirme yapabiliyorum, evet. ama sadece terminalde kalıyorum. vs code veya cursor gibi bir platform kullanma ihtiyacı duymuyorum. çünkü onlar kodu elle yazmaya yönelik araçlar. benim böyle bir karmaşaya ihtiyacım yok. benim projelerim için standartizasyona, yönetilebilirliğe ihtiyacım var. terminal ve claude code odaklıyım. o yüzden frame'in merkezinde code editörü değil, terminal var, hatta grid yapısıyla çoklu terminal yapımız var. Frame ismi bu yüzden. bu bir çerçeve, o yüzden frame içerisinde bir frame projesi oluşturuyoruz, bu dökümanları yaratıyoruz ki bir standart koyalım. artık claude code ile geliştirdiğim projeleri derli toplu görebileyim. contexti kaybetmeyeyim, sessionlarda yazılanları not edeyim."
+> "My problem was this, yes I can develop with claude code. but I only stay in the terminal. I don't feel the need to use a platform like vs code or cursor. because those are tools designed for writing code manually. I don't need such complexity. I need standardization and manageability for my projects. I'm terminal and claude code focused. that's why frame's center is not a code editor, but a terminal, we even have a multi-terminal structure with grid. That's why the name is Frame. this is a framework, so we create a frame project within frame, we create these documents to set a standard. so that I can see the projects I develop with claude code in an organized way. so I don't lose context, I note down what's written in sessions."
 
-**Frame'in Asıl Amacı:**
-- Terminal-merkezi (kod editörü değil)
-- Claude Code-native geliştirme
-- Projeler arası standardizasyon
-- Context kaybını önleme
-- Session notlarını ve kararları takip etme
+**Frame's True Purpose:**
+- Terminal-centric (not a code editor)
+- Claude Code-native development
+- Standardization across projects
+- Preventing context loss
+- Tracking session notes and decisions
 
-**Context Preservation Özelliği Tasarımı:**
+**Context Preservation Feature Design:**
 
-Kullanıcı: "end session yapmamalıyız... bir karara vardığımızda, yapalım dediğimizde belki de yapılan iş başarılı olduğunda kullanıcıya sormalıyız, bunu note'lara ekleyelim mi diye? çünkü önem mekanizmasını otomatik olarak karar vermek çok zor bir iş olur. önem derecesinin kararını kullanıcıya bırakabiliriz. sen sorarsın, ekle derse eklersin, ama oraya özet değil kullanıcıyla tam olarak konuşulduğu şekilde eklenmeli."
+User: "we shouldn't end session... when we reach a decision, when we say let's do it, maybe when the work is successful we should ask the user, should we add this to notes? because automatically deciding the importance mechanism would be very difficult. we can leave the importance decision to the user. you ask, if they say add, you add, but there should be added exactly as discussed with the user, not a summary."
 
-**Alınan Kararlar:**
-1. "End session" butonu/akışı YOK - organik olmalı
-2. Task/karar tamamlandığında Claude soracak: "Bunu PROJECT_NOTES'a ekleyeyim mi?"
-3. Önem kararı kullanıcıda - Claude sadece öneriyor
-4. Özet DEĞİL, konuşma olduğu gibi eklenmeli (context korunmalı)
-5. Her küçük şeyde sorulmamalı (spam olur)
+**Decisions Made:**
+1. NO "End session" button/flow - it should be organic
+2. When a task/decision is completed, Claude will ask: "Should I add this to PROJECT_NOTES?"
+3. Importance decision is with the user - Claude only suggests
+4. NOT a summary, the conversation should be added as is (context must be preserved)
+5. Should not be asked for every small thing (it becomes spam)
 
-**Tamamlanma Algılama:**
-- Kullanıcı onayı: "tamam", "oldu", "çalıştı", "güzel"
-- Konu değişikliği
-- Build/run başarısı
+**Completion Detection:**
+- User approval: "okay", "done", "it worked", "nice"
+- Topic change
+- Build/run success
 
-**Uygulama:**
-- CLAUDE.md'ye "Context Preservation" bölümü eklendi
-- frameTemplates.js'teki template güncellendi (yeni projeler için)
+**Implementation:**
+- "Context Preservation" section added to CLAUDE.md
+- Template in frameTemplates.js updated (for new projects)
 
-**İlk Uygulama:** Bu not, tam da bu özelliğin ilk kullanımı oldu. Claude sordu "ekleyeyim mi?", kullanıcı "evet" dedi, ve işte bu not eklendi.
+**First Implementation:** This note was the first use of this feature. Claude asked "should I add?", the user said "yes", and this note was added.
 
 ---
 
-### [2026-01-26] CLAUDE.md Sadeleştirme ve "Sadece İstenen Değişiklikler" Dersi
+### [2026-01-26] CLAUDE.md Simplification and "Only Requested Changes" Lesson
 
-**Bağlam:** Kullanıcı şunları istedi:
-- Token Efficiency iddialarını kaldır (%80-90 tasarruf gerçekçi değil)
-- Line numbers'ı kaldır (bakımı zor)
-- PROJECT_NOTES formatını serbest yap (formal tablo yerine)
+**Context:** The user requested:
+- Remove Token Efficiency claims (80-90% savings wasn't realistic)
+- Remove line numbers (hard to maintain)
+- Make PROJECT_NOTES format free-form (instead of formal table)
 
-**Ne oldu:**
-Claude ilk denemede çok fazla şey sildi - sadeleştirme adı altında önemli içerikleri de kaldırdı:
-- Task kurallarının detayları
-- "Ne Zaman Güncelle?" bölümleri
-- Güncelleme akışları
+**What happened:**
+Claude deleted too much in the first attempt - removed important content under the name of simplification:
+- Details of task rules
+- "When to Update?" sections
+- Update flows
 
-Kullanıcı uyardı: "aslında claude.md dosyasında sildiğin her yer önemliydi. orada tamamen bir sadeleştirme kararı vermedik. taleplerimiz belliydi."
+The user warned: "actually everything you deleted in the claude.md file was important. we didn't make a complete simplification decision there. our requests were clear."
 
-**Çözüm:**
-1. Git'ten orijinal dosya geri yüklendi
-2. Sadece istenen 3 değişiklik yapıldı:
+**Solution:**
+1. Original file restored from Git
+2. Only the 3 requested changes were made:
    - "Token Efficiency Protocol" → "Project Navigation"
-   - Line numbers kaldırıldı
-   - Format serbest yapıldı
-3. Diğer tüm içerik korundu
+   - Line numbers removed
+   - Format made free-form
+3. All other content preserved
 
-**Ders:** Sadeleştirme ≠ içerik silme. Kullanıcı ne istediyse sadece onu yap. "Bence bu da gereksiz" diye ekstra şeyler silme.
+**Lesson:** Simplification ≠ deleting content. Do only what the user asked. Don't delete extra things thinking "I think this is also unnecessary".
