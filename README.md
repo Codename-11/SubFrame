@@ -4,6 +4,12 @@ A lightweight, IDE-style desktop application built specifically for working with
 
 ## What is this?
 
+Frame is a project management IDE for Claude Code that aims to:
+
+1. **Bring a standard to Claude Code projects** - Consistent project structure with CLAUDE.md, STRUCTURE.json, PROJECT_NOTES.md, and tasks.json
+2. **Improve context and memory problems as projects grow** - Automatic context preservation, session notes, and decision tracking
+3. **Make project management easier** - Visual task management, plugins panel, and streamlined workflows
+
 This is an Electron-based desktop application that combines:
 - **Project Explorer** (left panel) - Browse your project files with a collapsible tree view
 - **Multi-Terminal** (center) - Multiple terminal instances with tabs or grid view
@@ -13,6 +19,10 @@ This is an Electron-based desktop application that combines:
 The key innovation: **Claude Code launches directly in your selected project directory**, so you don't need to `cd` around. Just select a project, click "Start Claude Code", and you're ready to go.
 
 ## Why build this?
+
+**The Core Problem**: As projects grow with Claude Code, context gets lost between sessions. Decisions are forgotten, tasks slip through the cracks, and you end up re-explaining the same things over and over.
+
+**Frame's Solution**: A standardized project structure that Claude Code reads automatically at the start of each session, combined with tools to track decisions, tasks, and context - so nothing gets lost.
 
 When working with Claude Code, you often need to:
 1. See your project structure
@@ -109,8 +119,8 @@ This app does all of that in one window, with a clean VS Code-inspired interface
 
 ```bash
 # Clone the repo
-git clone https://github.com/kaanozhan/ClaudeCodeIDE.git
-cd ClaudeCodeIDE
+git clone https://github.com/kaanozhan/Frame.git
+cd Frame
 
 # Install dependencies
 npm install
@@ -177,7 +187,7 @@ npm install -g @anthropic-ai/claude-code
 ### Project Structure
 
 ```
-ClaudeCodeIDE/
+Frame/
 ├── src/
 │   ├── main/                # Electron main process
 │   │   ├── index.js         # Main entry, window & IPC management
