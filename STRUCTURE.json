@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-01-26",
+  "lastUpdated": "2026-01-27",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -28,23 +28,24 @@
         "workspace",
         "frameProject",
         "fileEditor",
-        "tasksManager"
+        "tasksManager",
+        "pluginsManager"
       ],
       "functions": {
         "createWindow": {
-          "line": 27,
+          "line": 28,
           "purpose": "Create main application window"
         },
         "setupAllIPC": {
-          "line": 68,
+          "line": 69,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 90,
+          "line": 92,
           "purpose": "Initialize application"
         },
         "initModulesWithWindow": {
-          "line": 101,
+          "line": 103,
           "params": [
             "window"
           ],
@@ -691,6 +692,7 @@
         "fileTreeUI",
         "historyPanel",
         "tasksPanel",
+        "pluginsPanel",
         "state",
         "projectListUI",
         "editor",
@@ -698,15 +700,15 @@
       ],
       "functions": {
         "init": {
-          "line": 18,
+          "line": 19,
           "purpose": "Initialize all modules"
         },
         "setupButtonHandlers": {
-          "line": 116,
+          "line": 120,
           "purpose": "Setup button click handlers"
         },
         "setupKeyboardShortcuts": {
-          "line": 162,
+          "line": 166,
           "purpose": "Setup keyboard shortcuts"
         }
       }
@@ -1761,9 +1763,217 @@
         "TerminalTabBar"
       ],
       "depends": [
-        "tasksPanel"
+        "tasksPanel",
+        "pluginsPanel"
       ],
       "functions": {}
+    },
+    "main/pluginsManager": {
+      "file": "src/main/pluginsManager.js",
+      "description": "P",
+      "exports": [
+        "init",
+        "setupIPC",
+        "getAllPlugins",
+        "togglePlugin"
+      ],
+      "depends": [
+        "fs",
+        "path",
+        "os",
+        "child_process",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "init": {
+          "line": 24,
+          "params": [
+            "window"
+          ],
+          "purpose": "Initialize plugins manager"
+        },
+        "readJsonFile": {
+          "line": 31,
+          "params": [
+            "filePath"
+          ],
+          "purpose": "Read JSON file safely"
+        },
+        "writeJsonFile": {
+          "line": 45,
+          "params": [
+            "filePath",
+            "data"
+          ],
+          "purpose": "Write JSON file safely"
+        },
+        "getEnabledPlugins": {
+          "line": 58,
+          "purpose": "Get enabled plugins from settings"
+        },
+        "getInstalledPlugins": {
+          "line": 66,
+          "purpose": "Get installed plugins"
+        },
+        "getMarketplacePlugins": {
+          "line": 74,
+          "purpose": "Get all available plugins from marketplace"
+        },
+        "getAllPlugins": {
+          "line": 112,
+          "purpose": "Get all plugins with their status"
+        },
+        "togglePlugin": {
+          "line": 134,
+          "params": [
+            "pluginId"
+          ],
+          "purpose": "Toggle plugin enabled/disabled status"
+        },
+        "refreshMarketplace": {
+          "line": 157,
+          "purpose": "Refresh marketplace plugins (git pull)"
+        },
+        "setupIPC": {
+          "line": 180,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Setup IPC handlers"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "LOAD_PLUGINS",
+          "TOGGLE_PLUGIN",
+          "REFRESH_PLUGINS"
+        ],
+        "emits": [
+          "PLUGIN_TOGGLED"
+        ]
+      }
+    },
+    "renderer/pluginsPanel": {
+      "file": "src/renderer/pluginsPanel.js",
+      "description": "P",
+      "exports": [
+        "init",
+        "show",
+        "hide",
+        "toggle",
+        "loadPlugins",
+        "isVisible"
+      ],
+      "depends": [
+        "electron",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "init": {
+          "line": 20,
+          "purpose": "Initialize plugins panel"
+        },
+        "setupEventListeners": {
+          "line": 36,
+          "purpose": "Setup event listeners"
+        },
+        "setupIPCListeners": {
+          "line": 67,
+          "purpose": "Setup IPC listeners"
+        },
+        "loadPlugins": {
+          "line": 91,
+          "purpose": "Load plugins"
+        },
+        "refreshPlugins": {
+          "line": 105,
+          "purpose": "Refresh plugins from marketplace"
+        },
+        "show": {
+          "line": 139,
+          "purpose": "Show plugins panel"
+        },
+        "hide": {
+          "line": 150,
+          "purpose": "Hide plugins panel"
+        },
+        "toggle": {
+          "line": 160,
+          "purpose": "Toggle plugins panel visibility"
+        },
+        "setFilter": {
+          "line": 171,
+          "params": [
+            "filter"
+          ],
+          "purpose": "Set filter"
+        },
+        "getFilteredPlugins": {
+          "line": 185,
+          "purpose": "Get filtered plugins"
+        },
+        "render": {
+          "line": 201,
+          "purpose": "Render plugins list"
+        },
+        "renderPluginItem": {
+          "line": 245,
+          "params": [
+            "plugin"
+          ],
+          "purpose": "Render single plugin item"
+        },
+        "getPluginIcon": {
+          "line": 291,
+          "params": [
+            "name"
+          ],
+          "purpose": "Get icon for plugin based on name"
+        },
+        "togglePlugin": {
+          "line": 330,
+          "params": [
+            "pluginId"
+          ],
+          "purpose": "Toggle plugin enabled/disabled"
+        },
+        "installPlugin": {
+          "line": 342,
+          "params": [
+            "pluginName"
+          ],
+          "purpose": "Install plugin via terminal command"
+        },
+        "showToast": {
+          "line": 359,
+          "params": [
+            "message",
+            "type = 'info'"
+          ],
+          "purpose": "Show toast notification"
+        },
+        "getToastIcon": {
+          "line": 394,
+          "params": [
+            "type"
+          ],
+          "purpose": "Get toast icon based on type"
+        },
+        "escapeHtml": {
+          "line": 408,
+          "params": [
+            "text"
+          ],
+          "purpose": "Escape HTML for safe rendering"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "PLUGIN_TOGGLED",
+          "TOGGLE_PLUGINS_PANEL"
+        ],
+        "emits": []
+      }
     }
   },
   "ipcChannels": {

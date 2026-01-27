@@ -7,6 +7,7 @@ const terminal = require('./terminal');
 const fileTreeUI = require('./fileTreeUI');
 const historyPanel = require('./historyPanel');
 const tasksPanel = require('./tasksPanel');
+const pluginsPanel = require('./pluginsPanel');
 const state = require('./state');
 const projectListUI = require('./projectListUI');
 const editor = require('./editor');
@@ -56,6 +57,9 @@ function init() {
 
   // Initialize tasks panel
   tasksPanel.init();
+
+  // Initialize plugins panel
+  pluginsPanel.init();
 
   // Initialize sidebar resize
   sidebarResize.init(() => {
@@ -170,6 +174,11 @@ function setupKeyboardShortcuts() {
     if (e.ctrlKey && e.shiftKey && e.key === 'T') {
       e.preventDefault();
       tasksPanel.toggle();
+    }
+    // Ctrl+Shift+P - Toggle plugins panel
+    if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+      e.preventDefault();
+      pluginsPanel.toggle();
     }
   });
 }

@@ -4,6 +4,7 @@
  */
 
 const tasksPanel = require('./tasksPanel');
+const pluginsPanel = require('./pluginsPanel');
 
 class TerminalTabBar {
   constructor(container, manager) {
@@ -34,6 +35,12 @@ class TerminalTabBar {
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
           Tasks
+        </button>
+        <button class="btn-plugins-toggle" title="Toggle Plugins Panel (Ctrl+Shift+P)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          Plugins
         </button>
       </div>
     `;
@@ -118,6 +125,11 @@ class TerminalTabBar {
     // Tasks toggle button
     this.element.querySelector('.btn-tasks-toggle').addEventListener('click', () => {
       tasksPanel.toggle();
+    });
+
+    // Plugins toggle button
+    this.element.querySelector('.btn-plugins-toggle').addEventListener('click', () => {
+      pluginsPanel.toggle();
     });
   }
 

@@ -66,7 +66,15 @@ const IPC = {
   UPDATE_TASK: 'update-task',
   DELETE_TASK: 'delete-task',
   TASK_UPDATED: 'task-updated',
-  TOGGLE_TASKS_PANEL: 'toggle-tasks-panel'
+  TOGGLE_TASKS_PANEL: 'toggle-tasks-panel',
+
+  // Plugins Panel
+  LOAD_PLUGINS: 'load-plugins',
+  PLUGINS_DATA: 'plugins-data',
+  TOGGLE_PLUGIN: 'toggle-plugin',
+  PLUGIN_TOGGLED: 'plugin-toggled',
+  TOGGLE_PLUGINS_PANEL: 'toggle-plugins-panel',
+  REFRESH_PLUGINS: 'refresh-plugins'
 };
 
 module.exports = { IPC };

@@ -1818,6 +1818,476 @@
     }
 
     /* ==================== END TASKS PANEL STYLES ==================== */
+
+    /* ==================== PLUGINS PANEL STYLES ==================== */
+    #plugins-panel {
+      width: 380px;
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      border-left: 1px solid var(--border-subtle);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      transition: transform var(--transition-normal), opacity var(--transition-normal);
+    }
+
+    #plugins-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(180deg, rgba(120, 165, 212, 0.2) 0%, transparent 50%, rgba(120, 165, 212, 0.2) 100%);
+      pointer-events: none;
+    }
+
+    #plugins-panel.visible {
+      display: flex;
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    #plugins-panel:not(.visible) {
+      transform: translateX(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #plugins-header {
+      padding: var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #plugins-header h3 {
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      margin: 0;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    #plugins-header h3::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--info);
+      border-radius: 50%;
+    }
+
+    #plugins-collapse-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: var(--space-xs);
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: var(--space-xs);
+    }
+
+    #plugins-collapse-btn:hover {
+      color: var(--info);
+      background: rgba(120, 165, 212, 0.15);
+    }
+
+    .plugins-header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    #plugins-refresh-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: var(--space-xs);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+    }
+
+    #plugins-refresh-btn:hover {
+      color: var(--info);
+      background: rgba(120, 165, 212, 0.15);
+    }
+
+    #plugins-refresh-btn.spinning svg {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    #plugins-close {
+      background: transparent;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+    }
+
+    #plugins-close:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    /* Plugins Filter */
+    .plugins-filter {
+      display: flex;
+      gap: var(--space-xs);
+      padding: var(--space-sm) var(--space-lg);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-tertiary);
+    }
+
+    .plugins-filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-tertiary);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .plugins-filter-btn:hover {
+      color: var(--text-secondary);
+      background: var(--bg-hover);
+    }
+
+    .plugins-filter-btn.active {
+      color: var(--info);
+      background: rgba(120, 165, 212, 0.15);
+    }
+
+    /* Plugins Content */
+    #plugins-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-md);
+    }
+
+    /* Plugin Item */
+    .plugin-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-md);
+      padding: var(--space-md);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      margin-bottom: var(--space-sm);
+      transition: all var(--transition-fast);
+    }
+
+    .plugin-item:hover {
+      border-color: var(--border-default);
+      background: var(--bg-elevated);
+    }
+
+    .plugin-item.enabled {
+      border-left: 3px solid var(--success);
+    }
+
+    .plugin-item.available {
+      opacity: 0.7;
+    }
+
+    /* Plugin Icon */
+    .plugin-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--bg-hover);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-tertiary);
+    }
+
+    .plugin-item.enabled .plugin-icon {
+      background: var(--success-subtle);
+      color: var(--success);
+    }
+
+    .plugin-item.installed .plugin-icon {
+      background: rgba(120, 165, 212, 0.15);
+      color: var(--info);
+    }
+
+    /* Plugin Content */
+    .plugin-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .plugin-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-xs);
+    }
+
+    .plugin-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .plugin-status {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .plugin-status.status-enabled {
+      background: var(--success-subtle);
+      color: var(--success);
+    }
+
+    .plugin-status.status-installed {
+      background: rgba(120, 165, 212, 0.15);
+      color: var(--info);
+    }
+
+    .plugin-status.status-available {
+      background: var(--bg-hover);
+      color: var(--text-muted);
+    }
+
+    .plugin-description {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-sm);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .plugin-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .plugin-author {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Plugin Actions */
+    .plugin-actions {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .plugin-install-btn {
+      font-size: 11px;
+      padding: var(--space-xs) var(--space-sm);
+      background: rgba(120, 165, 212, 0.15);
+      border: 1px solid var(--info);
+      color: var(--info);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all var(--transition-fast);
+    }
+
+    .plugin-install-btn:hover {
+      background: var(--info);
+      color: var(--bg-deep);
+    }
+
+    .plugin-not-installed {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Toggle Button */
+    .plugin-toggle-btn {
+      width: 44px;
+      height: 24px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      border-radius: 12px;
+    }
+
+    .toggle-track {
+      width: 44px;
+      height: 24px;
+      background: var(--bg-hover);
+      border-radius: 12px;
+      position: relative;
+      transition: all var(--transition-fast);
+      border: 1px solid var(--border-default);
+    }
+
+    .toggle-thumb {
+      width: 18px;
+      height: 18px;
+      background: var(--text-tertiary);
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: all var(--transition-fast);
+    }
+
+    .plugin-toggle-btn.enabled .toggle-track {
+      background: var(--success-subtle);
+      border-color: var(--success);
+    }
+
+    .plugin-toggle-btn.enabled .toggle-thumb {
+      background: var(--success);
+      transform: translateX(20px);
+    }
+
+    .plugin-toggle-btn:hover .toggle-track {
+      border-color: var(--text-tertiary);
+    }
+
+    .plugin-toggle-btn.enabled:hover .toggle-track {
+      border-color: var(--success);
+    }
+
+    /* Plugins Empty State */
+    .plugins-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: var(--space-xl);
+      text-align: center;
+    }
+
+    .plugins-empty-icon {
+      color: var(--text-muted);
+      margin-bottom: var(--space-md);
+    }
+
+    .plugins-empty p {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: var(--space-xs);
+    }
+
+    .plugins-empty span {
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+
+    /* Plugins Toast */
+    .plugins-toast {
+      position: absolute;
+      bottom: var(--space-lg);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      transition: all var(--transition-normal);
+      z-index: 100;
+    }
+
+    .plugins-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .plugins-toast .toast-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .plugins-toast .toast-message {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .plugins-toast-success .toast-icon {
+      color: var(--success);
+    }
+
+    .plugins-toast-info .toast-icon {
+      color: var(--info);
+    }
+
+    .plugins-toast-error .toast-icon {
+      color: var(--error);
+    }
+
+    /* Plugins Toggle Button in Tab Bar */
+    .btn-plugins-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-md) !important;
+      background: var(--bg-tertiary) !important;
+      border: 1px solid var(--border-subtle) !important;
+      font-size: 11px !important;
+      font-weight: 500;
+      margin-left: var(--space-xs);
+    }
+
+    .btn-plugins-toggle:hover {
+      background: rgba(120, 165, 212, 0.15) !important;
+      border-color: var(--info) !important;
+      color: var(--info) !important;
+    }
+
+    .btn-plugins-toggle svg {
+      flex-shrink: 0;
+    }
+
+    /* ==================== END PLUGINS PANEL STYLES ==================== */
   </style>
 </head>
 <body>
@@ -1911,6 +2381,34 @@
       </div>
       <div id="tasks-content">
         <!-- Tasks will be populated here -->
+      </div>
+    </div>
+
+    <!-- Plugins Panel -->
+    <div id="plugins-panel">
+      <div id="plugins-header">
+        <button id="plugins-collapse-btn" title="Collapse panel">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+        <h3>Plugins</h3>
+        <div class="plugins-header-actions">
+          <button id="plugins-refresh-btn" tabindex="-1" title="Refresh plugin list">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+          </button>
+          <button id="plugins-close" tabindex="-1">✕</button>
+        </div>
+      </div>
+      <div class="plugins-filter">
+        <button class="plugins-filter-btn active" data-filter="all">All</button>
+        <button class="plugins-filter-btn" data-filter="installed">Installed</button>
+        <button class="plugins-filter-btn" data-filter="enabled">Enabled</button>
+      </div>
+      <div id="plugins-content">
+        <!-- Plugins will be populated here -->
       </div>
     </div>
 
