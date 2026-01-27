@@ -1,175 +1,175 @@
 # ClaudeCodeIDE - Frame Project
 
-Bu proje **Frame** ile yönetilmektedir. Aşağıdaki kurallara uyarak dökümanları güncel tut.
+This project is managed with **Frame**. Keep the documentation up to date by following the rules below.
 
 ---
 
 ## 🧭 Project Navigation
 
-**Session başında şu dosyaları oku:**
+**Read these files at the start of each session:**
 
-1. **STRUCTURE.json** - Modül haritası, hangi dosya nerede
-2. **PROJECT_NOTES.md** - Proje vizyonu, geçmiş kararlar, session notları
-3. **tasks.json** - Bekleyen işler
+1. **STRUCTURE.json** - Module map, which file is where
+2. **PROJECT_NOTES.md** - Project vision, past decisions, session notes
+3. **tasks.json** - Pending tasks
 
 **Workflow:**
-1. Bu dosyaları okuyarak projeyi tanı ve context'i yakala
-2. Task'a göre ilgili dosyaları belirle
-3. Değişiklik yaptıktan sonra STRUCTURE.json'ı güncelle (yeni modül/dosya eklendiyse)
+1. Read these files to understand the project and capture context
+2. Identify relevant files based on the task
+3. Update STRUCTURE.json after making changes (if new modules/files are added)
 
-**Not:** Bu sistem kod okumayı engellemez - sadece nereye bakacağını bilirsin.
+**Note:** This system doesn't prevent reading code - it just helps you know where to look.
 
 ---
 
-## Task Yönetimi (tasks.json)
+## Task Management (tasks.json)
 
-### Task Tanıma Kuralları
+### Task Recognition Rules
 
-**Bunlar TASK'tır - tasks.json'a ekle:**
-- Kullanıcı bir özellik veya değişiklik istediğinde
-- "Şunu yapalım", "Şunu ekleyelim", "Bunu geliştir" gibi kararlar
-- "Bunu sonra yaparız", "Şimdilik bırakalım" dediğimiz ertelenmiş işler
-- Kod yazarken keşfedilen eksiklikler veya iyileştirme fırsatları
-- Bug fix gerektiren durumlar
+**These ARE TASKS - add to tasks.json:**
+- When the user requests a feature or change
+- Decisions like "Let's do this", "Let's add this", "Improve this"
+- Deferred work when we say "We'll do this later", "Let's leave it for now"
+- Gaps or improvement opportunities discovered while coding
+- Situations requiring bug fixes
 
-**Bunlar TASK DEĞİLDİR:**
-- Hata mesajları ve debugging oturumları
-- Sorular, açıklamalar, bilgi alışverişi
-- Geçici denemeler ve testler
-- Zaten tamamlanmış ve kapatılmış işler
-- Anlık düzeltmeler (typo fix gibi)
+**These are NOT TASKS:**
+- Error messages and debugging sessions
+- Questions, explanations, information exchange
+- Temporary experiments and tests
+- Work already completed and closed
+- Instant fixes (like typo fixes)
 
-### Task Oluşturma Akışı
+### Task Creation Flow
 
-1. Konuşma sırasında task pattern'i algıla
-2. Uygun bir anda kullanıcıya sor: "Bu konuşmadan şu taskları çıkardım, tasks.json'a ekleyeyim mi?"
-3. Kullanıcı onaylarsa tasks.json'a ekle
+1. Detect task patterns during conversation
+2. Ask the user at an appropriate moment: "I identified these tasks from our conversation, should I add them to tasks.json?"
+3. If the user approves, add to tasks.json
 
-### Task Yapısı
+### Task Structure
 
 ```json
 {
   "id": "unique-id",
-  "title": "Kısa ve net başlık (max 60 karakter)",
-  "description": "Claude'un detaylı açıklaması - ne yapılacak, nasıl yapılacak, hangi dosyalar etkilenecek",
-  "userRequest": "Kullanıcının orijinal isteği/promptu - aynen kopyala",
-  "acceptanceCriteria": "Bu task ne zaman tamamlanmış sayılır? Somut kriterler listesi",
-  "notes": "Tartışma sırasında çıkan önemli notlar, kararlar, alternatifler",
+  "title": "Short and clear title (max 60 characters)",
+  "description": "Claude's detailed explanation - what will be done, how it will be done, which files will be affected",
+  "userRequest": "User's original request/prompt - copy exactly",
+  "acceptanceCriteria": "When is this task considered complete? List of concrete criteria",
+  "notes": "Important notes, decisions, alternatives that came up during discussion",
   "status": "pending | in_progress | completed",
   "priority": "high | medium | low",
   "category": "feature | fix | refactor | docs | test",
-  "context": "Session tarihi ve bağlam",
+  "context": "Session date and context",
   "createdAt": "ISO date",
   "updatedAt": "ISO date",
   "completedAt": "ISO date | null"
 }
 ```
 
-### Task İçerik Kuralları
+### Task Content Rules
 
-**title:** Kısa, aksiyona yönelik başlık
+**title:** Short, action-oriented title
 - ✅ "Add tasks button to terminal toolbar"
 - ❌ "Tasks"
 
-**description:** Claude'un detaylı teknik açıklaması
-- Ne yapılacak (what)
-- Nasıl yapılacak (how) - kısa teknik yaklaşım
-- Hangi dosyalar etkilenecek
-- Minimum 2-3 cümle
+**description:** Claude's detailed technical explanation
+- What will be done (what)
+- How it will be done (how) - brief technical approach
+- Which files will be affected
+- Minimum 2-3 sentences
 
-**userRequest:** Kullanıcının orijinal sözleri
-- Kullanıcının promptunu/isteğini aynen kopyala
-- Bağlamı korumak için önemli
-- "Kullanıcı dedi ki: ..." formatında
+**userRequest:** User's original words
+- Copy the user's prompt/request exactly
+- Important for preserving context
+- In "User said: ..." format
 
-**acceptanceCriteria:** Bitiş kriterleri
-- Somut, test edilebilir maddeler
-- "Bu olduğunda task tamamdır" listesi
+**acceptanceCriteria:** Completion criteria
+- Concrete, testable items
+- "Task is complete when this happens" list
 
-**notes:** Tartışma notları (opsiyonel)
-- Değerlendirilen alternatifler
-- Önemli kararlar ve nedenleri
-- "Sonra yaparız" denen bağımlılıklar
+**notes:** Discussion notes (optional)
+- Alternatives considered
+- Important decisions and their reasons
+- Dependencies marked as "we'll do this later"
 
-### Task Durum Güncellemeleri
+### Task Status Updates
 
-- Bir task üzerinde çalışmaya başladığında: `status: "in_progress"`
-- Task tamamlandığında: `status: "completed"`, `completedAt` güncelle
-- Commit sonrası: İlgili taskların durumunu kontrol et ve güncelle
+- When starting work on a task: `status: "in_progress"`
+- When task is completed: `status: "completed"`, update `completedAt`
+- After commit: Check and update the status of related tasks
 
 ---
 
-## PROJECT_NOTES.md Kuralları
+## PROJECT_NOTES.md Rules
 
-### Ne Zaman Güncelle?
-- Önemli bir mimari karar alındığında
-- Teknoloji seçimi yapıldığında
-- Önemli bir problem çözüldüğünde ve çözüm yöntemi kayda değer olduğunda
-- Kullanıcıyla birlikte bir yaklaşım belirlendiğinde
+### When to Update?
+- When an important architectural decision is made
+- When a technology choice is made
+- When an important problem is solved and the solution method is noteworthy
+- When an approach is determined together with the user
 
 ### Format
-Serbest format. Tarih + başlık yeterli:
+Free format. Date + title is sufficient:
 ```markdown
-### [2026-01-26] Konu başlığı
-Konuşma/karar olduğu gibi, context'iyle birlikte...
+### [2026-01-26] Topic title
+Conversation/decision as is, with its context...
 ```
 
-### Güncelleme Akışı
-- Karar alındıktan hemen sonra güncelle
-- Kullanıcıya sormadan ekleyebilirsin (önemli kararlar için)
-- Küçük kararları biriktirip toplu ekleyebilirsin
+### Update Flow
+- Update immediately after a decision is made
+- You can add without asking the user (for important decisions)
+- You can accumulate small decisions and add them in bulk
 
 ---
 
-## 📝 Context Preservation (Otomatik Not Alma)
+## 📝 Context Preservation (Automatic Note Taking)
 
-Frame'in temel amacı context kaybını önlemek. Bu yüzden önemli anları yakala ve kullanıcıya sor.
+Frame's core purpose is to prevent context loss. Therefore, capture important moments and ask the user.
 
-### Ne Zaman Sorulmalı?
+### When to Ask?
 
-Aşağıdaki durumlardan biri gerçekleştiğinde kullanıcıya sor: **"Bu konuşmayı PROJECT_NOTES.md'ye ekleyeyim mi?"**
+Ask the user when one of the following situations occurs: **"Should I add this conversation to PROJECT_NOTES.md?"**
 
-- Bir task başarıyla tamamlandığında
-- Önemli bir mimari/teknik karar alındığında
-- Bir bug çözüldüğünde ve çözüm yöntemi kayda değer olduğunda
-- "Bunu sonra yapalım" denildiğinde (bu durumda tasks.json'a da ekle)
-- Yeni bir pattern veya best practice keşfedildiğinde
+- When a task is successfully completed
+- When an important architectural/technical decision is made
+- When a bug is fixed and the solution method is noteworthy
+- When "let's do this later" is said (in this case, also add to tasks.json)
+- When a new pattern or best practice is discovered
 
-### Tamamlanma Algılama
+### Completion Detection
 
-Şu sinyallere dikkat et:
-- Kullanıcı onayı: "tamam", "oldu", "çalıştı", "güzel", "düzeldi", "evet"
-- Bir konuyu bitirip başka konuya geçilmesi
-- Build/run başarılı olduktan sonra kullanıcının devam etmesi
+Pay attention to these signals:
+- User approval: "okay", "done", "it worked", "nice", "fixed", "yes"
+- Moving from one topic to another
+- User continuing after build/run succeeds
 
-### Nasıl Eklenmeli?
+### How to Add?
 
-1. **Özet YAZMA** - Konuşmayı olduğu gibi, context'iyle birlikte ekle
-2. **Tarih ekle** - `### [YYYY-MM-DD] Başlık` formatında
-3. **Session Notes bölümüne ekle** - PROJECT_NOTES.md'nin sonunda
+1. **DON'T write a summary** - Add the conversation as is, with its context
+2. **Add date** - In `### [YYYY-MM-DD] Title` format
+3. **Add to Session Notes section** - At the end of PROJECT_NOTES.md
 
-### Ne Zaman SORMA
+### When NOT to Ask
 
-- Her küçük değişiklikte (spam olur)
-- Typo fix, basit düzeltmeler
-- Kullanıcı zaten "hayır" veya "gerek yok" demişse o session'da aynı konu için tekrar sorma
+- For every small change (it becomes spam)
+- Typo fixes, simple corrections
+- If the user already said "no" or "not needed", don't ask again for the same topic in that session
 
-### Kullanıcı "Hayır" Derse
+### If User Says "No"
 
-Sorun yok, devam et. Kullanıcı önemli gördüğü şeyleri kendisi de söyleyebilir: "bunu notlara ekle"
+No problem, continue. The user can also say what they consider important themselves: "add this to notes"
 
 ---
 
-## STRUCTURE.json Kuralları
+## STRUCTURE.json Rules
 
-**Bu dosya codebase'in haritasıdır.**
+**This file is the map of the codebase.**
 
-### Ne Zaman Güncelle?
-- Yeni dosya/klasör oluşturulduğunda
-- Dosya/klasör silindiğinde veya taşındığında
-- Modül bağımlılıkları değiştiğinde
-- IPC channel eklendiğinde veya değiştiğinde
-- Önemli bir architectural pattern keşfedildiğinde (architectureNotes)
+### When to Update?
+- When a new file/folder is created
+- When a file/folder is deleted or moved
+- When module dependencies change
+- When an IPC channel is added or changed
+- When an important architectural pattern is discovered (architectureNotes)
 
 ### Format
 ```json
@@ -190,37 +190,37 @@ Sorun yok, devam et. Kullanıcı önemli gördüğü şeyleri kendisi de söyley
   },
   "architectureNotes": {
     "circularDependencies": {
-      "issue": "Açıklama",
-      "solution": "Çözüm"
+      "issue": "Description",
+      "solution": "Solution"
     }
   }
 }
 ```
 
-### Güncelleme Kuralları
-- Pre-commit hook otomatik olarak günceller (commit öncesi)
-- Manuel: `npm run structure`
-- Yeni IPC channel eklediysen ipcChannels bölümünü kontrol et
+### Update Rules
+- Pre-commit hook updates automatically (before commit)
+- Manual: `npm run structure`
+- If you added a new IPC channel, check the ipcChannels section
 
 ---
 
-## QUICKSTART.md Kuralları
+## QUICKSTART.md Rules
 
-### Ne Zaman Güncelle?
-- Kurulum adımları değiştiğinde
-- Yeni gereksinimler eklendiğinde
-- Önemli komutlar değiştiğinde
-
----
-
-## Genel Kurallar
-
-1. **Dil:** Dökümanları Türkçe yaz (kod örnekleri hariç)
-2. **Tarih Formatı:** ISO 8601 (YYYY-MM-DDTHH:mm:ssZ)
-3. **Commit Sonrası:** tasks.json ve STRUCTURE.json'ı kontrol et
-4. **Session Başlangıcı:** tasks.json'daki pending taskları gözden geçir
+### When to Update?
+- When installation steps change
+- When new requirements are added
+- When important commands change
 
 ---
 
-*Bu dosya Frame tarafından otomatik oluşturulmuştur.*
-*Oluşturulma tarihi: 2026-01-24*
+## General Rules
+
+1. **Language:** Write documentation in English (except code examples)
+2. **Date Format:** ISO 8601 (YYYY-MM-DDTHH:mm:ssZ)
+3. **After Commit:** Check tasks.json and STRUCTURE.json
+4. **Session Start:** Review pending tasks in tasks.json
+
+---
+
+*This file was automatically created by Frame.*
+*Creation date: 2026-01-24*
