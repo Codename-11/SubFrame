@@ -1,17 +1,17 @@
 <!-- FRAME AUTO-GENERATED FILE -->
 <!-- Purpose: Quick onboarding guide for developers and AI assistants -->
 <!-- For Claude: Read this FIRST to quickly understand how to work with this project. Contains setup instructions, common commands, and key files to know. -->
-<!-- Last Updated: 2026-01-24 -->
+<!-- Last Updated: 2026-01-26 -->
 
-# ClaudeCodeIDE - Quick Start Guide
+# Frame - Quick Start Guide
 
 ## Setup
 
 ```bash
 # Clone and install
-git clone <repo-url>
-cd ClaudeCodeIDE
-npm install  # or appropriate package manager
+git clone https://github.com/kaanozhan/Frame.git
+cd Frame
+npm install
 ```
 
 ## Common Commands
@@ -23,8 +23,11 @@ npm run dev
 # Build
 npm run build
 
-# Test
-npm test
+# Start
+npm start
+
+# Build for distribution
+npm run dist
 ```
 
 ## Key Files
@@ -33,15 +36,21 @@ npm test
 |------|---------|
 | `STRUCTURE.json` | Module map and architecture |
 | `PROJECT_NOTES.md` | Decisions and context |
-| `todos.json` | Task tracking |
+| `tasks.json` | Task tracking |
+| `CLAUDE.md` | Instructions for Claude Code |
 | `QUICKSTART.md` | This file |
 
 ## Project Structure
 
 ```
-ClaudeCodeIDE/
+Frame/
 ├── .frame/           # Frame configuration
-├── src/              # Source code
+├── src/
+│   ├── main/         # Electron main process
+│   ├── renderer/     # Electron renderer (UI)
+│   └── shared/       # Shared modules
+├── dist/             # Built renderer bundle
+├── release/          # Packaged app (after npm run dist)
 └── ...
 ```
 
@@ -49,10 +58,15 @@ ClaudeCodeIDE/
 
 1. **First**: Read `STRUCTURE.json` for architecture overview
 2. **Then**: Check `PROJECT_NOTES.md` for current context and decisions
-3. **Check**: `todos.json` for pending tasks
+3. **Check**: `tasks.json` for pending tasks
 4. **Follow**: Existing code patterns and conventions
 5. **Update**: These files as you make changes
 
 ## Quick Context
 
-*Add a brief summary of what this project does and its current state here*
+Frame is a project management IDE for Claude Code. It provides:
+- Visual task management
+- Context preservation between sessions
+- Plugins panel for Claude Code plugins
+- Multi-terminal support
+- File explorer and editor
