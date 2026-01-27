@@ -170,6 +170,10 @@ function createNewProject() {
 function setupIPC() {
   ipcRenderer.on(IPC.PROJECT_SELECTED, (event, projectPath) => {
     setProjectPath(projectPath);
+    // Change terminal directory to selected project
+    if (typeof window.terminalSendCommand === 'function') {
+      window.terminalSendCommand(`cd "${projectPath}"`);
+    }
   });
 
   ipcRenderer.on(IPC.IS_FRAME_PROJECT_RESULT, (event, { projectPath, isFrame }) => {

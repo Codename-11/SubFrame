@@ -105,6 +105,11 @@ function createProjectItem(project) {
 function selectProject(projectPath) {
   setActiveProject(projectPath);
 
+  // Change terminal directory to selected project
+  if (typeof window.terminalSendCommand === 'function') {
+    window.terminalSendCommand(`cd "${projectPath}"`);
+  }
+
   if (onProjectSelectCallback) {
     onProjectSelectCallback(projectPath);
   }

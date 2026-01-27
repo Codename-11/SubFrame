@@ -1352,18 +1352,18 @@
           "purpose": "Select a project"
         },
         "setActiveProject": {
-          "line": 116,
+          "line": 121,
           "params": [
             "projectPath"
           ],
           "purpose": "Set active project (visual only)"
         },
         "getActiveProject": {
-          "line": 135,
+          "line": 140,
           "purpose": "Get active project path"
         },
         "addProject": {
-          "line": 142,
+          "line": 147,
           "params": [
             "projectPath",
             "projectName",
@@ -1372,14 +1372,14 @@
           "purpose": "Add project to workspace"
         },
         "removeProject": {
-          "line": 153,
+          "line": 158,
           "params": [
             "projectPath"
           ],
           "purpose": "Remove project from workspace"
         },
         "setupIPC": {
-          "line": 160,
+          "line": 165,
           "purpose": "Setup IPC listeners"
         }
       },
