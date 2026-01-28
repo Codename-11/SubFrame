@@ -84,6 +84,19 @@ function sendCommand(command) {
 // Expose sendCommand globally for modules that can't import terminal directly (circular dependency)
 window.terminalSendCommand = sendCommand;
 
+// Expose focus function globally for returning focus from other panels
+window.terminalFocus = function() {
+  if (multiTerminalUI) {
+    const manager = multiTerminalUI.getManager();
+    if (manager && manager.activeTerminalId) {
+      const instance = manager.terminals.get(manager.activeTerminalId);
+      if (instance) {
+        instance.terminal.focus();
+      }
+    }
+  }
+};
+
 // Handle RUN_COMMAND IPC from menu accelerators (Cmd+K, Cmd+I, etc.)
 ipcRenderer.on(IPC.RUN_COMMAND, (event, command) => {
   if (multiTerminalUI) {

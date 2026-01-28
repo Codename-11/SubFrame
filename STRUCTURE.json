@@ -783,7 +783,7 @@
           "purpose": "Send command to active terminal"
         },
         "getMultiTerminalUI": {
-          "line": 97,
+          "line": 110,
           "purpose": "Get MultiTerminalUI instance"
         }
       },
@@ -804,7 +804,9 @@
         "renderFileTree",
         "clearFileTree",
         "refreshFileTree",
-        "loadFileTree"
+        "loadFileTree",
+        "focus",
+        "blur"
       ],
       "depends": [
         "electron",
@@ -812,7 +814,7 @@
       ],
       "functions": {
         "init": {
-          "line": 16,
+          "line": 17,
           "params": [
             "elementId",
             "getProjectPath"
@@ -820,21 +822,21 @@
           "purpose": "Initialize file tree UI"
         },
         "setProjectPathGetter": {
-          "line": 30,
+          "line": 31,
           "params": [
             "getter"
           ],
           "purpose": "Set project path getter"
         },
         "setOnFileClick": {
-          "line": 37,
+          "line": 38,
           "params": [
             "callback"
           ],
           "purpose": "Set file click callback"
         },
         "renderFileTree": {
-          "line": 44,
+          "line": 45,
           "params": [
             "files",
             "parentElement",
@@ -843,26 +845,45 @@
           "purpose": "Render file tree recursively"
         },
         "clearFileTree": {
-          "line": 126,
+          "line": 129,
           "purpose": "Clear file tree"
         },
         "refreshFileTree": {
-          "line": 135,
+          "line": 138,
           "params": [
             "projectPath"
           ],
           "purpose": "Refresh file tree"
         },
         "loadFileTree": {
-          "line": 145,
+          "line": 148,
           "params": [
             "projectPath"
           ],
           "purpose": "Load file tree for path"
         },
         "setupIPC": {
-          "line": 152,
+          "line": 155,
           "purpose": "Setup IPC listeners"
+        },
+        "focus": {
+          "line": 165,
+          "purpose": "Focus file tree for keyboard navigation"
+        },
+        "getVisibleItems": {
+          "line": 187,
+          "purpose": "Get all visible file items (for navigation)"
+        },
+        "handleKeydown": {
+          "line": 206,
+          "params": [
+            "e"
+          ],
+          "purpose": "Handle keyboard navigation in file tree"
+        },
+        "blur": {
+          "line": 268,
+          "purpose": "Blur/unfocus file tree"
         }
       },
       "ipc": {
@@ -1319,7 +1340,11 @@
         "setActiveProject",
         "getActiveProject",
         "addProject",
-        "removeProject"
+        "removeProject",
+        "selectNextProject",
+        "selectPrevProject",
+        "focus",
+        "blur"
       ],
       "depends": [
         "electron",
@@ -1327,7 +1352,7 @@
       ],
       "functions": {
         "init": {
-          "line": 16,
+          "line": 18,
           "params": [
             "containerId",
             "onSelectCallback"
@@ -1335,43 +1360,44 @@
           "purpose": "Initialize project list UI"
         },
         "loadProjects": {
-          "line": 25,
+          "line": 27,
           "purpose": "Load projects from workspace"
         },
         "renderProjects": {
-          "line": 32,
+          "line": 34,
           "params": [
-            "projects"
+            "projectsList"
           ],
           "purpose": "Render project list"
         },
         "createProjectItem": {
-          "line": 64,
+          "line": 73,
           "params": [
-            "project"
+            "project",
+            "index"
           ],
           "purpose": "Create a project item element"
         },
         "selectProject": {
-          "line": 105,
+          "line": 116,
           "params": [
             "projectPath"
           ],
           "purpose": "Select a project"
         },
         "setActiveProject": {
-          "line": 121,
+          "line": 132,
           "params": [
             "projectPath"
           ],
           "purpose": "Set active project (visual only)"
         },
         "getActiveProject": {
-          "line": 140,
+          "line": 151,
           "purpose": "Get active project path"
         },
         "addProject": {
-          "line": 147,
+          "line": 158,
           "params": [
             "projectPath",
             "projectName",
@@ -1380,15 +1406,38 @@
           "purpose": "Add project to workspace"
         },
         "removeProject": {
-          "line": 158,
+          "line": 169,
           "params": [
             "projectPath"
           ],
           "purpose": "Remove project from workspace"
         },
         "setupIPC": {
-          "line": 165,
+          "line": 176,
           "purpose": "Setup IPC listeners"
+        },
+        "selectNextProject": {
+          "line": 189,
+          "purpose": "Select next project in list"
+        },
+        "selectPrevProject": {
+          "line": 200,
+          "purpose": "Select previous project in list"
+        },
+        "focus": {
+          "line": 211,
+          "purpose": "Focus project list for keyboard navigation"
+        },
+        "handleKeydown": {
+          "line": 234,
+          "params": [
+            "e"
+          ],
+          "purpose": "Handle keyboard navigation in project list"
+        },
+        "blur": {
+          "line": 269,
+          "purpose": "Blur/unfocus project list"
         }
       },
       "ipc": {
@@ -1705,52 +1754,72 @@
         "init",
         "getWidth",
         "setWidth",
-        "resetWidth"
+        "resetWidth",
+        "toggle",
+        "hide",
+        "show",
+        "isVisible"
       ],
       "depends": [],
       "functions": {
         "init": {
-          "line": 22,
+          "line": 25,
           "params": [
             "onResize"
           ],
           "purpose": "Initialize sidebar resize functionality"
         },
         "handleMouseDown": {
-          "line": 54,
+          "line": 65,
           "params": [
             "e"
           ],
           "purpose": "Handle mouse down on resize handle"
         },
         "handleMouseMove": {
-          "line": 68,
+          "line": 79,
           "params": [
             "e"
           ],
           "purpose": "Handle mouse move during resize"
         },
         "handleMouseUp": {
-          "line": 84,
+          "line": 95,
           "params": [
             "e"
           ],
           "purpose": "Handle mouse up to finish resize"
         },
         "resetWidth": {
-          "line": 104,
+          "line": 115,
           "purpose": "Reset sidebar width to default"
         },
         "getWidth": {
-          "line": 117,
+          "line": 128,
           "purpose": "Get current sidebar width"
         },
         "setWidth": {
-          "line": 125,
+          "line": 136,
           "params": [
             "width"
           ],
           "purpose": "Set sidebar width programmatically"
+        },
+        "toggle": {
+          "line": 151,
+          "purpose": "Toggle sidebar visibility"
+        },
+        "hide": {
+          "line": 164,
+          "purpose": "Hide sidebar"
+        },
+        "show": {
+          "line": 180,
+          "purpose": "Show sidebar"
+        },
+        "isVisible": {
+          "line": 196,
+          "purpose": "Check if sidebar is hidden"
         }
       }
     },

@@ -131,6 +131,22 @@ class TerminalManager {
       if (modKey && key === 'h') {
         return false;
       }
+      // Ctrl/Cmd + B (sidebar toggle) → pass to app
+      if (modKey && key === 'b') {
+        return false;
+      }
+      // Ctrl/Cmd + E (project/file focus) → pass to app
+      if (modKey && key === 'e') {
+        return false;
+      }
+      // Ctrl/Cmd + T (tasks panel) → pass to app (without shift)
+      if (modKey && !event.shiftKey && key === 't') {
+        return false;
+      }
+      // Ctrl/Cmd + [ or ] (project navigation) → pass to app
+      if (modKey && (event.key === '[' || event.key === ']')) {
+        return false;
+      }
       // Ctrl/Cmd + Tab → pass to app
       if (modKey && event.key === 'Tab') {
         return false;

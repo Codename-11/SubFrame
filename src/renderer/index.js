@@ -182,10 +182,43 @@ function setupKeyboardShortcuts() {
       e.preventDefault();
       pluginsPanel.toggle();
     }
-    // Ctrl+Shift+G - Toggle GitHub panel
-    if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+    // Ctrl/Cmd+Shift+G - Toggle GitHub panel
+    if (modKey && e.shiftKey && key === 'g') {
       e.preventDefault();
       githubPanel.toggle();
+    }
+    // Ctrl/Cmd+B - Toggle sidebar
+    if (modKey && !e.shiftKey && key === 'b') {
+      e.preventDefault();
+      sidebarResize.toggle();
+      terminal.fitTerminal();
+    }
+    // Ctrl/Cmd+Shift+[ - Previous project
+    if (modKey && e.shiftKey && e.key === '[') {
+      e.preventDefault();
+      projectListUI.selectPrevProject();
+    }
+    // Ctrl/Cmd+Shift+] - Next project
+    if (modKey && e.shiftKey && e.key === ']') {
+      e.preventDefault();
+      projectListUI.selectNextProject();
+    }
+    // Ctrl/Cmd+E - Focus project list
+    if (modKey && !e.shiftKey && key === 'e') {
+      e.preventDefault();
+      fileTreeUI.blur();
+      projectListUI.focus();
+    }
+    // Ctrl/Cmd+Shift+E - Focus file tree
+    if (modKey && e.shiftKey && key === 'e') {
+      e.preventDefault();
+      projectListUI.blur();
+      fileTreeUI.focus();
+    }
+    // Ctrl/Cmd+T - Toggle tasks panel
+    if (modKey && !e.shiftKey && key === 't') {
+      e.preventDefault();
+      tasksPanel.toggle()
     }
   });
 }

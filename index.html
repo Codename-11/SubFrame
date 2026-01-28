@@ -362,6 +362,13 @@
       color: var(--text-primary);
     }
 
+    .file-item.focused,
+    .file-item:focus {
+      outline: 1px solid var(--accent-primary);
+      outline-offset: -1px;
+      background: var(--bg-elevated);
+    }
+
     .file-item.folder {
       font-weight: 500;
       color: var(--text-primary);
@@ -634,6 +641,13 @@
       background: var(--accent-subtle);
       color: var(--accent-primary);
       border-color: var(--accent-primary);
+    }
+
+    .project-item.focused,
+    .project-item:focus {
+      outline: 1px solid var(--accent-primary);
+      outline-offset: -1px;
+      background: var(--bg-elevated);
     }
 
     .project-item .project-icon {
