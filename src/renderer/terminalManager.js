@@ -91,6 +91,11 @@ class TerminalManager {
     element.style.height = '100%';
     element.style.width = '100%';
 
+    // Focus terminal on click anywhere in the container
+    element.addEventListener('click', () => {
+      terminal.focus();
+    });
+
     const state = {
       id: terminalId,
       name: options.name || `Terminal ${++this.terminalCounter}`,
@@ -100,6 +105,39 @@ class TerminalManager {
     };
 
     this.terminals.set(terminalId, { terminal, fitAddon, element, state });
+
+    // Allow app-level shortcuts to pass through when terminal has focus
+    terminal.attachCustomKeyEventHandler((event) => {
+      const modKey = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      // Ctrl/Cmd + Shift combinations → pass to app
+      if (modKey && event.shiftKey) {
+        return false;
+      }
+      // Ctrl/Cmd + 1-9 → pass to app
+      if (modKey && event.key >= '1' && event.key <= '9') {
+        return false;
+      }
+      // Ctrl/Cmd + K (Start Claude) → pass to app
+      if (modKey && key === 'k') {
+        return false;
+      }
+      // Ctrl/Cmd + I (/init) → pass to app
+      if (modKey && key === 'i') {
+        return false;
+      }
+      // Ctrl/Cmd + H (history) → pass to app
+      if (modKey && key === 'h') {
+        return false;
+      }
+      // Ctrl/Cmd + Tab → pass to app
+      if (modKey && event.key === 'Tab') {
+        return false;
+      }
+      // Let terminal handle everything else
+      return true;
+    });
 
     // Handle input
     terminal.onData((data) => {
@@ -140,6 +178,10 @@ class TerminalManager {
       setTimeout(() => {
         instance.fitAddon.fit();
         this._sendResize(terminalId);
+        // Focus if this is the active terminal
+        if (this.activeTerminalId === terminalId) {
+          instance.terminal.focus();
+        }
       }, 50);
     }
   }

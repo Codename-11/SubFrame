@@ -84,6 +84,13 @@ function sendCommand(command) {
 // Expose sendCommand globally for modules that can't import terminal directly (circular dependency)
 window.terminalSendCommand = sendCommand;
 
+// Handle RUN_COMMAND IPC from menu accelerators (Cmd+K, Cmd+I, etc.)
+ipcRenderer.on(IPC.RUN_COMMAND, (event, command) => {
+  if (multiTerminalUI) {
+    multiTerminalUI.sendCommand(command);
+  }
+});
+
 /**
  * Get MultiTerminalUI instance
  */

@@ -112,34 +112,37 @@ class MultiTerminalUI {
    */
   _setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      // Ctrl+Shift+T - New terminal
-      if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+      const modKey = e.ctrlKey || e.metaKey; // Support both Ctrl (Windows/Linux) and Cmd (macOS)
+      const key = e.key.toLowerCase(); // Normalize key to lowercase
+
+      // Ctrl/Cmd+Shift+T - New terminal
+      if (modKey && e.shiftKey && key === 't') {
         e.preventDefault();
         this.manager.createTerminal();
       }
 
-      // Ctrl+Shift+W - Close current terminal
-      if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+      // Ctrl/Cmd+Shift+W - Close current terminal
+      if (modKey && e.shiftKey && key === 'w') {
         e.preventDefault();
         if (this.manager.activeTerminalId && this.manager.terminals.size > 1) {
           this.manager.closeTerminal(this.manager.activeTerminalId);
         }
       }
 
-      // Ctrl+Tab - Next terminal
-      if (e.ctrlKey && e.key === 'Tab' && !e.shiftKey) {
+      // Ctrl/Cmd+Tab - Next terminal
+      if (modKey && e.key === 'Tab' && !e.shiftKey) {
         e.preventDefault();
         this._switchTerminal(1);
       }
 
-      // Ctrl+Shift+Tab - Previous terminal
-      if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
+      // Ctrl/Cmd+Shift+Tab - Previous terminal
+      if (modKey && e.shiftKey && e.key === 'Tab') {
         e.preventDefault();
         this._switchTerminal(-1);
       }
 
-      // Ctrl+1-9 - Switch to terminal by number
-      if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
+      // Ctrl/Cmd+1-9 - Switch to terminal by number
+      if (modKey && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
         const index = parseInt(e.key) - 1;
         const terminals = this.manager.getTerminalStates();
@@ -148,8 +151,8 @@ class MultiTerminalUI {
         }
       }
 
-      // Ctrl+Shift+G - Toggle grid view
-      if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+      // Ctrl/Cmd+Shift+G - Toggle grid view
+      if (modKey && e.shiftKey && key === 'g') {
         e.preventDefault();
         const newMode = this.manager.viewMode === 'tabs' ? 'grid' : 'tabs';
         this.manager.setViewMode(newMode);

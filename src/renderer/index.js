@@ -169,18 +169,16 @@ function setupButtonHandlers() {
  */
 function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
-    // Ctrl+Shift+H - Toggle history panel
-    if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+    const modKey = e.ctrlKey || e.metaKey; // Support both Ctrl (Windows/Linux) and Cmd (macOS)
+    const key = e.key.toLowerCase(); // Normalize key to lowercase
+
+    // Ctrl/Cmd+Shift+H - Toggle history panel
+    if (modKey && e.shiftKey && key === 'h') {
       e.preventDefault();
       historyPanel.toggleHistoryPanel();
     }
-    // Ctrl+Shift+T - Toggle tasks panel
-    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-      e.preventDefault();
-      tasksPanel.toggle();
-    }
-    // Ctrl+Shift+P - Toggle plugins panel
-    if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+    // Ctrl/Cmd+Shift+P - Toggle plugins panel
+    if (modKey && e.shiftKey && key === 'p') {
       e.preventDefault();
       pluginsPanel.toggle();
     }

@@ -783,9 +783,15 @@
           "purpose": "Send command to active terminal"
         },
         "getMultiTerminalUI": {
-          "line": 90,
+          "line": 97,
           "purpose": "Get MultiTerminalUI instance"
         }
+      },
+      "ipc": {
+        "listens": [
+          "RUN_COMMAND"
+        ],
+        "emits": []
       }
     },
     "renderer/fileTreeUI": {
