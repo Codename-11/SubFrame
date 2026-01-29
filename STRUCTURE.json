@@ -1483,7 +1483,7 @@
       "functions": {}
     },
     "renderer/terminalManager": {
-      "file": "src/renderer/terminalManager.js",
+      "file": "src\\renderer\\terminalManager.js",
       "description": "T",
       "exports": [
         "TerminalManager"
