@@ -66,20 +66,30 @@ function startTerminal() {
 /**
  * Restart terminal with new path (creates new terminal in path for current project)
  */
-function restartTerminal(projectPath) {
+async function restartTerminal(projectPath) {
   if (multiTerminalUI) {
     // Set the project first, then create terminal
     multiTerminalUI.setCurrentProject(projectPath);
-    multiTerminalUI.createTerminalForCurrentProject();
+    return await multiTerminalUI.createTerminalForCurrentProject();
+  }
+  return null;
+}
+
+/**
+ * Send command to active terminal or specific terminal
+ */
+function sendCommand(command, terminalId = null) {
+  if (multiTerminalUI) {
+    multiTerminalUI.sendCommand(command, terminalId);
   }
 }
 
 /**
- * Send command to active terminal
+ * Set active terminal
  */
-function sendCommand(command) {
+function setActiveTerminal(terminalId) {
   if (multiTerminalUI) {
-    multiTerminalUI.sendCommand(command);
+    multiTerminalUI.setActiveTerminal(terminalId);
   }
 }
 
@@ -122,5 +132,6 @@ module.exports = {
   startTerminal,
   restartTerminal,
   sendCommand,
+  setActiveTerminal,
   getMultiTerminalUI
 };

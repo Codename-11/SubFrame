@@ -135,13 +135,20 @@ function setupButtonHandlers() {
   });
 
   // Start Claude Code
-  document.getElementById('btn-start-claude').addEventListener('click', () => {
+  document.getElementById('btn-start-claude').addEventListener('click', async () => {
     const projectPath = state.getProjectPath();
     if (projectPath) {
-      terminal.restartTerminal(projectPath);
-      setTimeout(() => {
-        terminal.sendCommand('claude');
-      }, 1000);
+      const newTerminalId = await terminal.restartTerminal(projectPath);
+      
+      if (newTerminalId) {
+        // Ensure the new terminal is focused
+        terminal.setActiveTerminal(newTerminalId);
+        
+        // Send command specifically to the new terminal
+        setTimeout(() => {
+          terminal.sendCommand('claude', newTerminalId);
+        }, 1000);
+      }
     }
   });
 

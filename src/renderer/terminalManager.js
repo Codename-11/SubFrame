@@ -485,12 +485,16 @@ class TerminalManager {
   }
 
   /**
-   * Send command to active terminal
+   * Send command to active terminal or specific terminal
+   * @param {string} command - Command to send
+   * @param {string} [terminalId] - Optional specific terminal ID
    */
-  sendCommand(command) {
-    if (this.activeTerminalId) {
+  sendCommand(command, terminalId = null) {
+    const targetId = terminalId || this.activeTerminalId;
+    
+    if (targetId) {
       ipcRenderer.send(IPC.TERMINAL_INPUT_ID, {
-        terminalId: this.activeTerminalId,
+        terminalId: targetId,
         data: command + '\r'
       });
     }
