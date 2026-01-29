@@ -64,11 +64,13 @@ function startTerminal() {
 }
 
 /**
- * Restart terminal with new path (creates new terminal in path)
+ * Restart terminal with new path (creates new terminal in path for current project)
  */
 function restartTerminal(projectPath) {
   if (multiTerminalUI) {
-    multiTerminalUI.getManager().createTerminal({ cwd: projectPath });
+    // Set the project first, then create terminal
+    multiTerminalUI.setCurrentProject(projectPath);
+    multiTerminalUI.createTerminalForCurrentProject();
   }
 }
 

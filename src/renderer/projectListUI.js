@@ -112,14 +112,10 @@ function createProjectItem(project, index) {
 
 /**
  * Select a project
+ * Terminal session switching is handled by state.js via multiTerminalUI
  */
 function selectProject(projectPath) {
   setActiveProject(projectPath);
-
-  // Change terminal directory to selected project
-  if (typeof window.terminalSendCommand === 'function') {
-    window.terminalSendCommand(`cd "${projectPath}"`);
-  }
 
   if (onProjectSelectCallback) {
     onProjectSelectCallback(projectPath);

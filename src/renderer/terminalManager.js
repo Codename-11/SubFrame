@@ -31,6 +31,10 @@ const terminalTheme = {
   brightWhite: '#e5e5e5'
 };
 
+// Session storage key
+const SESSION_STORAGE_KEY = 'frame-terminal-sessions';
+const GLOBAL_PROJECT_KEY = '__global__';
+
 class TerminalManager {
   constructor() {
     this.terminals = new Map(); // Map<id, {terminal, fitAddon, element, state}>
@@ -40,11 +44,141 @@ class TerminalManager {
     this.maxTerminals = 9;
     this.terminalCounter = 0;
     this.onStateChange = null;
+    this.currentProjectPath = null; // Current active project (null = global)
     this._setupIPC();
   }
 
   /**
+   * Set current project context
+   * @param {string|null} projectPath - Project path or null for global
+   */
+  setCurrentProject(projectPath) {
+    // Save current project session before switching
+    if (this.currentProjectPath !== projectPath) {
+      this.saveProjectSession(this.currentProjectPath);
+    }
+
+    this.currentProjectPath = projectPath;
+
+    // Restore session for new project
+    this.restoreProjectSession(projectPath);
+
+    this._notifyStateChange();
+  }
+
+  /**
+   * Get current project path
+   */
+  getCurrentProject() {
+    return this.currentProjectPath;
+  }
+
+  /**
+   * Get terminals for a specific project
+   * @param {string|null} projectPath - Project path or null for global
+   */
+  getTerminalsByProject(projectPath) {
+    return Array.from(this.terminals.values())
+      .filter(t => t.state.projectPath === projectPath)
+      .map(t => ({ ...t.state }))
+      .sort((a, b) => a.createdAt - b.createdAt);
+  }
+
+  /**
+   * Save project session to localStorage
+   * @param {string|null} projectPath - Project path or null for global
+   */
+  saveProjectSession(projectPath) {
+    const sessionKey = projectPath || GLOBAL_PROJECT_KEY;
+    const projectTerminals = this.getTerminalsByProject(projectPath);
+
+    if (projectTerminals.length === 0) {
+      return; // Nothing to save
+    }
+
+    const sessionData = {
+      activeTerminalId: this.activeTerminalId,
+      viewMode: this.viewMode,
+      gridLayout: this.gridLayout,
+      terminalNames: {} // Map of terminalId -> customName
+    };
+
+    // Save custom names
+    projectTerminals.forEach(t => {
+      if (t.customName) {
+        sessionData.terminalNames[t.id] = t.customName;
+      }
+    });
+
+    try {
+      const allSessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+      allSessions[sessionKey] = sessionData;
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allSessions));
+    } catch (err) {
+      console.error('Failed to save terminal session:', err);
+    }
+  }
+
+  /**
+   * Restore project session from localStorage
+   * @param {string|null} projectPath - Project path or null for global
+   */
+  restoreProjectSession(projectPath) {
+    const sessionKey = projectPath || GLOBAL_PROJECT_KEY;
+
+    try {
+      const allSessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+      const sessionData = allSessions[sessionKey];
+
+      if (sessionData) {
+        // Restore view settings
+        if (sessionData.viewMode) {
+          this.viewMode = sessionData.viewMode;
+        }
+        if (sessionData.gridLayout) {
+          this.gridLayout = sessionData.gridLayout;
+        }
+
+        // Restore custom names for existing terminals
+        const projectTerminals = this.getTerminalsByProject(projectPath);
+        projectTerminals.forEach(t => {
+          if (sessionData.terminalNames && sessionData.terminalNames[t.id]) {
+            const instance = this.terminals.get(t.id);
+            if (instance) {
+              instance.state.customName = sessionData.terminalNames[t.id];
+              instance.state.name = sessionData.terminalNames[t.id];
+            }
+          }
+        });
+
+        // Restore active terminal if it belongs to current project
+        if (sessionData.activeTerminalId) {
+          const terminal = this.terminals.get(sessionData.activeTerminalId);
+          if (terminal && terminal.state.projectPath === projectPath) {
+            this.setActiveTerminal(sessionData.activeTerminalId);
+            return;
+          }
+        }
+      }
+
+      // If no valid active terminal found, select first terminal of current project
+      const projectTerminals = this.getTerminalsByProject(projectPath);
+      if (projectTerminals.length > 0) {
+        this.setActiveTerminal(projectTerminals[0].id);
+      } else {
+        this.activeTerminalId = null;
+      }
+    } catch (err) {
+      console.error('Failed to restore terminal session:', err);
+    }
+  }
+
+  /**
    * Create a new terminal
+   * @param {Object} options - Options for terminal creation
+   * @param {string} options.cwd - Working directory
+   * @param {string} options.projectPath - Associated project path (undefined = use current)
+   * @param {string} options.name - Custom terminal name
    */
   async createTerminal(options = {}) {
     if (this.terminals.size >= this.maxTerminals) {
@@ -52,11 +186,23 @@ class TerminalManager {
       return null;
     }
 
+    // Use provided projectPath or current project
+    const projectPath = options.projectPath !== undefined
+      ? options.projectPath
+      : this.currentProjectPath;
+
+    // Working directory: use provided cwd, or project path, or home directory
+    const workingDir = options.cwd || projectPath || null;
+
     return new Promise((resolve, reject) => {
       const handler = (event, response) => {
         ipcRenderer.removeListener(IPC.TERMINAL_CREATED, handler);
         if (response.success) {
-          this._initializeTerminal(response.terminalId, options);
+          this._initializeTerminal(response.terminalId, {
+            ...options,
+            projectPath,
+            cwd: workingDir
+          });
           resolve(response.terminalId);
         } else {
           reject(new Error(response.error));
@@ -64,7 +210,10 @@ class TerminalManager {
       };
 
       ipcRenderer.on(IPC.TERMINAL_CREATED, handler);
-      ipcRenderer.send(IPC.TERMINAL_CREATE, options.cwd || null);
+      ipcRenderer.send(IPC.TERMINAL_CREATE, {
+        cwd: workingDir,
+        projectPath
+      });
     });
   }
 
@@ -101,7 +250,8 @@ class TerminalManager {
       name: options.name || `Terminal ${++this.terminalCounter}`,
       customName: null,
       isActive: false,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      projectPath: options.projectPath !== undefined ? options.projectPath : this.currentProjectPath
     };
 
     this.terminals.set(terminalId, { terminal, fitAddon, element, state });
@@ -276,10 +426,18 @@ class TerminalManager {
   }
 
   /**
-   * Get all terminal states
+   * Get all terminal states (filtered by current project)
+   * @param {boolean} allProjects - If true, return all terminals regardless of project
    */
-  getTerminalStates() {
-    return Array.from(this.terminals.values())
+  getTerminalStates(allProjects = false) {
+    let terminals = Array.from(this.terminals.values());
+
+    if (!allProjects) {
+      // Filter by current project
+      terminals = terminals.filter(t => t.state.projectPath === this.currentProjectPath);
+    }
+
+    return terminals
       .map(t => ({ ...t.state }))
       .sort((a, b) => a.createdAt - b.createdAt);
   }
@@ -356,8 +514,31 @@ class TerminalManager {
         terminals: this.getTerminalStates(),
         activeTerminalId: this.activeTerminalId,
         viewMode: this.viewMode,
-        gridLayout: this.gridLayout
+        gridLayout: this.gridLayout,
+        currentProjectPath: this.currentProjectPath
       });
+    }
+  }
+
+  /**
+   * Check if there are terminals for the current project
+   */
+  hasTerminalsForCurrentProject() {
+    return this.getTerminalStates().length > 0;
+  }
+
+  /**
+   * Clear session storage for a project (used when app restarts)
+   * @param {string|null} projectPath - Project path or null for global
+   */
+  clearProjectSession(projectPath) {
+    const sessionKey = projectPath || GLOBAL_PROJECT_KEY;
+    try {
+      const allSessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+      delete allSessions[sessionKey];
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allSessions));
+    } catch (err) {
+      console.error('Failed to clear terminal session:', err);
     }
   }
 

@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-01-28",
+  "lastUpdated": "2026-01-29",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -704,11 +704,11 @@
           "purpose": "Initialize all modules"
         },
         "setupButtonHandlers": {
-          "line": 120,
+          "line": 122,
           "purpose": "Setup button click handlers"
         },
         "setupKeyboardShortcuts": {
-          "line": 166,
+          "line": 168,
           "purpose": "Setup keyboard shortcuts"
         }
       }
@@ -771,17 +771,17 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Restart terminal with new path (creates new terminal in path)"
+          "purpose": "Restart terminal with new path (creates new terminal in path for current project)"
         },
         "sendCommand": {
-          "line": 78,
+          "line": 80,
           "params": [
             "command"
           ],
           "purpose": "Send command to active terminal"
         },
         "getMultiTerminalUI": {
-          "line": 110,
+          "line": 112,
           "purpose": "Get MultiTerminalUI instance"
         }
       },
@@ -968,6 +968,7 @@
         "init",
         "getProjectPath",
         "setProjectPath",
+        "setMultiTerminalUI",
         "onProjectChange",
         "updateProjectUI",
         "selectProjectFolder",
@@ -984,77 +985,84 @@
       ],
       "functions": {
         "init": {
-          "line": 24,
+          "line": 25,
           "params": [
             "elements"
           ],
           "purpose": "Initialize state module"
         },
         "getProjectPath": {
-          "line": 36,
+          "line": 37,
           "purpose": "Get current project path"
         },
+        "setMultiTerminalUI": {
+          "line": 44,
+          "params": [
+            "ui"
+          ],
+          "purpose": "Set MultiTerminalUI reference for terminal session management"
+        },
         "setProjectPath": {
-          "line": 43,
+          "line": 51,
           "params": [
             "path"
           ],
-          "purpose": "Set project path"
+          "purpose": "Set project path and switch terminal session"
         },
         "onProjectChange": {
-          "line": 61,
+          "line": 76,
           "params": [
             "callback"
           ],
           "purpose": "Register callback for project change"
         },
         "getIsFrameProject": {
-          "line": 68,
+          "line": 83,
           "purpose": "Get Frame project status"
         },
         "setIsFrameProject": {
-          "line": 75,
+          "line": 90,
           "params": [
             "isFrame"
           ],
           "purpose": "Set Frame project status"
         },
         "onFrameStatusChange": {
-          "line": 86,
+          "line": 101,
           "params": [
             "callback"
           ],
           "purpose": "Register callback for Frame status change"
         },
         "onFrameInitialized": {
-          "line": 93,
+          "line": 108,
           "params": [
             "callback"
           ],
           "purpose": "Register callback for Frame project initialized"
         },
         "updateFrameUI": {
-          "line": 100,
+          "line": 115,
           "purpose": "Update Frame-related UI"
         },
         "initializeAsFrameProject": {
-          "line": 114,
+          "line": 129,
           "purpose": "Initialize current project as Frame project"
         },
         "updateProjectUI": {
-          "line": 127,
+          "line": 142,
           "purpose": "Update project UI elements"
         },
         "selectProjectFolder": {
-          "line": 156,
+          "line": 171,
           "purpose": "Request folder selection"
         },
         "createNewProject": {
-          "line": 163,
+          "line": 178,
           "purpose": "Request new project creation"
         },
         "setupIPC": {
-          "line": 170,
+          "line": 185,
           "purpose": "Setup IPC listeners"
         }
       },
@@ -1378,25 +1386,25 @@
           "purpose": "Create a project item element"
         },
         "selectProject": {
-          "line": 116,
+          "line": 117,
           "params": [
             "projectPath"
           ],
-          "purpose": "Select a project"
+          "purpose": "Terminal session switching is handled by state.js via multiTerminalUI"
         },
         "setActiveProject": {
-          "line": 132,
+          "line": 128,
           "params": [
             "projectPath"
           ],
           "purpose": "Set active project (visual only)"
         },
         "getActiveProject": {
-          "line": 151,
+          "line": 147,
           "purpose": "Get active project path"
         },
         "addProject": {
-          "line": 158,
+          "line": 154,
           "params": [
             "projectPath",
             "projectName",
@@ -1405,37 +1413,37 @@
           "purpose": "Add project to workspace"
         },
         "removeProject": {
-          "line": 169,
+          "line": 165,
           "params": [
             "projectPath"
           ],
           "purpose": "Remove project from workspace"
         },
         "setupIPC": {
-          "line": 176,
+          "line": 172,
           "purpose": "Setup IPC listeners"
         },
         "selectNextProject": {
-          "line": 189,
+          "line": 185,
           "purpose": "Select next project in list"
         },
         "selectPrevProject": {
-          "line": 200,
+          "line": 196,
           "purpose": "Select previous project in list"
         },
         "focus": {
-          "line": 211,
+          "line": 207,
           "purpose": "Focus project list for keyboard navigation"
         },
         "handleKeydown": {
-          "line": 234,
+          "line": 230,
           "params": [
             "e"
           ],
           "purpose": "Handle keyboard navigation in project list"
         },
         "blur": {
-          "line": 269,
+          "line": 265,
           "purpose": "Blur/unfocus project list"
         }
       },
@@ -1656,6 +1664,8 @@
         "getTerminalCount",
         "getTerminalIds",
         "hasTerminal",
+        "getTerminalsByProject",
+        "getTerminalInfo",
         "setupIPC"
       ],
       "depends": [
@@ -1676,14 +1686,29 @@
           "purpose": "Get shell based on platform"
         },
         "createTerminal": {
-          "line": 43,
+          "line": 44,
           "params": [
-            "workingDir = null"
+            "workingDir = null",
+            "projectPath = null"
           ],
           "purpose": "Create a new terminal instance"
         },
+        "getTerminalsByProject": {
+          "line": 93,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Get terminals for a specific project"
+        },
+        "getTerminalInfo": {
+          "line": 108,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "Get terminal info"
+        },
         "writeToTerminal": {
-          "line": 90,
+          "line": 119,
           "params": [
             "terminalId",
             "data"
@@ -1691,7 +1716,7 @@
           "purpose": "Write data to specific terminal"
         },
         "resizeTerminal": {
-          "line": 100,
+          "line": 129,
           "params": [
             "terminalId",
             "cols",
@@ -1700,33 +1725,33 @@
           "purpose": "Resize specific terminal"
         },
         "destroyTerminal": {
-          "line": 110,
+          "line": 139,
           "params": [
             "terminalId"
           ],
           "purpose": "Destroy specific terminal"
         },
         "destroyAll": {
-          "line": 122,
+          "line": 151,
           "purpose": "Destroy all terminals"
         },
         "getTerminalCount": {
-          "line": 133,
+          "line": 162,
           "purpose": "Get terminal count"
         },
         "getTerminalIds": {
-          "line": 140,
+          "line": 169,
           "purpose": "Get all terminal IDs"
         },
         "hasTerminal": {
-          "line": 147,
+          "line": 176,
           "params": [
             "terminalId"
           ],
           "purpose": "Check if terminal exists"
         },
         "setupIPC": {
-          "line": 154,
+          "line": 183,
           "params": [
             "ipcMain"
           ],

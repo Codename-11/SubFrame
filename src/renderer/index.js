@@ -19,7 +19,7 @@ const sidebarResize = require('./sidebarResize');
  */
 function init() {
   // Initialize terminal
-  terminal.initTerminal('terminal');
+  const multiTerminalUI = terminal.initTerminal('terminal');
 
   // Initialize state management
   state.init({
@@ -28,6 +28,9 @@ function init() {
     fileExplorerHeader: document.getElementById('file-explorer-header'),
     initializeFrameBtn: document.getElementById('btn-initialize-frame')
   });
+
+  // Connect state with multiTerminalUI for project-terminal session management
+  state.setMultiTerminalUI(multiTerminalUI);
 
   // Initialize project list UI
   projectListUI.init('projects-list', (projectPath) => {
@@ -71,10 +74,9 @@ function init() {
   });
 
   // Setup state change listeners
-  state.onProjectChange((projectPath) => {
+  state.onProjectChange((projectPath, previousPath) => {
     if (projectPath) {
       fileTreeUI.loadFileTree(projectPath);
-      terminal.writelnToTerminal(`\x1b[1;32m✓ Project selected:\x1b[0m ${projectPath}`);
 
       // Add to workspace and update project list
       const projectName = projectPath.split('/').pop() || projectPath.split('\\').pop();

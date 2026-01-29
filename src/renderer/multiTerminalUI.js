@@ -15,6 +15,7 @@ class MultiTerminalUI {
     this.grid = null;
     this.contentContainer = null;
     this.initialized = false;
+    this.autoCreateInitialTerminal = true; // Flag to control initial terminal creation
 
     this._setup();
   }
@@ -47,10 +48,57 @@ class MultiTerminalUI {
     // Setup keyboard shortcuts
     this._setupKeyboardShortcuts();
 
-    // Create first terminal
-    this.manager.createTerminal().then(() => {
+    // Create first terminal (global terminal for initial state)
+    if (this.autoCreateInitialTerminal) {
+      this.manager.createTerminal({ projectPath: null }).then(() => {
+        this.initialized = true;
+      });
+    } else {
       this.initialized = true;
+    }
+  }
+
+  /**
+   * Set current project and switch terminal view
+   * @param {string|null} projectPath - Project path or null for global
+   */
+  setCurrentProject(projectPath) {
+    this.manager.setCurrentProject(projectPath);
+
+    // Update UI to show terminals for current project
+    this._onStateChange({
+      terminals: this.manager.getTerminalStates(),
+      activeTerminalId: this.manager.activeTerminalId,
+      viewMode: this.manager.viewMode,
+      gridLayout: this.manager.gridLayout,
+      currentProjectPath: projectPath
     });
+  }
+
+  /**
+   * Create a new terminal for the current project
+   * @param {Object} options - Terminal options
+   */
+  async createTerminalForCurrentProject(options = {}) {
+    const projectPath = this.manager.getCurrentProject();
+    return this.manager.createTerminal({
+      ...options,
+      projectPath
+    });
+  }
+
+  /**
+   * Check if there are terminals for the current project
+   */
+  hasTerminalsForCurrentProject() {
+    return this.manager.hasTerminalsForCurrentProject();
+  }
+
+  /**
+   * Get current project path
+   */
+  getCurrentProject() {
+    return this.manager.getCurrentProject();
   }
 
   /**
@@ -87,6 +135,21 @@ class MultiTerminalUI {
     contentArea.style.width = '100%';
     this.contentContainer.appendChild(contentArea);
 
+    // Check if there are any terminals for current project
+    if (state.terminals.length === 0) {
+      // Show empty state message
+      const emptyState = document.createElement('div');
+      emptyState.className = 'terminal-empty-state';
+      emptyState.innerHTML = `
+        <div class="empty-state-content">
+          <p>No terminals for this project</p>
+          <p class="shortcut-hint">Press <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> to create a new terminal</p>
+        </div>
+      `;
+      contentArea.appendChild(emptyState);
+      return;
+    }
+
     // Mount only active terminal
     if (state.activeTerminalId) {
       this.manager.mountTerminal(state.activeTerminalId, contentArea);
@@ -115,10 +178,10 @@ class MultiTerminalUI {
       const modKey = e.ctrlKey || e.metaKey; // Support both Ctrl (Windows/Linux) and Cmd (macOS)
       const key = e.key.toLowerCase(); // Normalize key to lowercase
 
-      // Ctrl/Cmd+Shift+T - New terminal
+      // Ctrl/Cmd+Shift+T - New terminal for current project
       if (modKey && e.shiftKey && key === 't') {
         e.preventDefault();
-        this.manager.createTerminal();
+        this.createTerminalForCurrentProject();
       }
 
       // Ctrl/Cmd+Shift+W - Close current terminal
