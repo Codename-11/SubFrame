@@ -3,7 +3,7 @@
  * Manages multiple terminal instances in the renderer
  */
 
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, clipboard } = require('electron');
 const { Terminal } = require('xterm');
 const { FitAddon } = require('xterm-addon-fit');
 const { IPC } = require('../shared/ipcChannels');
@@ -261,6 +261,24 @@ class TerminalManager {
       const modKey = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
 
+      // Copy: Ctrl+Shift+C (Win/Linux) or Cmd+C (macOS)
+      if (event.type === 'keydown') {
+        if ((event.ctrlKey && event.shiftKey && key === 'c') || (event.metaKey && key === 'c')) {
+          if (terminal.hasSelection()) {
+            clipboard.writeText(terminal.getSelection());
+            terminal.clearSelection();
+          }
+          return false;
+        }
+
+        // Paste: Ctrl+Shift+V (Win/Linux) or Cmd+V (macOS)
+        if ((event.ctrlKey && event.shiftKey && key === 'v') || (event.metaKey && key === 'v')) {
+          const text = clipboard.readText();
+          if (text) terminal.paste(text);
+          return false;
+        }
+      }
+
       // Ctrl/Cmd + Shift combinations → pass to app
       if (modKey && event.shiftKey) {
         return false;
@@ -303,6 +321,13 @@ class TerminalManager {
       }
       // Let terminal handle everything else
       return true;
+    });
+
+    // Right-click paste
+    element.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const text = clipboard.readText();
+      if (text) terminal.paste(text);
     });
 
     // Handle input
