@@ -315,6 +315,7 @@ class TerminalManager {
       this.setActiveTerminal(terminalId);
     }
 
+    this._renumberTerminals(state.projectPath);
     this._notifyStateChange();
     return terminalId;
   }
@@ -356,6 +357,15 @@ class TerminalManager {
    * Set active terminal
    */
   setActiveTerminal(terminalId) {
+    if (this.activeTerminalId === terminalId) {
+      // Already active, just ensure focus
+      const current = this.terminals.get(terminalId);
+      if (current) {
+        current.terminal.focus();
+      }
+      return;
+    }
+
     // Update previous active
     if (this.activeTerminalId) {
       const prev = this.terminals.get(this.activeTerminalId);
@@ -396,7 +406,6 @@ class TerminalManager {
       this.terminals.delete(terminalId);
       ipcRenderer.send(IPC.TERMINAL_DESTROY, terminalId);
 
-      // Switch to another terminal if closing active
       if (this.activeTerminalId === terminalId) {
         const remaining = Array.from(this.terminals.keys());
         this.activeTerminalId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
@@ -405,6 +414,7 @@ class TerminalManager {
         }
       }
 
+      this._renumberTerminals(instance.state.projectPath);
       this._notifyStateChange();
     }
   }
@@ -485,12 +495,16 @@ class TerminalManager {
   }
 
   /**
-   * Send command to active terminal
+   * Send command to active terminal or specific terminal
+   * @param {string} command - Command to send
+   * @param {string} [terminalId] - Optional specific terminal ID
    */
-  sendCommand(command) {
-    if (this.activeTerminalId) {
+  sendCommand(command, terminalId = null) {
+    const targetId = terminalId || this.activeTerminalId;
+    
+    if (targetId) {
       ipcRenderer.send(IPC.TERMINAL_INPUT_ID, {
-        terminalId: this.activeTerminalId,
+        terminalId: targetId,
         data: command + '\r'
       });
     }
@@ -557,6 +571,27 @@ class TerminalManager {
         this.closeTerminal(terminalId);
       }
     });
+  }
+
+  /**
+   * Renumber terminals for a project to ensure sequential naming (Terminal 1, Terminal 2, ...)
+   * Only affects terminals without custom names.
+   */
+  _renumberTerminals(projectPath) {
+    const terminals = this.getTerminalsByProject(projectPath);
+    
+    terminals.forEach((tState, index) => {
+      const instance = this.terminals.get(tState.id);
+      if (instance && !instance.state.customName) {
+        const newName = `Terminal ${index + 1}`;
+        if (instance.state.name !== newName) {
+          instance.state.name = newName;
+        }
+      }
+    });
+    
+    // Notify change since names might have changed
+    this._notifyStateChange();
   }
 }
 

@@ -76,7 +76,13 @@ function getMarketplacePlugins() {
   const officialMarketplace = path.join(MARKETPLACES_DIR, 'claude-plugins-official', 'plugins');
 
   if (!fs.existsSync(officialMarketplace)) {
-    return plugins;
+    // Try to initialize it
+    ensureOfficialMarketplace();
+    
+    // Check again
+    if (!fs.existsSync(officialMarketplace)) {
+      return plugins;
+    }
   }
 
   try {
@@ -152,13 +158,47 @@ function togglePlugin(pluginId) {
 }
 
 /**
- * Refresh marketplace plugins (git pull)
+ * Ensure official marketplace exists
+ */
+function ensureOfficialMarketplace() {
+  const officialMarketplace = path.join(MARKETPLACES_DIR, 'claude-plugins-official');
+  
+  if (fs.existsSync(officialMarketplace)) {
+    return true;
+  }
+
+  try {
+    // Create marketplaces dir if it doesn't exist
+    if (!fs.existsSync(MARKETPLACES_DIR)) {
+      fs.mkdirSync(MARKETPLACES_DIR, { recursive: true });
+    }
+
+    console.log('Cloning official plugins repository...');
+    execSync('git clone https://github.com/anthropics/claude-plugins-official.git', {
+      cwd: MARKETPLACES_DIR,
+      stdio: 'pipe',
+      timeout: 60000
+    });
+    return true;
+  } catch (err) {
+    console.error('Error cloning official marketplace:', err);
+    return false;
+  }
+}
+
+/**
+ * Refresh marketplace plugins (git pull or clone)
  */
 function refreshMarketplace() {
   const officialMarketplace = path.join(MARKETPLACES_DIR, 'claude-plugins-official');
 
+  // If not exists, try to clone
   if (!fs.existsSync(officialMarketplace)) {
-    return { success: false, error: 'Marketplace not found' };
+    const success = ensureOfficialMarketplace();
+    if (!success) {
+      return { success: false, error: 'Failed to clone marketplace' };
+    }
+    return { success: true };
   }
 
   try {

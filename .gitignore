@@ -33,3 +33,6 @@ __pycache__/
 # In production, you might want to ignore this
 # prompts-history.txt
 release/
+
+#Walkthroughs
+WALKTHROUGH/

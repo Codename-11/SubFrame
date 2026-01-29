@@ -250,10 +250,17 @@ class MultiTerminalUI {
   }
 
   /**
-   * Send command to active terminal
+   * Send command to active terminal or specific terminal
    */
-  sendCommand(command) {
-    this.manager.sendCommand(command);
+  sendCommand(command, terminalId = null) {
+    this.manager.sendCommand(command, terminalId);
+  }
+
+  /**
+   * Set active terminal
+   */
+  setActiveTerminal(terminalId) {
+    this.manager.setActiveTerminal(terminalId);
   }
 
   /**

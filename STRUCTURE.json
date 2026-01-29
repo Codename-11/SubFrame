@@ -685,7 +685,7 @@
       }
     },
     "renderer/index": {
-      "file": "src/renderer/index.js",
+      "file": "src\\renderer\\index.js",
       "description": "R",
       "exports": [],
       "depends": [
@@ -710,13 +710,13 @@
           "purpose": "Setup button click handlers"
         },
         "setupKeyboardShortcuts": {
-          "line": 172,
+          "line": 179,
           "purpose": "Setup keyboard shortcuts"
         }
       }
     },
     "renderer/terminal": {
-      "file": "src/renderer/terminal.js",
+      "file": "src\\renderer\\terminal.js",
       "description": "T",
       "exports": [
         "initTerminal",
@@ -727,6 +727,7 @@
         "startTerminal",
         "restartTerminal",
         "sendCommand",
+        "setActiveTerminal",
         "getMultiTerminalUI"
       ],
       "depends": [
@@ -776,14 +777,22 @@
           "purpose": "Restart terminal with new path (creates new terminal in path for current project)"
         },
         "sendCommand": {
-          "line": 80,
+          "line": 81,
           "params": [
-            "command"
+            "command",
+            "terminalId = null"
           ],
-          "purpose": "Send command to active terminal"
+          "purpose": "Send command to active terminal or specific terminal"
+        },
+        "setActiveTerminal": {
+          "line": 90,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "Set active terminal"
         },
         "getMultiTerminalUI": {
-          "line": 112,
+          "line": 122,
           "purpose": "Get MultiTerminalUI instance"
         }
       },
@@ -1470,7 +1479,7 @@
       }
     },
     "renderer/multiTerminalUI": {
-      "file": "src/renderer/multiTerminalUI.js",
+      "file": "src\\renderer\\multiTerminalUI.js",
       "description": "M",
       "exports": [
         "MultiTerminalUI"
@@ -1483,7 +1492,7 @@
       "functions": {}
     },
     "renderer/terminalManager": {
-      "file": "src/renderer/terminalManager.js",
+      "file": "src\\renderer\\terminalManager.js",
       "description": "T",
       "exports": [
         "TerminalManager"
@@ -1868,7 +1877,7 @@
       "functions": {}
     },
     "renderer/terminalTabBar": {
-      "file": "src/renderer/terminalTabBar.js",
+      "file": "src\\renderer\\terminalTabBar.js",
       "description": "T",
       "exports": [
         "TerminalTabBar"
@@ -1881,7 +1890,7 @@
       "functions": {}
     },
     "main/pluginsManager": {
-      "file": "src/main/pluginsManager.js",
+      "file": "src\\main\\pluginsManager.js",
       "description": "P",
       "exports": [
         "init",
@@ -1932,22 +1941,26 @@
           "purpose": "Get all available plugins from marketplace"
         },
         "getAllPlugins": {
-          "line": 112,
+          "line": 118,
           "purpose": "Get all plugins with their status"
         },
         "togglePlugin": {
-          "line": 134,
+          "line": 140,
           "params": [
             "pluginId"
           ],
           "purpose": "Toggle plugin enabled/disabled status"
         },
+        "ensureOfficialMarketplace": {
+          "line": 163,
+          "purpose": "Ensure official marketplace exists"
+        },
         "refreshMarketplace": {
-          "line": 157,
-          "purpose": "Refresh marketplace plugins (git pull)"
+          "line": 192,
+          "purpose": "Refresh marketplace plugins (git pull or clone)"
         },
         "setupIPC": {
-          "line": 180,
+          "line": 220,
           "params": [
             "ipcMain"
           ],
