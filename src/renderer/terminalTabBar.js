@@ -12,7 +12,69 @@ class TerminalTabBar {
     this.container = container;
     this.manager = manager;
     this.element = null;
+    this.contextMenu = null;
+    this._injectStyles();
     this._render();
+    this._createContextMenu();
+  }
+
+  _injectStyles() {
+    const styleId = 'terminal-tab-context-menu-style';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        .terminal-context-menu {
+          position: fixed;
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+          box-shadow: var(--shadow-md);
+          padding: 4px;
+          z-index: 1000;
+          display: none;
+          min-width: 120px;
+          animation: fadeIn 0.1s ease-out;
+        }
+        .terminal-context-menu.visible {
+          display: block;
+        }
+        .terminal-context-menu-item {
+          padding: 6px 12px;
+          font-size: 12px;
+          color: var(--text-primary);
+          cursor: pointer;
+          border-radius: var(--radius-sm);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: background var(--transition-fast);
+        }
+        .terminal-context-menu-item:hover {
+          background: var(--bg-hover);
+        }
+        .terminal-context-menu-item svg {
+          opacity: 0.7;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+
+  _createContextMenu() {
+    this.contextMenu = document.createElement('div');
+    this.contextMenu.className = 'terminal-context-menu';
+    document.body.appendChild(this.contextMenu);
+    
+    // Hide menu on click elsewhere
+    document.addEventListener('click', () => {
+      this._hideContextMenu();
+    });
+    
+    // Hide menu on scroll
+    document.addEventListener('scroll', () => {
+      this._hideContextMenu();
+    }, true);
   }
 
   _render() {
@@ -66,12 +128,42 @@ class TerminalTabBar {
     const tabsContainer = this.element.querySelector('.terminal-tabs');
 
     // Render tabs
-    tabsContainer.innerHTML = state.terminals.map(t => `
-      <div class="terminal-tab ${t.isActive ? 'active' : ''}" data-terminal-id="${t.id}">
-        <span class="tab-name">${this._escapeHtml(t.customName || t.name)}</span>
-        ${state.terminals.length > 1 ? `<button class="tab-close" data-terminal-id="${t.id}" title="Close">×</button>` : ''}
-      </div>
-    `).join('');
+    // Render tabs - Smart update to preserve DOM elements and events
+    const existingTabs = Array.from(tabsContainer.children);
+    const terminalIds = state.terminals.map(t => t.id);
+    const existingIds = existingTabs.map(el => el.dataset.terminalId);
+
+    // Check if we can do an in-place update (same terminals, same order)
+    const canUpdateInPlace = terminalIds.length === existingIds.length && 
+      terminalIds.every((id, i) => id === existingIds[i]);
+
+    if (canUpdateInPlace) {
+      // Update existing elements
+      state.terminals.forEach((t, i) => {
+        const tabEl = existingTabs[i];
+        
+        // Update active class
+        if (t.isActive) tabEl.classList.add('active');
+        else tabEl.classList.remove('active');
+
+        // Update name if changed (and not currently being renamed)
+        const nameSpan = tabEl.querySelector('.tab-name');
+        if (nameSpan) {
+          const newName = t.customName || t.name;
+          if (nameSpan.textContent !== newName) {
+            nameSpan.textContent = newName;
+          }
+        }
+      });
+    } else {
+      // Full re-render
+      tabsContainer.innerHTML = state.terminals.map(t => `
+        <div class="terminal-tab ${t.isActive ? 'active' : ''}" data-terminal-id="${t.id}">
+          <span class="tab-name">${this._escapeHtml(t.customName || t.name)}</span>
+          ${state.terminals.length > 1 ? `<button class="tab-close" data-terminal-id="${t.id}" title="Close">×</button>` : ''}
+        </div>
+      `).join('');
+    }
 
     // Update view toggle button
     const toggleBtn = this.element.querySelector('.btn-view-toggle');
@@ -116,6 +208,17 @@ class TerminalTabBar {
       }
     });
 
+    // Right-click context menu
+    this.element.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const tab = e.target.closest('.terminal-tab');
+      if (tab) {
+        this._showContextMenu(e.clientX, e.clientY, tab);
+      }
+    });
+
+    // New terminal button
+
     // New terminal button
     this.element.querySelector('.btn-new-terminal').addEventListener('click', () => {
       this.manager.createTerminal();
@@ -150,6 +253,8 @@ class TerminalTabBar {
 
   _startRename(tabElement) {
     const nameSpan = tabElement.querySelector('.tab-name');
+    if (!nameSpan) return; // Already renaming or invalid structure
+    
     const currentName = nameSpan.textContent;
     const terminalId = tabElement.dataset.terminalId;
 
@@ -165,6 +270,15 @@ class TerminalTabBar {
 
     const finishRename = () => {
       const newName = input.value.trim() || currentName;
+      
+      // Revert UI immediately to avoid stuck input
+      const span = document.createElement('span');
+      span.className = 'tab-name';
+      span.textContent = newName;
+      if (input.parentNode) {
+        input.replaceWith(span);
+      }
+
       this.manager.renameTerminal(terminalId, newName);
     };
 
@@ -185,6 +299,65 @@ class TerminalTabBar {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  _showContextMenu(x, y, tabElement) {
+    // Clear previous items
+    this.contextMenu.innerHTML = '';
+    
+    // Rename option
+    const renameItem = document.createElement('div');
+    renameItem.className = 'terminal-context-menu-item';
+    renameItem.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>
+      Rename
+    `;
+    renameItem.addEventListener('click', () => {
+      this._startRename(tabElement);
+      this._hideContextMenu();
+    });
+    
+    // Close option
+    const closeItem = document.createElement('div');
+    closeItem.className = 'terminal-context-menu-item';
+    closeItem.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+      Close
+    `;
+    closeItem.addEventListener('click', () => {
+      const terminalId = tabElement.dataset.terminalId;
+      this.manager.closeTerminal(terminalId);
+      this._hideContextMenu();
+    });
+
+    this.contextMenu.appendChild(renameItem);
+    this.contextMenu.appendChild(closeItem);
+
+    // Position and show
+    this.contextMenu.style.left = `${x}px`;
+    this.contextMenu.style.top = `${y}px`;
+    this.contextMenu.classList.add('visible');
+    
+    // Adjust position if out of bounds
+    const rect = this.contextMenu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+      this.contextMenu.style.left = `${window.innerWidth - rect.width - 5}px`;
+    }
+    if (rect.bottom > window.innerHeight) {
+      this.contextMenu.style.top = `${window.innerHeight - rect.height - 5}px`;
+    }
+  }
+
+  _hideContextMenu() {
+    if (this.contextMenu) {
+      this.contextMenu.classList.remove('visible');
+    }
   }
 }
 

@@ -357,6 +357,15 @@ class TerminalManager {
    * Set active terminal
    */
   setActiveTerminal(terminalId) {
+    if (this.activeTerminalId === terminalId) {
+      // Already active, just ensure focus
+      const current = this.terminals.get(terminalId);
+      if (current) {
+        current.terminal.focus();
+      }
+      return;
+    }
+
     // Update previous active
     if (this.activeTerminalId) {
       const prev = this.terminals.get(this.activeTerminalId);

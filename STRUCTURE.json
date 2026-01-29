@@ -1877,7 +1877,7 @@
       "functions": {}
     },
     "renderer/terminalTabBar": {
-      "file": "src/renderer/terminalTabBar.js",
+      "file": "src\\renderer\\terminalTabBar.js",
       "description": "T",
       "exports": [
         "TerminalTabBar"
