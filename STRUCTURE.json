@@ -1881,7 +1881,7 @@
       "functions": {}
     },
     "main/pluginsManager": {
-      "file": "src/main/pluginsManager.js",
+      "file": "src\\main\\pluginsManager.js",
       "description": "P",
       "exports": [
         "init",
@@ -1932,22 +1932,26 @@
           "purpose": "Get all available plugins from marketplace"
         },
         "getAllPlugins": {
-          "line": 112,
+          "line": 118,
           "purpose": "Get all plugins with their status"
         },
         "togglePlugin": {
-          "line": 134,
+          "line": 140,
           "params": [
             "pluginId"
           ],
           "purpose": "Toggle plugin enabled/disabled status"
         },
+        "ensureOfficialMarketplace": {
+          "line": 163,
+          "purpose": "Ensure official marketplace exists"
+        },
         "refreshMarketplace": {
-          "line": 157,
-          "purpose": "Refresh marketplace plugins (git pull)"
+          "line": 192,
+          "purpose": "Refresh marketplace plugins (git pull or clone)"
         },
         "setupIPC": {
-          "line": 180,
+          "line": 220,
           "params": [
             "ipcMain"
           ],
