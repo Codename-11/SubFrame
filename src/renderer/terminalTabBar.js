@@ -24,6 +24,9 @@ class TerminalTabBar {
         <button class="btn-new-terminal" title="New Terminal (Ctrl+Shift+T)">+</button>
         <button class="btn-view-toggle" title="Toggle Grid View">⊞</button>
         <select class="grid-layout-select" title="Grid Layout">
+          <option value="1x2">1×2</option>
+          <option value="1x3">1×3</option>
+          <option value="1x4">1×4</option>
           <option value="2x1">2×1</option>
           <option value="2x2" selected>2×2</option>
           <option value="3x1">3×1</option>

@@ -19,7 +19,7 @@ const sidebarResize = require('./sidebarResize');
  */
 function init() {
   // Initialize terminal
-  terminal.initTerminal('terminal');
+  const multiTerminalUI = terminal.initTerminal('terminal');
 
   // Initialize state management
   state.init({
@@ -28,6 +28,9 @@ function init() {
     fileExplorerHeader: document.getElementById('file-explorer-header'),
     initializeFrameBtn: document.getElementById('btn-initialize-frame')
   });
+
+  // Connect state with multiTerminalUI for project-terminal session management
+  state.setMultiTerminalUI(multiTerminalUI);
 
   // Initialize project list UI
   projectListUI.init('projects-list', (projectPath) => {
@@ -47,8 +50,8 @@ function init() {
   });
 
   // Connect file tree clicks to editor
-  fileTreeUI.setOnFileClick((filePath) => {
-    editor.openFile(filePath);
+  fileTreeUI.setOnFileClick((filePath, source) => {
+    editor.openFile(filePath, source);
   });
 
   // Initialize history panel with terminal resize callback
@@ -71,10 +74,9 @@ function init() {
   });
 
   // Setup state change listeners
-  state.onProjectChange((projectPath) => {
+  state.onProjectChange((projectPath, previousPath) => {
     if (projectPath) {
       fileTreeUI.loadFileTree(projectPath);
-      terminal.writelnToTerminal(`\x1b[1;32m✓ Project selected:\x1b[0m ${projectPath}`);
 
       // Add to workspace and update project list
       const projectName = projectPath.split('/').pop() || projectPath.split('\\').pop();
@@ -169,25 +171,56 @@ function setupButtonHandlers() {
  */
 function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
-    // Ctrl+Shift+H - Toggle history panel
-    if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+    const modKey = e.ctrlKey || e.metaKey; // Support both Ctrl (Windows/Linux) and Cmd (macOS)
+    const key = e.key.toLowerCase(); // Normalize key to lowercase
+
+    // Ctrl/Cmd+Shift+H - Toggle history panel
+    if (modKey && e.shiftKey && key === 'h') {
       e.preventDefault();
       historyPanel.toggleHistoryPanel();
     }
-    // Ctrl+Shift+T - Toggle tasks panel
-    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-      e.preventDefault();
-      tasksPanel.toggle();
-    }
-    // Ctrl+Shift+P - Toggle plugins panel
-    if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+    // Ctrl/Cmd+Shift+P - Toggle plugins panel
+    if (modKey && e.shiftKey && key === 'p') {
       e.preventDefault();
       pluginsPanel.toggle();
     }
-    // Ctrl+Shift+G - Toggle GitHub panel
-    if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+    // Ctrl/Cmd+Shift+G - Toggle GitHub panel
+    if (modKey && e.shiftKey && key === 'g') {
       e.preventDefault();
       githubPanel.toggle();
+    }
+    // Ctrl/Cmd+B - Toggle sidebar
+    if (modKey && !e.shiftKey && key === 'b') {
+      e.preventDefault();
+      sidebarResize.toggle();
+      terminal.fitTerminal();
+    }
+    // Ctrl/Cmd+Shift+[ - Previous project
+    if (modKey && e.shiftKey && e.key === '[') {
+      e.preventDefault();
+      projectListUI.selectPrevProject();
+    }
+    // Ctrl/Cmd+Shift+] - Next project
+    if (modKey && e.shiftKey && e.key === ']') {
+      e.preventDefault();
+      projectListUI.selectNextProject();
+    }
+    // Ctrl/Cmd+E - Focus project list
+    if (modKey && !e.shiftKey && key === 'e') {
+      e.preventDefault();
+      fileTreeUI.blur();
+      projectListUI.focus();
+    }
+    // Ctrl/Cmd+Shift+E - Focus file tree
+    if (modKey && e.shiftKey && key === 'e') {
+      e.preventDefault();
+      projectListUI.blur();
+      fileTreeUI.focus();
+    }
+    // Ctrl/Cmd+T - Toggle tasks panel
+    if (modKey && !e.shiftKey && key === 't') {
+      e.preventDefault();
+      tasksPanel.toggle()
     }
   });
 }

@@ -362,6 +362,13 @@
       color: var(--text-primary);
     }
 
+    .file-item.focused,
+    .file-item:focus {
+      outline: 1px solid var(--accent-primary);
+      outline-offset: -1px;
+      background: var(--bg-elevated);
+    }
+
     .file-item.folder {
       font-weight: 500;
       color: var(--text-primary);
@@ -634,6 +641,13 @@
       background: var(--accent-subtle);
       color: var(--accent-primary);
       border-color: var(--accent-primary);
+    }
+
+    .project-item.focused,
+    .project-item:focus {
+      outline: 1px solid var(--accent-primary);
+      outline-offset: -1px;
+      background: var(--bg-elevated);
     }
 
     .project-item .project-icon {
@@ -1058,6 +1072,42 @@
     .terminal-instance {
       height: 100%;
       width: 100%;
+    }
+
+    /* Terminal Empty State */
+    .terminal-empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: var(--bg-primary);
+    }
+
+    .terminal-empty-state .empty-state-content {
+      text-align: center;
+      color: var(--text-tertiary);
+    }
+
+    .terminal-empty-state p {
+      margin-bottom: var(--space-sm);
+      font-size: 14px;
+    }
+
+    .terminal-empty-state .shortcut-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .terminal-empty-state kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      margin: 0 2px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-default);
+      border-radius: 4px;
+      color: var(--text-secondary);
     }
 
     /* Grid View Styles */
