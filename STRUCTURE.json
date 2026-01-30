@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-01-29",
+  "lastUpdated": "2026-01-30",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -472,6 +472,7 @@
       "depends": [
         "fs",
         "path",
+        "electron",
         "shared/ipcChannels",
         "shared/frameConstants",
         "shared/frameTemplates",
@@ -479,36 +480,50 @@
       ],
       "functions": {
         "init": {
-          "line": 18,
+          "line": 19,
           "params": [
             "window"
           ],
           "purpose": "Initialize frame project module"
         },
         "isFrameProject": {
-          "line": 25,
+          "line": 26,
           "params": [
             "projectPath"
           ],
           "purpose": "Check if a project is a Frame project"
         },
         "getFrameConfig": {
-          "line": 33,
+          "line": 34,
           "params": [
             "projectPath"
           ],
           "purpose": "Get Frame config from project"
         },
         "createFileIfNotExists": {
-          "line": 46,
+          "line": 47,
           "params": [
             "filePath",
             "content"
           ],
           "purpose": "Create file if it doesn't exist"
         },
+        "checkExistingFrameFiles": {
+          "line": 61,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Check which Frame files already exist in the project"
+        },
+        "showInitializeConfirmation": {
+          "line": 84,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Show confirmation dialog before initializing Frame project"
+        },
         "initializeFrameProject": {
-          "line": 60,
+          "line": 118,
           "params": [
             "projectPath",
             "projectName"
@@ -516,7 +531,7 @@
           "purpose": "Initialize a project as Frame project"
         },
         "setupIPC": {
-          "line": 114,
+          "line": 172,
           "params": [
             "ipcMain"
           ],

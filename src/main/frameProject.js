@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { dialog } = require('electron');
 const { IPC } = require('../shared/ipcChannels');
 const { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES } = require('../shared/frameConstants');
 const templates = require('../shared/frameTemplates');
@@ -52,6 +53,63 @@ function createFileIfNotExists(filePath, content) {
     return true;
   }
   return false;
+}
+
+/**
+ * Check which Frame files already exist in the project
+ */
+function checkExistingFrameFiles(projectPath) {
+  const existingFiles = [];
+  const filesToCheck = [
+    { name: 'CLAUDE.md', path: path.join(projectPath, FRAME_FILES.CLAUDE) },
+    { name: 'STRUCTURE.json', path: path.join(projectPath, FRAME_FILES.STRUCTURE) },
+    { name: 'PROJECT_NOTES.md', path: path.join(projectPath, FRAME_FILES.NOTES) },
+    { name: 'tasks.json', path: path.join(projectPath, FRAME_FILES.TASKS) },
+    { name: 'QUICKSTART.md', path: path.join(projectPath, FRAME_FILES.QUICKSTART) },
+    { name: '.frame/', path: path.join(projectPath, FRAME_DIR) }
+  ];
+
+  for (const file of filesToCheck) {
+    if (fs.existsSync(file.path)) {
+      existingFiles.push(file.name);
+    }
+  }
+
+  return existingFiles;
+}
+
+/**
+ * Show confirmation dialog before initializing Frame project
+ */
+async function showInitializeConfirmation(projectPath) {
+  const existingFiles = checkExistingFrameFiles(projectPath);
+
+  let message = 'This will create the following files in your project:\n\n';
+  message += '  • .frame/ (config directory)\n';
+  message += '  • CLAUDE.md (AI instructions)\n';
+  message += '  • STRUCTURE.json (module map)\n';
+  message += '  • PROJECT_NOTES.md (session notes)\n';
+  message += '  • tasks.json (task tracking)\n';
+  message += '  • QUICKSTART.md (getting started)\n';
+
+  if (existingFiles.length > 0) {
+    message += '\n⚠️ These files already exist and will NOT be overwritten:\n';
+    message += existingFiles.map(f => `  • ${f}`).join('\n');
+  }
+
+  message += '\n\nDo you want to continue?';
+
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: existingFiles.length > 0 ? 'warning' : 'question',
+    buttons: ['Cancel', 'Initialize'],
+    defaultId: 0,
+    cancelId: 0,
+    title: 'Initialize as Frame Project',
+    message: 'Initialize as Frame Project?',
+    detail: message
+  });
+
+  return result.response === 1; // 1 = "Initialize" button
 }
 
 /**
@@ -117,8 +175,21 @@ function setupIPC(ipcMain) {
     event.sender.send(IPC.IS_FRAME_PROJECT_RESULT, { projectPath, isFrame });
   });
 
-  ipcMain.on(IPC.INITIALIZE_FRAME_PROJECT, (event, { projectPath, projectName }) => {
+  ipcMain.on(IPC.INITIALIZE_FRAME_PROJECT, async (event, { projectPath, projectName }) => {
     try {
+      // Show confirmation dialog first
+      const confirmed = await showInitializeConfirmation(projectPath);
+
+      if (!confirmed) {
+        // User cancelled
+        event.sender.send(IPC.FRAME_PROJECT_INITIALIZED, {
+          projectPath,
+          success: false,
+          cancelled: true
+        });
+        return;
+      }
+
       const config = initializeFrameProject(projectPath, projectName);
       event.sender.send(IPC.FRAME_PROJECT_INITIALIZED, {
         projectPath,
