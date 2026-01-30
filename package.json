@@ -5,6 +5,7 @@
   "description": "Frame - Project Management IDE for Claude Code",
   "main": "src/main/index.js",
   "scripts": {
+    "postinstall": "electron-rebuild",
     "build": "esbuild src/renderer/index.js --bundle --outfile=dist/renderer.js --platform=node --external:electron",
     "watch": "esbuild src/renderer/index.js --bundle --outfile=dist/renderer.js --platform=node --external:electron --watch",
     "start": "npm run build && electron .",
@@ -25,7 +26,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@electron/rebuild": "^4.0.3",
+    "@electron/rebuild": "^3.6.0",
     "electron": "^28.0.0",
     "electron-builder": "^26.4.0",
     "esbuild": "^0.27.2"
