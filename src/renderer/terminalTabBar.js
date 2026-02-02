@@ -3,6 +3,8 @@
  * Renders and manages the terminal tab bar UI
  */
 
+const { ipcRenderer } = require('electron');
+const { IPC } = require('../shared/ipcChannels');
 const tasksPanel = require('./tasksPanel');
 const pluginsPanel = require('./pluginsPanel');
 const githubPanel = require('./githubPanel');
@@ -110,6 +112,23 @@ class TerminalTabBar {
     this.element.innerHTML = `
       <div class="terminal-tabs"></div>
       <div class="terminal-tab-actions">
+        <div class="claude-usage-bars" title="Claude Code Usage - Click to refresh">
+          <div class="usage-item session">
+            <span class="usage-label">Session</span>
+            <div class="usage-bar-container">
+              <div class="usage-bar-fill"></div>
+            </div>
+            <span class="usage-percent">--</span>
+            <span class="usage-reset"></span>
+          </div>
+          <div class="usage-item weekly">
+            <span class="usage-label">Weekly</span>
+            <div class="usage-bar-container">
+              <div class="usage-bar-fill"></div>
+            </div>
+            <span class="usage-percent">--</span>
+          </div>
+        </div>
         <button class="btn-new-terminal" title="New Terminal - Click to select shell, Right-click for default">+</button>
         <button class="btn-view-toggle" title="Toggle Grid View">⊞</button>
         <select class="grid-layout-select" title="Grid Layout">
@@ -284,6 +303,113 @@ class TerminalTabBar {
     this.element.querySelector('.btn-github-toggle').addEventListener('click', () => {
       githubPanel.toggle();
     });
+
+    // Usage bars click to refresh
+    this.element.querySelector('.claude-usage-bars').addEventListener('click', () => {
+      ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE);
+    });
+
+    // Setup usage bar IPC listener
+    this._setupUsageListener();
+  }
+
+  /**
+   * Setup IPC listener for Claude usage updates
+   */
+  _setupUsageListener() {
+    ipcRenderer.on(IPC.CLAUDE_USAGE_DATA, (event, data) => {
+      this._updateUsageBar(data);
+    });
+
+    // Request initial usage data
+    ipcRenderer.send(IPC.LOAD_CLAUDE_USAGE);
+  }
+
+  /**
+   * Update usage bar UI with new data
+   */
+  _updateUsageBar(data) {
+    const container = this.element.querySelector('.claude-usage-bars');
+    if (!container) return;
+
+    const sessionItem = container.querySelector('.usage-item.session');
+    const weeklyItem = container.querySelector('.usage-item.weekly');
+
+    if (data.error) {
+      // Show error state
+      this._updateUsageItem(sessionItem, 0, 'N/A', '');
+      this._updateUsageItem(weeklyItem, 0, 'N/A', '');
+      container.title = `Claude Code Usage\nError: ${data.error}\n\nClick to refresh`;
+      return;
+    }
+
+    // Update session (5-hour) bar
+    const sessionUsage = data.fiveHour?.utilization || 0;
+    const sessionReset = data.fiveHour?.resetsAt
+      ? this._formatResetTime(data.fiveHour.resetsAt)
+      : '';
+    this._updateUsageItem(sessionItem, sessionUsage, `${Math.round(sessionUsage)}%`, sessionReset);
+
+    // Update weekly (7-day) bar
+    const weeklyUsage = data.sevenDay?.utilization || 0;
+    this._updateUsageItem(weeklyItem, weeklyUsage, `${Math.round(weeklyUsage)}%`, '');
+
+    container.title = 'Claude Code Usage - Click to refresh';
+  }
+
+  /**
+   * Update a single usage item
+   */
+  _updateUsageItem(item, usage, percentText, resetText) {
+    if (!item) return;
+
+    const fill = item.querySelector('.usage-bar-fill');
+    const percent = item.querySelector('.usage-percent');
+    const reset = item.querySelector('.usage-reset');
+
+    if (fill) {
+      fill.style.width = `${Math.min(usage, 100)}%`;
+      fill.className = 'usage-bar-fill';
+      if (usage >= 80) {
+        fill.classList.add('critical');
+      } else if (usage >= 50) {
+        fill.classList.add('warning');
+      }
+    }
+
+    if (percent) {
+      percent.textContent = percentText;
+    }
+
+    if (reset && resetText) {
+      reset.textContent = `(${resetText})`;
+    } else if (reset) {
+      reset.textContent = '';
+    }
+  }
+
+  /**
+   * Format reset time for tooltip
+   */
+  _formatResetTime(isoString) {
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = date - now;
+
+      if (diffMs < 0) return 'soon';
+
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 60) {
+        return `in ${diffMins}m`;
+      }
+
+      const diffHours = Math.floor(diffMins / 60);
+      const remainingMins = diffMins % 60;
+      return `in ${diffHours}h ${remainingMins}m`;
+    } catch {
+      return 'Unknown';
+    }
   }
 
   _startRename(tabElement) {

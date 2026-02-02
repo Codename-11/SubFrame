@@ -82,7 +82,12 @@ const IPC = {
   LOAD_GITHUB_ISSUES: 'load-github-issues',
   GITHUB_ISSUES_DATA: 'github-issues-data',
   TOGGLE_GITHUB_PANEL: 'toggle-github-panel',
-  OPEN_GITHUB_ISSUE: 'open-github-issue'
+  OPEN_GITHUB_ISSUE: 'open-github-issue',
+
+  // Claude Usage
+  LOAD_CLAUDE_USAGE: 'load-claude-usage',
+  CLAUDE_USAGE_DATA: 'claude-usage-data',
+  REFRESH_CLAUDE_USAGE: 'refresh-claude-usage'
 };
 
 module.exports = { IPC };

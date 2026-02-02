@@ -1062,6 +1062,77 @@
       background: var(--bg-elevated);
     }
 
+    /* Claude Usage Bars */
+    .claude-usage-bars {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      padding: var(--space-xs) var(--space-sm);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      margin-right: var(--space-sm);
+    }
+
+    .claude-usage-bars:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-default);
+    }
+
+    .usage-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .usage-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .usage-bar-container {
+      width: 40px;
+      height: 5px;
+      background: var(--bg-deep);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .usage-bar-fill {
+      height: 100%;
+      background: var(--success);
+      border-radius: 3px;
+      transition: width var(--transition-normal), background var(--transition-fast);
+    }
+
+    .usage-bar-fill.warning {
+      background: var(--warning);
+    }
+
+    .usage-bar-fill.critical {
+      background: var(--error);
+    }
+
+    .usage-percent {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      min-width: 22px;
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+
+    .usage-reset {
+      font-size: 9px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
     .btn-tasks-toggle {
       display: flex;
       align-items: center;
