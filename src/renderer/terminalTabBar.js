@@ -112,7 +112,7 @@ class TerminalTabBar {
     this.element.innerHTML = `
       <div class="terminal-tabs"></div>
       <div class="terminal-tab-actions">
-        <div class="claude-usage-bars" title="Claude Code Usage - Click to refresh">
+        <div class="claude-usage-bars" title="Click to refresh">
           <div class="usage-item session">
             <span class="usage-label">Session</span>
             <div class="usage-bar-container">
@@ -127,6 +127,7 @@ class TerminalTabBar {
               <div class="usage-bar-fill"></div>
             </div>
             <span class="usage-percent">--</span>
+            <span class="usage-reset"></span>
           </div>
         </div>
         <button class="btn-new-terminal" title="New Terminal - Click to select shell, Right-click for default">+</button>
@@ -339,7 +340,7 @@ class TerminalTabBar {
       // Show error state
       this._updateUsageItem(sessionItem, 0, 'N/A', '');
       this._updateUsageItem(weeklyItem, 0, 'N/A', '');
-      container.title = `Claude Code Usage\nError: ${data.error}\n\nClick to refresh`;
+      container.title = `Error: ${data.error}\nClick to refresh`;
       return;
     }
 
@@ -352,9 +353,12 @@ class TerminalTabBar {
 
     // Update weekly (7-day) bar
     const weeklyUsage = data.sevenDay?.utilization || 0;
-    this._updateUsageItem(weeklyItem, weeklyUsage, `${Math.round(weeklyUsage)}%`, '');
+    const weeklyReset = data.sevenDay?.resetsAt
+      ? this._formatResetTime(data.sevenDay.resetsAt)
+      : '';
+    this._updateUsageItem(weeklyItem, weeklyUsage, `${Math.round(weeklyUsage)}%`, weeklyReset);
 
-    container.title = 'Claude Code Usage - Click to refresh';
+    container.title = 'Click to refresh';
   }
 
   /**
@@ -389,7 +393,7 @@ class TerminalTabBar {
   }
 
   /**
-   * Format reset time for tooltip
+   * Format reset time
    */
   _formatResetTime(isoString) {
     try {
@@ -401,14 +405,20 @@ class TerminalTabBar {
 
       const diffMins = Math.floor(diffMs / 60000);
       if (diffMins < 60) {
-        return `in ${diffMins}m`;
+        return `${diffMins}m`;
       }
 
       const diffHours = Math.floor(diffMins / 60);
-      const remainingMins = diffMins % 60;
-      return `in ${diffHours}h ${remainingMins}m`;
+      if (diffHours < 24) {
+        const remainingMins = diffMins % 60;
+        return `${diffHours}h ${remainingMins}m`;
+      }
+
+      const diffDays = Math.floor(diffHours / 24);
+      const remainingHours = diffHours % 24;
+      return `${diffDays}d ${remainingHours}h`;
     } catch {
-      return 'Unknown';
+      return '';
     }
   }
 

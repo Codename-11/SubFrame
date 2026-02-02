@@ -1074,6 +1074,7 @@
       cursor: pointer;
       transition: all var(--transition-fast);
       margin-right: var(--space-sm);
+      overflow: hidden;
     }
 
     .claude-usage-bars:hover {
@@ -1085,6 +1086,22 @@
       display: flex;
       align-items: center;
       gap: 4px;
+      pointer-events: none;
+    }
+
+    /* Weekly item - hidden by default, shown on hover */
+    .usage-item.weekly {
+      max-width: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-width 0.3s ease, opacity 0.25s ease, margin 0.3s ease;
+      margin-left: 0;
+    }
+
+    .claude-usage-bars:hover .usage-item.weekly {
+      max-width: 160px;
+      opacity: 1;
+      margin-left: var(--space-sm);
     }
 
     .usage-label {
@@ -1093,6 +1110,7 @@
       color: var(--text-tertiary);
       text-transform: uppercase;
       letter-spacing: 0.3px;
+      white-space: nowrap;
     }
 
     .usage-bar-container {
@@ -1101,6 +1119,7 @@
       background: var(--bg-deep);
       border-radius: 3px;
       overflow: hidden;
+      flex-shrink: 0;
     }
 
     .usage-bar-fill {
@@ -1125,12 +1144,14 @@
       min-width: 22px;
       text-align: right;
       font-family: var(--font-mono);
+      white-space: nowrap;
     }
 
     .usage-reset {
       font-size: 9px;
       color: var(--text-muted);
       font-family: var(--font-mono);
+      white-space: nowrap;
     }
 
     .btn-tasks-toggle {
