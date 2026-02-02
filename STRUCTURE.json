@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-01-30",
+  "lastUpdated": "2026-02-02",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -30,23 +30,24 @@
         "fileEditor",
         "tasksManager",
         "pluginsManager",
-        "githubManager"
+        "githubManager",
+        "claudeUsageManager"
       ],
       "functions": {
         "createWindow": {
-          "line": 29,
+          "line": 30,
           "purpose": "Create main application window"
         },
         "setupAllIPC": {
-          "line": 72,
+          "line": 73,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 96,
+          "line": 98,
           "purpose": "Initialize application"
         },
         "initModulesWithWindow": {
-          "line": 107,
+          "line": 109,
           "params": [
             "window"
           ],
@@ -700,7 +701,7 @@
       }
     },
     "renderer/index": {
-      "file": "src\\renderer\\index.js",
+      "file": "src/renderer/index.js",
       "description": "R",
       "exports": [],
       "depends": [
@@ -731,7 +732,7 @@
       }
     },
     "renderer/terminal": {
-      "file": "src\\renderer\\terminal.js",
+      "file": "src/renderer/terminal.js",
       "description": "T",
       "exports": [
         "initTerminal",
@@ -1907,14 +1908,25 @@
         "TerminalTabBar"
       ],
       "depends": [
+        "electron",
+        "shared/ipcChannels",
         "tasksPanel",
         "pluginsPanel",
         "githubPanel"
       ],
-      "functions": {}
+      "functions": {},
+      "ipc": {
+        "listens": [
+          "CLAUDE_USAGE_DATA"
+        ],
+        "emits": [
+          "REFRESH_CLAUDE_USAGE",
+          "LOAD_CLAUDE_USAGE"
+        ]
+      }
     },
     "main/pluginsManager": {
-      "file": "src\\main\\pluginsManager.js",
+      "file": "src/main/pluginsManager.js",
       "description": "P",
       "exports": [
         "init",
@@ -2331,6 +2343,75 @@
         ],
         "emits": [
           "OPEN_GITHUB_ISSUE"
+        ]
+      }
+    },
+    "main/claudeUsageManager": {
+      "file": "src/main/claudeUsageManager.js",
+      "description": "C",
+      "exports": [
+        "init",
+        "setupIPC",
+        "cleanup",
+        "fetchUsage",
+        "startPolling",
+        "stopPolling"
+      ],
+      "depends": [
+        "child_process",
+        "https",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "init": {
+          "line": 18,
+          "params": [
+            "window"
+          ],
+          "purpose": "Initialize the module with window reference"
+        },
+        "getOAuthToken": {
+          "line": 28,
+          "purpose": "Get OAuth token from macOS Keychain"
+        },
+        "fetchUsage": {
+          "line": 61,
+          "purpose": "Fetch usage data from Claude OAuth API"
+        },
+        "sendUsageToRenderer": {
+          "line": 165,
+          "purpose": "Send usage data to renderer"
+        },
+        "startPolling": {
+          "line": 176,
+          "params": [
+            "interval = 60000"
+          ],
+          "purpose": "Start periodic polling for usage updates"
+        },
+        "stopPolling": {
+          "line": 194,
+          "purpose": "Stop polling"
+        },
+        "setupIPC": {
+          "line": 205,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Setup IPC handlers"
+        },
+        "cleanup": {
+          "line": 222,
+          "purpose": "Cleanup on app quit"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "LOAD_CLAUDE_USAGE",
+          "REFRESH_CLAUDE_USAGE"
+        ],
+        "emits": [
+          "CLAUDE_USAGE_DATA"
         ]
       }
     }

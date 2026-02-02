@@ -20,6 +20,7 @@ const fileEditor = require('./fileEditor');
 const tasksManager = require('./tasksManager');
 const pluginsManager = require('./pluginsManager');
 const githubManager = require('./githubManager');
+const claudeUsageManager = require('./claudeUsageManager');
 
 let mainWindow = null;
 
@@ -82,6 +83,7 @@ function setupAllIPC() {
   tasksManager.setupIPC(ipcMain);
   pluginsManager.setupIPC(ipcMain);
   githubManager.setupIPC(ipcMain);
+  claudeUsageManager.setupIPC(ipcMain);
 
   // Terminal input handler (needs prompt logger integration)
   ipcMain.on(IPC.TERMINAL_INPUT, (event, data) => {
@@ -111,6 +113,7 @@ function initModulesWithWindow(window) {
   tasksManager.init(window);
   pluginsManager.init(window);
   githubManager.init(window);
+  claudeUsageManager.init(window);
 }
 
 // App lifecycle
