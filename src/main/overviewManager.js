@@ -101,19 +101,40 @@ async function loadTasks(projectPath) {
     }
 
     const data = JSON.parse(fs.readFileSync(tasksPath, 'utf8'));
-    const tasks = data.tasks || [];
 
-    const completed = tasks.filter(t => t.status === 'completed').length;
-    const pending = tasks.filter(t => t.status === 'pending').length;
-    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+    // Handle both flat array and nested object structure
+    let allTasks = [];
+    let pendingCount = 0;
+    let inProgressCount = 0;
+    let completedCount = 0;
+
+    if (Array.isArray(data.tasks)) {
+      // Flat array structure
+      allTasks = data.tasks;
+      completedCount = allTasks.filter(t => t.status === 'completed').length;
+      pendingCount = allTasks.filter(t => t.status === 'pending').length;
+      inProgressCount = allTasks.filter(t => t.status === 'in_progress').length;
+    } else if (data.tasks && typeof data.tasks === 'object') {
+      // Nested object structure: { pending: [], inProgress: [], completed: [] }
+      const pending = data.tasks.pending || [];
+      const inProgress = data.tasks.inProgress || [];
+      const completed = data.tasks.completed || [];
+
+      allTasks = [...pending, ...inProgress, ...completed];
+      pendingCount = pending.length;
+      inProgressCount = inProgress.length;
+      completedCount = completed.length;
+    }
+
+    const total = allTasks.length;
 
     return {
-      tasks: tasks.slice(0, 10), // Last 10 tasks for display
-      total: tasks.length,
-      completed,
-      pending,
-      inProgress,
-      progress: tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0
+      tasks: allTasks.slice(0, 10), // Last 10 tasks for display
+      total,
+      completed: completedCount,
+      pending: pendingCount,
+      inProgress: inProgressCount,
+      progress: total > 0 ? Math.round((completedCount / total) * 100) : 0
     };
   } catch (err) {
     console.error('Error loading tasks:', err);

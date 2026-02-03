@@ -60,7 +60,10 @@ function createOverlay() {
         <svg id="structure-map-svg"></svg>
       </div>
       <div class="structure-map-info">
-        <div class="info-placeholder">Hover over a module to see details</div>
+        <div class="info-panel-resize-handle" title="Drag to resize"></div>
+        <div class="info-panel-content">
+          <div class="info-placeholder">Hover over a module to see details</div>
+        </div>
       </div>
     </div>
   `;
@@ -78,6 +81,63 @@ function createOverlay() {
   // Close on Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isVisible) hide();
+  });
+
+  // Setup resize handle
+  setupInfoPanelResize();
+}
+
+/**
+ * Setup info panel resize functionality
+ */
+function setupInfoPanelResize() {
+  const infoPanel = overlay.querySelector('.structure-map-info');
+  const resizeHandle = overlay.querySelector('.info-panel-resize-handle');
+  const canvas = overlay.querySelector('.structure-map-canvas');
+
+  if (!resizeHandle || !infoPanel) return;
+
+  let isResizing = false;
+  let startY = 0;
+  let startHeight = 0;
+  const minHeight = 120;
+  const maxHeight = 500;
+
+  resizeHandle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    startY = e.clientY;
+    startHeight = infoPanel.offsetHeight;
+
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+
+    // Add overlay to prevent iframe/svg interference
+    overlay.classList.add('resizing');
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+
+    const deltaY = startY - e.clientY;
+    const newHeight = Math.min(maxHeight, Math.max(minHeight, startHeight + deltaY));
+
+    infoPanel.style.height = `${newHeight}px`;
+    infoPanel.style.minHeight = `${newHeight}px`;
+    infoPanel.style.maxHeight = `${newHeight}px`;
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isResizing) return;
+
+    isResizing = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    overlay.classList.remove('resizing');
+
+    // Refit terminals after resize
+    if (simulation) {
+      simulation.alpha(0.1).restart();
+    }
   });
 }
 
@@ -136,7 +196,7 @@ async function loadStructure(projectPath) {
  * Show error in info panel
  */
 function showError(message) {
-  const infoPanel = overlay.querySelector('.structure-map-info');
+  const infoPanel = overlay.querySelector('.info-panel-content');
   infoPanel.innerHTML = `<div class="info-error">Error: ${message}</div>`;
 }
 
@@ -376,78 +436,160 @@ function renderGraph(structureData) {
 }
 
 /**
- * Show module info in panel
+ * Show module info in panel (1x3 grid layout)
  */
 function showModuleInfo(module, showGitButton = true) {
-  const infoPanel = overlay.querySelector('.structure-map-info');
+  const infoPanel = overlay.querySelector('.info-panel-content');
   currentModule = module;
 
   const functionCount = Object.keys(module.functions).length;
   const exportCount = module.exports?.length || 0;
   const hasIpc = module.ipc && (module.ipc.listens?.length > 0 || module.ipc.emits?.length > 0);
 
-  let ipcHtml = '';
+  // Functions list
+  let functionsHtml = '<div class="empty-hint">No functions</div>';
+  if (functionCount > 0) {
+    const funcList = Object.entries(module.functions)
+      .slice(0, 6)
+      .map(([name, data]) => `<div class="func-item"><span class="func-name">${name}()</span></div>`)
+      .join('');
+    const moreCount = functionCount - 6;
+    functionsHtml = `
+      <div class="func-list">${funcList}</div>
+      ${moreCount > 0 ? `<div class="more-hint">+${moreCount} more</div>` : ''}
+    `;
+  }
+
+  // Exports list
+  let exportsHtml = '<div class="empty-hint">No exports</div>';
+  if (exportCount > 0) {
+    const exportList = module.exports
+      .slice(0, 6)
+      .map(exp => `<span class="export-tag">${exp}</span>`)
+      .join('');
+    const moreCount = exportCount - 6;
+    exportsHtml = `
+      <div class="export-list">${exportList}</div>
+      ${moreCount > 0 ? `<div class="more-hint">+${moreCount} more</div>` : ''}
+    `;
+  }
+
+  // IPC section
+  let ipcHtml = '<div class="empty-hint">No IPC channels</div>';
   if (hasIpc) {
     const listens = module.ipc.listens || [];
     const emits = module.ipc.emits || [];
     ipcHtml = `
-      <div class="info-section">
-        <div class="info-section-title">IPC</div>
-        ${listens.length > 0 ? `<div class="info-ipc"><span class="ipc-badge listens">Listens</span> ${listens.join(', ')}</div>` : ''}
-        ${emits.length > 0 ? `<div class="info-ipc"><span class="ipc-badge emits">Emits</span> ${emits.join(', ')}</div>` : ''}
-      </div>
-    `;
-  }
-
-  let functionsHtml = '';
-  if (functionCount > 0) {
-    const funcList = Object.entries(module.functions)
-      .slice(0, 5)
-      .map(([name, data]) => `<span class="func-name">${name}()</span>`)
-      .join(', ');
-    const moreCount = functionCount - 5;
-    functionsHtml = `
-      <div class="info-section">
-        <div class="info-section-title">Functions (${functionCount})</div>
-        <div class="info-functions">${funcList}${moreCount > 0 ? ` <span class="more">+${moreCount} more</span>` : ''}</div>
-      </div>
-    `;
-  }
-
-  // Git history button
-  let gitButtonHtml = '';
-  if (showGitButton && module.file) {
-    gitButtonHtml = `
-      <button class="btn-view-git-history" data-file="${module.file}">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-        View Git History
-      </button>
+      ${listens.length > 0 ? `
+        <div class="ipc-group">
+          <span class="ipc-label">Listens:</span>
+          <div class="ipc-channels">${listens.slice(0, 3).map(c => `<span class="ipc-channel">${c}</span>`).join('')}</div>
+          ${listens.length > 3 ? `<div class="more-hint">+${listens.length - 3} more</div>` : ''}
+        </div>
+      ` : ''}
+      ${emits.length > 0 ? `
+        <div class="ipc-group">
+          <span class="ipc-label">Emits:</span>
+          <div class="ipc-channels">${emits.slice(0, 3).map(c => `<span class="ipc-channel">${c}</span>`).join('')}</div>
+          ${emits.length > 3 ? `<div class="more-hint">+${emits.length - 3} more</div>` : ''}
+        </div>
+      ` : ''}
     `;
   }
 
   infoPanel.innerHTML = `
-    <div class="info-module">
-      <div class="info-header">
-        <span class="info-type" style="background: ${MODULE_COLORS[module.type]}">${module.type}</span>
-        <span class="info-name">${module.fullName}</span>
-        ${gitButtonHtml}
+    <div class="info-module-grid">
+      <!-- Header Row -->
+      <div class="info-header-row">
+        <div class="info-title-section">
+          <span class="info-type-badge" style="background: ${MODULE_COLORS[module.type]}">${module.type}</span>
+          <span class="info-module-name">${module.fullName}</span>
+        </div>
+        ${module.file ? `<div class="info-file-path">${module.file}</div>` : ''}
       </div>
-      ${module.file ? `<div class="info-file">${module.file}</div>` : ''}
-      <div class="info-stats">
-        <span class="stat">${functionCount} functions</span>
-        <span class="stat">${exportCount} exports</span>
+
+      <!-- 1x3 Grid -->
+      <div class="info-cards-grid">
+        <!-- Card 1: Module Info -->
+        <div class="info-card">
+          <div class="info-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+              <polyline points="13 2 13 9 20 9"></polyline>
+            </svg>
+            <span>Module Info</span>
+          </div>
+          <div class="info-card-content">
+            <div class="info-stat-row">
+              <span class="stat-label">Functions</span>
+              <span class="stat-value">${functionCount}</span>
+            </div>
+            <div class="info-stat-row">
+              <span class="stat-label">Exports</span>
+              <span class="stat-value">${exportCount}</span>
+            </div>
+            <div class="info-divider"></div>
+            <div class="info-mini-section">
+              <div class="mini-title">Exports</div>
+              ${exportsHtml}
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Functions & IPC -->
+        <div class="info-card">
+          <div class="info-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span>Code Details</span>
+          </div>
+          <div class="info-card-content">
+            <div class="info-mini-section">
+              <div class="mini-title">Functions</div>
+              ${functionsHtml}
+            </div>
+            <div class="info-divider"></div>
+            <div class="info-mini-section">
+              <div class="mini-title">IPC Channels</div>
+              ${ipcHtml}
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Git History -->
+        <div class="info-card info-card-git">
+          <div class="info-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Git History</span>
+            ${showGitButton && module.file ? `
+              <button class="btn-load-git" data-file="${module.file}" title="Load git history">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+              </button>
+            ` : ''}
+          </div>
+          <div class="info-card-content info-git-container">
+            <div class="git-placeholder">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+              <span>Click refresh to load</span>
+            </div>
+          </div>
+        </div>
       </div>
-      ${functionsHtml}
-      ${ipcHtml}
-      <div class="info-git-container"></div>
     </div>
   `;
 
   // Add click handler for git history button
-  const gitBtn = infoPanel.querySelector('.btn-view-git-history');
+  const gitBtn = infoPanel.querySelector('.btn-load-git');
   if (gitBtn) {
     gitBtn.addEventListener('click', () => {
       loadAndShowGitHistory(module);
@@ -474,7 +616,7 @@ async function loadAndShowGitHistory(module) {
 
   // Get git container and button
   const gitContainer = overlay.querySelector('.info-git-container');
-  const gitBtn = overlay.querySelector('.btn-view-git-history');
+  const gitBtn = overlay.querySelector('.btn-load-git');
 
   if (!gitContainer) {
     console.log('No git container found');
@@ -490,17 +632,13 @@ async function loadAndShowGitHistory(module) {
   // Disable button and show loading
   if (gitBtn) {
     gitBtn.disabled = true;
-    gitBtn.innerHTML = `
-      <svg class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"></circle>
-      </svg>
-      Loading...
-    `;
+    gitBtn.classList.add('loading');
   }
 
   gitContainer.innerHTML = `
-    <div class="git-loading-section">
-      <div class="git-loading">Loading git history...</div>
+    <div class="git-loading-state">
+      <div class="git-spinner"></div>
+      <span>Loading...</span>
     </div>
   `;
 
@@ -511,8 +649,13 @@ async function loadAndShowGitHistory(module) {
 
     if (history.error) {
       gitContainer.innerHTML = `
-        <div class="git-error-section">
-          <div class="git-error">${escapeHtml(history.error)}</div>
+        <div class="git-error-state">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          <span>${escapeHtml(history.error)}</span>
         </div>
       `;
     } else {
@@ -522,37 +665,31 @@ async function loadAndShowGitHistory(module) {
 
     // Update button to show success
     if (gitBtn) {
-      gitBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        Loaded
-      `;
+      gitBtn.classList.remove('loading');
       gitBtn.classList.add('loaded');
     }
   } catch (err) {
     console.error('Git history error:', err);
     gitContainer.innerHTML = `
-      <div class="git-error-section">
-        <div class="git-error">Failed: ${escapeHtml(err.message)}</div>
+      <div class="git-error-state">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        <span>Failed to load</span>
       </div>
     `;
     // Re-enable button on error
     if (gitBtn) {
       gitBtn.disabled = false;
-      gitBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-        Retry
-      `;
+      gitBtn.classList.remove('loading');
     }
   }
 }
 
 /**
- * Render git history HTML
+ * Render git history HTML (compact card format)
  */
 function renderGitHistory(history) {
   const { contributors, commits, blame } = history;
@@ -560,38 +697,18 @@ function renderGitHistory(history) {
   let contributorsHtml = '';
   if (contributors && contributors.length > 0) {
     contributorsHtml = `
-      <div class="git-contributors">
-        <div class="git-subtitle">Contributors</div>
-        <div class="contributor-list">
-          ${contributors.slice(0, 5).map(c => `
-            <div class="contributor-item">
-              <span class="contributor-avatar">${getInitials(c.name)}</span>
-              <span class="contributor-name">${escapeHtml(c.name)}</span>
-              <span class="contributor-commits">${c.commits} commits</span>
+      <div class="git-section">
+        <div class="git-section-title">Contributors</div>
+        <div class="git-contributors-compact">
+          ${contributors.slice(0, 4).map(c => `
+            <div class="contributor-row">
+              <span class="contributor-avatar-sm">${getInitials(c.name)}</span>
+              <span class="contributor-info">
+                <span class="contributor-name-sm">${escapeHtml(c.name.split(' ')[0])}</span>
+                <span class="contributor-count">${c.commits}</span>
+              </span>
             </div>
           `).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  let blameHtml = '';
-  if (blame && blame.length > 0) {
-    const totalLines = blame.reduce((sum, b) => sum + b.lines, 0);
-    blameHtml = `
-      <div class="git-blame">
-        <div class="git-subtitle">Code Ownership</div>
-        <div class="blame-bars">
-          ${blame.map(b => {
-            const percent = Math.round((b.lines / totalLines) * 100);
-            return `
-              <div class="blame-bar" title="${escapeHtml(b.author)}: ${b.lines} lines (${percent}%)">
-                <div class="blame-fill" style="width: ${percent}%"></div>
-                <span class="blame-label">${escapeHtml(b.author.split(' ')[0])}</span>
-                <span class="blame-percent">${percent}%</span>
-              </div>
-            `;
-          }).join('')}
         </div>
       </div>
     `;
@@ -600,14 +717,14 @@ function renderGitHistory(history) {
   let commitsHtml = '';
   if (commits && commits.length > 0) {
     commitsHtml = `
-      <div class="git-commits">
-        <div class="git-subtitle">Recent Commits</div>
-        <div class="commit-list">
-          ${commits.slice(0, 5).map(c => `
-            <div class="commit-item">
-              <span class="commit-hash">${c.hash}</span>
-              <span class="commit-message">${escapeHtml(c.message)}</span>
-              <span class="commit-meta">${escapeHtml(c.author)} - ${c.date}</span>
+      <div class="git-section">
+        <div class="git-section-title">Recent Commits</div>
+        <div class="git-commits-compact">
+          ${commits.slice(0, 4).map(c => `
+            <div class="commit-row">
+              <span class="commit-hash-sm">${c.hash}</span>
+              <span class="commit-msg-sm" title="${escapeHtml(c.message)}">${escapeHtml(c.message.substring(0, 30))}${c.message.length > 30 ? '...' : ''}</span>
+              <span class="commit-date-sm">${c.date}</span>
             </div>
           `).join('')}
         </div>
@@ -615,20 +732,21 @@ function renderGitHistory(history) {
     `;
   }
 
-  if (!contributorsHtml && !blameHtml && !commitsHtml) {
+  if (!contributorsHtml && !commitsHtml) {
     return `
-      <div class="info-section">
-        <div class="info-section-title">Git History</div>
-        <div class="git-empty">No git history found</div>
+      <div class="git-empty-state">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M8 12h8"></path>
+        </svg>
+        <span>No git history</span>
       </div>
     `;
   }
 
   return `
-    <div class="info-section info-git-expanded">
-      <div class="info-section-title">Git History <span class="git-click-hint">(click to view)</span></div>
+    <div class="git-history-content">
       ${contributorsHtml}
-      ${blameHtml}
       ${commitsHtml}
     </div>
   `;
@@ -656,8 +774,17 @@ function escapeHtml(text) {
  */
 function showPlaceholder() {
   if (selectedNode) return; // Don't clear if a node is selected
-  const infoPanel = overlay.querySelector('.structure-map-info');
-  infoPanel.innerHTML = '<div class="info-placeholder">Hover over a module to see details. Click to view git history.</div>';
+  const infoPanel = overlay.querySelector('.info-panel-content');
+  infoPanel.innerHTML = `
+    <div class="info-placeholder">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+      <span>Click on a module to see details</span>
+    </div>
+  `;
 }
 
 /**

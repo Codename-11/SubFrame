@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-02-02",
+  "lastUpdated": "2026-02-03",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -2462,42 +2462,42 @@
           "purpose": "Load tasks from tasks.json"
         },
         "loadDecisions": {
-          "line": 127,
+          "line": 148,
           "params": [
             "projectPath"
           ],
           "purpose": "Load decisions from PROJECT_NOTES.md"
         },
         "loadStats": {
-          "line": 166,
+          "line": 187,
           "params": [
             "projectPath"
           ],
           "purpose": "Load project stats (lines of code, files, git info)"
         },
         "countLinesOfCode": {
-          "line": 188,
+          "line": 209,
           "params": [
             "projectPath"
           ],
           "purpose": "Count lines of code in src directory"
         },
         "countFiles": {
-          "line": 212,
+          "line": 233,
           "params": [
             "projectPath"
           ],
           "purpose": "Count files in src directory"
         },
         "getGitInfo": {
-          "line": 235,
+          "line": 256,
           "params": [
             "projectPath"
           ],
           "purpose": "Get git information"
         },
         "getFileGitHistory": {
-          "line": 265,
+          "line": 286,
           "params": [
             "projectPath",
             "filePath"
@@ -2505,7 +2505,7 @@
           "purpose": "Get file git history (contributors, commits, blame)"
         },
         "getFileCommits": {
-          "line": 302,
+          "line": 323,
           "params": [
             "projectPath",
             "filePath"
@@ -2513,7 +2513,7 @@
           "purpose": "Get recent commits for a file"
         },
         "getFileContributors": {
-          "line": 333,
+          "line": 354,
           "params": [
             "projectPath",
             "filePath"
@@ -2521,7 +2521,7 @@
           "purpose": "Get contributors for a file"
         },
         "getFileBlame": {
-          "line": 366,
+          "line": 387,
           "params": [
             "projectPath",
             "filePath"
@@ -2529,7 +2529,7 @@
           "purpose": "Get blame summary for a file (who wrote how many lines)"
         },
         "setupIPC": {
-          "line": 398,
+          "line": 419,
           "params": [
             "ipcMain"
           ],
@@ -2681,55 +2681,59 @@
           "line": 37,
           "purpose": "Create overlay element"
         },
+        "setupInfoPanelResize": {
+          "line": 93,
+          "purpose": "Setup info panel resize functionality"
+        },
         "show": {
-          "line": 87,
+          "line": 147,
           "params": [
             "projectPath"
           ],
           "purpose": "Show structure map"
         },
         "hide": {
-          "line": 104,
+          "line": 164,
           "purpose": "Hide structure map"
         },
         "loadStructure": {
-          "line": 117,
+          "line": 177,
           "params": [
             "projectPath"
           ],
           "purpose": "Load structure data"
         },
         "showError": {
-          "line": 138,
+          "line": 198,
           "params": [
             "message"
           ],
           "purpose": "Show error in info panel"
         },
         "structureToGraph": {
-          "line": 146,
+          "line": 206,
           "params": [
             "data"
           ],
           "purpose": "Convert structure data to graph format"
         },
         "renderGraph": {
-          "line": 220,
+          "line": 280,
           "params": [
             "structureData"
           ],
           "purpose": "Render force-directed graph"
         },
         "showModuleInfo": {
-          "line": 381,
+          "line": 441,
           "params": [
             "module",
             "showGitButton = true"
           ],
-          "purpose": "Show module info in panel"
+          "purpose": "Show module info in panel (1x3 grid layout)"
         },
         "selectNode": {
-          "line": 461,
+          "line": 603,
           "params": [
             "d",
             "nodeSelection"
@@ -2737,39 +2741,39 @@
           "purpose": "Select a node (visual indicator)"
         },
         "loadAndShowGitHistory": {
-          "line": 469,
+          "line": 611,
           "params": [
             "module"
           ],
           "purpose": "Load and show git history for a module"
         },
         "renderGitHistory": {
-          "line": 557,
+          "line": 694,
           "params": [
             "history"
           ],
-          "purpose": "Render git history HTML"
+          "purpose": "Render git history HTML (compact card format)"
         },
         "getInitials": {
-          "line": 640,
+          "line": 758,
           "params": [
             "name"
           ],
           "purpose": "Get initials from name"
         },
         "escapeHtml": {
-          "line": 647,
+          "line": 765,
           "params": [
             "text"
           ],
           "purpose": "Escape HTML"
         },
         "showPlaceholder": {
-          "line": 657,
+          "line": 775,
           "purpose": "Show placeholder in info panel"
         },
         "highlightConnections": {
-          "line": 666,
+          "line": 793,
           "params": [
             "d",
             "links",
@@ -2779,7 +2783,7 @@
           "purpose": "Highlight connections for a node"
         },
         "resetHighlight": {
-          "line": 684,
+          "line": 811,
           "params": [
             "nodeSelection",
             "linkSelection"
@@ -2787,7 +2791,7 @@
           "purpose": "Reset highlight"
         },
         "isMapVisible": {
-          "line": 692,
+          "line": 819,
           "purpose": "Check if visible"
         }
       }
