@@ -4270,6 +4270,114 @@
       overflow: hidden;
     }
 
+    /* ==================== VIEW TOGGLE ==================== */
+
+    .structure-map-view-toggle {
+      display: flex;
+      gap: 2px;
+      background: var(--bg-tertiary);
+      padding: 3px;
+      border-radius: var(--radius-md);
+    }
+
+    .view-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 6px 12px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--text-tertiary);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .view-toggle-btn:hover {
+      color: var(--text-secondary);
+      background: var(--bg-hover);
+    }
+
+    .view-toggle-btn.active {
+      background: var(--bg-elevated);
+      color: var(--accent-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .view-toggle-btn svg {
+      opacity: 0.7;
+    }
+
+    .view-toggle-btn.active svg {
+      opacity: 1;
+    }
+
+    /* ==================== D3.JS TREE VIEW STYLES ==================== */
+
+    /* Tree links (connections) */
+    .tree-link {
+      transition: stroke-opacity 0.2s ease, stroke-width 0.2s ease;
+    }
+
+    .tree-link:hover {
+      stroke-opacity: 1 !important;
+      stroke-width: 3px !important;
+    }
+
+    /* Tree node base styles */
+    .tree-node {
+      transition: opacity 0.3s ease;
+    }
+
+    .tree-node text {
+      font-family: var(--font-mono);
+      user-select: none;
+      pointer-events: none;
+    }
+
+    /* Root node glow animation */
+    .tree-node-root .node-rect {
+      animation: rootPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes rootPulse {
+      0%, 100% { filter: drop-shadow(0 0 8px var(--accent-glow)); }
+      50% { filter: drop-shadow(0 0 16px var(--accent-glow)); }
+    }
+
+    /* Group node hover effect */
+    .tree-node-group .node-group:hover {
+      filter: brightness(1.1);
+    }
+
+    /* Module node styles */
+    .tree-node-module {
+      cursor: pointer;
+    }
+
+    .tree-node-module .node-module {
+      transition: all 0.15s ease;
+    }
+
+    /* Tooltip hint for tree view */
+    .structure-map-canvas::after {
+      content: 'Scroll to zoom • Drag to pan • Double-click to reset';
+      position: absolute;
+      bottom: var(--space-md);
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      opacity: 0.7;
+      pointer-events: none;
+      z-index: 5;
+    }
+
     /* ==================== END STRUCTURE MAP STYLES ==================== */
   </style>
 </head>

@@ -15,6 +15,8 @@ let currentProjectPath = null;
 let selectedNode = null;
 let currentModule = null;
 let isLoadingGitHistory = false;
+let currentView = 'graph'; // 'graph' or 'tree'
+let currentStructureData = null;
 
 // Module type colors
 const MODULE_COLORS = {
@@ -43,6 +45,30 @@ function createOverlay() {
       <div class="structure-map-header">
         <h2>Project Structure Map</h2>
         <div class="structure-map-controls">
+          <div class="structure-map-view-toggle">
+            <button class="view-toggle-btn active" data-view="graph" title="Force-directed graph view">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="5" cy="12" r="3"></circle>
+                <circle cx="19" cy="5" r="3"></circle>
+                <circle cx="19" cy="19" r="3"></circle>
+                <line x1="8" y1="12" x2="16" y2="6"></line>
+                <line x1="8" y1="12" x2="16" y2="18"></line>
+              </svg>
+              Graph
+            </button>
+            <button class="view-toggle-btn" data-view="tree" title="Hierarchical tree view">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="5" rx="1"></rect>
+                <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                <rect x="14" y="16" width="7" height="5" rx="1"></rect>
+                <line x1="6.5" y1="8" x2="6.5" y2="16"></line>
+                <line x1="17.5" y1="8" x2="17.5" y2="16"></line>
+                <line x1="6.5" y1="12" x2="17.5" y2="12"></line>
+              </svg>
+              Tree
+            </button>
+          </div>
           <div class="structure-map-legend">
             <span class="legend-item"><span class="legend-dot" style="background: ${MODULE_COLORS.main}"></span>Main</span>
             <span class="legend-item"><span class="legend-dot" style="background: ${MODULE_COLORS.renderer}"></span>Renderer</span>
@@ -85,6 +111,37 @@ function createOverlay() {
 
   // Setup resize handle
   setupInfoPanelResize();
+
+  // Setup view toggle
+  setupViewToggle();
+}
+
+/**
+ * Setup view toggle buttons
+ */
+function setupViewToggle() {
+  const toggleBtns = overlay.querySelectorAll('.view-toggle-btn');
+
+  toggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.dataset.view;
+      if (view === currentView) return;
+
+      // Update active state
+      toggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      // Switch view
+      currentView = view;
+      if (currentStructureData) {
+        if (view === 'graph') {
+          renderGraph(currentStructureData);
+        } else {
+          renderTreeView(currentStructureData);
+        }
+      }
+    });
+  });
 }
 
 /**
@@ -154,7 +211,12 @@ async function show(projectPath) {
   // Load and render structure
   const structureData = await loadStructure(projectPath);
   if (structureData) {
-    renderGraph(structureData);
+    currentStructureData = structureData;
+    if (currentView === 'graph') {
+      renderGraph(structureData);
+    } else {
+      renderTreeView(structureData);
+    }
   }
 }
 
@@ -278,10 +340,18 @@ function structureToGraph(data) {
  * Render force-directed graph
  */
 function renderGraph(structureData) {
+  const container = overlay.querySelector('.structure-map-canvas');
+
+  // Recreate SVG if it doesn't exist (e.g., after tree view)
+  let svgElement = container.querySelector('#structure-map-svg');
+  if (!svgElement) {
+    container.innerHTML = '<svg id="structure-map-svg"></svg>';
+    svgElement = container.querySelector('#structure-map-svg');
+  }
+
   const svg = d3.select('#structure-map-svg');
   svg.selectAll('*').remove();
 
-  const container = overlay.querySelector('.structure-map-canvas');
   const width = container.clientWidth;
   const height = container.clientHeight;
 
@@ -433,6 +503,381 @@ function renderGraph(structureData) {
         .translate(translate[0], translate[1])
         .scale(scale));
   }, 500);
+}
+
+/**
+ * Render tree/hierarchy view using D3.js
+ */
+function renderTreeView(structureData) {
+  const container = overlay.querySelector('.structure-map-canvas');
+
+  // Recreate SVG for tree view
+  container.innerHTML = '<svg id="structure-map-svg"></svg>';
+
+  // Stop any running simulation
+  if (simulation) {
+    simulation.stop();
+    simulation = null;
+  }
+
+  const svg = d3.select('#structure-map-svg');
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  svg.attr('width', width).attr('height', height);
+
+  // Build hierarchy data
+  const hierarchyData = buildHierarchy(structureData);
+
+  // Create main group for zoom/pan
+  const g = svg.append('g').attr('class', 'tree-group');
+
+  // Add gradient definitions for connections
+  const defs = svg.append('defs');
+
+  // Glow filter for connections
+  const glowFilter = defs.append('filter')
+    .attr('id', 'glow')
+    .attr('x', '-50%')
+    .attr('y', '-50%')
+    .attr('width', '200%')
+    .attr('height', '200%');
+  glowFilter.append('feGaussianBlur')
+    .attr('stdDeviation', '2')
+    .attr('result', 'coloredBlur');
+  const feMerge = glowFilter.append('feMerge');
+  feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+  feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  // Add zoom behavior (same as graph view)
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 3])
+    .on('zoom', (event) => {
+      g.attr('transform', event.transform);
+    });
+
+  svg.call(zoom);
+
+  // Create tree layout
+  const treeLayout = d3.tree()
+    .nodeSize([180, 120]) // Horizontal spacing, vertical spacing
+    .separation((a, b) => a.parent === b.parent ? 1 : 1.2);
+
+  // Create hierarchy
+  const root = d3.hierarchy(hierarchyData);
+
+  // Calculate positions
+  treeLayout(root);
+
+  // Create curved links
+  const linkGenerator = d3.linkVertical()
+    .x(d => d.x)
+    .y(d => d.y);
+
+  // Draw connections
+  const links = g.append('g')
+    .attr('class', 'tree-links')
+    .selectAll('path')
+    .data(root.links())
+    .enter()
+    .append('path')
+    .attr('class', 'tree-link')
+    .attr('d', linkGenerator)
+    .attr('fill', 'none')
+    .attr('stroke', d => {
+      // Color based on target node type
+      const targetType = d.target.data.type;
+      return MODULE_COLORS[targetType] || 'var(--border-subtle)';
+    })
+    .attr('stroke-width', 2)
+    .attr('stroke-opacity', 0.6)
+    .attr('filter', 'url(#glow)')
+    .style('stroke-dasharray', function() {
+      return this.getTotalLength();
+    })
+    .style('stroke-dashoffset', function() {
+      return this.getTotalLength();
+    });
+
+  // Animate links appearing
+  links.transition()
+    .duration(800)
+    .delay((d, i) => i * 50)
+    .ease(d3.easeQuadOut)
+    .style('stroke-dashoffset', 0);
+
+  // Draw nodes
+  const nodes = g.append('g')
+    .attr('class', 'tree-nodes')
+    .selectAll('g')
+    .data(root.descendants())
+    .enter()
+    .append('g')
+    .attr('class', d => `tree-node tree-node-${d.data.nodeType}`)
+    .attr('transform', d => `translate(${d.x},${d.y})`)
+    .style('opacity', 0);
+
+  // Animate nodes appearing
+  nodes.transition()
+    .duration(500)
+    .delay((d, i) => 200 + i * 30)
+    .ease(d3.easeBackOut.overshoot(1.2))
+    .style('opacity', 1);
+
+  // Root node (project)
+  nodes.filter(d => d.depth === 0)
+    .append('rect')
+    .attr('class', 'node-rect node-root')
+    .attr('x', -70)
+    .attr('y', -25)
+    .attr('width', 140)
+    .attr('height', 50)
+    .attr('rx', 8)
+    .attr('fill', 'var(--bg-surface)')
+    .attr('stroke', 'var(--accent)')
+    .attr('stroke-width', 2);
+
+  nodes.filter(d => d.depth === 0)
+    .append('text')
+    .attr('class', 'node-title')
+    .attr('text-anchor', 'middle')
+    .attr('dy', -4)
+    .attr('fill', 'var(--accent)')
+    .attr('font-weight', '600')
+    .attr('font-size', '14px')
+    .text(d => d.data.name);
+
+  nodes.filter(d => d.depth === 0)
+    .append('text')
+    .attr('class', 'node-subtitle')
+    .attr('text-anchor', 'middle')
+    .attr('dy', 14)
+    .attr('fill', 'var(--text-secondary)')
+    .attr('font-size', '10px')
+    .text('Project Structure');
+
+  // Group nodes (main, renderer, shared)
+  const groupNodes = nodes.filter(d => d.depth === 1);
+
+  groupNodes.append('rect')
+    .attr('class', 'node-rect node-group')
+    .attr('x', -65)
+    .attr('y', -22)
+    .attr('width', 130)
+    .attr('height', 44)
+    .attr('rx', 6)
+    .attr('fill', 'var(--bg-elevated)')
+    .attr('stroke', d => MODULE_COLORS[d.data.type] || 'var(--border-subtle)')
+    .attr('stroke-width', 2);
+
+  groupNodes.append('circle')
+    .attr('class', 'group-dot')
+    .attr('cx', -50)
+    .attr('cy', 0)
+    .attr('r', 5)
+    .attr('fill', d => MODULE_COLORS[d.data.type] || 'var(--border-subtle)');
+
+  groupNodes.append('text')
+    .attr('class', 'node-group-title')
+    .attr('text-anchor', 'start')
+    .attr('x', -40)
+    .attr('dy', -4)
+    .attr('fill', 'var(--text-primary)')
+    .attr('font-weight', '500')
+    .attr('font-size', '12px')
+    .text(d => d.data.label);
+
+  groupNodes.append('text')
+    .attr('class', 'node-group-count')
+    .attr('text-anchor', 'start')
+    .attr('x', -40)
+    .attr('dy', 12)
+    .attr('fill', 'var(--text-secondary)')
+    .attr('font-size', '10px')
+    .text(d => `${d.data.moduleCount || 0} modules`);
+
+  // Module nodes
+  const moduleNodes = nodes.filter(d => d.depth === 2);
+
+  moduleNodes.append('rect')
+    .attr('class', 'node-rect node-module')
+    .attr('x', -60)
+    .attr('y', -18)
+    .attr('width', 120)
+    .attr('height', 36)
+    .attr('rx', 4)
+    .attr('fill', 'var(--bg-surface)')
+    .attr('stroke', d => MODULE_COLORS[d.data.type] || 'var(--border-subtle)')
+    .attr('stroke-width', 1.5)
+    .attr('stroke-opacity', 0.7);
+
+  moduleNodes.append('text')
+    .attr('class', 'node-module-name')
+    .attr('text-anchor', 'middle')
+    .attr('dy', -2)
+    .attr('fill', 'var(--text-primary)')
+    .attr('font-size', '11px')
+    .attr('font-family', 'var(--font-mono)')
+    .text(d => d.data.name.length > 14 ? d.data.name.substring(0, 12) + '...' : d.data.name);
+
+  moduleNodes.append('text')
+    .attr('class', 'node-module-meta')
+    .attr('text-anchor', 'middle')
+    .attr('dy', 12)
+    .attr('fill', 'var(--text-muted)')
+    .attr('font-size', '9px')
+    .text(d => {
+      const parts = [];
+      if (d.data.functionCount > 0) parts.push(`${d.data.functionCount}fn`);
+      if (d.data.exportCount > 0) parts.push(`${d.data.exportCount}exp`);
+      return parts.join(' · ') || '';
+    });
+
+  // Add hover and click interactions
+  const moduleRects = moduleNodes.selectAll('.node-module');
+
+  moduleNodes
+    .style('cursor', 'pointer')
+    .on('mouseover', function(event, d) {
+      d3.select(this).select('.node-module')
+        .transition()
+        .duration(150)
+        .attr('stroke-width', 2.5)
+        .attr('stroke-opacity', 1)
+        .attr('fill', 'var(--bg-elevated)');
+
+      // Show module info on hover
+      if (d.data.moduleData) {
+        showModuleInfo(d.data.moduleData, false);
+      }
+    })
+    .on('mouseout', function(event, d) {
+      if (selectedNode && selectedNode.id === d.data.id) return;
+
+      d3.select(this).select('.node-module')
+        .transition()
+        .duration(150)
+        .attr('stroke-width', 1.5)
+        .attr('stroke-opacity', 0.7)
+        .attr('fill', 'var(--bg-surface)');
+
+      if (!selectedNode) {
+        showPlaceholder();
+      }
+    })
+    .on('click', function(event, d) {
+      event.stopPropagation();
+
+      // Deselect all
+      moduleNodes.selectAll('.node-module')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-opacity', 0.7)
+        .attr('fill', 'var(--bg-surface)');
+
+      // Select this one
+      d3.select(this).select('.node-module')
+        .attr('stroke-width', 3)
+        .attr('stroke-opacity', 1)
+        .attr('fill', 'var(--bg-elevated)');
+
+      if (d.data.moduleData) {
+        selectedNode = d.data.moduleData;
+        showModuleInfo(d.data.moduleData, true);
+      }
+    });
+
+  // Click on empty space to deselect
+  svg.on('click', () => {
+    selectedNode = null;
+    moduleNodes.selectAll('.node-module')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.7)
+      .attr('fill', 'var(--bg-surface)');
+    showPlaceholder();
+  });
+
+  // Center and fit the tree
+  setTimeout(() => {
+    const bounds = g.node().getBBox();
+    const fullWidth = width;
+    const fullHeight = height;
+    const midX = bounds.x + bounds.width / 2;
+    const midY = bounds.y + bounds.height / 2;
+    const scale = 0.85 / Math.max(bounds.width / fullWidth, bounds.height / fullHeight);
+    const translate = [fullWidth / 2 - scale * midX, fullHeight / 2 - scale * midY];
+
+    svg.transition()
+      .duration(750)
+      .call(zoom.transform, d3.zoomIdentity
+        .translate(translate[0], translate[1])
+        .scale(Math.min(scale, 1.2)));
+  }, 100);
+}
+
+/**
+ * Build hierarchy data for D3 tree
+ */
+function buildHierarchy(structureData) {
+  // Group modules by type
+  const groups = {
+    main: [],
+    renderer: [],
+    shared: []
+  };
+
+  if (structureData.modules) {
+    for (const [moduleId, moduleData] of Object.entries(structureData.modules)) {
+      let type = 'shared';
+      if (moduleId.startsWith('main/')) type = 'main';
+      else if (moduleId.startsWith('renderer/')) type = 'renderer';
+      else if (moduleId.startsWith('shared/')) type = 'shared';
+
+      groups[type].push({
+        id: moduleId,
+        name: moduleId.split('/').pop(),
+        fullName: moduleId,
+        type,
+        file: moduleData.file,
+        exports: moduleData.exports || [],
+        functions: moduleData.functions || {},
+        ipc: moduleData.ipc || {},
+        depends: moduleData.depends || []
+      });
+    }
+  }
+
+  // Sort modules
+  Object.values(groups).forEach(group => {
+    group.sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  // Build tree structure
+  const typeLabels = {
+    main: 'Main Process',
+    renderer: 'Renderer Process',
+    shared: 'Shared Modules'
+  };
+
+  return {
+    name: 'FRAME',
+    nodeType: 'root',
+    children: ['main', 'renderer', 'shared'].map(type => ({
+      name: typeLabels[type],
+      label: typeLabels[type],
+      nodeType: 'group',
+      type: type,
+      moduleCount: groups[type].length,
+      children: groups[type].map(module => ({
+        name: module.name,
+        nodeType: 'module',
+        type: module.type,
+        id: module.id,
+        functionCount: Object.keys(module.functions).length,
+        exportCount: module.exports.length,
+        moduleData: module
+      }))
+    }))
+  };
 }
 
 /**

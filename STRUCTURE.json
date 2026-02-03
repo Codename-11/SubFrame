@@ -2674,58 +2674,76 @@
       ],
       "functions": {
         "init": {
-          "line": 30,
+          "line": 32,
           "purpose": "Initialize structure map"
         },
         "createOverlay": {
-          "line": 37,
+          "line": 39,
           "purpose": "Create overlay element"
         },
+        "setupViewToggle": {
+          "line": 122,
+          "purpose": "Setup view toggle buttons"
+        },
         "setupInfoPanelResize": {
-          "line": 93,
+          "line": 150,
           "purpose": "Setup info panel resize functionality"
         },
         "show": {
-          "line": 147,
+          "line": 204,
           "params": [
             "projectPath"
           ],
           "purpose": "Show structure map"
         },
         "hide": {
-          "line": 164,
+          "line": 226,
           "purpose": "Hide structure map"
         },
         "loadStructure": {
-          "line": 177,
+          "line": 239,
           "params": [
             "projectPath"
           ],
           "purpose": "Load structure data"
         },
         "showError": {
-          "line": 198,
+          "line": 260,
           "params": [
             "message"
           ],
           "purpose": "Show error in info panel"
         },
         "structureToGraph": {
-          "line": 206,
+          "line": 268,
           "params": [
             "data"
           ],
           "purpose": "Convert structure data to graph format"
         },
         "renderGraph": {
-          "line": 280,
+          "line": 342,
           "params": [
             "structureData"
           ],
           "purpose": "Render force-directed graph"
         },
+        "renderTreeView": {
+          "line": 511,
+          "params": [
+            "structureData"
+          ],
+          "purpose": "Render tree/hierarchy view using D3.js"
+        },
+        "buildHierarchy": {
+          "line": 820,
+          "params": [
+            "structureData"
+          ],
+          "purpose": "Build hierarchy data for D3 tree"
+        },
         "showModuleInfo": {
-          "line": 441,
+          "line": 886,
           "params": [
             "module",
             "showGitButton = true"
@@ -2733,7 +2751,7 @@
           "purpose": "Show module info in panel (1x3 grid layout)"
         },
         "selectNode": {
-          "line": 603,
+          "line": 1048,
           "params": [
             "d",
             "nodeSelection"
@@ -2741,39 +2759,39 @@
           "purpose": "Select a node (visual indicator)"
         },
         "loadAndShowGitHistory": {
-          "line": 611,
+          "line": 1056,
           "params": [
             "module"
           ],
           "purpose": "Load and show git history for a module"
         },
         "renderGitHistory": {
-          "line": 694,
+          "line": 1139,
           "params": [
             "history"
           ],
           "purpose": "Render git history HTML (compact card format)"
         },
         "getInitials": {
-          "line": 758,
+          "line": 1203,
           "params": [
             "name"
           ],
           "purpose": "Get initials from name"
         },
         "escapeHtml": {
-          "line": 765,
+          "line": 1210,
           "params": [
             "text"
           ],
           "purpose": "Escape HTML"
         },
         "showPlaceholder": {
-          "line": 775,
+          "line": 1220,
           "purpose": "Show placeholder in info panel"
         },
         "highlightConnections": {
-          "line": 793,
+          "line": 1238,
           "params": [
             "d",
             "links",
@@ -2783,7 +2801,7 @@
           "purpose": "Highlight connections for a node"
         },
         "resetHighlight": {
-          "line": 811,
+          "line": 1256,
           "params": [
             "nodeSelection",
             "linkSelection"
@@ -2791,7 +2809,7 @@
           "purpose": "Reset highlight"
         },
         "isMapVisible": {
-          "line": 819,
+          "line": 1264,
           "purpose": "Check if visible"
         }
       }
