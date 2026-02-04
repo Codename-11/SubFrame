@@ -153,16 +153,59 @@
       <div id="github-repo-name"></div>
       <div class="github-tabs">
         <button class="github-tab-btn active" data-tab="issues">Issues</button>
-        <button class="github-tab-btn" data-tab="prs">Pull Requests</button>
-        <button class="github-tab-btn" data-tab="actions">Actions</button>
+        <button class="github-tab-btn" data-tab="prs">PRs</button>
+        <button class="github-tab-btn" data-tab="branches">Branches</button>
+        <button class="github-tab-btn" data-tab="worktrees">Worktrees</button>
       </div>
-      <div class="github-filter">
+      <div class="github-filter" id="github-filter">
         <button class="github-filter-btn active" data-filter="open">Open</button>
         <button class="github-filter-btn" data-filter="closed">Closed</button>
         <button class="github-filter-btn" data-filter="all">All</button>
       </div>
+      <div class="github-branches-actions" id="github-branches-actions" style="display: none;">
+        <button id="github-create-branch-btn" class="github-action-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New Branch
+        </button>
+      </div>
       <div id="github-content">
         <!-- GitHub content will be populated here -->
+      </div>
+    </div>
+
+    <!-- Create Branch Modal -->
+    <div id="create-branch-modal" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3>Create New Branch</h3>
+          <button class="modal-close" id="create-branch-modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-field">
+            <label for="new-branch-name">Branch name</label>
+            <input type="text" id="new-branch-name" placeholder="feature/my-new-feature" autocomplete="off" />
+          </div>
+          <div class="modal-field">
+            <label for="base-branch-select">Base branch</label>
+            <select id="base-branch-select">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div class="modal-field modal-checkbox-field">
+            <label class="modal-checkbox-label">
+              <input type="checkbox" id="switch-to-branch" checked />
+              <span class="checkbox-custom"></span>
+              <span>Switch to new branch</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn modal-btn-cancel" id="create-branch-cancel">Cancel</button>
+          <button class="modal-btn modal-btn-primary" id="create-branch-confirm">Create</button>
+        </div>
       </div>
     </div>
 

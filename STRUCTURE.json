@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-02-03",
+  "lastUpdated": "2026-02-04",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -32,23 +32,24 @@
         "pluginsManager",
         "githubManager",
         "claudeUsageManager",
-        "overviewManager"
+        "overviewManager",
+        "gitBranchesManager"
       ],
       "functions": {
         "createWindow": {
-          "line": 31,
+          "line": 32,
           "purpose": "Create main application window"
         },
         "setupAllIPC": {
-          "line": 74,
+          "line": 75,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 100,
+          "line": 102,
           "purpose": "Initialize application"
         },
         "initModulesWithWindow": {
-          "line": 111,
+          "line": 113,
           "params": [
             "window"
           ],
@@ -2219,6 +2220,8 @@
         "hide",
         "toggle",
         "loadIssues",
+        "loadBranches",
+        "loadWorktrees",
         "isVisible"
       ],
       "depends": [
@@ -2228,96 +2231,99 @@
       ],
       "functions": {
         "init": {
-          "line": 22,
+          "line": 26,
           "purpose": "Initialize GitHub panel"
         },
         "setupEventListeners": {
-          "line": 38,
+          "line": 45,
           "purpose": "Setup event listeners"
         },
         "setupIPCListeners": {
-          "line": 77,
+          "line": 84,
           "purpose": "Setup IPC listeners"
         },
         "loadIssues": {
-          "line": 86,
+          "line": 93,
           "purpose": "Load GitHub issues"
         },
         "refreshIssues": {
-          "line": 119,
+          "line": 126,
           "purpose": "Refresh issues"
         },
         "show": {
-          "line": 141,
+          "line": 148,
           "purpose": "Show GitHub panel"
         },
         "hide": {
-          "line": 152,
+          "line": 159,
           "purpose": "Hide GitHub panel"
         },
         "toggle": {
-          "line": 162,
+          "line": 169,
           "purpose": "Toggle GitHub panel visibility"
         },
         "setTab": {
-          "line": 173,
+          "line": 180,
           "params": [
             "tab"
           ],
           "purpose": "Set active tab"
         },
         "setFilter": {
-          "line": 192,
+          "line": 213,
           "params": [
             "filter"
           ],
           "purpose": "Set filter"
         },
         "renderLoading": {
-          "line": 206,
+          "line": 227,
+          "params": [
+            "message = 'Loading...'"
+          ],
           "purpose": "Render loading state"
         },
         "renderError": {
-          "line": 220,
+          "line": 241,
           "params": [
             "message"
           ],
           "purpose": "Render error state"
         },
         "renderComingSoon": {
-          "line": 248,
+          "line": 269,
           "params": [
             "tab"
           ],
           "purpose": "Render coming soon state for unimplemented tabs"
         },
         "render": {
-          "line": 273,
+          "line": 294,
           "purpose": "Render issues list"
         },
         "renderIssueItem": {
-          "line": 315,
+          "line": 336,
           "params": [
             "issue"
           ],
           "purpose": "Render single issue item"
         },
         "getContrastColor": {
-          "line": 354,
+          "line": 375,
           "params": [
             "hexColor"
           ],
           "purpose": "Get contrasting text color for a background color"
         },
         "formatRelativeTime": {
-          "line": 365,
+          "line": 386,
           "params": [
             "dateString"
           ],
           "purpose": "Format relative time"
         },
         "showToast": {
-          "line": 390,
+          "line": 411,
           "params": [
             "message",
             "type = 'info'"
@@ -2325,18 +2331,115 @@
           "purpose": "Show toast notification"
         },
         "getToastIcon": {
-          "line": 420,
+          "line": 441,
           "params": [
             "type"
           ],
           "purpose": "Get toast icon based on type"
         },
         "escapeHtml": {
-          "line": 434,
+          "line": 455,
           "params": [
             "text"
           ],
           "purpose": "Escape HTML for safe rendering"
+        },
+        "loadBranches": {
+          "line": 466,
+          "purpose": "Load git branches"
+        },
+        "renderBranches": {
+          "line": 495,
+          "purpose": "Render branches list"
+        },
+        "renderBranchItem": {
+          "line": 541,
+          "params": [
+            "branch",
+            "currentBranch"
+          ],
+          "purpose": "Render single branch item"
+        },
+        "attachBranchEventListeners": {
+          "line": 569,
+          "purpose": "Attach branch event listeners"
+        },
+        "handleSwitchBranch": {
+          "line": 592,
+          "params": [
+            "branchName"
+          ],
+          "purpose": "Handle branch switch"
+        },
+        "handleDeleteBranch": {
+          "line": 619,
+          "params": [
+            "branchName"
+          ],
+          "purpose": "Handle branch deletion"
+        },
+        "renderBranchesError": {
+          "line": 651,
+          "params": [
+            "message"
+          ],
+          "purpose": "Render branches error"
+        },
+        "loadWorktrees": {
+          "line": 674,
+          "purpose": "Load git worktrees"
+        },
+        "renderWorktrees": {
+          "line": 703,
+          "purpose": "Render worktrees list"
+        },
+        "renderWorktreeItem": {
+          "line": 735,
+          "params": [
+            "worktree"
+          ],
+          "purpose": "Render single worktree item"
+        },
+        "attachWorktreeEventListeners": {
+          "line": 764,
+          "purpose": "Attach worktree event listeners"
+        },
+        "handleRemoveWorktree": {
+          "line": 777,
+          "params": [
+            "wtPath"
+          ],
+          "purpose": "Handle worktree removal"
+        },
+        "renderWorktreesError": {
+          "line": 805,
+          "params": [
+            "message"
+          ],
+          "purpose": "Render worktrees error"
+        },
+        "setupModalListeners": {
+          "line": 825,
+          "purpose": "Setup modal event listeners"
+        },
+        "showCreateBranchModal": {
+          "line": 872,
+          "purpose": "Show create branch modal"
+        },
+        "populateBaseBranchSelect": {
+          "line": 898,
+          "params": [
+            "select"
+          ],
+          "purpose": "Populate base branch select dropdown"
+        },
+        "hideCreateBranchModal": {
+          "line": 937,
+          "purpose": "Hide create branch modal"
+        },
+        "handleCreateBranch": {
+          "line": 947,
+          "purpose": "Handle create branch"
         }
       },
       "ipc": {
@@ -2812,6 +2915,132 @@
           "line": 1264,
           "purpose": "Check if visible"
         }
+      }
+    },
+    "main/gitBranchesManager": {
+      "file": "src/main/gitBranchesManager.js",
+      "description": "G",
+      "exports": [
+        "init",
+        "loadBranches",
+        "switchBranch",
+        "createBranch",
+        "deleteBranch",
+        "loadWorktrees",
+        "addWorktree",
+        "removeWorktree",
+        "isWorkingTreeClean",
+        "setupIPC"
+      ],
+      "depends": [
+        "child_process",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "init": {
+          "line": 14,
+          "params": [
+            "window"
+          ],
+          "purpose": "Initialize manager"
+        },
+        "execGit": {
+          "line": 21,
+          "params": [
+            "command",
+            "projectPath"
+          ],
+          "purpose": "Execute git command with promise"
+        },
+        "isWorkingTreeClean": {
+          "line": 36,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Check if working tree is clean"
+        },
+        "loadBranches": {
+          "line": 48,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Load all branches"
+        },
+        "switchBranch": {
+          "line": 93,
+          "params": [
+            "projectPath",
+            "branchName"
+          ],
+          "purpose": "Switch to a branch"
+        },
+        "createBranch": {
+          "line": 125,
+          "params": [
+            "projectPath",
+            "branchName",
+            "checkout = true",
+            "baseBranch = null"
+          ],
+          "purpose": "Create a new branch"
+        },
+        "deleteBranch": {
+          "line": 153,
+          "params": [
+            "projectPath",
+            "branchName",
+            "force = false"
+          ],
+          "purpose": "Delete a branch"
+        },
+        "loadWorktrees": {
+          "line": 170,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Load worktrees"
+        },
+        "addWorktree": {
+          "line": 212,
+          "params": [
+            "projectPath",
+            "worktreePath",
+            "branchName",
+            "createBranch = false"
+          ],
+          "purpose": "Add a worktree"
+        },
+        "removeWorktree": {
+          "line": 231,
+          "params": [
+            "projectPath",
+            "worktreePath",
+            "force = false"
+          ],
+          "purpose": "Remove a worktree"
+        },
+        "setupIPC": {
+          "line": 250,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Setup IPC handlers"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "LOAD_GIT_BRANCHES",
+          "SWITCH_GIT_BRANCH",
+          "CREATE_GIT_BRANCH",
+          "DELETE_GIT_BRANCH",
+          "LOAD_GIT_WORKTREES",
+          "ADD_GIT_WORKTREE",
+          "REMOVE_GIT_WORKTREE",
+          "TOGGLE_GIT_BRANCHES_PANEL"
+        ],
+        "emits": [
+          "TOGGLE_GIT_BRANCHES_PANEL"
+        ]
       }
     }
   },

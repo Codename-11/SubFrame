@@ -92,7 +92,17 @@ const IPC = {
   // Overview Panel
   LOAD_OVERVIEW: 'load-overview',
   OVERVIEW_DATA: 'overview-data',
-  GET_FILE_GIT_HISTORY: 'get-file-git-history'
+  GET_FILE_GIT_HISTORY: 'get-file-git-history',
+
+  // Git Branches Panel
+  LOAD_GIT_BRANCHES: 'load-git-branches',
+  SWITCH_GIT_BRANCH: 'switch-git-branch',
+  CREATE_GIT_BRANCH: 'create-git-branch',
+  DELETE_GIT_BRANCH: 'delete-git-branch',
+  LOAD_GIT_WORKTREES: 'load-git-worktrees',
+  ADD_GIT_WORKTREE: 'add-git-worktree',
+  REMOVE_GIT_WORKTREE: 'remove-git-worktree',
+  TOGGLE_GIT_BRANCHES_PANEL: 'toggle-git-branches-panel'
 };
 
 module.exports = { IPC };
