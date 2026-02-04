@@ -1,0 +1,21 @@
+/* ==================== FRAME IDE - MAIN STYLES ==================== */
+
+/* 
+ * This file serves as the main entry point for styles.
+ * It imports all other modular CSS files in the correct order.
+ */
+
+/* 1. Variables & Design System Functions */
+@import 'variables.css';
+
+/* 2. Core Layout & Structure */
+@import 'layout.css';
+
+/* 3. Base UI Components (Buttons, Inputs, Modals, etc.) */
+@import 'components/ui.css';
+
+/* 4. Terminal Component */
+@import 'components/terminal.css';
+
+/* 5. Panels (History, Tasks, Plugins, GitHub, Overview, Structure Map) */
+@import 'components/panels.css';
