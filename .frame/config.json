@@ -10,7 +10,8 @@
     "taskRecognition": true
   },
   "files": {
-    "claude": "CLAUDE.md",
+    "agents": "AGENTS.md",
+    "claudeSymlink": "CLAUDE.md",
     "structure": "STRUCTURE.json",
     "notes": "PROJECT_NOTES.md",
     "tasks": "tasks.json",

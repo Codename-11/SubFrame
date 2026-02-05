@@ -37,7 +37,8 @@ npm run dist
 | `STRUCTURE.json` | Module map and architecture |
 | `PROJECT_NOTES.md` | Decisions and context |
 | `tasks.json` | Task tracking |
-| `CLAUDE.md` | Instructions for Claude Code |
+| `AGENTS.md` | Instructions for AI assistants |
+| `CLAUDE.md` | Symlink to AGENTS.md (Claude Code compatibility) |
 | `QUICKSTART.md` | This file |
 
 ## Project Structure

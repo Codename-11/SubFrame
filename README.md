@@ -7,7 +7,7 @@ A lightweight, IDE-style desktop application built specifically for working with
 
 Frame is a project management IDE for Claude Code that aims to:
 
-1. **Bring a standard to Claude Code projects** - Consistent project structure with CLAUDE.md, STRUCTURE.json, PROJECT_NOTES.md, and tasks.json
+1. **Bring a standard to AI coding projects** - Consistent project structure with AGENTS.md (+ CLAUDE.md symlink), STRUCTURE.json, PROJECT_NOTES.md, and tasks.json
 2. **Improve context and memory problems as projects grow** - Automatic context preservation, session notes, and decision tracking
 3. **Make project management easier** - Visual task management, plugins panel, and streamlined workflows
 

@@ -107,7 +107,7 @@ function init() {
   // Setup Frame initialized listener
   state.onFrameInitialized((projectPath) => {
     terminal.writelnToTerminal(`\x1b[1;32m✓ Frame project initialized!\x1b[0m`);
-    terminal.writelnToTerminal(`  Created: .frame/, CLAUDE.md, STRUCTURE.json, PROJECT_NOTES.md, tasks.json, QUICKSTART.md`);
+    terminal.writelnToTerminal(`  Created: .frame/, AGENTS.md, CLAUDE.md (symlink), STRUCTURE.json, PROJECT_NOTES.md, tasks.json, QUICKSTART.md`);
     // Refresh file tree to show new files
     fileTreeUI.refreshFileTree();
     // Load tasks for the new project

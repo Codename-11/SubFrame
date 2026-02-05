@@ -17,7 +17,8 @@ const WORKSPACE_FILE = 'workspaces.json';
 
 // Frame auto-generated files
 const FRAME_FILES = {
-  CLAUDE: 'CLAUDE.md',
+  AGENTS: 'AGENTS.md',
+  CLAUDE_SYMLINK: 'CLAUDE.md',
   STRUCTURE: 'STRUCTURE.json',
   NOTES: 'PROJECT_NOTES.md',
   TASKS: 'tasks.json',

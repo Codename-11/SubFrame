@@ -56,12 +56,57 @@ function createFileIfNotExists(filePath, content) {
 }
 
 /**
+ * Create a symlink safely with Windows fallback
+ * @param {string} target - The target file name (relative)
+ * @param {string} linkPath - The full path for the symlink
+ * @returns {boolean} - Whether the operation succeeded
+ */
+function createSymlinkSafe(target, linkPath) {
+  try {
+    // Check if symlink/file already exists
+    if (fs.existsSync(linkPath)) {
+      const stats = fs.lstatSync(linkPath);
+      if (stats.isSymbolicLink()) {
+        // Remove existing symlink to recreate it
+        fs.unlinkSync(linkPath);
+      } else {
+        // Regular file exists - don't overwrite, skip
+        console.warn(`${linkPath} exists and is not a symlink, skipping`);
+        return false;
+      }
+    }
+
+    // Create relative symlink
+    fs.symlinkSync(target, linkPath);
+    return true;
+  } catch (error) {
+    // Windows without admin/Developer Mode - copy file as fallback
+    if (error.code === 'EPERM' || error.code === 'EPROTO') {
+      try {
+        const targetPath = path.resolve(path.dirname(linkPath), target);
+        if (fs.existsSync(targetPath)) {
+          fs.copyFileSync(targetPath, linkPath);
+          console.warn(`Symlink not supported, copied ${target} to ${linkPath}`);
+          return true;
+        }
+      } catch (copyError) {
+        console.error('Failed to create symlink or copy file:', copyError);
+      }
+    } else {
+      console.error('Failed to create symlink:', error);
+    }
+    return false;
+  }
+}
+
+/**
  * Check which Frame files already exist in the project
  */
 function checkExistingFrameFiles(projectPath) {
   const existingFiles = [];
   const filesToCheck = [
-    { name: 'CLAUDE.md', path: path.join(projectPath, FRAME_FILES.CLAUDE) },
+    { name: 'AGENTS.md', path: path.join(projectPath, FRAME_FILES.AGENTS) },
+    { name: 'CLAUDE.md', path: path.join(projectPath, FRAME_FILES.CLAUDE_SYMLINK) },
     { name: 'STRUCTURE.json', path: path.join(projectPath, FRAME_FILES.STRUCTURE) },
     { name: 'PROJECT_NOTES.md', path: path.join(projectPath, FRAME_FILES.NOTES) },
     { name: 'tasks.json', path: path.join(projectPath, FRAME_FILES.TASKS) },
@@ -86,7 +131,8 @@ async function showInitializeConfirmation(projectPath) {
 
   let message = 'This will create the following files in your project:\n\n';
   message += '  • .frame/ (config directory)\n';
-  message += '  • CLAUDE.md (AI instructions)\n';
+  message += '  • AGENTS.md (AI instructions)\n';
+  message += '  • CLAUDE.md (symlink to AGENTS.md)\n';
   message += '  • STRUCTURE.json (module map)\n';
   message += '  • PROJECT_NOTES.md (session notes)\n';
   message += '  • tasks.json (task tracking)\n';
@@ -134,10 +180,16 @@ function initializeFrameProject(projectPath, projectName) {
 
   // Create root-level Frame files (only if they don't exist)
 
-  // CLAUDE.md - Main instructions file for Claude Code
+  // AGENTS.md - Main instructions file for AI assistants
   createFileIfNotExists(
-    path.join(projectPath, FRAME_FILES.CLAUDE),
-    templates.getClaudeTemplate(name)
+    path.join(projectPath, FRAME_FILES.AGENTS),
+    templates.getAgentsTemplate(name)
+  );
+
+  // CLAUDE.md - Symlink to AGENTS.md for Claude Code compatibility
+  createSymlinkSafe(
+    FRAME_FILES.AGENTS,
+    path.join(projectPath, FRAME_FILES.CLAUDE_SYMLINK)
   );
 
   createFileIfNotExists(

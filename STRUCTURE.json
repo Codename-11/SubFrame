@@ -524,22 +524,30 @@
           ],
           "purpose": "Create file if it doesn't exist"
         },
+        "createSymlinkSafe": {
+          "line": 64,
+          "params": [
+            "target",
+            "linkPath"
+          ],
+          "purpose": "Create a symlink safely with Windows fallback"
+        },
         "checkExistingFrameFiles": {
-          "line": 61,
+          "line": 105,
           "params": [
             "projectPath"
           ],
           "purpose": "Check which Frame files already exist in the project"
         },
         "showInitializeConfirmation": {
-          "line": 84,
+          "line": 129,
           "params": [
             "projectPath"
           ],
           "purpose": "Show confirmation dialog before initializing Frame project"
         },
         "initializeFrameProject": {
-          "line": 118,
+          "line": 164,
           "params": [
             "projectPath",
             "projectName"
@@ -547,7 +555,7 @@
           "purpose": "Initialize a project as Frame project"
         },
         "setupIPC": {
-          "line": 172,
+          "line": 224,
           "params": [
             "ipcMain"
           ],
@@ -1581,7 +1589,7 @@
       "file": "src/shared/frameTemplates.js",
       "description": "F",
       "exports": [
-        "getClaudeTemplate",
+        "getAgentsTemplate",
         "getStructureTemplate",
         "getNotesTemplate",
         "getTasksTemplate",
@@ -1598,43 +1606,43 @@
           "line": 17,
           "purpose": "Get current ISO timestamp"
         },
-        "getClaudeTemplate": {
-          "line": 24,
+        "getAgentsTemplate": {
+          "line": 25,
           "params": [
             "projectName"
           ],
-          "purpose": "CLAUDE.md template - Main instructions file for Claude Code"
+          "purpose": "This file is read by AI coding tools (Claude Code, Codex CLI, etc.)"
         },
         "getStructureTemplate": {
-          "line": 193,
+          "line": 198,
           "params": [
             "projectName"
           ],
           "purpose": "STRUCTURE.json template"
         },
         "getNotesTemplate": {
-          "line": 217,
+          "line": 222,
           "params": [
             "projectName"
           ],
           "purpose": "PROJECT_NOTES.md template"
         },
         "getTasksTemplate": {
-          "line": 237,
+          "line": 242,
           "params": [
             "projectName"
           ],
           "purpose": "tasks.json template"
         },
         "getQuickstartTemplate": {
-          "line": 287,
+          "line": 292,
           "params": [
             "projectName"
           ],
           "purpose": "QUICKSTART.md template"
         },
         "getFrameConfigTemplate": {
-          "line": 353,
+          "line": 358,
           "params": [
             "projectName"
           ],
