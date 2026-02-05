@@ -544,3 +544,35 @@ xterm.js (same)                 xterm.js (same)
 ```
 
 **Decision:** Added to roadmap as "Frame Server" - will consider for future development based on community interest.
+
+---
+
+### [2026-02-05] Context Injection for Non-Claude AI Tools (Wrapper Script System)
+
+**Context:** Frame supports multiple AI tools (Claude Code, Codex CLI, etc.). Claude Code automatically reads CLAUDE.md, but other tools like Codex CLI don't have this convention. We needed a way to inject project context (AGENTS.md) into these tools.
+
+**Problem discussed:**
+- Claude Code → reads CLAUDE.md automatically ✓
+- Codex CLI → no standard, context is lost
+
+**Solution explored:**
+1. First attempt: Use `--system-prompt` flag → Failed (Codex CLI doesn't have this flag)
+2. Final solution: Wrapper script that sends "Read AGENTS.md" as initial prompt
+
+**Implementation:**
+- `.frame/bin/` directory created for AI tool wrappers
+- `.frame/bin/codex` wrapper script:
+  - Finds AGENTS.md in project directory
+  - Runs `codex "Please read AGENTS.md and follow the project instructions."`
+- Frame init automatically creates wrapper scripts
+- `aiToolManager.js` updated to use wrapper for Codex
+
+**Files changed:**
+- `src/shared/frameConstants.js` - Added `FRAME_BIN_DIR`
+- `src/shared/frameTemplates.js` - Added `getCodexWrapperTemplate()`, `getGenericWrapperTemplate()`
+- `src/main/frameProject.js` - Creates `.frame/bin/codex` on init
+- `src/main/aiToolManager.js` - Codex command points to `./.frame/bin/codex`
+
+**Key insight:** Instead of trying to pass system prompts via flags (which vary per tool), simply ask the AI to read the AGENTS.md file. This approach is tool-agnostic and works with any AI coding assistant.
+
+**Result:** Codex CLI now reads AGENTS.md on startup, maintaining context preservation across different AI tools.

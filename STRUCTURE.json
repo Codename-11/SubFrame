@@ -547,7 +547,7 @@
           "purpose": "Show confirmation dialog before initializing Frame project"
         },
         "initializeFrameProject": {
-          "line": 164,
+          "line": 165,
           "params": [
             "projectPath",
             "projectName"
@@ -555,7 +555,7 @@
           "purpose": "Initialize a project as Frame project"
         },
         "setupIPC": {
-          "line": 224,
+          "line": 237,
           "params": [
             "ipcMain"
           ],
@@ -1580,6 +1580,7 @@
         "WORKSPACE_DIR",
         "WORKSPACE_FILE",
         "FRAME_FILES",
+        "FRAME_BIN_DIR",
         "FRAME_VERSION"
       ],
       "depends": [],
@@ -1594,7 +1595,9 @@
         "getNotesTemplate",
         "getTasksTemplate",
         "getQuickstartTemplate",
-        "getFrameConfigTemplate"
+        "getFrameConfigTemplate",
+        "getCodexWrapperTemplate",
+        "getGenericWrapperTemplate"
       ],
       "depends": [],
       "functions": {
@@ -1647,6 +1650,18 @@
             "projectName"
           ],
           "purpose": ".frame/config.json template"
+        },
+        "getCodexWrapperTemplate": {
+          "line": 390,
+          "purpose": "Instructs Codex to read AGENTS.md as initial prompt"
+        },
+        "getGenericWrapperTemplate": {
+          "line": 427,
+          "params": [
+            "toolCommand",
+            "promptFlag = ''"
+          ],
+          "purpose": "Can be customized for other AI tools in the future"
         }
       }
     },
@@ -3088,7 +3103,7 @@
       ],
       "functions": {
         "init": {
-          "line": 55,
+          "line": 56,
           "params": [
             "window",
             "app"
@@ -3096,59 +3111,59 @@
           "purpose": "Initialize the AI Tool Manager"
         },
         "loadConfig": {
-          "line": 65,
+          "line": 66,
           "purpose": "Load configuration from file"
         },
         "saveConfig": {
-          "line": 80,
+          "line": 81,
           "purpose": "Save configuration to file"
         },
         "getAvailableTools": {
-          "line": 91,
+          "line": 92,
           "purpose": "Get all available AI tools"
         },
         "getActiveTool": {
-          "line": 98,
+          "line": 99,
           "purpose": "Get the currently active tool"
         },
         "setActiveTool": {
-          "line": 106,
+          "line": 107,
           "params": [
             "toolId"
           ],
           "purpose": "Set the active AI tool"
         },
         "getConfig": {
-          "line": 125,
+          "line": 126,
           "purpose": "Get full configuration for renderer"
         },
         "addCustomTool": {
-          "line": 135,
+          "line": 136,
           "params": [
             "tool"
           ],
           "purpose": "Add a custom AI tool"
         },
         "removeCustomTool": {
-          "line": 152,
+          "line": 153,
           "params": [
             "toolId"
           ],
           "purpose": "Remove a custom AI tool"
         },
         "setupIPC": {
-          "line": 167,
+          "line": 168,
           "purpose": "Setup IPC handlers"
         },
         "getCommand": {
-          "line": 180,
+          "line": 181,
           "params": [
             "action"
           ],
           "purpose": "Get command for specific action"
         },
         "getStartCommand": {
-          "line": 188,
+          "line": 189,
           "purpose": "Get the start command for active tool"
         }
       },

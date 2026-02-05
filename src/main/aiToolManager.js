@@ -30,8 +30,9 @@ const AI_TOOLS = {
   codex: {
     id: 'codex',
     name: 'Codex CLI',
-    command: 'codex',
-    description: 'OpenAI Codex CLI',
+    command: './.frame/bin/codex',
+    fallbackCommand: 'codex',
+    description: 'OpenAI Codex CLI (with AGENTS.md injection)',
     commands: {
       review: '/review',
       model: '/model',

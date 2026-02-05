@@ -25,6 +25,9 @@ const FRAME_FILES = {
   QUICKSTART: 'QUICKSTART.md'
 };
 
+// Frame bin directory for AI tool wrappers
+const FRAME_BIN_DIR = 'bin';
+
 // Frame version
 const FRAME_VERSION = '1.0';
 
@@ -34,5 +37,6 @@ module.exports = {
   WORKSPACE_DIR,
   WORKSPACE_FILE,
   FRAME_FILES,
+  FRAME_BIN_DIR,
   FRAME_VERSION
 };

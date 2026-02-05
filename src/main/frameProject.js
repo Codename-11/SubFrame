@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { dialog } = require('electron');
 const { IPC } = require('../shared/ipcChannels');
-const { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES } = require('../shared/frameConstants');
+const { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES, FRAME_BIN_DIR } = require('../shared/frameConstants');
 const templates = require('../shared/frameTemplates');
 const workspace = require('./workspace');
 
@@ -131,6 +131,7 @@ async function showInitializeConfirmation(projectPath) {
 
   let message = 'This will create the following files in your project:\n\n';
   message += '  • .frame/ (config directory)\n';
+  message += '  • .frame/bin/ (AI tool wrappers)\n';
   message += '  • AGENTS.md (AI instructions)\n';
   message += '  • CLAUDE.md (symlink to AGENTS.md)\n';
   message += '  • STRUCTURE.json (module map)\n';
@@ -211,6 +212,18 @@ function initializeFrameProject(projectPath, projectName) {
     path.join(projectPath, FRAME_FILES.QUICKSTART),
     templates.getQuickstartTemplate(name)
   );
+
+  // Create .frame/bin directory for AI tool wrappers
+  const binDirPath = path.join(frameDirPath, FRAME_BIN_DIR);
+  if (!fs.existsSync(binDirPath)) {
+    fs.mkdirSync(binDirPath, { recursive: true });
+  }
+
+  // Create Codex CLI wrapper script
+  const codexWrapperPath = path.join(binDirPath, 'codex');
+  if (!fs.existsSync(codexWrapperPath)) {
+    fs.writeFileSync(codexWrapperPath, templates.getCodexWrapperTemplate(), { mode: 0o755 });
+  }
 
   // Update workspace to mark as Frame project
   workspace.updateProjectFrameStatus(projectPath, true);

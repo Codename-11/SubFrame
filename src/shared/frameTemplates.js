@@ -378,11 +378,91 @@ function getFrameConfigTemplate(projectName) {
   };
 }
 
+/**
+ * AI Tool Wrapper Script Templates
+ * These wrappers inject AGENTS.md as system prompt for non-Claude tools
+ */
+
+/**
+ * Codex CLI wrapper script
+ * Instructs Codex to read AGENTS.md as initial prompt
+ */
+function getCodexWrapperTemplate() {
+  return `#!/usr/bin/env bash
+# Frame AI Tool Wrapper for Codex CLI
+# This script injects AGENTS.md as initial prompt
+
+AGENTS_FILE="AGENTS.md"
+
+# Find AGENTS.md in current directory or parent directories
+find_agents_file() {
+  local dir="$PWD"
+  while [ "$dir" != "/" ]; do
+    if [ -f "$dir/$AGENTS_FILE" ]; then
+      echo "$dir/$AGENTS_FILE"
+      return 0
+    fi
+    dir="$(dirname "$dir")"
+  done
+  return 1
+}
+
+AGENTS_PATH=$(find_agents_file)
+
+# Run codex with initial prompt to read AGENTS.md
+if [ -n "$AGENTS_PATH" ]; then
+  exec codex "Please read AGENTS.md and follow the project instructions. This file contains important rules for this project." "$@"
+else
+  exec codex "$@"
+fi
+`;
+}
+
+/**
+ * Generic AI tool wrapper template
+ * Can be customized for other AI tools in the future
+ * @param {string} toolCommand - The CLI command to run
+ * @param {string} promptFlag - Flag to pass initial prompt (e.g., '--prompt' or empty for positional)
+ */
+function getGenericWrapperTemplate(toolCommand, promptFlag = '') {
+  const flagPart = promptFlag ? `${promptFlag} ` : '';
+  return `#!/usr/bin/env bash
+# Frame AI Tool Wrapper for ${toolCommand}
+# This script injects AGENTS.md as initial prompt
+
+AGENTS_FILE="AGENTS.md"
+
+# Find AGENTS.md in current directory or parent directories
+find_agents_file() {
+  local dir="$PWD"
+  while [ "$dir" != "/" ]; do
+    if [ -f "$dir/$AGENTS_FILE" ]; then
+      echo "$dir/$AGENTS_FILE"
+      return 0
+    fi
+    dir="$(dirname "$dir")"
+  done
+  return 1
+}
+
+AGENTS_PATH=$(find_agents_file)
+
+# Run tool with initial prompt to read AGENTS.md
+if [ -n "$AGENTS_PATH" ]; then
+  exec ${toolCommand} ${flagPart}"Please read AGENTS.md and follow the project instructions." "$@"
+else
+  exec ${toolCommand} "$@"
+fi
+`;
+}
+
 module.exports = {
   getAgentsTemplate,
   getStructureTemplate,
   getNotesTemplate,
   getTasksTemplate,
   getQuickstartTemplate,
-  getFrameConfigTemplate
+  getFrameConfigTemplate,
+  getCodexWrapperTemplate,
+  getGenericWrapperTemplate
 };
