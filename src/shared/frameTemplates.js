@@ -19,13 +19,14 @@ function getISOTimestamp() {
 }
 
 /**
- * CLAUDE.md template - Main instructions file for Claude Code
+ * AGENTS.md template - Main instructions file for AI assistants
+ * This file is read by AI coding tools (Claude Code, Codex CLI, etc.)
  */
-function getClaudeTemplate(projectName) {
+function getAgentsTemplate(projectName) {
   const date = getDateString();
   return `# ${projectName} - Frame Project
 
-This project is managed with **Frame**. Keep the documentation up to date by following the rules below.
+This project is managed with **Frame**. AI assistants should follow the rules below to keep documentation up to date.
 
 ---
 
@@ -184,6 +185,10 @@ No problem, continue. The user can also say what they consider important themsel
 
 *This file was automatically created by Frame.*
 *Creation date: ${date}*
+
+---
+
+**Note:** This file is named \`AGENTS.md\` to be AI-tool agnostic. A \`CLAUDE.md\` symlink is provided for Claude Code compatibility.
 `;
 }
 
@@ -194,7 +199,7 @@ function getStructureTemplate(projectName) {
   return {
     _frame_metadata: {
       purpose: "Project structure and module map for AI assistants",
-      forClaude: "Read this file FIRST when starting work on this project. It contains the module structure, data flow, and conventions. Update this file when you add new modules or change the architecture.",
+      forAI: "Read this file FIRST when starting work on this project. It contains the module structure, data flow, and conventions. Update this file when you add new modules or change the architecture.",
       lastUpdated: getDateString(),
       generatedBy: "Frame"
     },
@@ -238,7 +243,7 @@ function getTasksTemplate(projectName) {
   return {
     _frame_metadata: {
       purpose: "Task tracking for the project",
-      forClaude: "Check this file to understand what tasks are pending, in progress, or completed. Update task status as you work. Add new tasks when discovered during development. Follow the task recognition rules in CLAUDE.md. IMPORTANT: Include userRequest (original user prompt), detailed description, and acceptanceCriteria for each task.",
+      forAI: "Check this file to understand what tasks are pending, in progress, or completed. Update task status as you work. Add new tasks when discovered during development. Follow the task recognition rules in AGENTS.md. IMPORTANT: Include userRequest (original user prompt), detailed description, and acceptanceCriteria for each task.",
       lastUpdated: getDateString(),
       generatedBy: "Frame"
     },
@@ -363,7 +368,8 @@ function getFrameConfigTemplate(projectName) {
       taskRecognition: true
     },
     files: {
-      claude: "CLAUDE.md",
+      agents: "AGENTS.md",
+      claudeSymlink: "CLAUDE.md",
       structure: "STRUCTURE.json",
       notes: "PROJECT_NOTES.md",
       tasks: "tasks.json",
@@ -373,7 +379,7 @@ function getFrameConfigTemplate(projectName) {
 }
 
 module.exports = {
-  getClaudeTemplate,
+  getAgentsTemplate,
   getStructureTemplate,
   getNotesTemplate,
   getTasksTemplate,
