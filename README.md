@@ -1,6 +1,6 @@
 # Frame
 
-A lightweight, IDE-style desktop application built specifically for working with [Claude Code](https://claude.com/claude-code). Think VS Code, but streamlined for Claude Code workflows. 
+A lightweight, IDE-style desktop application built specifically for working with [Claude Code](https://claude.com/claude-code). Think VS Code, but streamlined for Claude Code workflows. You can use it on both WINDOWS and MAC-OS.
 
 Update : Frame Also supports Codex CLI too now. 
 Update : Frame Alose supports Gemini CLI too now. 
