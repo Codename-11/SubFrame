@@ -182,6 +182,38 @@
       </div>
     </div>
 
+    <!-- Initialize Frame Modal -->
+    <div id="initialize-frame-modal" class="modal-overlay">
+      <div class="modal-container modal-container-wide">
+        <div class="modal-header">
+          <h3>Initialize as Frame Project</h3>
+          <button class="modal-close" id="init-frame-modal-close">&#x2715;</button>
+        </div>
+        <div class="modal-body">
+          <p class="init-modal-description">This will create the following files in your project:</p>
+          <ul class="init-modal-file-list">
+            <li><span class="file-icon">&#128193;</span> .frame/ <span class="file-desc">config directory</span></li>
+            <li><span class="file-icon">&#128193;</span> .frame/bin/ <span class="file-desc">AI tool wrappers</span></li>
+            <li><span class="file-icon">&#128196;</span> AGENTS.md <span class="file-desc">AI instructions</span></li>
+            <li><span class="file-icon">&#128279;</span> CLAUDE.md <span class="file-desc">symlink to AGENTS.md</span></li>
+            <li><span class="file-icon">&#128279;</span> GEMINI.md <span class="file-desc">symlink to AGENTS.md</span></li>
+            <li><span class="file-icon">&#128196;</span> STRUCTURE.json <span class="file-desc">module map</span></li>
+            <li><span class="file-icon">&#128196;</span> PROJECT_NOTES.md <span class="file-desc">session notes</span></li>
+            <li><span class="file-icon">&#128196;</span> tasks.json <span class="file-desc">task tracking</span></li>
+            <li><span class="file-icon">&#128196;</span> QUICKSTART.md <span class="file-desc">getting started</span></li>
+          </ul>
+          <div id="init-frame-existing-warning" class="init-modal-warning" style="display: none;">
+            <p>These files already exist and will NOT be overwritten:</p>
+            <ul id="init-frame-existing-list"></ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn modal-btn-cancel" id="init-frame-cancel">Cancel</button>
+          <button class="modal-btn modal-btn-primary" id="init-frame-confirm">Initialize</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Create Branch Modal -->
     <div id="create-branch-modal" class="modal-overlay">
       <div class="modal-container">

@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-02-05",
+  "lastUpdated": "2026-02-13",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -191,26 +191,26 @@
           "purpose": "Build AI commands submenu based on active tool"
         },
         "buildToolSwitcherSubmenu": {
-          "line": 181,
+          "line": 203,
           "purpose": "Build tool switcher submenu"
         },
         "sendCommand": {
-          "line": 200,
+          "line": 222,
           "params": [
             "command"
           ],
           "purpose": "Send command to terminal"
         },
         "toggleHistoryPanel": {
-          "line": 209,
+          "line": 231,
           "purpose": "Toggle history panel"
         },
         "openHistoryFile": {
-          "line": 218,
+          "line": 240,
           "purpose": "Open history file in default editor"
         },
         "createMenu": {
-          "line": 232,
+          "line": 254,
           "purpose": "Create and set application menu"
         }
       },
@@ -555,7 +555,7 @@
           "purpose": "Initialize a project as Frame project"
         },
         "setupIPC": {
-          "line": 237,
+          "line": 243,
           "params": [
             "ipcMain"
           ],
@@ -1043,77 +1043,93 @@
           "purpose": "Initialize state module"
         },
         "getProjectPath": {
-          "line": 37,
+          "line": 38,
           "purpose": "Get current project path"
         },
         "setMultiTerminalUI": {
-          "line": 44,
+          "line": 45,
           "params": [
             "ui"
           ],
           "purpose": "Set MultiTerminalUI reference for terminal session management"
         },
         "setProjectPath": {
-          "line": 51,
+          "line": 52,
           "params": [
             "path"
           ],
           "purpose": "Set project path and switch terminal session"
         },
         "onProjectChange": {
-          "line": 76,
+          "line": 77,
           "params": [
             "callback"
           ],
           "purpose": "Register callback for project change"
         },
         "getIsFrameProject": {
-          "line": 83,
+          "line": 84,
           "purpose": "Get Frame project status"
         },
         "setIsFrameProject": {
-          "line": 90,
+          "line": 91,
           "params": [
             "isFrame"
           ],
           "purpose": "Set Frame project status"
         },
         "onFrameStatusChange": {
-          "line": 101,
+          "line": 102,
           "params": [
             "callback"
           ],
           "purpose": "Register callback for Frame status change"
         },
         "onFrameInitialized": {
-          "line": 108,
+          "line": 109,
           "params": [
             "callback"
           ],
           "purpose": "Register callback for Frame project initialized"
         },
         "updateFrameUI": {
-          "line": 115,
+          "line": 116,
           "purpose": "Update Frame-related UI"
         },
         "initializeAsFrameProject": {
-          "line": 129,
+          "line": 130,
           "purpose": "Initialize current project as Frame project"
         },
+        "showInitializeFrameModal": {
+          "line": 139,
+          "purpose": "Show custom initialize Frame modal"
+        },
+        "hideInitializeFrameModal": {
+          "line": 149,
+          "purpose": "Hide initialize Frame modal"
+        },
+        "handleInitializeFrame": {
+          "line": 159,
+          "purpose": "Handle initialize Frame confirmation"
+        },
+        "setupInitFrameModalListeners": {
+          "line": 174,
+          "purpose": "Setup initialize Frame modal listeners"
+        },
         "updateProjectUI": {
-          "line": 142,
+          "line": 200,
           "purpose": "Update project UI elements"
         },
         "selectProjectFolder": {
-          "line": 171,
+          "line": 229,
           "purpose": "Request folder selection"
         },
         "createNewProject": {
-          "line": 178,
+          "line": 236,
           "purpose": "Request new project creation"
         },
         "setupIPC": {
-          "line": 185,
+          "line": 243,
           "purpose": "Setup IPC listeners"
         }
       },
@@ -3103,7 +3119,7 @@
       ],
       "functions": {
         "init": {
-          "line": 56,
+          "line": 72,
           "params": [
             "window",
             "app"
@@ -3111,59 +3127,59 @@
           "purpose": "Initialize the AI Tool Manager"
         },
         "loadConfig": {
-          "line": 66,
+          "line": 82,
           "purpose": "Load configuration from file"
         },
         "saveConfig": {
-          "line": 81,
+          "line": 97,
           "purpose": "Save configuration to file"
         },
         "getAvailableTools": {
-          "line": 92,
+          "line": 108,
           "purpose": "Get all available AI tools"
         },
         "getActiveTool": {
-          "line": 99,
+          "line": 115,
           "purpose": "Get the currently active tool"
         },
         "setActiveTool": {
-          "line": 107,
+          "line": 123,
           "params": [
             "toolId"
           ],
           "purpose": "Set the active AI tool"
         },
         "getConfig": {
-          "line": 126,
+          "line": 142,
           "purpose": "Get full configuration for renderer"
         },
         "addCustomTool": {
-          "line": 136,
+          "line": 152,
           "params": [
             "tool"
           ],
           "purpose": "Add a custom AI tool"
         },
         "removeCustomTool": {
-          "line": 153,
+          "line": 169,
           "params": [
             "toolId"
           ],
           "purpose": "Remove a custom AI tool"
         },
         "setupIPC": {
-          "line": 168,
+          "line": 184,
           "purpose": "Setup IPC handlers"
         },
         "getCommand": {
-          "line": 181,
+          "line": 197,
           "params": [
             "action"
           ],
           "purpose": "Get command for specific action"
         },
         "getStartCommand": {
-          "line": 189,
+          "line": 205,
           "purpose": "Get the start command for active tool"
         }
       },
