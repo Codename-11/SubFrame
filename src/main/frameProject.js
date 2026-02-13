@@ -246,19 +246,19 @@ function setupIPC(ipcMain) {
     event.sender.send(IPC.IS_FRAME_PROJECT_RESULT, { projectPath, isFrame });
   });
 
-  ipcMain.on(IPC.INITIALIZE_FRAME_PROJECT, async (event, { projectPath, projectName }) => {
+  ipcMain.on(IPC.INITIALIZE_FRAME_PROJECT, async (event, { projectPath, projectName, confirmed }) => {
     try {
-      // Show confirmation dialog first
-      const confirmed = await showInitializeConfirmation(projectPath);
-
+      // If not already confirmed by renderer modal, show native dialog as fallback
       if (!confirmed) {
-        // User cancelled
-        event.sender.send(IPC.FRAME_PROJECT_INITIALIZED, {
-          projectPath,
-          success: false,
-          cancelled: true
-        });
-        return;
+        const userConfirmed = await showInitializeConfirmation(projectPath);
+        if (!userConfirmed) {
+          event.sender.send(IPC.FRAME_PROJECT_INITIALIZED, {
+            projectPath,
+            success: false,
+            cancelled: true
+          });
+          return;
+        }
       }
 
       const config = initializeFrameProject(projectPath, projectName);

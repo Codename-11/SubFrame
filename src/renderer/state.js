@@ -29,6 +29,7 @@ function init(elements) {
   initializeFrameBtn = elements.initializeFrameBtn || document.getElementById('btn-initialize-frame');
 
   setupIPC();
+  setupInitFrameModalListeners();
 }
 
 /**
@@ -128,10 +129,67 @@ function updateFrameUI() {
  */
 function initializeAsFrameProject() {
   if (currentProjectPath) {
+    showInitializeFrameModal();
+  }
+}
+
+/**
+ * Show custom initialize Frame modal
+ */
+function showInitializeFrameModal() {
+  const modal = document.getElementById('initialize-frame-modal');
+  if (modal) {
+    modal.classList.add('visible');
+  }
+}
+
+/**
+ * Hide initialize Frame modal
+ */
+function hideInitializeFrameModal() {
+  const modal = document.getElementById('initialize-frame-modal');
+  if (modal) {
+    modal.classList.remove('visible');
+  }
+}
+
+/**
+ * Handle initialize Frame confirmation
+ */
+function handleInitializeFrame() {
+  hideInitializeFrameModal();
+  if (currentProjectPath) {
     const projectName = currentProjectPath.split('/').pop() || currentProjectPath.split('\\').pop();
     ipcRenderer.send(IPC.INITIALIZE_FRAME_PROJECT, {
       projectPath: currentProjectPath,
-      projectName: projectName
+      projectName: projectName,
+      confirmed: true
+    });
+  }
+}
+
+/**
+ * Setup initialize Frame modal listeners
+ */
+function setupInitFrameModalListeners() {
+  const modal = document.getElementById('initialize-frame-modal');
+  const closeBtn = document.getElementById('init-frame-modal-close');
+  const cancelBtn = document.getElementById('init-frame-cancel');
+  const confirmBtn = document.getElementById('init-frame-confirm');
+
+  if (closeBtn) closeBtn.addEventListener('click', hideInitializeFrameModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', hideInitializeFrameModal);
+  if (confirmBtn) confirmBtn.addEventListener('click', handleInitializeFrame);
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) hideInitializeFrameModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('visible')) {
+        hideInitializeFrameModal();
+      }
     });
   }
 }
