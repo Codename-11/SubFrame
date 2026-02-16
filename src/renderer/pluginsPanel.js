@@ -1,19 +1,25 @@
 /**
  * Plugins Panel Module
- * UI for displaying and managing Claude Code plugins
+ * UI for displaying and managing Claude Code plugins and sessions
  */
 
 const { ipcRenderer } = require('electron');
 const { IPC } = require('../shared/ipcChannels');
+const state = require('./state');
 
 let isVisible = false;
 let pluginsData = [];
 let currentFilter = 'all'; // all, installed, enabled
 let currentTab = 'plugins';
 
+// Sessions state
+let sessionsData = [];
+let sessionsLoaded = false;
+
 // DOM Elements
 let panelElement = null;
 let contentElement = null;
+let sessionsContentElement = null;
 
 /**
  * Initialize plugins panel
@@ -21,6 +27,7 @@ let contentElement = null;
 function init() {
   panelElement = document.getElementById('plugins-panel');
   contentElement = document.getElementById('plugins-content');
+  sessionsContentElement = document.getElementById('sessions-content');
 
   if (!panelElement) {
     console.error('Plugins panel element not found');
@@ -60,6 +67,12 @@ function setupEventListeners() {
       setFilter(filter);
     });
   });
+
+  // Sessions refresh button
+  const sessionsRefreshBtn = document.getElementById('sessions-refresh-btn');
+  if (sessionsRefreshBtn) {
+    sessionsRefreshBtn.addEventListener('click', refreshSessions);
+  }
 
   // Tab buttons
   document.querySelectorAll('.claude-tab-btn').forEach(btn => {
@@ -149,7 +162,13 @@ function show() {
   if (panelElement) {
     panelElement.classList.add('visible');
     isVisible = true;
-    loadPlugins();
+    sessionsLoaded = false;
+
+    if (currentTab === 'plugins') {
+      loadPlugins();
+    } else if (currentTab === 'sessions') {
+      loadSessions();
+    }
   }
 }
 
@@ -189,6 +208,11 @@ function setTab(tab) {
   document.querySelectorAll('[data-tab-content]').forEach(el => {
     el.style.display = el.dataset.tabContent === tab ? '' : 'none';
   });
+
+  // Load data for the active tab
+  if (tab === 'sessions' && !sessionsLoaded) {
+    loadSessions();
+  }
 }
 
 /**
@@ -435,6 +459,172 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// ==================== SESSIONS ====================
+
+/**
+ * Load sessions from Claude data
+ */
+async function loadSessions() {
+  const projectPath = state.getProjectPath();
+
+  if (!projectPath) {
+    sessionsData = [];
+    sessionsLoaded = true;
+    renderSessionsEmpty('No project selected');
+    return;
+  }
+
+  try {
+    sessionsData = await ipcRenderer.invoke(IPC.LOAD_CLAUDE_SESSIONS, projectPath);
+    sessionsLoaded = true;
+    renderSessions();
+  } catch (err) {
+    console.error('Error loading sessions:', err);
+    sessionsData = [];
+    sessionsLoaded = true;
+    renderSessionsEmpty('Failed to load sessions');
+  }
+}
+
+/**
+ * Refresh sessions with spinner animation
+ */
+async function refreshSessions() {
+  const refreshBtn = document.getElementById('sessions-refresh-btn');
+
+  try {
+    if (refreshBtn) {
+      refreshBtn.classList.add('spinning');
+      refreshBtn.disabled = true;
+    }
+
+    sessionsLoaded = false;
+    await loadSessions();
+  } finally {
+    if (refreshBtn) {
+      refreshBtn.classList.remove('spinning');
+      refreshBtn.disabled = false;
+    }
+  }
+}
+
+/**
+ * Render sessions list
+ */
+function renderSessions() {
+  if (!sessionsContentElement) return;
+
+  // Update count
+  const countEl = document.getElementById('sessions-count');
+  if (countEl) {
+    countEl.textContent = `${sessionsData.length} session${sessionsData.length !== 1 ? 's' : ''}`;
+  }
+
+  if (sessionsData.length === 0) {
+    renderSessionsEmpty('No sessions found for this project');
+    return;
+  }
+
+  sessionsContentElement.innerHTML = sessionsData.map(session => renderSessionItem(session)).join('');
+
+  // Add click listeners
+  sessionsContentElement.querySelectorAll('.session-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const sessionId = el.dataset.sessionId;
+      resumeSession(sessionId);
+    });
+  });
+}
+
+/**
+ * Render a single session item
+ */
+function renderSessionItem(session) {
+  const title = escapeHtml(session.summary || session.firstPrompt || 'Untitled session');
+  const timeStr = formatRelativeTime(session.modified || session.created);
+  const branch = session.gitBranch ? `<span class="session-branch">${escapeHtml(session.gitBranch)}</span>` : '';
+  const msgCount = session.messageCount || 0;
+  const sidechainClass = session.isSidechain ? ' sidechain' : '';
+
+  return `
+    <div class="session-item${sidechainClass}" data-session-id="${escapeHtml(session.sessionId)}">
+      <div class="session-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="session-content">
+        <div class="session-title">${title}</div>
+        <div class="session-meta">
+          <span>${timeStr}</span>
+          <span>${msgCount} msg${msgCount !== 1 ? 's' : ''}</span>
+          ${branch}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render sessions empty state
+ */
+function renderSessionsEmpty(message) {
+  if (!sessionsContentElement) return;
+
+  const countEl = document.getElementById('sessions-count');
+  if (countEl) countEl.textContent = '';
+
+  sessionsContentElement.innerHTML = `
+    <div class="sessions-empty">
+      <div class="plugins-empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <p>${escapeHtml(message)}</p>
+      <span>Claude Code sessions will appear here</span>
+    </div>
+  `;
+}
+
+/**
+ * Resume a session by sending command to terminal
+ */
+function resumeSession(sessionId) {
+  const command = `claude --resume ${sessionId}`;
+
+  if (typeof window.terminalSendCommand === 'function') {
+    window.terminalSendCommand(command);
+    hide();
+  } else {
+    showToast('Terminal not available', 'error');
+  }
+}
+
+/**
+ * Format a date string to relative time
+ */
+function formatRelativeTime(dateString) {
+  if (!dateString) return '';
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 60) return 'just now';
+  if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+  if (diffHour < 24) return `${diffHour} hour${diffHour !== 1 ? 's' : ''} ago`;
+  if (diffDay === 1) return 'yesterday';
+  if (diffDay < 7) return `${diffDay} days ago`;
+  if (diffDay < 30) return `${Math.floor(diffDay / 7)} week${Math.floor(diffDay / 7) !== 1 ? 's' : ''} ago`;
+
+  return date.toLocaleDateString();
 }
 
 module.exports = {

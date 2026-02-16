@@ -1106,6 +1106,161 @@
 }
 
 
+/* ==================== SESSIONS TAB STYLES ==================== */
+
+.sessions-tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sessions-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-tertiary);
+}
+
+.sessions-header-bar span {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+#sessions-refresh-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: var(--space-xs);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+#sessions-refresh-btn:hover {
+  color: var(--info);
+  background: rgba(120, 165, 212, 0.15);
+}
+
+#sessions-refresh-btn.spinning svg {
+  animation: spin 1s linear infinite;
+}
+
+#sessions-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md);
+}
+
+.session-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.session-item:hover {
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
+}
+
+.session-item.sidechain {
+  border-left: 3px solid var(--warning);
+}
+
+.session-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.session-item:hover .session-icon {
+  color: var(--accent-primary);
+  background: var(--accent-subtle);
+}
+
+.session-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.session-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.session-meta span {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.session-branch {
+  font-family: var(--font-mono);
+  font-size: 10px !important;
+  padding: 1px 5px;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  color: var(--info) !important;
+}
+
+.sessions-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-xl);
+  text-align: center;
+}
+
+.sessions-empty p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: var(--space-xs);
+}
+
+.sessions-empty span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+
 /* ==================== GITHUB PANEL STYLES ==================== */
 #github-panel {
   width: 400px;

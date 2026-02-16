@@ -78,6 +78,10 @@ const IPC = {
   TOGGLE_PLUGINS_PANEL: 'toggle-plugins-panel',
   REFRESH_PLUGINS: 'refresh-plugins',
 
+  // Claude Sessions
+  LOAD_CLAUDE_SESSIONS: 'load-claude-sessions',
+  REFRESH_CLAUDE_SESSIONS: 'refresh-claude-sessions',
+
   // GitHub Panel
   LOAD_GITHUB_ISSUES: 'load-github-issues',
   GITHUB_ISSUES_DATA: 'github-issues-data',

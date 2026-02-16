@@ -24,6 +24,7 @@ const claudeUsageManager = require('./claudeUsageManager');
 const overviewManager = require('./overviewManager');
 const gitBranchesManager = require('./gitBranchesManager');
 const aiToolManager = require('./aiToolManager');
+const claudeSessionsManager = require('./claudeSessionsManager');
 
 let mainWindow = null;
 
@@ -90,6 +91,7 @@ function setupAllIPC() {
   claudeUsageManager.setupIPC(ipcMain);
   overviewManager.setupIPC(ipcMain);
   gitBranchesManager.setupIPC(ipcMain);
+  claudeSessionsManager.setupIPC(ipcMain);
 
   // Terminal input handler (needs prompt logger integration)
   ipcMain.on(IPC.TERMINAL_INPUT, (event, data) => {
@@ -122,6 +124,7 @@ function initModulesWithWindow(window) {
   claudeUsageManager.init(window);
   overviewManager.init(window);
   gitBranchesManager.init(window);
+  claudeSessionsManager.init(window);
 }
 
 // App lifecycle

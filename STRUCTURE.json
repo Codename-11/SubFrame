@@ -34,23 +34,24 @@
         "claudeUsageManager",
         "overviewManager",
         "gitBranchesManager",
-        "aiToolManager"
+        "aiToolManager",
+        "claudeSessionsManager"
       ],
       "functions": {
         "createWindow": {
-          "line": 33,
+          "line": 34,
           "purpose": "Create main application window"
         },
         "setupAllIPC": {
-          "line": 77,
+          "line": 78,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 104,
+          "line": 106,
           "purpose": "Initialize application"
         },
         "initModulesWithWindow": {
-          "line": 115,
+          "line": 117,
           "params": [
             "window"
           ],
@@ -2083,93 +2084,94 @@
       ],
       "depends": [
         "electron",
-        "shared/ipcChannels"
+        "shared/ipcChannels",
+        "state"
       ],
       "functions": {
         "init": {
-          "line": 21,
+          "line": 27,
           "purpose": "Initialize plugins panel"
         },
         "setupEventListeners": {
-          "line": 37,
+          "line": 44,
           "purpose": "Setup event listeners"
         },
         "setupIPCListeners": {
-          "line": 76,
+          "line": 89,
           "purpose": "Setup IPC listeners"
         },
         "loadPlugins": {
-          "line": 100,
+          "line": 113,
           "purpose": "Load plugins"
         },
         "refreshPlugins": {
-          "line": 114,
+          "line": 127,
           "purpose": "Refresh plugins from marketplace"
         },
         "show": {
-          "line": 148,
+          "line": 161,
           "purpose": "Show plugins panel"
         },
         "hide": {
-          "line": 159,
+          "line": 178,
           "purpose": "Hide plugins panel"
         },
         "toggle": {
-          "line": 169,
+          "line": 188,
           "purpose": "Toggle plugins panel visibility"
         },
         "setTab": {
-          "line": 180,
+          "line": 199,
           "params": [
             "tab"
           ],
           "purpose": "Set active tab"
         },
         "setFilter": {
-          "line": 197,
+          "line": 221,
           "params": [
             "filter"
           ],
           "purpose": "Set filter"
         },
         "getFilteredPlugins": {
-          "line": 211,
+          "line": 235,
           "purpose": "Get filtered plugins"
         },
         "render": {
-          "line": 227,
+          "line": 251,
           "purpose": "Render plugins list"
         },
         "renderPluginItem": {
-          "line": 271,
+          "line": 295,
           "params": [
             "plugin"
           ],
           "purpose": "Render single plugin item"
         },
         "getPluginIcon": {
-          "line": 317,
+          "line": 341,
           "params": [
             "name"
           ],
           "purpose": "Get icon for plugin based on name"
         },
         "togglePlugin": {
-          "line": 356,
+          "line": 380,
           "params": [
             "pluginId"
           ],
           "purpose": "Toggle plugin enabled/disabled"
         },
         "installPlugin": {
-          "line": 368,
+          "line": 392,
           "params": [
             "pluginName"
           ],
           "purpose": "Install plugin via terminal command"
         },
         "showToast": {
-          "line": 385,
+          "line": 409,
           "params": [
             "message",
             "type = 'info'"
@@ -2177,18 +2179,58 @@
           "purpose": "Show toast notification"
         },
         "getToastIcon": {
-          "line": 420,
+          "line": 444,
           "params": [
             "type"
           ],
           "purpose": "Get toast icon based on type"
         },
         "escapeHtml": {
-          "line": 434,
+          "line": 458,
           "params": [
             "text"
           ],
           "purpose": "Escape HTML for safe rendering"
+        },
+        "loadSessions": {
+          "line": 469,
+          "purpose": "Load sessions from Claude data"
+        },
+        "refreshSessions": {
+          "line": 494,
+          "purpose": "Refresh sessions with spinner animation"
+        },
+        "renderSessions": {
+          "line": 516,
+          "purpose": "Render sessions list"
+        },
+        "renderSessionItem": {
+          "line": 544,
+          "params": [
+            "session"
+          ],
+          "purpose": "Render a single session item"
+        },
+        "renderSessionsEmpty": {
+          "line": 573,
+          "params": [
+            "message"
+          ],
+          "purpose": "Render sessions empty state"
+        },
+        "resumeSession": {
+          "line": 595,
+          "params": [
+            "sessionId"
+          ],
+          "purpose": "Resume a session by sending command to terminal"
+        },
+        "formatRelativeTime": {
+          "line": 609,
+          "params": [
+            "dateString"
+          ],
+          "purpose": "Format a date string to relative time"
         }
       },
       "ipc": {
@@ -3256,6 +3298,58 @@
       "ipc": {
         "listens": [
           "AI_TOOL_CHANGED"
+        ],
+        "emits": []
+      }
+    },
+    "main/claudeSessionsManager": {
+      "file": "src/main/claudeSessionsManager.js",
+      "description": "C",
+      "exports": [
+        "init",
+        "setupIPC",
+        "getSessionsForProject"
+      ],
+      "depends": [
+        "fs",
+        "path",
+        "os",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "init": {
+          "line": 19,
+          "params": [
+            "window"
+          ],
+          "purpose": "Initialize sessions manager"
+        },
+        "encodeProjectPath": {
+          "line": 27,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "e.g. /Users/kaanozhan/MyProject -> -Users-kaanozhan-MyProject"
+        },
+        "getSessionsForProject": {
+          "line": 34,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Get sessions for a given project path"
+        },
+        "setupIPC": {
+          "line": 66,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Setup IPC handlers"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "LOAD_CLAUDE_SESSIONS",
+          "REFRESH_CLAUDE_SESSIONS"
         ],
         "emits": []
       }

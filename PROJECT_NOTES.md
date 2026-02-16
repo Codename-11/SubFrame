@@ -603,3 +603,28 @@ Gemini CLI's dependency `string-width` uses the `/v` regex flag which requires N
 - Commands: `nvm install 20` + `nvm alias default 20` + `npm install`
 - Impact on Frame: None — Electron 28, node-pty, xterm.js all compatible with Node 20
 - `nvm alias default 20` is critical — without it, terminals spawned by Frame still use the old default version
+
+---
+
+### [2026-02-16] Claude Panel — Sessions Tab
+
+**Context:** The Claude panel only had a "Plugins" tab. The user wanted a "Sessions" tab to browse past Claude Code sessions (similar to `/resume`).
+
+**Data source:** `~/.claude/projects/{encoded-path}/sessions-index.json` — Claude Code stores session history per project in this file. Sessions are project-scoped (`projectPath` field present in each entry).
+
+**Important discovery:** The plan assumed the file was a plain JSON array, but the actual format is `{ version: 1, entries: [...] }`. The panel appeared empty on the first run; a fix was applied to read from the `entries` field.
+
+**Files changed:**
+- `src/shared/ipcChannels.js` — Added `LOAD_CLAUDE_SESSIONS`, `REFRESH_CLAUDE_SESSIONS` channels
+- `src/main/claudeSessionsManager.js` — New module: reads sessions-index.json, path encoding, IPC handlers
+- `src/main/index.js` — Manager registration (setupIPC + init)
+- `index.html` — Sessions tab button and content area (header bar + refresh + sessions list)
+- `src/renderer/pluginsPanel.js` — Session loading, rendering, refresh, resume, formatRelativeTime functions
+- `src/renderer/styles/components/panels.css` — Session item, sidechain indicator, empty state styles
+
+**Features:**
+- Session list: summary, relative time, branch badge, message count
+- Clicking a session sends `claude --resume {id}` to the terminal and closes the panel
+- Refresh button with spinner animation
+- Sidechain sessions marked with a warning-color left border
+- "No project selected" empty state when no project is active

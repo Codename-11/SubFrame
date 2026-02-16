@@ -130,6 +130,7 @@
       </div>
       <div class="claude-tabs">
         <button class="claude-tab-btn active" data-tab="plugins">Plugins</button>
+        <button class="claude-tab-btn" data-tab="sessions">Sessions</button>
       </div>
       <div data-tab-content="plugins">
         <div class="plugins-filter">
@@ -139,6 +140,19 @@
         </div>
         <div id="plugins-content">
           <!-- Plugins will be populated here -->
+        </div>
+      </div>
+      <div class="sessions-tab-content" data-tab-content="sessions" style="display:none;">
+        <div class="sessions-header-bar">
+          <span id="sessions-count"></span>
+          <button id="sessions-refresh-btn" tabindex="-1" title="Refresh sessions">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+          </button>
+        </div>
+        <div id="sessions-content">
+          <!-- Sessions will be populated here -->
         </div>
       </div>
     </div>
