@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frame Server — Running Your IDE in the Browser — Frame Blog</title>
+  <meta name="description" content="What if you could access Frame from any browser? Since Frame is built with Electron and web technologies, converting to a web app like code-server is technically feasible.">
+  <link rel="canonical" href="https://frame.cool/blog/frame-server">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://frame.cool/blog/frame-server">
+  <meta property="og:title" content="Frame Server — Running Your IDE in the Browser">
+  <meta property="og:description" content="What if you could access Frame from any browser? The path from Electron to a web app is shorter than you think.">
+  <meta property="og:site_name" content="Frame">
+  <meta property="article:published_time" content="2026-01-30">
+  <meta name="twitter:card" content="summary">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <nav class="blog-nav">
+    <div class="container-wide">
+      <a href="/" class="logo">
+        <div class="logo-icon">F</div>
+        <span class="logo-text">Frame</span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="https://github.com/kaanozhan/Frame" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <article>
+    <header class="post-header">
+      <div class="container">
+        <a href="/blog/" class="post-back">&larr; All posts</a>
+        <div class="post-meta">
+          <span class="post-date">January 30, 2026</span>
+          <span class="post-tag">Roadmap</span>
+        </div>
+        <h1>Frame Server — Running Your IDE in the Browser</h1>
+        <p class="post-subtitle">What if you could install Frame on a headless server and access it from any browser, anywhere?</p>
+      </div>
+    </header>
+
+    <div class="post-content">
+      <div class="container">
+        <h2>The Request</h2>
+        <p>A community member raised an interesting idea:</p>
+        <blockquote>
+          <p>"I have a Windows PC for display and a headless Debian machine for development. Exposing Frame as a web app — like code-server — would be useful. I could install it on my headless Linux dev box and open it on any browser anywhere."</p>
+        </blockquote>
+        <p>This resonated with us. Not everyone has their development environment on the machine they're sitting at. Remote development is increasingly common, especially with AI coding tools that benefit from powerful hardware.</p>
+
+        <h2>Why It's Feasible</h2>
+        <p>Frame is built entirely with web technologies:</p>
+        <ul>
+          <li><strong>xterm.js</strong> — the terminal emulator — is a web component. It already runs in browsers.</li>
+          <li><strong>The UI</strong> is HTML, CSS, and JavaScript. No native widgets.</li>
+          <li><strong>node-pty</strong> — the PTY backend — runs on Node.js, which works on any server.</li>
+        </ul>
+        <p>The only Electron-specific piece is the <em>communication layer</em>: IPC (Inter-Process Communication) between the main process and the renderer. In a web app, this becomes WebSocket.</p>
+
+        <h2>The Architecture</h2>
+        <pre><code>Electron App                    Frame Server (Web App)
+─────────────                   ─────────────────────
+ipcMain / ipcRenderer    →      Express + WebSocket
+Electron BrowserWindow   →      Static HTML server
+node-pty (same)                 node-pty (same)
+xterm.js (same)                 xterm.js (same)
+File system (same)              File system (same)</code></pre>
+        <p>The core logic stays the same. Terminal management, file tree, task tracking, plugin system — all of it works identically. Only the transport layer changes.</p>
+
+        <h3>What Changes</h3>
+        <ul>
+          <li><strong>IPC → WebSocket</strong>: Replace <code>ipcMain.handle()</code> with WebSocket message handlers</li>
+          <li><strong>Electron window → Express server</strong>: Serve the HTML/CSS/JS as static files</li>
+          <li><strong>Authentication</strong>: Add a login system (the desktop app doesn't need one)</li>
+          <li><strong>HTTPS</strong>: Required for secure remote access</li>
+        </ul>
+
+        <h3>What Stays the Same</h3>
+        <ul>
+          <li>All terminal management (node-pty)</li>
+          <li>All UI components (xterm.js, file tree, panels)</li>
+          <li>Context preservation system (AGENTS.md, STRUCTURE.json, etc.)</li>
+          <li>Task management</li>
+          <li>Multi-AI tool support</li>
+        </ul>
+
+        <h2>Precedent: code-server</h2>
+        <p>This pattern is proven. <a href="https://github.com/coder/code-server" style="color: var(--accent);">code-server</a> does exactly this for VS Code — takes an Electron app and serves it as a web application. The result is VS Code in the browser, accessible from any device.</p>
+        <p>Frame's architecture is simpler than VS Code's, which makes the conversion even more straightforward.</p>
+
+        <h2>Current Status</h2>
+        <p>Frame Server is on the roadmap but not yet in development. We're focusing on stabilizing the desktop experience first — multi-AI support, plugin system, and context preservation.</p>
+        <p>If you're interested in Frame Server, <a href="https://github.com/kaanozhan/Frame/issues" style="color: var(--accent);">let us know on GitHub</a>. Community interest will help prioritize this feature.</p>
+      </div>
+    </div>
+  </article>
+
+  <footer class="blog-footer">
+    <div class="container">
+      <p>Frame — <a href="https://github.com/kaanozhan/Frame">Open Source</a> on GitHub</p>
+    </div>
+  </footer>
+</body>
+</html>

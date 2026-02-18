@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Why Frame? Building a Terminal-First IDE for AI Coding — Frame Blog</title>
+  <meta name="description" content="VS Code and Cursor are designed for writing code manually. When you develop primarily through AI tools like Claude Code, you need something different. Here's why we built Frame.">
+  <link rel="canonical" href="https://frame.cool/blog/why-frame">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://frame.cool/blog/why-frame">
+  <meta property="og:title" content="Why Frame? Building a Terminal-First IDE for AI Coding">
+  <meta property="og:description" content="VS Code and Cursor are designed for writing code manually. When you develop primarily through AI tools, you need something different.">
+  <meta property="og:site_name" content="Frame">
+  <meta property="article:published_time" content="2026-01-26">
+  <meta name="twitter:card" content="summary">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <nav class="blog-nav">
+    <div class="container-wide">
+      <a href="/" class="logo">
+        <div class="logo-icon">F</div>
+        <span class="logo-text">Frame</span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="https://github.com/kaanozhan/Frame" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <article>
+    <header class="post-header">
+      <div class="container">
+        <a href="/blog/" class="post-back">&larr; All posts</a>
+        <div class="post-meta">
+          <span class="post-date">January 26, 2026</span>
+          <span class="post-tag">Vision</span>
+        </div>
+        <h1>Why Frame? Building a Terminal-First IDE for AI Coding</h1>
+        <p class="post-subtitle">VS Code and Cursor are designed for writing code manually. But when you develop primarily through AI tools, you need something fundamentally different.</p>
+      </div>
+    </header>
+
+    <div class="post-content">
+      <div class="container">
+        <h2>The Problem</h2>
+        <p>When developing with Claude Code, there's no real need for tools like VS Code or Cursor. Those editors are designed for <em>writing code manually</em> — syntax highlighting, autocomplete, multi-cursor editing. But when an AI is writing your code, you don't need that complexity.</p>
+        <p>What you actually need is:</p>
+        <ul>
+          <li>A way to organize and manage your projects</li>
+          <li>A real terminal (or multiple terminals) where AI tools run</li>
+          <li>Context that persists between sessions</li>
+          <li>Task tracking so nothing falls through the cracks</li>
+          <li>Quick project switching without losing your place</li>
+        </ul>
+        <p>Staying in the terminal means projects remain disorganized. Context is lost. Decisions are forgotten. There's no standardization across projects.</p>
+
+        <h2>The Solution: Frame</h2>
+        <p>Frame is not an IDE in the traditional sense. It's a <em>framework</em> — that's where the name comes from. Within Frame, you create "Frame projects" with a standard structure:</p>
+        <ul>
+          <li><code>AGENTS.md</code> — AI instructions that get read at session start</li>
+          <li><code>STRUCTURE.json</code> — a module map of your codebase</li>
+          <li><code>PROJECT_NOTES.md</code> — decisions and session notes</li>
+          <li><code>tasks.json</code> — task tracking</li>
+        </ul>
+        <p>Every project gets the same structure. Every AI session starts with context. Nothing is lost.</p>
+
+        <h2>Terminal-First Philosophy</h2>
+        <p>Frame's center is not a code editor — it's the terminal. Even multiple terminals, in a grid layout. This is intentional.</p>
+        <blockquote>
+          <p>"I need standardization and manageability for my projects. I'm terminal and Claude Code focused. That's why Frame's center is not a code editor, but a terminal."</p>
+        </blockquote>
+        <p>Frame supports up to 9 terminals simultaneously, with both tab and grid views. You can run Claude Code in one terminal, tests in another, and a dev server in a third — all visible at once.</p>
+
+        <h2>What Frame is NOT</h2>
+        <ul>
+          <li><strong>Not a code editor</strong> — there's a file editor for quick edits, but it's not the focus</li>
+          <li><strong>Not a VS Code replacement</strong> — if you write code manually, VS Code is still better</li>
+          <li><strong>Not optimized for manual coding</strong> — it's optimized for AI-assisted development</li>
+        </ul>
+
+        <h2>Target User</h2>
+        <p>Frame is for developers who do daily development with AI coding tools, working terminal-focused. If you find yourself spending most of your time in Claude Code, Codex CLI, or Gemini CLI — and just need a better way to manage your projects and preserve context — Frame is for you.</p>
+
+        <p>Check out the <a href="https://github.com/kaanozhan/Frame" style="color: var(--accent);">GitHub repository</a> to get started.</p>
+      </div>
+    </div>
+  </article>
+
+  <footer class="blog-footer">
+    <div class="container">
+      <p>Frame — <a href="https://github.com/kaanozhan/Frame">Open Source</a> on GitHub</p>
+    </div>
+  </footer>
+</body>
+</html>

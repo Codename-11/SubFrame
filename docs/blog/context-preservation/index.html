@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Context Preservation — Stop Losing Decisions Between AI Sessions — Frame Blog</title>
+  <meta name="description" content="As projects grow with AI coding tools, context gets lost between sessions. Decisions are forgotten, tasks slip through the cracks. Here's how Frame solves the context problem.">
+  <link rel="canonical" href="https://frame.cool/blog/context-preservation">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://frame.cool/blog/context-preservation">
+  <meta property="og:title" content="Context Preservation — Stop Losing Decisions Between AI Sessions">
+  <meta property="og:description" content="As projects grow with AI coding tools, context gets lost. Here's how Frame solves this with automatic context preservation.">
+  <meta property="og:site_name" content="Frame">
+  <meta property="article:published_time" content="2026-01-26">
+  <meta name="twitter:card" content="summary">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <nav class="blog-nav">
+    <div class="container-wide">
+      <a href="/" class="logo">
+        <div class="logo-icon">F</div>
+        <span class="logo-text">Frame</span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="https://github.com/kaanozhan/Frame" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <article>
+    <header class="post-header">
+      <div class="container">
+        <a href="/blog/" class="post-back">&larr; All posts</a>
+        <div class="post-meta">
+          <span class="post-date">January 26, 2026</span>
+          <span class="post-tag">Architecture</span>
+        </div>
+        <h1>Context Preservation — Stop Losing Decisions Between AI Sessions</h1>
+        <p class="post-subtitle">The biggest problem with AI-assisted development isn't the AI — it's the context that gets lost between sessions.</p>
+      </div>
+    </header>
+
+    <div class="post-content">
+      <div class="container">
+        <h2>The Context Problem</h2>
+        <p>You've been there: you start a new Claude Code session, and you have to re-explain the project architecture, the decisions you made yesterday, and the task you were working on. As projects grow, this problem gets worse.</p>
+        <p>Decisions are forgotten. Tasks slip through the cracks. You end up re-explaining the same things over and over. The AI has no memory of what happened in previous sessions.</p>
+
+        <h2>Frame's Approach</h2>
+        <p>Frame solves this with a three-part system that the AI reads at the start of every session:</p>
+
+        <h3>1. STRUCTURE.json — The Module Map</h3>
+        <p>A machine-readable map of your codebase: which modules exist, what they export, what they depend on. The AI knows where everything is without scanning the entire project.</p>
+        <pre><code>{
+  "modules": {
+    "main/tasksManager": {
+      "path": "src/main/tasksManager.js",
+      "purpose": "Task CRUD operations",
+      "exports": ["init", "loadTasks", "addTask"],
+      "depends": ["fs", "path", "shared/ipcChannels"]
+    }
+  }
+}</code></pre>
+        <p>This updates automatically via a pre-commit hook — only changed files are parsed, not the entire project.</p>
+
+        <h3>2. PROJECT_NOTES.md — Decision Log</h3>
+        <p>This is where decisions and important conversations are captured — <em>as they happen</em>, not as summaries after the fact.</p>
+        <blockquote>
+          <p>"Don't write a summary — add the conversation as is, with its context. The user's words, the reasoning, the alternatives considered."</p>
+        </blockquote>
+        <p>The key design decision: the AI asks the user "Should I add this to notes?" at natural breakpoints — when a task is completed, when an architectural decision is made, or when a bug fix reveals something noteworthy. The user decides what's important.</p>
+
+        <h3>3. tasks.json — Task Tracking</h3>
+        <p>Tasks are detected from conversations automatically. When the user says "let's add this feature" or "we'll do this later", the AI recognizes the pattern and offers to add it to the task list.</p>
+        <p>Each task includes the user's original request (verbatim), acceptance criteria, and technical notes — so a future session has full context on what needs to be done.</p>
+
+        <h2>Design Principles</h2>
+        <p>Several key principles shaped this system:</p>
+        <ul>
+          <li><strong>No "End Session" button</strong> — context capture should be organic, not forced</li>
+          <li><strong>User decides importance</strong> — the AI suggests, but never auto-saves notes without asking</li>
+          <li><strong>Not summaries, but conversations</strong> — context must be preserved as-is</li>
+          <li><strong>Don't spam</strong> — not every small change deserves a note. Typo fixes, simple corrections — skip those</li>
+        </ul>
+
+        <h2>How It Works in Practice</h2>
+        <p>When you start a new session with Claude Code in a Frame project, the AI reads <code>AGENTS.md</code> which tells it to check these three files. Within seconds, it knows:</p>
+        <ul>
+          <li>The full project structure and module dependencies</li>
+          <li>All past decisions and their reasoning</li>
+          <li>Pending tasks and their context</li>
+        </ul>
+        <p>No re-explaining. No context loss. The session picks up where the last one left off.</p>
+
+        <p>This approach works with <em>any</em> AI coding tool — Claude Code reads <code>CLAUDE.md</code> natively, Gemini CLI reads <code>GEMINI.md</code>, and Codex CLI gets the context injected via a wrapper script. Same system, multiple tools.</p>
+      </div>
+    </div>
+  </article>
+
+  <footer class="blog-footer">
+    <div class="container">
+      <p>Frame — <a href="https://github.com/kaanozhan/Frame">Open Source</a> on GitHub</p>
+    </div>
+  </footer>
+</body>
+</html>
