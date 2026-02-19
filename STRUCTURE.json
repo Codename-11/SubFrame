@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-02-18",
+  "lastUpdated": "2026-02-19",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -751,7 +751,7 @@
           "purpose": "Setup button click handlers"
         },
         "setupKeyboardShortcuts": {
-          "line": 186,
+          "line": 199,
           "purpose": "Setup keyboard shortcuts"
         }
       }
@@ -1122,15 +1122,15 @@
           "purpose": "Update project UI elements"
         },
         "selectProjectFolder": {
-          "line": 229,
+          "line": 233,
           "purpose": "Request folder selection"
         },
         "createNewProject": {
-          "line": 236,
+          "line": 240,
           "purpose": "Request new project creation"
         },
         "setupIPC": {
-          "line": 243,
+          "line": 247,
           "purpose": "Setup IPC listeners"
         }
       },

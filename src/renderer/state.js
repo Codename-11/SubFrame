@@ -209,6 +209,8 @@ function updateProjectUI() {
     if (fileExplorerHeader) {
       fileExplorerHeader.style.display = 'block';
     }
+    const filesEmpty = document.getElementById('files-empty-state');
+    if (filesEmpty) filesEmpty.style.display = 'none';
   } else {
     if (pathElement) {
       pathElement.textContent = 'No project selected';
@@ -220,6 +222,8 @@ function updateProjectUI() {
     if (fileExplorerHeader) {
       fileExplorerHeader.style.display = 'none';
     }
+    const filesEmpty = document.getElementById('files-empty-state');
+    if (filesEmpty) filesEmpty.style.display = '';
   }
 }
 

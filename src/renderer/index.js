@@ -178,6 +178,19 @@ function setupButtonHandlers() {
   document.getElementById('btn-initialize-frame').addEventListener('click', () => {
     state.initializeAsFrameProject();
   });
+
+  // Sidebar tabs
+  document.querySelectorAll('.sidebar-tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tab = e.target.dataset.sidebarTab;
+      document.querySelectorAll('.sidebar-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.sidebarTab === tab);
+      });
+      document.querySelectorAll('[data-sidebar-tab-content]').forEach(el => {
+        el.style.display = el.dataset.sidebarTabContent === tab ? '' : 'none';
+      });
+    });
+  });
 }
 
 /**
