@@ -30,7 +30,7 @@ const AI_TOOLS = {
   codex: {
     id: 'codex',
     name: 'Codex CLI',
-    command: './.frame/bin/codex',
+    command: './.subframe/bin/codex',
     fallbackCommand: 'codex',
     description: 'OpenAI Codex CLI (with AGENTS.md injection)',
     commands: {
@@ -200,10 +200,25 @@ function getCommand(action) {
 }
 
 /**
+ * Get custom command override from settings for a tool
+ */
+function getCustomCommand(toolId) {
+  try {
+    const settingsManager = require('./settingsManager');
+    const custom = settingsManager.getSetting(`aiTools.${toolId}.customCommand`);
+    return custom || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
  * Get the start command for active tool
  */
 function getStartCommand() {
-  return getActiveTool().command;
+  const tool = getActiveTool();
+  const custom = getCustomCommand(tool.id);
+  return custom || tool.command;
 }
 
 module.exports = {

@@ -204,7 +204,28 @@ async function loadStats(projectPath) {
 }
 
 /**
- * Count lines of code in src directory
+ * Recursively find files matching an extension (cross-platform)
+ */
+function findFilesRecursive(dir, ext) {
+  let results = [];
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
+        results = results.concat(findFilesRecursive(fullPath, ext));
+      } else if (entry.isFile() && entry.name.endsWith(ext)) {
+        results.push(fullPath);
+      }
+    }
+  } catch (err) {
+    // Skip directories we can't read
+  }
+  return results;
+}
+
+/**
+ * Count lines of code in src directory (cross-platform)
  */
 function countLinesOfCode(projectPath) {
   return new Promise((resolve) => {
@@ -215,20 +236,22 @@ function countLinesOfCode(projectPath) {
       return;
     }
 
-    exec(`find "${srcPath}" -name "*.js" -exec cat {} \\; | wc -l`, (err, stdout) => {
-      if (err) {
-        resolve({ total: 0, byExtension: {} });
-        return;
+    try {
+      const files = findFilesRecursive(srcPath, '.js');
+      let total = 0;
+      for (const file of files) {
+        const content = fs.readFileSync(file, 'utf8');
+        total += content.split('\n').length;
       }
-
-      const total = parseInt(stdout.trim()) || 0;
       resolve({ total, byExtension: { js: total } });
-    });
+    } catch (err) {
+      resolve({ total: 0, byExtension: {} });
+    }
   });
 }
 
 /**
- * Count files in src directory
+ * Count files in src directory (cross-platform)
  */
 function countFiles(projectPath) {
   return new Promise((resolve) => {
@@ -239,14 +262,12 @@ function countFiles(projectPath) {
       return;
     }
 
-    exec(`find "${srcPath}" -name "*.js" | wc -l`, (err, stdout) => {
-      if (err) {
-        resolve({ total: 0 });
-        return;
-      }
-
-      resolve({ total: parseInt(stdout.trim()) || 0 });
-    });
+    try {
+      const files = findFilesRecursive(srcPath, '.js');
+      resolve({ total: files.length });
+    } catch (err) {
+      resolve({ total: 0 });
+    }
   });
 }
 
@@ -383,30 +404,33 @@ function getFileContributors(projectPath, filePath) {
 
 /**
  * Get blame summary for a file (who wrote how many lines)
+ * Cross-platform: parses git blame output in Node.js instead of piping through Unix commands
  */
 function getFileBlame(projectPath, filePath) {
   return new Promise((resolve) => {
-    const cmd = `git blame --line-porcelain -- "${filePath}" 2>/dev/null | grep "^author " | sort | uniq -c | sort -rn | head -5`;
+    const cmd = `git blame --line-porcelain -- "${filePath}"`;
 
-    exec(cmd, { cwd: projectPath }, (err, stdout) => {
+    exec(cmd, { cwd: projectPath, timeout: 10000 }, (err, stdout) => {
       if (err) {
         resolve([]);
         return;
       }
 
-      const blameData = stdout.trim().split('\n')
-        .filter(line => line)
-        .map(line => {
-          const match = line.trim().match(/^\s*(\d+)\s+author\s+(.+)$/);
-          if (match) {
-            return {
-              lines: parseInt(match[1]),
-              author: match[2]
-            };
-          }
-          return null;
-        })
-        .filter(b => b);
+      // Count authors from porcelain output
+      const authorCounts = {};
+      const lines = stdout.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('author ')) {
+          const author = line.substring(7);
+          authorCounts[author] = (authorCounts[author] || 0) + 1;
+        }
+      }
+
+      // Sort by count descending, take top 5
+      const blameData = Object.entries(authorCounts)
+        .map(([author, count]) => ({ lines: count, author }))
+        .sort((a, b) => b.lines - a.lines)
+        .slice(0, 5);
 
       resolve(blameData);
     });

@@ -11,6 +11,7 @@ let activeProjectPath = null;
 let onProjectSelectCallback = null;
 let projects = []; // Store projects list for navigation
 let focusedIndex = -1; // Currently focused project index
+let contextMenu = null; // Right-click context menu
 
 /**
  * Initialize project list UI
@@ -19,6 +20,7 @@ function init(containerId, onSelectCallback) {
   projectsListElement = document.getElementById(containerId);
   onProjectSelectCallback = onSelectCallback;
   setupIPC();
+  _createContextMenu();
 }
 
 /**
@@ -118,7 +120,228 @@ function createProjectItem(project, index) {
     selectProject(project.path);
   });
 
+  // Double-click to rename
+  item.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    _startRename(item);
+  });
+
+  // Right-click context menu
+  item.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    _showContextMenu(e.clientX, e.clientY, item);
+  });
+
   return item;
+}
+
+/**
+ * Start inline rename on a project item
+ */
+function _startRename(itemElement) {
+  const nameSpan = itemElement.querySelector('.project-name');
+  if (!nameSpan) return;
+
+  const currentName = nameSpan.textContent;
+  const projectPath = itemElement.dataset.path;
+
+  // Create input
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'project-rename-input';
+  input.value = currentName;
+
+  nameSpan.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let finished = false;
+
+  const finishRename = (save) => {
+    if (finished) return;
+    finished = true;
+
+    const newName = save ? (input.value.trim() || currentName) : currentName;
+
+    // Restore the span
+    const span = document.createElement('span');
+    span.className = 'project-name';
+    span.textContent = newName;
+    span.title = projectPath;
+    if (input.parentNode) {
+      input.replaceWith(span);
+    }
+
+    // Send rename IPC if name changed
+    if (save && newName !== currentName) {
+      ipcRenderer.send(IPC.RENAME_PROJECT, { projectPath, newName });
+    }
+  };
+
+  input.addEventListener('blur', () => finishRename(true));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      finishRename(false);
+    }
+  });
+  // Prevent click from triggering project selection while renaming
+  input.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+}
+
+/**
+ * Create the right-click context menu element
+ */
+function _createContextMenu() {
+  // Inject styles once
+  if (!document.getElementById('project-context-menu-styles')) {
+    const style = document.createElement('style');
+    style.id = 'project-context-menu-styles';
+    style.textContent = `
+      .project-context-menu {
+        position: fixed;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 4px 0;
+        z-index: 10000;
+        display: none;
+        min-width: 140px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        animation: fadeIn 0.1s ease-out;
+      }
+      .project-context-menu.visible {
+        display: block;
+      }
+      .project-context-menu-item {
+        padding: 6px 12px;
+        font-size: 12px;
+        color: var(--text-primary);
+        cursor: pointer;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background var(--transition-fast);
+      }
+      .project-context-menu-item:hover {
+        background: var(--bg-hover);
+      }
+      .project-context-menu-item svg {
+        opacity: 0.7;
+      }
+      .project-context-menu-divider {
+        height: 1px;
+        background: var(--border-subtle);
+        margin: 4px 0;
+      }
+      .project-rename-input {
+        background: var(--bg-primary);
+        border: 1px solid var(--accent-primary);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 13px;
+        font-weight: 500;
+        padding: 1px 4px;
+        flex: 1;
+        min-width: 0;
+        outline: none;
+        border-radius: var(--radius-sm);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  contextMenu = document.createElement('div');
+  contextMenu.className = 'project-context-menu';
+  document.body.appendChild(contextMenu);
+
+  // Hide menu on click elsewhere
+  document.addEventListener('click', () => {
+    _hideContextMenu();
+  });
+}
+
+/**
+ * Show context menu at position for a project item
+ */
+function _showContextMenu(x, y, itemElement) {
+  if (!contextMenu) return;
+
+  contextMenu.innerHTML = '';
+  const projectPath = itemElement.dataset.path;
+  const project = projects.find(p => p.path === projectPath);
+  if (!project) return;
+
+  // Rename option
+  const renameItem = document.createElement('div');
+  renameItem.className = 'project-context-menu-item';
+  renameItem.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+    </svg>
+    Rename
+  `;
+  renameItem.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _startRename(itemElement);
+    _hideContextMenu();
+  });
+
+  // Divider
+  const divider = document.createElement('div');
+  divider.className = 'project-context-menu-divider';
+
+  // Remove option
+  const removeItem = document.createElement('div');
+  removeItem.className = 'project-context-menu-item';
+  removeItem.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+    Remove
+  `;
+  removeItem.addEventListener('click', (e) => {
+    e.stopPropagation();
+    confirmRemoveProject(project.path, project.name);
+    _hideContextMenu();
+  });
+
+  contextMenu.appendChild(renameItem);
+  contextMenu.appendChild(divider);
+  contextMenu.appendChild(removeItem);
+
+  // Position and show
+  contextMenu.style.left = `${x}px`;
+  contextMenu.style.top = `${y}px`;
+  contextMenu.classList.add('visible');
+
+  // Adjust position if out of bounds
+  const rect = contextMenu.getBoundingClientRect();
+  if (rect.right > window.innerWidth) {
+    contextMenu.style.left = `${window.innerWidth - rect.width - 5}px`;
+  }
+  if (rect.bottom > window.innerHeight) {
+    contextMenu.style.top = `${window.innerHeight - rect.height - 5}px`;
+  }
+}
+
+/**
+ * Hide context menu
+ */
+function _hideContextMenu() {
+  if (contextMenu) {
+    contextMenu.classList.remove('visible');
+  }
 }
 
 /**
@@ -283,6 +506,12 @@ function handleKeydown(e) {
   if (e.key === 'Enter' && focusedIndex >= 0) {
     e.preventDefault();
     selectProject(projects[focusedIndex].path);
+  }
+
+  // F2 to rename focused project
+  if (e.key === 'F2' && focusedIndex >= 0) {
+    e.preventDefault();
+    _startRename(items[focusedIndex]);
   }
 
   if (e.key === 'Escape') {

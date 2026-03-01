@@ -1,6 +1,6 @@
-# Frame - Project Instructions
+# SubFrame - Project Instructions
 
-This project is managed with **Frame**. AI assistants should follow the rules below to keep documentation up to date.
+This project is managed with **SubFrame**. AI assistants should follow the rules below to keep documentation up to date.
 
 > **Note:** This file is named `AGENTS.md` to be AI-tool agnostic. A `CLAUDE.md` symlink is provided for Claude Code compatibility.
 
@@ -148,7 +148,7 @@ Conversation/decision as is, with its context...
 
 ## 📝 Context Preservation (Automatic Note Taking)
 
-Frame's core purpose is to prevent context loss. Therefore, capture important moments and ask the user.
+SubFrame's core purpose is to prevent context loss. Therefore, capture important moments and ask the user.
 
 ### When to Ask?
 
@@ -247,5 +247,5 @@ No problem, continue. The user can also say what they consider important themsel
 
 ---
 
-*This file was automatically created by Frame.*
+*This file was automatically created by SubFrame.*
 *Creation date: 2026-01-24*

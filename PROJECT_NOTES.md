@@ -1,4 +1,4 @@
-# Frame - Project Documentation
+# SubFrame - Project Documentation
 
 ## Project Vision
 
@@ -8,9 +8,9 @@
 - Decisions are forgotten
 - There's no standardization
 
-**Solution:** Frame - a terminal-centric development framework. Not an IDE, but a **framework**.
+**Solution:** SubFrame - a terminal-centric development framework. Not an IDE, but a **framework**.
 
-**Why "Frame":** The word means "framework". Within Frame, we create "Frame projects" - with standard documents (CLAUDE.md, tasks.json, STRUCTURE.json), every project has the same structure.
+**Why "SubFrame":** Within SubFrame, we create "SubFrame projects" - with standard documents (CLAUDE.md, tasks.json, STRUCTURE.json), every project has the same structure.
 
 **Core Philosophy:**
 - **Terminal-first:** The center is not a code editor, but the terminal. Even multiple terminals (grid).
@@ -21,7 +21,7 @@
 
 **Target User:** Developers who do daily development with Claude Code, working terminal-focused.
 
-**What Frame is NOT:**
+**What SubFrame is NOT:**
 - Not a code editor (there's a file editor but it's not central)
 - Not a VS Code/Cursor alternative
 - Not optimized for writing code manually
@@ -31,7 +31,7 @@
 ## Project Summary
 IDE-style desktop application for Claude Code. Features a 3-panel layout with project explorer, multi-terminal support (tabs/grid), file editor, and prompt history.
 
-**App Name:** Frame (formerly Claude Code IDE)
+**App Name:** SubFrame (formerly Claude Code IDE)
 
 ---
 
@@ -124,6 +124,37 @@ npm start              # Builds + starts app
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
+
+### Startup Flow
+
+```
+app.whenReady()
+  │
+  ├─ createSplash() — frameless BrowserWindow, data: URL (instant)
+  │    Identical branding: amber dot, "SubFrame" text, progress bar
+  │
+  ├─ createWindow() — main BrowserWindow (show: false)
+  │    │  Loads index.html (external CSS, fonts, scripts)
+  │    │
+  │    ├─ DOMContentLoaded → initCritical()
+  │    │    Terminal structure, state, project list, sidebar, shortcuts
+  │    │
+  │    ├─ requestAnimationFrame → initDeferred()
+  │    │    File tree, editor, hidden panels (tasks, plugins, GitHub, settings)
+  │    │    Then: fade out in-app loading overlay (#app-loading)
+  │    │
+  │    └─ ready-to-show → mainWindow.show(), splashWindow.close()
+  │
+  └─ Window state persistence
+       Reads: {userData}/window-state.json on launch
+       Writes: bounds + isMaximized on close
+       Validates: bounds are on a visible display
+```
+
+**Design rationale:** Splash uses `data:` URL (zero I/O) and `frame: false` for
+instant display. Two-phase renderer init yields to the browser between phases so
+CSS layout can reflow (fixes maximize freeze). `DOMContentLoaded` instead of
+`window.load` avoids waiting for CDN resources (Google Fonts, D3.js).
 
 ---
 
@@ -356,7 +387,7 @@ mainWindow.webContents.openDevTools();
 - Auto-documentation (SESSION_LOG.md, DECISIONS.md)
 - Claude API integration for context optimization
 - Session timeline view
-- **Frame Server (Web App mode)** - Run Frame on headless server, access via browser (like code-server)
+- **SubFrame Server (Web App mode)** - Run SubFrame on headless server, access via browser (like code-server)
 
 ---
 
@@ -382,7 +413,7 @@ mainWindow.webContents.openDevTools();
 
 **Project Start:** 2026-01-21
 **Last Updated:** 2026-01-30
-**Status:** Frame System + Task Management + GitHub Panel Complete
+**Status:** SubFrame System + Task Management + GitHub Panel Complete
 
 ---
 
@@ -456,13 +487,13 @@ fi
 
 ---
 
-### [2026-01-26] Frame Vision & Context Preservation Feature
+### [2026-01-26] SubFrame Vision & Context Preservation Feature
 
 **User's explanation:**
 
-> "My problem was this, yes I can develop with claude code. but I only stay in the terminal. I don't feel the need to use a platform like vs code or cursor. because those are tools designed for writing code manually. I don't need such complexity. I need standardization and manageability for my projects. I'm terminal and claude code focused. that's why frame's center is not a code editor, but a terminal, we even have a multi-terminal structure with grid. That's why the name is Frame. this is a framework, so we create a frame project within frame, we create these documents to set a standard. so that I can see the projects I develop with claude code in an organized way. so I don't lose context, I note down what's written in sessions."
+> "My problem was this, yes I can develop with claude code. but I only stay in the terminal. I don't feel the need to use a platform like vs code or cursor. because those are tools designed for writing code manually. I don't need such complexity. I need standardization and manageability for my projects. I'm terminal and claude code focused. that's why SubFrame's center is not a code editor, but a terminal, we even have a multi-terminal structure with grid. That's why the name is SubFrame. this is a framework, so we create a SubFrame project within SubFrame, we create these documents to set a standard. so that I can see the projects I develop with claude code in an organized way. so I don't lose context, I note down what's written in sessions."
 
-**Frame's True Purpose:**
+**SubFrame's True Purpose:**
 - Terminal-centric (not a code editor)
 - Claude Code-native development
 - Standardization across projects
@@ -520,7 +551,7 @@ The user warned: "actually everything you deleted in the claude.md file was impo
 
 ---
 
-### [2026-01-30] Frame Server Feature Request (Web App Mode)
+### [2026-01-30] SubFrame Server Feature Request (Web App Mode)
 
 **Context:** GitHub issue request - user has Windows PC for display and headless Debian machine for development.
 
@@ -528,14 +559,14 @@ The user warned: "actually everything you deleted in the claude.md file was impo
 > "I have this requirement too. I have a Windows PC that I want to run this on, but my development machine is a headless debian machine. Come to think of it, exposing it as a web app (like code-server) would be useful too - then I can install this on my headless linux dev box and open it on any browser anywhere and start working. Should be doable since this is electron based, no?"
 
 **Analysis:**
-- Frame is Electron-based (Chromium + Node.js) - already web technologies
+- SubFrame is Electron-based (Chromium + Node.js) - already web technologies
 - xterm.js is web-native, works in browser
 - Main change needed: IPC → WebSocket communication
 - Pattern proven by code-server (VS Code in browser)
 
 **Proposed Architecture:**
 ```
-Electron App                    Web App (Frame Server)
+Electron App                    Web App (SubFrame Server)
 ─────────────                   ─────────────────────
 ipcMain/ipcRenderer    →        Express + WebSocket
 Electron window        →        Static HTML server
@@ -543,13 +574,13 @@ node-pty (same)                 node-pty (same)
 xterm.js (same)                 xterm.js (same)
 ```
 
-**Decision:** Added to roadmap as "Frame Server" - will consider for future development based on community interest.
+**Decision:** Added to roadmap as "SubFrame Server" - will consider for future development based on community interest.
 
 ---
 
 ### [2026-02-05] Context Injection for Non-Claude AI Tools (Wrapper Script System)
 
-**Context:** Frame supports multiple AI tools (Claude Code, Codex CLI, etc.). Claude Code automatically reads CLAUDE.md, but other tools like Codex CLI don't have this convention. We needed a way to inject project context (AGENTS.md) into these tools.
+**Context:** SubFrame supports multiple AI tools (Claude Code, Codex CLI, etc.). Claude Code automatically reads CLAUDE.md, but other tools like Codex CLI don't have this convention. We needed a way to inject project context (AGENTS.md) into these tools.
 
 **Problem discussed:**
 - Claude Code → reads CLAUDE.md automatically ✓
@@ -560,18 +591,18 @@ xterm.js (same)                 xterm.js (same)
 2. Final solution: Wrapper script that sends "Read AGENTS.md" as initial prompt
 
 **Implementation:**
-- `.frame/bin/` directory created for AI tool wrappers
-- `.frame/bin/codex` wrapper script:
+- `.subframe/bin/` directory created for AI tool wrappers
+- `.subframe/bin/codex` wrapper script:
   - Finds AGENTS.md in project directory
   - Runs `codex "Please read AGENTS.md and follow the project instructions."`
-- Frame init automatically creates wrapper scripts
+- SubFrame init automatically creates wrapper scripts
 - `aiToolManager.js` updated to use wrapper for Codex
 
 **Files changed:**
 - `src/shared/frameConstants.js` - Added `FRAME_BIN_DIR`
 - `src/shared/frameTemplates.js` - Added `getCodexWrapperTemplate()`, `getGenericWrapperTemplate()`
-- `src/main/frameProject.js` - Creates `.frame/bin/codex` on init
-- `src/main/aiToolManager.js` - Codex command points to `./.frame/bin/codex`
+- `src/main/frameProject.js` - Creates `.subframe/bin/codex` on init
+- `src/main/aiToolManager.js` - Codex command points to `./.subframe/bin/codex`
 
 **Key insight:** Instead of trying to pass system prompts via flags (which vary per tool), simply ask the AI to read the AGENTS.md file. This approach is tool-agnostic and works with any AI coding assistant.
 
@@ -581,17 +612,17 @@ xterm.js (same)                 xterm.js (same)
 
 ### [2026-02-08] Gemini CLI Integration & Node.js Version Upgrade
 
-**Context:** Frame already supported Claude Code and Codex CLI. We reviewed the Codex integration pattern and added Gemini CLI to the same multi-tool infrastructure.
+**Context:** SubFrame already supported Claude Code and Codex CLI. We reviewed the Codex integration pattern and added Gemini CLI to the same multi-tool infrastructure.
 
 **Architectural decision — Symlink vs Wrapper:**
-- Codex CLI required a **wrapper script** (no native file reading support, AGENTS.md is injected via `.frame/bin/codex`)
+- Codex CLI required a **wrapper script** (no native file reading support, AGENTS.md is injected via `.subframe/bin/codex`)
 - Gemini CLI reads `GEMINI.md` **natively** (just like Claude Code reads CLAUDE.md)
 - Therefore no wrapper script was needed for Gemini — we used the same **symlink approach** as CLAUDE.md: `GEMINI.md → AGENTS.md`
 
 **Files changed:**
 - `src/shared/frameConstants.js` - Added `GEMINI_SYMLINK: 'GEMINI.md'`
 - `src/main/aiToolManager.js` - Added Gemini CLI tool definition (commands: `/init`, `/model`, `/memory`, `/compress`, `/settings`, `/help`)
-- `src/main/frameProject.js` - Creates `GEMINI.md → AGENTS.md` symlink on Frame init
+- `src/main/frameProject.js` - Creates `GEMINI.md → AGENTS.md` symlink on SubFrame init
 - `src/main/menu.js` - Added Gemini-specific menu commands: Memory, Compress Context, Settings
 - `README.md` - Updated to include Gemini CLI support
 
@@ -601,8 +632,8 @@ Gemini CLI's dependency `string-width` uses the `/v` regex flag which requires N
 - Before: Node.js v18.20.8 → Gemini CLI crashed on startup
 - After: Node.js v20.20.0 → Issue resolved
 - Commands: `nvm install 20` + `nvm alias default 20` + `npm install`
-- Impact on Frame: None — Electron 28, node-pty, xterm.js all compatible with Node 20
-- `nvm alias default 20` is critical — without it, terminals spawned by Frame still use the old default version
+- Impact on SubFrame: None — Electron 28, node-pty, xterm.js all compatible with Node 20
+- `nvm alias default 20` is critical — without it, terminals spawned by SubFrame still use the old default version
 
 ---
 
@@ -610,30 +641,38 @@ Gemini CLI's dependency `string-width` uses the `/v` regex flag which requires N
 
 **Context:** The Claude panel only had a "Plugins" tab. The user wanted a "Sessions" tab to browse past Claude Code sessions (similar to `/resume`).
 
-**Data source:** `~/.claude/projects/{encoded-path}/sessions-index.json` — Claude Code stores session history per project in this file. Sessions are project-scoped (`projectPath` field present in each entry).
+**Data source:** Claude Code stores sessions as individual `.jsonl` files in `~/.claude/projects/{encoded-path}/`. Each file is a JSON Lines file where each line is a JSON object. The first line contains session metadata (`sessionId`, `gitBranch`, `isSidechain`, `cwd`, `timestamp`). User messages have `"type":"user"` with the prompt text in the `message` field.
 
-**Important discovery:** The plan assumed the file was a plain JSON array, but the actual format is `{ version: 1, entries: [...] }`. The panel appeared empty on the first run; a fix was applied to read from the `entries` field.
+**Important discovery (2026-02-28):** The original implementation looked for a `sessions-index.json` file that does not exist. Claude Code never creates this file — it stores sessions as individual `.jsonl` files (e.g., `8034b39f-7785-4713-832e-1163e65b2e12.jsonl`). The manager was rewritten to scan `.jsonl` files, parse the first line for metadata, find the first real user message as a summary (skipping system-injected messages like `<local-command-caveat>`, `<command-name>`, `<local-command-stdout>`), strip HTML/XML tags, and use file stat for modification time.
+
+**Session state detection:** Based on file modification recency — `active` (< 2 min), `recent` (< 1 hour), `inactive` (older). Shown as colored dots: green with pulse glow for active, amber for recent, muted gray for inactive.
+
+**Collapsible panel (2026-02-28):** The `>` collapse arrow now shrinks the panel to a 44px icon strip showing Sessions and Plugins icons vertically. Clicking an icon expands the panel to that tab. The `✕` button fully hides the panel. This matches VS Code's sidebar collapse pattern.
 
 **Files changed:**
 - `src/shared/ipcChannels.js` — Added `LOAD_CLAUDE_SESSIONS`, `REFRESH_CLAUDE_SESSIONS` channels
-- `src/main/claudeSessionsManager.js` — New module: reads sessions-index.json, path encoding, IPC handlers
+- `src/main/claudeSessionsManager.js` — Scans `.jsonl` files, extracts metadata from first line, finds first real user prompt, strips HTML tags, detects session state from modification time
 - `src/main/index.js` — Manager registration (setupIPC + init)
-- `index.html` — Sessions tab button and content area (header bar + refresh + sessions list)
-- `src/renderer/pluginsPanel.js` — Session loading, rendering, refresh, resume, formatRelativeTime functions
-- `src/renderer/styles/components/panels.css` — Session item, sidechain indicator, empty state styles
+- `index.html` — Sessions tab first (with SVG icons), collapsed icon strip, `.claude-expanded-content` wrapper
+- `src/renderer/pluginsPanel.js` — Session loading, rendering, collapse/expand logic, split resume button with dropdown (default AI tool, claude, claude --continue, custom), formatRelativeTime
+- `src/renderer/styles/components/panels.css` — Session state dots with pulse animation, collapsed strip, resume button group, resume dropdown
 
 **Features:**
-- Session list: summary, relative time, branch badge, message count
-- Clicking a session sends `claude --resume {id}` to the terminal and closes the panel
+- Session list: first user prompt as summary, relative time, branch badge, message count
+- State indicators: green pulsing dot (active), amber dot (recent), gray dot (inactive)
+- Split resume button: play icon for quick resume (uses configured AI tool command), dropdown arrow for options (default tool, claude, claude --continue, custom command)
+- Sessions tab is default (first), Plugins tab second — both with SVG icons
+- Collapsible to 44px icon strip with expand-on-click
 - Refresh button with spinner animation
 - Sidechain sessions marked with a warning-color left border
+- HTML/XML tags stripped from session titles
 - "No project selected" empty state when no project is active
 
 ---
 
-### [2026-02-16] Frame Server — Browser Mode Technical Planning
+### [2026-02-16] SubFrame Server — Browser Mode Technical Planning
 
-**Context:** Discussion about making Frame run in the browser so it can be deployed on a remote server and accessed from any device.
+**Context:** Discussion about making SubFrame run in the browser so it can be deployed on a remote server and accessed from any device.
 
 **Why it's feasible:**
 - UI is already web technologies (HTML/CSS/JS)
@@ -649,7 +688,7 @@ Gemini CLI's dependency `string-width` uses the `/v` regex flag which requires N
 
 **Approach decided:** Transport layer abstraction — create a middle layer that works with both Electron IPC and WebSocket. Single codebase, two modes (desktop + web). This avoids maintaining two separate codebases.
 
-**Deployment model:** Frame Server + SSH tunnel is the most practical approach. Frame runs on the server, SSH tunnel provides security, browser provides the UI. No separate authentication needed since SSH handles it.
+**Deployment model:** SubFrame Server + SSH tunnel is the most practical approach. SubFrame runs on the server, SSH tunnel provides security, browser provides the UI. No separate authentication needed since SSH handles it.
 
 **Steps:**
 1. Abstract IPC into a transport layer (supports both Electron IPC and WebSocket)

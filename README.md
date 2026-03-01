@@ -1,8 +1,8 @@
-# Frame
+# SubFrame
 
-A lightweight, IDE-style desktop application built specifically for working with [Claude Code](https://claude.com/claude-code). Think VS Code, but streamlined for Claude Code workflows. You can use it on both WINDOWS and MAC-OS.
+A lightweight, IDE-style desktop application built specifically for working with [Claude Code](https://claude.com/claude-code). Think VS Code, but streamlined for Claude Code workflows. Cross-platform: Windows, macOS, and Linux.
 
-Update : Frame now supports Codex CLI and Gemini CLI too.
+Update : SubFrame now supports Codex CLI and Gemini CLI too.
 
 
 
@@ -11,7 +11,7 @@ https://github.com/user-attachments/assets/6fe108d1-70c8-441e-a913-b34583c803b0
 
 ## What is this?
 
-Frame is a project management IDE for Claude Code that aims to:
+SubFrame is a project management IDE for Claude Code that aims to:
 
 1. **Bring a standard to AI coding projects** - Consistent project structure with AGENTS.md (+ CLAUDE.md symlink), STRUCTURE.json, PROJECT_NOTES.md, and tasks.json
 2. **Improve context and memory problems as projects grow** - Automatic context preservation, session notes, and decision tracking
@@ -29,7 +29,7 @@ The key innovation: **Claude Code launches directly in your selected project dir
 
 **The Core Problem**: As projects grow with Claude Code, context gets lost between sessions. Decisions are forgotten, tasks slip through the cracks, and you end up re-explaining the same things over and over.
 
-**Frame's Solution**: A standardized project structure that Claude Code reads automatically at the start of each session, combined with tools to track decisions, tasks, and context - so nothing gets lost.
+**SubFrame's Solution**: A standardized project structure that Claude Code reads automatically at the start of each session, combined with tools to track decisions, tasks, and context - so nothing gets lost.
 
 When working with Claude Code, you often need to:
 1. See your project structure
@@ -69,13 +69,16 @@ This app does all of that in one window, with a clean VS Code-inspired interface
 - **Prompt History**: All commands saved with timestamps, viewable in side panel
 - **Cross-Platform**: Windows, macOS, Linux support
 
-### Frame Project Management
+### SubFrame Project Management
 - **Task Detection**: Claude Code automatically detects tasks from conversations and asks to add them to tasks.json
 - **Task Panel**: Visual task management with filters (All, Pending, In Progress, Completed)
 - **Manual Task Creation**: Add tasks manually through the UI
 - **Task Actions**: Start, complete, pause, or reopen tasks with one click
 - **Send to Claude**: Click play button to send a task directly to Claude Code terminal
-- **Plugins Panel**: Browse, enable/disable, and install Claude Code plugins
+- **Claude Panel**: Sessions and Plugins in a collapsible right-side panel
+  - **Sessions Tab** (default): Browse past Claude Code sessions with state indicators (active/recent/inactive), resume with split button (default tool, custom command)
+  - **Plugins Tab**: Browse, enable/disable, and install Claude Code plugins
+  - **Collapsible**: Collapse arrow shrinks to icon strip, click icons to expand back
 - **Context Preservation**: Automatic prompts to save important decisions to PROJECT_NOTES.md
 
 ### Multi-Terminal Features
@@ -127,25 +130,39 @@ This app does all of that in one window, with a clean VS Code-inspired interface
 ## Installation
 
 ### Prerequisites
-- Node.js 16+ (https://nodejs.org)
+- Node.js 18+ (https://nodejs.org)
 - npm (comes with Node.js)
+- Python (for node-gyp native module compilation)
+- C++ Build Tools (for compiling `node-pty`):
+  - **Windows**: Visual Studio 2022 Build Tools with "Desktop development with C++" workload
+  - **macOS**: Xcode Command Line Tools (`xcode-select --install`)
+  - **Linux**: `build-essential` (`sudo apt install build-essential`)
 - Git (optional, for cloning)
 
-### Steps
+### Windows Quick Setup
+
+Run the automated setup script — it checks and installs all prerequisites:
+
+```
+DEV_SETUP.bat
+```
+
+### Manual Setup (All Platforms)
 
 ```bash
 # Clone the repo
-git clone https://github.com/kaanozhan/Frame.git
-cd Frame
+git clone https://github.com/Codename-11/SubFrame.git
+cd SubFrame
 
 # Install dependencies
 npm install
 
-# Run the app
+# Run the app (development mode with auto-rebuild)
+npm run dev
+
+# Or: single build + launch
 npm start
 ```
-
-That's it! The app will launch.
 
 ### Installing Claude Code
 If you don't have Claude Code installed:
@@ -194,7 +211,7 @@ npm install -g @anthropic-ai/claude-code
 
 **Prompt History**
 - Automatically logs all terminal input
-- Stored at: `%APPDATA%/claude-terminal/prompts-history.txt` (Windows) or `~/Library/Application Support/claude-terminal/prompts-history.txt` (macOS)
+- Stored at: `%APPDATA%/SubFrame/prompts-history.txt` (Windows) or `~/Library/Application Support/SubFrame/prompts-history.txt` (macOS)
 - Open in text editor: `Ctrl+H`
 - View in side panel: `Ctrl+Shift+H`
 
@@ -203,28 +220,35 @@ npm install -g @anthropic-ai/claude-code
 ### Project Structure
 
 ```
-Frame/
+SubFrame/
 ├── src/
 │   ├── main/                # Electron main process
 │   │   ├── index.js         # Main entry, window & IPC management
-│   │   ├── pty.js           # PTY spawning (backward compat)
-│   │   └── ptyManager.js    # Multi-PTY management
+│   │   ├── ptyManager.js    # Multi-PTY management
+│   │   ├── settingsManager.js   # Settings persistence
+│   │   ├── tasksManager.js  # Task CRUD with file watching
+│   │   └── ...              # Other managers (workspace, sessions, etc.)
 │   │
 │   ├── renderer/            # Electron renderer (bundled by esbuild)
 │   │   ├── index.js         # Entry point
-│   │   ├── terminal.js      # Terminal integration
 │   │   ├── terminalManager.js    # Multi-terminal state
-│   │   ├── terminalTabBar.js     # Tab bar UI
-│   │   ├── terminalGrid.js       # Grid layout UI
 │   │   ├── multiTerminalUI.js    # Terminal orchestrator
-│   │   └── editor.js        # File editor module
+│   │   ├── settingsPanel.js # Settings panel UI
+│   │   ├── tasksPanel.js    # Task management UI
+│   │   └── ...              # Other UI modules
 │   │
 │   └── shared/              # Shared between main & renderer
 │       └── ipcChannels.js   # IPC channel constants
 │
+├── scripts/
+│   ├── dev.js               # Cross-platform dev script
+│   ├── dev_setup.ps1        # Windows prerequisites installer
+│   ├── find-module.js       # Module search utility
+│   └── update-structure.js  # STRUCTURE.json generator
+│
 ├── index.html               # UI layout and styles
 ├── package.json             # Dependencies and scripts
-├── esbuild.config.js        # esbuild bundler config
+├── DEV_SETUP.bat            # Windows setup launcher
 ├── PROJECT_NOTES.md         # Detailed technical docs
 └── README.md                # This file
 ```
@@ -232,7 +256,9 @@ Frame/
 ### Key Modules Explained
 
 **src/main/index.js** - The Node.js backend
-- Creates application window
+- Creates splash window + main application window
+- Two-stage startup: splash (instant, data URL) → main window (`ready-to-show`)
+- Persists window state (bounds, maximized) across sessions
 - Handles IPC messages
 - Manages file system operations
 - Integrates PTY manager
@@ -256,6 +282,27 @@ Frame/
 - Centralized IPC channel definitions
 - Prevents typos in channel names
 - Used by both main and renderer
+
+### Startup Flow
+
+```
+app.whenReady()
+  │
+  ├─ Splash window (frameless, data: URL, instant)
+  │    Logo + animated progress bar
+  │
+  ├─ Main window (show: false, loads index.html)
+  │    │
+  │    ├─ DOMContentLoaded → initCritical()
+  │    │    Sidebar, project list, resize, shortcuts
+  │    │
+  │    ├─ requestAnimationFrame → initDeferred()
+  │    │    File tree, editor, panels (tasks, plugins, etc.)
+  │    │
+  │    └─ ready-to-show → show main, close splash
+  │
+  └─ Window state restored (bounds + maximized from previous session)
+```
 
 ### Architecture
 
@@ -305,10 +352,13 @@ The renderer uses esbuild for bundling:
 
 ```bash
 # Build renderer (runs automatically on npm start)
-npm run build:renderer
+npm run build
 
 # Watch mode for development
-npm run watch:renderer
+npm run watch
+
+# Development mode (watch + Electron, cross-platform)
+npm run dev
 ```
 
 ### Adding Features
@@ -317,7 +367,7 @@ npm run watch:renderer
 1. Add IPC channel in `src/shared/ipcChannels.js`
 2. Add handler in `src/main/ptyManager.js` or `src/main/index.js`
 3. Add UI in `src/renderer/terminalManager.js` or related UI module
-4. Run `npm run build:renderer` to bundle
+4. Run `npm run build` to bundle
 
 **Want to add a new panel?**
 1. Add HTML container in `index.html`
@@ -329,14 +379,20 @@ npm run watch:renderer
 ## Building for Production
 
 ```bash
-# Install electron-builder
-npm install electron-builder --save-dev
+# Package for current platform (unpacked)
+npm run dist
 
-# Build
-npm run build
+# Windows installer (NSIS)
+npm run dist:win
+
+# macOS (signed DMG)
+npm run dist:mac
+
+# macOS (unsigned, local testing)
+npm run dist:mac:unsigned
 ```
 
-Output: `dist/` folder with installers for your platform
+Output: `release/` folder with installers for your platform
 
 ## Troubleshooting
 
@@ -378,19 +434,24 @@ See [PROJECT_NOTES.md](./PROJECT_NOTES.md) for detailed roadmap.
 - [x] Multi-terminal (grid view)
 - [x] File editor overlay
 - [x] Modular architecture with esbuild
+- [x] Settings panel
+- [x] Project renaming
+- [x] Custom AI tool start command
+- [x] Cross-platform Windows support
+- [x] Resizable sidebar
+- [x] Terminal scroll-to-bottom button
+- [x] Tasks panel with real-time updates
+- [x] Git branches panel
+- [x] Plugins panel
+- [x] Claude sessions panel
+- [x] Overview dashboard
+- [x] Automated Windows dev setup (DEV_SETUP.bat)
 
 ### Short-term
-- [ ] Click file in tree → run `cat` command
-- [ ] Refresh button for file tree
 - [ ] Search in files
-- [ ] Resizable sidebar
-
-### Medium-term
-- [ ] Git status integration
-- [ ] Settings panel
 - [ ] Theme customization
 
-### Long-term
+### Medium-term
 - [ ] Full Claude chat sidebar
 - [ ] Extensions/plugins
 - [ ] Remote development (SSH)
@@ -426,7 +487,7 @@ See [PROJECT_NOTES.md](./PROJECT_NOTES.md) for:
 
 ---
 
-**Status**: Multi-Terminal MVP Complete - Tabs, Grid View, File Editor
+**Status**: Full-featured IDE with multi-terminal, task management, settings, and cross-platform support
 
 **Started**: January 21, 2026
 **Author**: Built in collaboration with Claude Code

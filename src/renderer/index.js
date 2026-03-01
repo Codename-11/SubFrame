@@ -14,12 +14,13 @@ const projectListUI = require('./projectListUI');
 const editor = require('./editor');
 const sidebarResize = require('./sidebarResize');
 const aiToolSelector = require('./aiToolSelector');
+const settingsPanel = require('./settingsPanel');
 
 /**
- * Initialize all modules
+ * Initialize critical-path modules (visible UI, layout, interaction)
  */
-function init() {
-  // Initialize terminal
+function initCritical() {
+  // Initialize terminal structure (no actual PTY yet)
   const multiTerminalUI = terminal.initTerminal('terminal');
 
   // Initialize state management
@@ -46,6 +47,28 @@ function init() {
   // Load projects from workspace
   projectListUI.loadProjects();
 
+  // Initialize sidebar resize
+  sidebarResize.init(() => {
+    terminal.fitTerminal();
+  });
+
+  // Setup button handlers and keyboard shortcuts
+  setupButtonHandlers();
+  setupKeyboardShortcuts();
+
+  // Setup window resize handler (debounced to avoid flooding during maximize animation)
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => terminal.fitTerminal(), 80);
+  });
+}
+
+/**
+ * Initialize deferred modules (hidden panels, secondary features)
+ * Runs after the first paint so it doesn't block the UI.
+ */
+function initDeferred() {
   // Initialize file tree UI
   fileTreeUI.init('file-tree', state.getProjectPath);
   fileTreeUI.setProjectPathGetter(state.getProjectPath);
@@ -65,19 +88,11 @@ function init() {
     setTimeout(() => terminal.fitTerminal(), 50);
   });
 
-  // Initialize tasks panel
+  // Initialize hidden panels
   tasksPanel.init();
-
-  // Initialize plugins panel
   pluginsPanel.init();
-
-  // Initialize GitHub panel
   githubPanel.init();
-
-  // Initialize sidebar resize
-  sidebarResize.init(() => {
-    terminal.fitTerminal();
-  });
+  settingsPanel.init();
 
   // Setup state change listeners
   state.onProjectChange((projectPath, previousPath) => {
@@ -89,40 +104,27 @@ function init() {
       projectListUI.addProject(projectPath, projectName, state.getIsFrameProject());
       projectListUI.setActiveProject(projectPath);
 
-      // Load tasks if tasks panel is visible
-      if (tasksPanel.isVisible()) {
-        tasksPanel.loadTasks();
-      }
+      // Always load tasks on project change so data is ready when panel opens
+      tasksPanel.loadTasks();
     } else {
       fileTreeUI.clearFileTree();
     }
   });
 
-  // Setup Frame status change listener
+  // Setup SubFrame status change listener
   state.onFrameStatusChange((isFrame) => {
-    // Refresh project list when Frame status changes
+    // Refresh project list when SubFrame status changes
     projectListUI.loadProjects();
   });
 
-  // Setup Frame initialized listener
+  // Setup SubFrame initialized listener
   state.onFrameInitialized((projectPath) => {
-    terminal.writelnToTerminal(`\x1b[1;32m✓ Frame project initialized!\x1b[0m`);
-    terminal.writelnToTerminal(`  Created: .frame/, AGENTS.md, CLAUDE.md (symlink), STRUCTURE.json, PROJECT_NOTES.md, tasks.json, QUICKSTART.md`);
+    terminal.writelnToTerminal(`\x1b[1;32m✓ SubFrame project initialized!\x1b[0m`);
+    terminal.writelnToTerminal(`  Created: .subframe/, AGENTS.md, CLAUDE.md (symlink), STRUCTURE.json, PROJECT_NOTES.md, tasks.json, QUICKSTART.md`);
     // Refresh file tree to show new files
     fileTreeUI.refreshFileTree();
     // Load tasks for the new project
     tasksPanel.loadTasks();
-  });
-
-  // Setup button handlers
-  setupButtonHandlers();
-
-  // Setup keyboard shortcuts
-  setupKeyboardShortcuts();
-
-  // Setup window resize handler
-  window.addEventListener('resize', () => {
-    terminal.fitTerminal();
   });
 }
 
@@ -174,9 +176,14 @@ function setupButtonHandlers() {
     state.selectProjectFolder();
   });
 
-  // Initialize as Frame project
+  // Initialize as SubFrame project
   document.getElementById('btn-initialize-frame').addEventListener('click', () => {
     state.initializeAsFrameProject();
+  });
+
+  // Settings button
+  document.getElementById('btn-settings').addEventListener('click', () => {
+    settingsPanel.toggle();
   });
 
   // Sidebar tabs
@@ -249,17 +256,38 @@ function setupKeyboardShortcuts() {
       e.preventDefault();
       tasksPanel.toggle()
     }
+    // Ctrl/Cmd+, - Toggle settings panel
+    if (modKey && !e.shiftKey && key === ',') {
+      e.preventDefault();
+      settingsPanel.toggle();
+    }
   });
 }
 
 /**
- * Start application when DOM is ready
+ * Start application when DOM is ready.
+ * Uses DOMContentLoaded (not 'load') so we don't wait for external CDN
+ * resources (Google Fonts, D3.js) before initializing.
  */
-window.addEventListener('load', () => {
-  init();
+document.addEventListener('DOMContentLoaded', () => {
+  // Phase 1: Critical-path — visible layout, sidebar, project list
+  initCritical();
 
-  // Give a moment for terminal to fully render, then start PTY
-  setTimeout(() => {
-    terminal.startTerminal();
-  }, 100);
+  // Phase 2: Deferred — hidden panels, file tree, editor
+  // Runs after the browser has had a chance to paint the initial layout.
+  requestAnimationFrame(() => {
+    initDeferred();
+
+    // Give a moment for terminal to fully render, then start PTY
+    setTimeout(() => {
+      terminal.startTerminal();
+    }, 100);
+
+    // Dismiss loading screen — fade out then remove from DOM
+    const loadingEl = document.getElementById('app-loading');
+    if (loadingEl) {
+      loadingEl.classList.add('fade-out');
+      loadingEl.addEventListener('transitionend', () => loadingEl.remove(), { once: true });
+    }
+  });
 });

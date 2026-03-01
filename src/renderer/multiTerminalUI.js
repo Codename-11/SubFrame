@@ -3,6 +3,8 @@
  * Orchestrates tab bar, grid, and terminal manager
  */
 
+const { ipcRenderer } = require('electron');
+const { IPC } = require('../shared/ipcChannels');
 const { TerminalManager } = require('./terminalManager');
 const { TerminalTabBar } = require('./terminalTabBar');
 const { TerminalGrid } = require('./terminalGrid');
@@ -16,7 +18,6 @@ class MultiTerminalUI {
     this.grid = null;
     this.contentContainer = null;
     this.initialized = false;
-    this.autoCreateInitialTerminal = true; // Flag to control initial terminal creation
     this.isOverviewVisible = false; // Track if overview is shown
 
     this._setup();
@@ -56,14 +57,19 @@ class MultiTerminalUI {
     // Setup keyboard shortcuts
     this._setupKeyboardShortcuts();
 
-    // Create first terminal (global terminal for initial state)
-    if (this.autoCreateInitialTerminal) {
-      this.manager.createTerminal({ projectPath: null }).then(() => {
+    // Check settings for auto-create terminal preference
+    ipcRenderer.invoke(IPC.LOAD_SETTINGS).then((settings) => {
+      const autoCreate = settings?.general?.autoCreateTerminal ?? false;
+      if (autoCreate) {
+        this.manager.createTerminal({ projectPath: null }).then(() => {
+          this.initialized = true;
+        });
+      } else {
         this.initialized = true;
-      });
-    } else {
+      }
+    }).catch(() => {
       this.initialized = true;
-    }
+    });
   }
 
   /**

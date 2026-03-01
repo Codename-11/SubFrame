@@ -49,6 +49,15 @@ function setupEventListeners() {
     collapseBtn.addEventListener('click', hide);
   }
 
+  // Refresh button
+  const refreshBtn = document.getElementById('tasks-refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      loadTasks();
+      showToast('Tasks refreshed', 'info');
+    });
+  }
+
   // Add task button
   const addBtn = document.getElementById('tasks-add-btn');
   if (addBtn) {

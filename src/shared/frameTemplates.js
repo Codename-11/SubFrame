@@ -1,6 +1,6 @@
 /**
- * Frame Templates
- * Templates for auto-generated Frame project files
+ * SubFrame Templates
+ * Templates for auto-generated SubFrame project files
  * Each template includes instructions header for Claude Code
  */
 
@@ -24,9 +24,9 @@ function getISOTimestamp() {
  */
 function getAgentsTemplate(projectName) {
   const date = getDateString();
-  return `# ${projectName} - Frame Project
+  return `# ${projectName} - SubFrame Project
 
-This project is managed with **Frame**. AI assistants should follow the rules below to keep documentation up to date.
+This project is managed with **SubFrame**. AI assistants should follow the rules below to keep documentation up to date.
 
 ---
 
@@ -102,7 +102,7 @@ Conversation/decision as is, with its context...
 
 ## 📝 Context Preservation (Automatic Note Taking)
 
-Frame's core purpose is to prevent context loss. Therefore, capture important moments and ask the user.
+SubFrame's core purpose is to prevent context loss. Therefore, capture important moments and ask the user.
 
 ### When to Ask?
 
@@ -183,7 +183,7 @@ No problem, continue. The user can also say what they consider important themsel
 
 ---
 
-*This file was automatically created by Frame.*
+*This file was automatically created by SubFrame.*
 *Creation date: ${date}*
 
 ---
@@ -201,7 +201,7 @@ function getStructureTemplate(projectName) {
       purpose: "Project structure and module map for AI assistants",
       forAI: "Read this file FIRST when starting work on this project. It contains the module structure, data flow, and conventions. Update this file when you add new modules or change the architecture.",
       lastUpdated: getDateString(),
-      generatedBy: "Frame"
+      generatedBy: "SubFrame"
     },
     version: "1.0",
     description: `${projectName} - update this description`,
@@ -232,7 +232,7 @@ function getNotesTemplate(projectName) {
 ## Session Notes
 
 ### [${date}] Initial Setup
-- Frame project initialized
+- SubFrame project initialized
 `;
 }
 
@@ -245,7 +245,7 @@ function getTasksTemplate(projectName) {
       purpose: "Task tracking for the project",
       forAI: "Check this file to understand what tasks are pending, in progress, or completed. Update task status as you work. Add new tasks when discovered during development. Follow the task recognition rules in AGENTS.md. IMPORTANT: Include userRequest (original user prompt), detailed description, and acceptanceCriteria for each task.",
       lastUpdated: getDateString(),
-      generatedBy: "Frame"
+      generatedBy: "SubFrame"
     },
     project: projectName,
     version: "1.1",
@@ -291,7 +291,7 @@ function getTasksTemplate(projectName) {
  */
 function getQuickstartTemplate(projectName) {
   const date = getDateString();
-  return `<!-- FRAME AUTO-GENERATED FILE -->
+  return `<!-- SUBFRAME AUTO-GENERATED FILE -->
 <!-- Purpose: Quick onboarding guide for developers and AI assistants -->
 <!-- For Claude: Read this FIRST to quickly understand how to work with this project. Contains setup instructions, common commands, and key files to know. -->
 <!-- Last Updated: ${date} -->
@@ -333,7 +333,7 @@ npm test
 
 \`\`\`
 ${projectName}/
-├── .frame/           # Frame configuration
+├── .subframe/        # SubFrame configuration
 ├── src/              # Source code
 └── ...
 \`\`\`
@@ -353,7 +353,7 @@ ${projectName}/
 }
 
 /**
- * .frame/config.json template
+ * .subframe/config.json template
  */
 function getFrameConfigTemplate(projectName) {
   return {
@@ -361,7 +361,7 @@ function getFrameConfigTemplate(projectName) {
     name: projectName,
     description: "",
     createdAt: getISOTimestamp(),
-    initializedBy: "Frame",
+    initializedBy: "SubFrame",
     settings: {
       autoUpdateStructure: true,
       autoUpdateNotes: false,
@@ -389,7 +389,7 @@ function getFrameConfigTemplate(projectName) {
  */
 function getCodexWrapperTemplate() {
   return `#!/usr/bin/env bash
-# Frame AI Tool Wrapper for Codex CLI
+# SubFrame AI Tool Wrapper for Codex CLI
 # This script injects AGENTS.md as initial prompt
 
 AGENTS_FILE="AGENTS.md"
@@ -427,7 +427,7 @@ fi
 function getGenericWrapperTemplate(toolCommand, promptFlag = '') {
   const flagPart = promptFlag ? `${promptFlag} ` : '';
   return `#!/usr/bin/env bash
-# Frame AI Tool Wrapper for ${toolCommand}
+# SubFrame AI Tool Wrapper for ${toolCommand}
 # This script injects AGENTS.md as initial prompt
 
 AGENTS_FILE="AGENTS.md"

@@ -1,21 +1,21 @@
 /**
- * Frame Constants
- * Configuration constants for Frame project management
+ * SubFrame Constants
+ * Configuration constants for SubFrame project management
  */
 
-// Frame project folder name (inside each project)
-const FRAME_DIR = '.frame';
+// SubFrame project folder name (inside each project)
+const FRAME_DIR = '.subframe';
 
-// Frame config file name
+// SubFrame config file name
 const FRAME_CONFIG_FILE = 'config.json';
 
-// Workspace directory name (in user home: ~/.frame/)
-const WORKSPACE_DIR = '.frame';
+// Workspace directory name (in user home: ~/.subframe/)
+const WORKSPACE_DIR = '.subframe';
 
 // Workspace file name
 const WORKSPACE_FILE = 'workspaces.json';
 
-// Frame auto-generated files
+// SubFrame auto-generated files
 const FRAME_FILES = {
   AGENTS: 'AGENTS.md',
   CLAUDE_SYMLINK: 'CLAUDE.md',
@@ -26,10 +26,10 @@ const FRAME_FILES = {
   QUICKSTART: 'QUICKSTART.md'
 };
 
-// Frame bin directory for AI tool wrappers
+// SubFrame bin directory for AI tool wrappers
 const FRAME_BIN_DIR = 'bin';
 
-// Frame version
+// SubFrame version
 const FRAME_VERSION = '1.0';
 
 module.exports = {

@@ -3342,7 +3342,7 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "e.g. /Users/kaanozhan/MyProject -> -Users-kaanozhan-MyProject"
+          "purpose": "e.g. /Users/dev/MyProject -> -Users-dev-MyProject"
         },
         "getSessionsForProject": {
           "line": 34,

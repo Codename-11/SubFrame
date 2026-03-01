@@ -249,7 +249,9 @@ class TerminalManager {
       fontFamily: 'Consolas, "Courier New", monospace',
       theme: terminalTheme,
       allowTransparency: false,
-      scrollback: 10000
+      scrollback: 10000,
+      lineHeight: 1.1,
+      letterSpacing: 0
     });
 
     const fitAddon = new FitAddon();
@@ -265,6 +267,37 @@ class TerminalManager {
     // Focus terminal on click anywhere in the container
     element.addEventListener('click', () => {
       terminal.focus();
+    });
+
+    // Create scroll-to-bottom button
+    const scrollBtn = document.createElement('button');
+    scrollBtn.className = 'scroll-to-bottom-btn';
+    scrollBtn.setAttribute('aria-label', 'Scroll to bottom');
+    scrollBtn.innerHTML = '\u2193';
+    scrollBtn.style.display = 'none';
+    element.style.position = 'relative';
+    element.appendChild(scrollBtn);
+
+    // Track scroll state and toggle button visibility
+    let isAtBottom = true;
+
+    const updateScrollButton = () => {
+      const buf = terminal.buffer.active;
+      const atBottom = buf.baseY + terminal.rows >= buf.length;
+      if (atBottom !== isAtBottom) {
+        isAtBottom = atBottom;
+        scrollBtn.style.display = isAtBottom ? 'none' : 'flex';
+      }
+    };
+
+    terminal.onScroll(() => updateScrollButton());
+    terminal.onRender(() => updateScrollButton());
+
+    scrollBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      terminal.scrollToBottom();
+      isAtBottom = true;
+      scrollBtn.style.display = 'none';
     });
 
     const state = {

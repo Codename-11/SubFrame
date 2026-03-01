@@ -1,6 +1,6 @@
 /**
  * Workspace Module
- * Manages workspace configuration in ~/.frame/workspaces.json
+ * Manages workspace configuration in ~/.subframe/workspaces.json
  */
 
 const fs = require('fs');
@@ -141,7 +141,27 @@ function updateProjectLastOpened(projectPath) {
 }
 
 /**
- * Update project's Frame status
+ * Rename a project in the workspace
+ */
+function renameProject(projectPath, newName) {
+  if (!newName || !newName.trim()) return false;
+
+  const workspace = loadWorkspace();
+  const active = workspace.activeWorkspace;
+
+  const project = workspace.workspaces[active].projects.find(
+    p => p.path === projectPath
+  );
+  if (project) {
+    project.name = newName.trim();
+    saveWorkspace(workspace);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Update project's SubFrame status
  */
 function updateProjectFrameStatus(projectPath, isFrame) {
   const workspace = loadWorkspace();
@@ -176,6 +196,12 @@ function setupIPC(ipcMain) {
     const projects = getProjects();
     event.sender.send(IPC.WORKSPACE_UPDATED, projects);
   });
+
+  ipcMain.on(IPC.RENAME_PROJECT, (event, { projectPath, newName }) => {
+    renameProject(projectPath, newName);
+    const projects = getProjects();
+    event.sender.send(IPC.WORKSPACE_UPDATED, projects);
+  });
 }
 
 module.exports = {
@@ -184,6 +210,7 @@ module.exports = {
   getProjects,
   addProject,
   removeProject,
+  renameProject,
   updateProjectLastOpened,
   updateProjectFrameStatus,
   setupIPC

@@ -1,6 +1,6 @@
 /**
- * Frame Project Module
- * Handles Frame project initialization and detection
+ * SubFrame Project Module
+ * Handles SubFrame project initialization and detection
  */
 
 const fs = require('fs');
@@ -21,7 +21,7 @@ function init(window) {
 }
 
 /**
- * Check if a project is a Frame project
+ * Check if a project is a SubFrame project
  */
 function isFrameProject(projectPath) {
   const configPath = path.join(projectPath, FRAME_DIR, FRAME_CONFIG_FILE);
@@ -29,7 +29,7 @@ function isFrameProject(projectPath) {
 }
 
 /**
- * Get Frame config from project
+ * Get SubFrame config from project
  */
 function getFrameConfig(projectPath) {
   const configPath = path.join(projectPath, FRAME_DIR, FRAME_CONFIG_FILE);
@@ -100,7 +100,7 @@ function createSymlinkSafe(target, linkPath) {
 }
 
 /**
- * Check which Frame files already exist in the project
+ * Check which SubFrame files already exist in the project
  */
 function checkExistingFrameFiles(projectPath) {
   const existingFiles = [];
@@ -111,7 +111,7 @@ function checkExistingFrameFiles(projectPath) {
     { name: 'PROJECT_NOTES.md', path: path.join(projectPath, FRAME_FILES.NOTES) },
     { name: 'tasks.json', path: path.join(projectPath, FRAME_FILES.TASKS) },
     { name: 'QUICKSTART.md', path: path.join(projectPath, FRAME_FILES.QUICKSTART) },
-    { name: '.frame/', path: path.join(projectPath, FRAME_DIR) }
+    { name: '.subframe/', path: path.join(projectPath, FRAME_DIR) }
   ];
 
   for (const file of filesToCheck) {
@@ -124,14 +124,14 @@ function checkExistingFrameFiles(projectPath) {
 }
 
 /**
- * Show confirmation dialog before initializing Frame project
+ * Show confirmation dialog before initializing SubFrame project
  */
 async function showInitializeConfirmation(projectPath) {
   const existingFiles = checkExistingFrameFiles(projectPath);
 
   let message = 'This will create the following files in your project:\n\n';
-  message += '  • .frame/ (config directory)\n';
-  message += '  • .frame/bin/ (AI tool wrappers)\n';
+  message += '  • .subframe/ (config directory)\n';
+  message += '  • .subframe/bin/ (AI tool wrappers)\n';
   message += '  • AGENTS.md (AI instructions)\n';
   message += '  • CLAUDE.md (symlink to AGENTS.md)\n';
   message += '  • STRUCTURE.json (module map)\n';
@@ -151,8 +151,8 @@ async function showInitializeConfirmation(projectPath) {
     buttons: ['Cancel', 'Initialize'],
     defaultId: 0,
     cancelId: 0,
-    title: 'Initialize as Frame Project',
-    message: 'Initialize as Frame Project?',
+    title: 'Initialize as SubFrame Project',
+    message: 'Initialize as SubFrame Project?',
     detail: message
   });
 
@@ -160,18 +160,18 @@ async function showInitializeConfirmation(projectPath) {
 }
 
 /**
- * Initialize a project as Frame project
+ * Initialize a project as SubFrame project
  */
 function initializeFrameProject(projectPath, projectName) {
   const name = projectName || path.basename(projectPath);
   const frameDirPath = path.join(projectPath, FRAME_DIR);
 
-  // Create .frame directory
+  // Create .subframe directory
   if (!fs.existsSync(frameDirPath)) {
     fs.mkdirSync(frameDirPath, { recursive: true });
   }
 
-  // Create .frame/config.json
+  // Create .subframe/config.json
   const config = templates.getFrameConfigTemplate(name);
   fs.writeFileSync(
     path.join(frameDirPath, FRAME_CONFIG_FILE),
@@ -179,7 +179,7 @@ function initializeFrameProject(projectPath, projectName) {
     'utf8'
   );
 
-  // Create root-level Frame files (only if they don't exist)
+  // Create root-level SubFrame files (only if they don't exist)
 
   // AGENTS.md - Main instructions file for AI assistants
   createFileIfNotExists(
@@ -219,7 +219,7 @@ function initializeFrameProject(projectPath, projectName) {
     templates.getQuickstartTemplate(name)
   );
 
-  // Create .frame/bin directory for AI tool wrappers
+  // Create .subframe/bin directory for AI tool wrappers
   const binDirPath = path.join(frameDirPath, FRAME_BIN_DIR);
   if (!fs.existsSync(binDirPath)) {
     fs.mkdirSync(binDirPath, { recursive: true });
@@ -231,7 +231,7 @@ function initializeFrameProject(projectPath, projectName) {
     fs.writeFileSync(codexWrapperPath, templates.getCodexWrapperTemplate(), { mode: 0o755 });
   }
 
-  // Update workspace to mark as Frame project
+  // Update workspace to mark as SubFrame project
   workspace.updateProjectFrameStatus(projectPath, true);
 
   return config;
@@ -272,7 +272,7 @@ function setupIPC(ipcMain) {
       const projects = workspace.getProjects();
       event.sender.send(IPC.WORKSPACE_UPDATED, projects);
     } catch (err) {
-      console.error('Error initializing Frame project:', err);
+      console.error('Error initializing SubFrame project:', err);
       event.sender.send(IPC.FRAME_PROJECT_INITIALIZED, {
         projectPath,
         success: false,

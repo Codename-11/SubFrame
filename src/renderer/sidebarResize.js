@@ -10,6 +10,7 @@ const MAX_WIDTH = 500;
 const DEFAULT_WIDTH = 260;
 
 let sidebar = null;
+let expandBtn = null;
 let isHidden = false;
 let widthBeforeHide = DEFAULT_WIDTH;
 let resizeHandle = null;
@@ -25,11 +26,23 @@ let onResizeCallback = null;
 function init(onResize) {
   sidebar = document.getElementById('sidebar');
   resizeHandle = document.getElementById('sidebar-resize-handle');
+  expandBtn = document.getElementById('btn-expand-sidebar');
   onResizeCallback = onResize;
 
   if (!sidebar || !resizeHandle) {
     console.error('Sidebar resize: Required elements not found');
     return;
+  }
+
+  // Collapse button in sidebar footer
+  const collapseBtn = document.getElementById('btn-collapse-sidebar');
+  if (collapseBtn) {
+    collapseBtn.addEventListener('click', hide);
+  }
+
+  // Expand button (visible when sidebar is collapsed)
+  if (expandBtn) {
+    expandBtn.addEventListener('click', show);
   }
 
   // Restore saved width
@@ -47,6 +60,7 @@ function init(onResize) {
   if (savedHidden === 'true') {
     isHidden = true;
     sidebar.style.display = 'none';
+    if (expandBtn) expandBtn.style.display = '';
   }
 
   // Setup event listeners
@@ -169,6 +183,8 @@ function hide() {
   isHidden = true;
   localStorage.setItem(HIDDEN_KEY, 'true');
 
+  if (expandBtn) expandBtn.style.display = '';
+
   if (onResizeCallback) {
     onResizeCallback(0);
   }
@@ -184,6 +200,8 @@ function show() {
   sidebar.style.width = `${widthBeforeHide}px`;
   isHidden = false;
   localStorage.setItem(HIDDEN_KEY, 'false');
+
+  if (expandBtn) expandBtn.style.display = 'none';
 
   if (onResizeCallback) {
     onResizeCallback(widthBeforeHide);

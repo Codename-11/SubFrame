@@ -10,6 +10,8 @@ const { FRAME_FILES } = require('../shared/frameConstants');
 
 let mainWindow = null;
 let currentProjectPath = null;
+let tasksWatcher = null;
+let watchDebounceTimer = null;
 
 /**
  * Initialize tasks manager
@@ -40,11 +42,13 @@ function loadTasks(projectPath) {
 
   try {
     if (fs.existsSync(tasksPath)) {
-      const data = fs.readFileSync(tasksPath, 'utf8');
-      return JSON.parse(data);
+      const raw = fs.readFileSync(tasksPath, 'utf8');
+      // Strip trailing commas before closing brackets/braces (common hand-edit mistake)
+      const cleaned = raw.replace(/,\s*([\]}])/g, '$1');
+      return JSON.parse(cleaned);
     }
   } catch (err) {
-    console.error('Error loading tasks:', err);
+    console.error('Error loading tasks from', tasksPath, ':', err.message);
   }
 
   return null;
@@ -171,12 +175,60 @@ function deleteTask(projectPath, taskId) {
 }
 
 /**
+ * Start watching tasks file for external changes
+ */
+function watchTasksFile(projectPath) {
+  unwatchTasksFile();
+
+  const tasksPath = getTasksFilePath(projectPath);
+  if (!fs.existsSync(tasksPath)) return;
+
+  try {
+    tasksWatcher = fs.watch(tasksPath, (eventType) => {
+      if (eventType === 'change') {
+        // Debounce to avoid firing multiple times for a single save
+        clearTimeout(watchDebounceTimer);
+        watchDebounceTimer = setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            const tasks = loadTasks(projectPath);
+            mainWindow.webContents.send(IPC.TASKS_DATA, { projectPath, tasks });
+          }
+        }, 300);
+      }
+    });
+  } catch (err) {
+    console.error('Error watching tasks file:', err);
+  }
+}
+
+/**
+ * Stop watching tasks file
+ */
+function unwatchTasksFile() {
+  clearTimeout(watchDebounceTimer);
+  if (tasksWatcher) {
+    tasksWatcher.close();
+    tasksWatcher = null;
+  }
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIPC(ipcMain) {
   ipcMain.on(IPC.LOAD_TASKS, (event, projectPath) => {
     const tasks = loadTasks(projectPath);
     event.sender.send(IPC.TASKS_DATA, { projectPath, tasks });
+    // Start watching for external changes
+    watchTasksFile(projectPath);
+  });
+
+  ipcMain.on(IPC.WATCH_TASKS, (event, projectPath) => {
+    watchTasksFile(projectPath);
+  });
+
+  ipcMain.on(IPC.UNWATCH_TASKS, () => {
+    unwatchTasksFile();
   });
 
   ipcMain.on(IPC.ADD_TASK, (event, { projectPath, task }) => {
@@ -230,5 +282,7 @@ module.exports = {
   addTask,
   updateTask,
   deleteTask,
+  watchTasksFile,
+  unwatchTasksFile,
   setupIPC
 };

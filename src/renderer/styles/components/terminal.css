@@ -271,6 +271,35 @@
 .terminal-instance {
   height: 100%;
   width: 100%;
+  position: relative;
+}
+
+/* Scroll-to-bottom floating button */
+.scroll-to-bottom-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0.85;
+  transition: opacity 0.2s ease, background 0.15s ease;
+}
+
+.scroll-to-bottom-btn:hover {
+  opacity: 1;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* Terminal Empty State */

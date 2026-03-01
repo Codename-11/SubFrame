@@ -34,6 +34,7 @@ const IPC = {
   WORKSPACE_UPDATED: 'workspace-updated',
   ADD_PROJECT_TO_WORKSPACE: 'add-project-to-workspace',
   REMOVE_PROJECT_FROM_WORKSPACE: 'remove-project-from-workspace',
+  RENAME_PROJECT: 'rename-project',
 
   // Frame Project
   INITIALIZE_FRAME_PROJECT: 'initialize-frame-project',
@@ -69,6 +70,8 @@ const IPC = {
   DELETE_TASK: 'delete-task',
   TASK_UPDATED: 'task-updated',
   TOGGLE_TASKS_PANEL: 'toggle-tasks-panel',
+  WATCH_TASKS: 'watch-tasks',
+  UNWATCH_TASKS: 'unwatch-tasks',
 
   // Plugins Panel
   LOAD_PLUGINS: 'load-plugins',
@@ -112,7 +115,13 @@ const IPC = {
   GET_AI_TOOL_CONFIG: 'get-ai-tool-config',
   AI_TOOL_CONFIG_DATA: 'ai-tool-config-data',
   SET_AI_TOOL: 'set-ai-tool',
-  AI_TOOL_CHANGED: 'ai-tool-changed'
+  AI_TOOL_CHANGED: 'ai-tool-changed',
+
+  // Settings Panel
+  LOAD_SETTINGS: 'load-settings',
+  SETTINGS_DATA: 'settings-data',
+  UPDATE_SETTING: 'update-setting',
+  SETTINGS_UPDATED: 'settings-updated'
 };
 
 module.exports = { IPC };

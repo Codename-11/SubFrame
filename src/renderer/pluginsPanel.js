@@ -6,11 +6,13 @@
 const { ipcRenderer } = require('electron');
 const { IPC } = require('../shared/ipcChannels');
 const state = require('./state');
+const aiToolSelector = require('./aiToolSelector');
 
 let isVisible = false;
+let isCollapsed = false;
 let pluginsData = [];
 let currentFilter = 'all'; // all, installed, enabled
-let currentTab = 'plugins';
+let currentTab = 'sessions';
 
 // Sessions state
 let sessionsData = [];
@@ -48,10 +50,10 @@ function setupEventListeners() {
     closeBtn.addEventListener('click', hide);
   }
 
-  // Collapse button
+  // Collapse button — collapses to icon strip instead of hiding
   const collapseBtn = document.getElementById('plugins-collapse-btn');
   if (collapseBtn) {
-    collapseBtn.addEventListener('click', hide);
+    collapseBtn.addEventListener('click', toggleCollapse);
   }
 
   // Refresh button
@@ -74,13 +76,28 @@ function setupEventListeners() {
     sessionsRefreshBtn.addEventListener('click', refreshSessions);
   }
 
-  // Tab buttons
+  // Tab buttons (use closest() since tabs contain SVG icons)
   document.querySelectorAll('.claude-tab-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const tab = e.target.dataset.tab;
-      setTab(tab);
+      const tabBtn = e.target.closest('.claude-tab-btn');
+      if (tabBtn) setTab(tabBtn.dataset.tab);
     });
   });
+
+  // Collapsed icon strip buttons — expand to specific tab
+  document.querySelectorAll('.claude-collapsed-icon[data-expand-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.expandTab;
+      setTab(tab);
+      expand();
+    });
+  });
+
+  // Collapsed strip close button — fully hide
+  const collapsedCloseBtn = document.querySelector('.claude-collapsed-close');
+  if (collapsedCloseBtn) {
+    collapsedCloseBtn.addEventListener('click', hide);
+  }
 }
 
 /**
@@ -156,40 +173,118 @@ async function refreshPlugins() {
 }
 
 /**
- * Show plugins panel
+ * Show plugins panel (expanded)
  */
 function show() {
-  if (panelElement) {
-    panelElement.classList.add('visible');
-    isVisible = true;
-    sessionsLoaded = false;
+  if (!panelElement) return;
 
-    if (currentTab === 'plugins') {
-      loadPlugins();
-    } else if (currentTab === 'sessions') {
-      loadSessions();
-    }
+  const strip = panelElement.querySelector('.claude-collapsed-strip');
+  const content = panelElement.querySelector('.claude-expanded-content');
+
+  panelElement.classList.add('visible');
+  panelElement.style.width = '';
+  panelElement.style.minWidth = '';
+
+  if (strip) strip.style.display = 'none';
+  if (content) content.style.display = '';
+
+  isVisible = true;
+  isCollapsed = false;
+  sessionsLoaded = false;
+
+  if (currentTab === 'plugins') {
+    loadPlugins();
+  } else if (currentTab === 'sessions') {
+    loadSessions();
   }
 }
 
 /**
- * Hide plugins panel
+ * Hide plugins panel completely
  */
 function hide() {
-  if (panelElement) {
-    panelElement.classList.remove('visible');
-    isVisible = false;
-  }
+  if (!panelElement) return;
+
+  const strip = panelElement.querySelector('.claude-collapsed-strip');
+  const content = panelElement.querySelector('.claude-expanded-content');
+
+  panelElement.classList.remove('visible');
+  panelElement.style.width = '';
+  panelElement.style.minWidth = '';
+
+  if (strip) strip.style.display = 'none';
+  if (content) content.style.display = '';
+
+  isVisible = false;
+  isCollapsed = false;
 }
 
 /**
  * Toggle plugins panel visibility
  */
 function toggle() {
-  if (isVisible) {
+  if (isVisible && !isCollapsed) {
     hide();
   } else {
     show();
+  }
+}
+
+/**
+ * Collapse to icon strip
+ */
+function collapse() {
+  if (!panelElement) return;
+
+  const strip = panelElement.querySelector('.claude-collapsed-strip');
+  const content = panelElement.querySelector('.claude-expanded-content');
+
+  // Keep panel visible but narrow
+  panelElement.classList.add('visible');
+  panelElement.style.width = '44px';
+  panelElement.style.minWidth = '44px';
+
+  if (strip) strip.style.display = 'flex';
+  if (content) content.style.display = 'none';
+
+  isVisible = true;
+  isCollapsed = true;
+}
+
+/**
+ * Expand from collapsed icon strip
+ */
+function expand() {
+  if (!panelElement) return;
+
+  const strip = panelElement.querySelector('.claude-collapsed-strip');
+  const content = panelElement.querySelector('.claude-expanded-content');
+
+  panelElement.classList.add('visible');
+  panelElement.style.width = '';
+  panelElement.style.minWidth = '';
+
+  if (strip) strip.style.display = 'none';
+  if (content) content.style.display = '';
+
+  isCollapsed = false;
+  sessionsLoaded = false;
+
+  if (currentTab === 'plugins') {
+    loadPlugins();
+  } else if (currentTab === 'sessions') {
+    loadSessions();
+  }
+}
+
+/**
+ * Toggle between collapsed and expanded
+ */
+function toggleCollapse() {
+  if (isCollapsed) {
+    expand();
+  } else {
+    collapse();
   }
 }
 
@@ -529,11 +624,19 @@ function renderSessions() {
 
   sessionsContentElement.innerHTML = sessionsData.map(session => renderSessionItem(session)).join('');
 
-  // Add click listeners
-  sessionsContentElement.querySelectorAll('.session-item').forEach(el => {
-    el.addEventListener('click', () => {
-      const sessionId = el.dataset.sessionId;
-      resumeSession(sessionId);
+  // Resume button click listeners
+  sessionsContentElement.querySelectorAll('.session-resume-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resumeSession(btn.dataset.sessionId);
+    });
+  });
+
+  // Resume dropdown click listeners
+  sessionsContentElement.querySelectorAll('.session-resume-dropdown-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showResumeDropdown(btn, btn.dataset.sessionId);
     });
   });
 }
@@ -547,20 +650,34 @@ function renderSessionItem(session) {
   const branch = session.gitBranch ? `<span class="session-branch">${escapeHtml(session.gitBranch)}</span>` : '';
   const msgCount = session.messageCount || 0;
   const sidechainClass = session.isSidechain ? ' sidechain' : '';
+  const sessionState = session.state || 'inactive';
+
+  // State label for tooltip
+  const stateLabel = sessionState === 'active' ? 'Active' : sessionState === 'recent' ? 'Recent' : 'Inactive';
 
   return `
     <div class="session-item${sidechainClass}" data-session-id="${escapeHtml(session.sessionId)}">
-      <div class="session-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-      </div>
+      <div class="session-state-dot ${sessionState}" title="${stateLabel}"></div>
       <div class="session-content">
         <div class="session-title">${title}</div>
         <div class="session-meta">
           <span>${timeStr}</span>
           <span>${msgCount} msg${msgCount !== 1 ? 's' : ''}</span>
           ${branch}
+        </div>
+      </div>
+      <div class="session-actions">
+        <div class="session-resume-group">
+          <button class="session-resume-btn" data-session-id="${escapeHtml(session.sessionId)}" title="Resume session">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </button>
+          <button class="session-resume-dropdown-btn" data-session-id="${escapeHtml(session.sessionId)}" title="Resume options">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -590,16 +707,99 @@ function renderSessionsEmpty(message) {
 }
 
 /**
- * Resume a session by sending command to terminal
+ * Resume a session by sending command to terminal.
+ * Uses the configured AI tool command by default.
  */
-function resumeSession(sessionId) {
-  const command = `claude --resume ${sessionId}`;
+function resumeSession(sessionId, customCommand) {
+  const baseCommand = customCommand || aiToolSelector.getStartCommand() || 'claude';
+  const command = `${baseCommand} --resume ${sessionId}`;
 
   if (typeof window.terminalSendCommand === 'function') {
     window.terminalSendCommand(command);
     hide();
   } else {
     showToast('Terminal not available', 'error');
+  }
+}
+
+/**
+ * Show resume dropdown with command options
+ */
+function showResumeDropdown(anchorEl, sessionId) {
+  // Remove any existing dropdown
+  const existing = document.querySelector('.session-resume-dropdown');
+  if (existing) { existing.remove(); return; }
+
+  const defaultCmd = aiToolSelector.getStartCommand() || 'claude';
+  const options = [
+    { label: `${defaultCmd} (default)`, command: defaultCmd },
+    { label: 'claude', command: 'claude' },
+    { label: 'claude --continue', command: 'claude --continue', isContinue: true },
+    { label: 'Custom command...', command: null, isCustom: true }
+  ];
+
+  // Deduplicate if default is already 'claude'
+  const seen = new Set();
+  const uniqueOptions = options.filter(opt => {
+    if (opt.isCustom || opt.isContinue) return true;
+    const key = opt.command;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'session-resume-dropdown';
+
+  uniqueOptions.forEach(opt => {
+    const item = document.createElement('button');
+    item.className = 'session-resume-dropdown-item';
+    item.textContent = opt.label;
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.remove();
+
+      if (opt.isCustom) {
+        showCustomCommandPrompt(sessionId);
+      } else if (opt.isContinue) {
+        // --continue doesn't use session ID
+        if (typeof window.terminalSendCommand === 'function') {
+          window.terminalSendCommand(`${opt.command}`);
+          hide();
+        }
+      } else {
+        resumeSession(sessionId, opt.command);
+      }
+    });
+    dropdown.appendChild(item);
+  });
+
+  // Position near the anchor
+  const rect = anchorEl.getBoundingClientRect();
+  const panelRect = panelElement.getBoundingClientRect();
+  dropdown.style.position = 'absolute';
+  dropdown.style.top = `${rect.bottom - panelRect.top + 4}px`;
+  dropdown.style.right = `${panelRect.right - rect.right}px`;
+
+  panelElement.appendChild(dropdown);
+
+  // Close on click outside
+  const closeHandler = (e) => {
+    if (!dropdown.contains(e.target)) {
+      dropdown.remove();
+      document.removeEventListener('click', closeHandler, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeHandler, true), 0);
+}
+
+/**
+ * Show a simple inline prompt for custom command
+ */
+function showCustomCommandPrompt(sessionId) {
+  const cmd = prompt('Enter command to resume session:', 'claude');
+  if (cmd && cmd.trim()) {
+    resumeSession(sessionId, cmd.trim());
   }
 }
 
@@ -632,6 +832,9 @@ module.exports = {
   show,
   hide,
   toggle,
+  collapse,
+  expand,
   loadPlugins,
-  isVisible: () => isVisible
+  isVisible: () => isVisible,
+  isCollapsed: () => isCollapsed
 };

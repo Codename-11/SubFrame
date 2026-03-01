@@ -4,6 +4,9 @@
  */
 
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const https = require('https');
 const { IPC } = require('../shared/ipcChannels');
 
@@ -22,12 +25,45 @@ function init(window) {
 }
 
 /**
- * Get OAuth token from macOS Keychain
+ * Extract access token from a parsed credentials object
+ * @param {Object} credentials - Parsed credentials JSON
+ * @returns {string|null} Access token or null
+ */
+function extractToken(credentials) {
+  if (credentials.claudeAiOauth?.accessToken) {
+    return credentials.claudeAiOauth.accessToken;
+  }
+  if (credentials.accessToken) {
+    return credentials.accessToken;
+  }
+  return null;
+}
+
+/**
+ * Read OAuth token from the Claude credentials file (~/.claude/.credentials.json)
+ * Used on Windows and Linux where macOS Keychain is unavailable
  * @returns {string|null} Access token or null if not found
  */
-function getOAuthToken() {
+function getTokenFromCredentialsFile() {
   try {
-    // macOS Keychain command
+    const credPath = path.join(os.homedir(), '.claude', '.credentials.json');
+    if (!fs.existsSync(credPath)) return null;
+
+    const raw = fs.readFileSync(credPath, 'utf8');
+    const credentials = JSON.parse(raw);
+    return extractToken(credentials);
+  } catch (err) {
+    console.log('Claude usage: Could not read credentials file:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Read OAuth token from macOS Keychain
+ * @returns {string|null} Access token or null if not found
+ */
+function getTokenFromKeychain() {
+  try {
     const result = execSync(
       'security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null',
       { encoding: 'utf8', timeout: 5000 }
@@ -35,23 +71,45 @@ function getOAuthToken() {
 
     if (!result) return null;
 
-    // Parse JSON to get the access token
     const credentials = JSON.parse(result);
-
-    // Token can be in different locations depending on auth method
-    if (credentials.claudeAiOauth?.accessToken) {
-      return credentials.claudeAiOauth.accessToken;
-    }
-    if (credentials.accessToken) {
-      return credentials.accessToken;
-    }
-
-    return null;
+    return extractToken(credentials);
   } catch (err) {
-    // Token not found or parse error
-    console.log('Claude usage: Could not get OAuth token:', err.message);
+    console.log('Claude usage: Could not get token from Keychain:', err.message);
     return null;
   }
+}
+
+/**
+ * Get OAuth token using platform-appropriate method
+ * - macOS: Keychain first, then credentials file fallback
+ * - Windows/Linux: Credentials file (~/.claude/.credentials.json)
+ * - All platforms: ANTHROPIC_API_KEY env var as final fallback
+ * @returns {string|null} Access token or null if not found
+ */
+function getOAuthToken() {
+  let token = null;
+
+  if (process.platform === 'darwin') {
+    // macOS: try Keychain first, fall back to credentials file
+    token = getTokenFromKeychain();
+    if (!token) {
+      token = getTokenFromCredentialsFile();
+    }
+  } else {
+    // Windows and Linux: read from credentials file
+    token = getTokenFromCredentialsFile();
+  }
+
+  // Final fallback: environment variable
+  if (!token && process.env.ANTHROPIC_API_KEY) {
+    token = process.env.ANTHROPIC_API_KEY;
+  }
+
+  if (!token) {
+    console.log('Claude usage: No OAuth token found on platform:', process.platform);
+  }
+
+  return token;
 }
 
 /**

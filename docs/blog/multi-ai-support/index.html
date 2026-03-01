@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Supporting Claude, Codex, and Gemini in One App — Frame Blog</title>
-  <meta name="description" content="Each AI coding tool reads project context differently. Here's how Frame provides unified context injection for Claude Code, Codex CLI, and Gemini CLI using symlinks and wrapper scripts.">
+  <title>Supporting Claude, Codex, and Gemini in One App — SubFrame Blog</title>
+  <meta name="description" content="Each AI coding tool reads project context differently. Here's how SubFrame provides unified context injection for Claude Code, Codex CLI, and Gemini CLI using symlinks and wrapper scripts.">
   <link rel="canonical" href="https://frame.cool/blog/multi-ai-support">
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://frame.cool/blog/multi-ai-support">
   <meta property="og:title" content="Supporting Claude, Codex, and Gemini in One App">
-  <meta property="og:description" content="Each AI coding tool reads project context differently. Here's how Frame provides unified context injection.">
-  <meta property="og:site_name" content="Frame">
+  <meta property="og:description" content="Each AI coding tool reads project context differently. Here's how SubFrame provides unified context injection.">
+  <meta property="og:site_name" content="SubFrame">
   <meta property="article:published_time" content="2026-02-08">
   <meta name="twitter:card" content="summary">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,13 +22,13 @@
   <nav class="blog-nav">
     <div class="container-wide">
       <a href="/" class="logo">
-        <div class="logo-icon">F</div>
-        <span class="logo-text">Frame</span>
+        <div class="logo-icon">S</div>
+        <span class="logo-text">SubFrame</span>
       </a>
       <div class="nav-links">
         <a href="/">Home</a>
         <a href="/blog/">Blog</a>
-        <a href="https://github.com/kaanozhan/Frame" target="_blank">GitHub</a>
+        <a href="https://github.com/Codename-11/SubFrame" target="_blank">GitHub</a>
       </div>
     </div>
   </nav>
@@ -49,7 +49,7 @@
     <div class="post-content">
       <div class="container">
         <h2>The Challenge</h2>
-        <p>Frame's context preservation system is built around <code>AGENTS.md</code> — a single file containing all project instructions, navigation rules, and conventions. But each AI tool reads context differently:</p>
+        <p>SubFrame's context preservation system is built around <code>AGENTS.md</code> — a single file containing all project instructions, navigation rules, and conventions. But each AI tool reads context differently:</p>
         <ul>
           <li><strong>Claude Code</strong> reads <code>CLAUDE.md</code> automatically at session start</li>
           <li><strong>Gemini CLI</strong> reads <code>GEMINI.md</code> automatically at session start</li>
@@ -68,16 +68,16 @@ GEMINI.md → AGENTS.md   ← Symlink for Gemini CLI</code></pre>
 
         <h3>Codex CLI — Wrapper Script</h3>
         <p>Codex CLI doesn't have a native file-reading convention. Our first attempt was to use a <code>--system-prompt</code> flag — but Codex CLI doesn't have that flag.</p>
-        <p>The final solution: a wrapper script in <code>.frame/bin/codex</code> that sends "Read AGENTS.md" as the initial prompt:</p>
+        <p>The final solution: a wrapper script in <code>.subframe/bin/codex</code> that sends "Read AGENTS.md" as the initial prompt:</p>
         <pre><code>#!/bin/bash
-# .frame/bin/codex - Frame wrapper for Codex CLI
+# .subframe/bin/codex - SubFrame wrapper for Codex CLI
 AGENTS_FILE="./AGENTS.md"
 if [ -f "$AGENTS_FILE" ]; then
   codex "Please read AGENTS.md and follow the project instructions."
 else
   codex "$@"
 fi</code></pre>
-        <p>When Frame starts Codex CLI, it uses this wrapper instead of the bare <code>codex</code> command. The AI reads the file and gets full project context.</p>
+        <p>When SubFrame starts Codex CLI, it uses this wrapper instead of the bare <code>codex</code> command. The AI reads the file and gets full project context.</p>
 
         <h2>Key Insight</h2>
         <blockquote>
@@ -85,11 +85,11 @@ fi</code></pre>
         </blockquote>
 
         <h2>Switching Between Tools</h2>
-        <p>In Frame's UI, switching between AI tools is a single click from the toolbar dropdown. Each tool gets proper context injection automatically:</p>
+        <p>In SubFrame's UI, switching between AI tools is a single click from the toolbar dropdown. Each tool gets proper context injection automatically:</p>
         <ul>
           <li>Select <strong>Claude</strong> → runs <code>claude</code> directly (reads CLAUDE.md natively)</li>
           <li>Select <strong>Gemini</strong> → runs <code>gemini</code> directly (reads GEMINI.md natively)</li>
-          <li>Select <strong>Codex</strong> → runs via <code>.frame/bin/codex</code> wrapper (injects AGENTS.md)</li>
+          <li>Select <strong>Codex</strong> → runs via <code>.subframe/bin/codex</code> wrapper (injects AGENTS.md)</li>
         </ul>
         <p>Same project context, different AI engines. Use whichever tool is best for the task at hand.</p>
 
@@ -102,7 +102,7 @@ fi</code></pre>
 
   <footer class="blog-footer">
     <div class="container">
-      <p>Frame — <a href="https://github.com/kaanozhan/Frame">Open Source</a> on GitHub</p>
+      <p>SubFrame — <a href="https://github.com/Codename-11/SubFrame">Open Source</a> on GitHub</p>
     </div>
   </footer>
 </body>
