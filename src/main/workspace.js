@@ -7,17 +7,19 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { IPC } = require('../shared/ipcChannels');
-const { WORKSPACE_DIR, WORKSPACE_FILE, FRAME_VERSION } = require('../shared/frameConstants');
+const { WORKSPACE_DIR, WORKSPACE_FILE, FRAME_VERSION, FRAME_DIR, FRAME_CONFIG_FILE } = require('../shared/frameConstants');
 
 let workspaceDir = null;
 let workspacePath = null;
 let mainWindow = null;
+let settingsManager = null;
 
 /**
  * Initialize workspace module
  */
-function init(app, window) {
+function init(app, window, settings) {
   mainWindow = window;
+  settingsManager = settings || null;
   workspaceDir = path.join(os.homedir(), WORKSPACE_DIR);
   workspacePath = path.join(workspaceDir, WORKSPACE_FILE);
   ensureWorkspaceDir();
@@ -161,6 +163,64 @@ function renameProject(projectPath, newName) {
 }
 
 /**
+ * Scan a directory for projects
+ * Returns array of { path, name, isFrameProject, source: 'scanned' }
+ */
+function scanProjectDir(dirPath) {
+  if (!dirPath || !fs.existsSync(dirPath)) return [];
+
+  const results = [];
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      // Skip hidden dirs and non-directories
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+
+      const fullPath = path.join(dirPath, entry.name);
+      const configPath = path.join(fullPath, FRAME_DIR, FRAME_CONFIG_FILE);
+      const isFrame = fs.existsSync(configPath);
+
+      results.push({
+        path: fullPath,
+        name: entry.name,
+        isFrameProject: isFrame,
+        source: 'scanned',
+        addedAt: null,
+        lastOpenedAt: null
+      });
+    }
+  } catch (err) {
+    console.error('Error scanning project directory:', err);
+  }
+  return results;
+}
+
+/**
+ * Get projects merged with scanned results from default project dir
+ * Manual projects take priority over scanned duplicates
+ */
+function getProjectsWithScanned() {
+  const manualProjects = getProjects().map(p => ({ ...p, source: 'manual' }));
+
+  const defaultDir = settingsManager ? settingsManager.getSetting('general.defaultProjectDir') : '';
+  if (!defaultDir) return manualProjects;
+
+  const scannedProjects = scanProjectDir(defaultDir);
+
+  // Deduplicate: manual wins over scanned (normalize paths for comparison)
+  const manualPaths = new Set(manualProjects.map(p => path.resolve(p.path)));
+  const merged = [...manualProjects];
+
+  for (const scanned of scannedProjects) {
+    if (!manualPaths.has(path.resolve(scanned.path))) {
+      merged.push(scanned);
+    }
+  }
+
+  return merged;
+}
+
+/**
  * Update project's SubFrame status
  */
 function updateProjectFrameStatus(projectPath, isFrame) {
@@ -181,26 +241,30 @@ function updateProjectFrameStatus(projectPath, isFrame) {
  */
 function setupIPC(ipcMain) {
   ipcMain.on(IPC.LOAD_WORKSPACE, (event) => {
-    const projects = getProjects();
+    const projects = getProjectsWithScanned();
     event.sender.send(IPC.WORKSPACE_DATA, projects);
   });
 
   ipcMain.on(IPC.ADD_PROJECT_TO_WORKSPACE, (event, { projectPath, name, isFrameProject }) => {
     const added = addProject(projectPath, name, isFrameProject);
-    const projects = getProjects();
+    const projects = getProjectsWithScanned();
     event.sender.send(IPC.WORKSPACE_UPDATED, projects);
   });
 
   ipcMain.on(IPC.REMOVE_PROJECT_FROM_WORKSPACE, (event, projectPath) => {
     removeProject(projectPath);
-    const projects = getProjects();
+    const projects = getProjectsWithScanned();
     event.sender.send(IPC.WORKSPACE_UPDATED, projects);
   });
 
   ipcMain.on(IPC.RENAME_PROJECT, (event, { projectPath, newName }) => {
     renameProject(projectPath, newName);
-    const projects = getProjects();
+    const projects = getProjectsWithScanned();
     event.sender.send(IPC.WORKSPACE_UPDATED, projects);
+  });
+
+  ipcMain.handle(IPC.SCAN_PROJECT_DIR, (event, dirPath) => {
+    return scanProjectDir(dirPath);
   });
 }
 
@@ -208,6 +272,8 @@ module.exports = {
   init,
   loadWorkspace,
   getProjects,
+  getProjectsWithScanned,
+  scanProjectDir,
   addProject,
   removeProject,
   renameProject,

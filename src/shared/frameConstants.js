@@ -18,8 +18,8 @@ const WORKSPACE_FILE = 'workspaces.json';
 // SubFrame auto-generated files
 const FRAME_FILES = {
   AGENTS: 'AGENTS.md',
-  CLAUDE_SYMLINK: 'CLAUDE.md',
-  GEMINI_SYMLINK: 'GEMINI.md',
+  CLAUDE: 'CLAUDE.md',
+  GEMINI: 'GEMINI.md',
   STRUCTURE: 'STRUCTURE.json',
   NOTES: 'PROJECT_NOTES.md',
   TASKS: 'tasks.json',
@@ -28,6 +28,9 @@ const FRAME_FILES = {
 
 // SubFrame bin directory for AI tool wrappers
 const FRAME_BIN_DIR = 'bin';
+
+// Git hooks directory name (created in user projects)
+const GITHOOKS_DIR = '.githooks';
 
 // SubFrame version
 const FRAME_VERSION = '1.0';
@@ -39,5 +42,6 @@ module.exports = {
   WORKSPACE_FILE,
   FRAME_FILES,
   FRAME_BIN_DIR,
+  GITHOOKS_DIR,
   FRAME_VERSION
 };

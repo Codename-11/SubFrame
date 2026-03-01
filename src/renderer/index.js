@@ -15,11 +15,25 @@ const editor = require('./editor');
 const sidebarResize = require('./sidebarResize');
 const aiToolSelector = require('./aiToolSelector');
 const settingsPanel = require('./settingsPanel');
+const aiFilesPanel = require('./aiFilesPanel');
+const { getLogoSVG } = require('../shared/logoSVG');
 
 /**
  * Initialize critical-path modules (visible UI, layout, interaction)
  */
 function initCritical() {
+  // Inject sidebar logo from centralized SVG module
+  const sidebarLogo = document.getElementById('sidebar-logo');
+  if (sidebarLogo) {
+    sidebarLogo.innerHTML = getLogoSVG({ size: 54, id: 'sb', frame: false });
+  }
+
+  // Inject logo into floating overlay (shown when sidebar is fully hidden)
+  const floatLogo = document.getElementById('sidebar-float-logo');
+  if (floatLogo) {
+    floatLogo.innerHTML = getLogoSVG({ size: 32, id: 'fl', frame: false });
+  }
+
   // Initialize terminal structure (no actual PTY yet)
   const multiTerminalUI = terminal.initTerminal('terminal');
 
@@ -93,6 +107,7 @@ function initDeferred() {
   pluginsPanel.init();
   githubPanel.init();
   settingsPanel.init();
+  aiFilesPanel.init();
 
   // Setup state change listeners
   state.onProjectChange((projectPath, previousPath) => {
@@ -120,7 +135,7 @@ function initDeferred() {
   // Setup SubFrame initialized listener
   state.onFrameInitialized((projectPath) => {
     terminal.writelnToTerminal(`\x1b[1;32m✓ SubFrame project initialized!\x1b[0m`);
-    terminal.writelnToTerminal(`  Created: .subframe/, AGENTS.md, CLAUDE.md (symlink), STRUCTURE.json, PROJECT_NOTES.md, tasks.json, QUICKSTART.md`);
+    terminal.writelnToTerminal(`  Created: .subframe/, AGENTS.md, CLAUDE.md (backlink), STRUCTURE.json, PROJECT_NOTES.md, tasks.json, QUICKSTART.md`);
     // Refresh file tree to show new files
     fileTreeUI.refreshFileTree();
     // Load tasks for the new project
@@ -186,10 +201,18 @@ function setupButtonHandlers() {
     settingsPanel.toggle();
   });
 
-  // Sidebar tabs
+  // Sidebar tabs — clicking a tab icon while collapsed expands the sidebar first
   document.querySelectorAll('.sidebar-tab-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const tab = e.target.dataset.sidebarTab;
+      const tabBtn = e.currentTarget;
+      const tab = tabBtn.dataset.sidebarTab;
+
+      // If sidebar is collapsed (icon strip), expand it
+      if (sidebarResize.isCollapsed()) {
+        sidebarResize.expand();
+        terminal.fitTerminal();
+      }
+
       document.querySelectorAll('.sidebar-tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.sidebarTab === tab);
       });

@@ -2,6 +2,7 @@
 <!-- Purpose: Quick onboarding guide for developers and AI assistants -->
 <!-- For Claude: Read this FIRST to quickly understand how to work with this project. Contains setup instructions, common commands, and key files to know. -->
 <!-- Last Updated: 2026-02-28 -->
+<!-- Updated: Added init walkthrough, example workflow, keyboard shortcuts, settings section -->
 
 # SubFrame - Quick Start Guide
 
@@ -55,7 +56,7 @@ npm run find-module <name>
 
 # Package for distribution
 npm run dist            # current platform, unpacked
-npm run dist:win        # Windows installer (NSIS)
+npm run dist:win        # Windows installer (NSIS, auto-elevates)
 npm run dist:mac        # macOS (signed DMG)
 npm run dist:mac:unsigned  # macOS (unsigned, for local testing)
 ```
@@ -73,7 +74,7 @@ npm run dist:mac:unsigned  # macOS (unsigned, for local testing)
 | `PROJECT_NOTES.md` | Decisions and context |
 | `tasks.json` | Task tracking |
 | `AGENTS.md` | Instructions for AI assistants |
-| `CLAUDE.md` | Symlink to AGENTS.md (Claude Code compatibility) |
+| `CLAUDE.md` | Claude Code instructions (with backlink to AGENTS.md) |
 | `QUICKSTART.md` | This file |
 | `.subframe/config.json` | SubFrame project configuration |
 
@@ -99,7 +100,94 @@ SubFrame/
 └── index.html           # Main window HTML
 ```
 
+## Initializing a Project
+
+When you open a project in SubFrame for the first time, you can initialize it to set up AI-friendly scaffolding.
+
+1. **Select your project** in the sidebar project list
+2. **Click "Initialize Frame"** — the button appears at the top of the terminal area for non-initialized projects
+3. **Confirm** in the modal dialog that appears
+4. SubFrame creates the following files (only if they don't already exist):
+
+| File | Purpose |
+|------|---------|
+| `.subframe/config.json` | Project settings (name, tools, creation date) |
+| `.subframe/bin/codex` | Codex CLI wrapper script |
+| `AGENTS.md` | AI assistant instructions |
+| `CLAUDE.md` | Claude Code instructions (with backlink to AGENTS.md) |
+| `GEMINI.md` | Gemini CLI instructions (with backlink to AGENTS.md) |
+| `STRUCTURE.json` | Module map and architecture overview |
+| `PROJECT_NOTES.md` | Decisions, context, and roadmap |
+| `tasks.json` | Task tracking |
+| `QUICKSTART.md` | Quick-start guide |
+
+5. **Next steps**: Edit `AGENTS.md` to describe your project's conventions, then update `STRUCTURE.json` to reflect your codebase layout.
+
+## Example Workflow
+
+A typical workflow with SubFrame and Claude Code:
+
+1. **Select project** in the sidebar (`Ctrl+E` to focus project list)
+2. **Initialize** if needed — click "Initialize Frame" to generate scaffolding
+3. **Start Claude Code** — press `Ctrl+K` or click the Claude button in the terminal toolbar
+4. Claude reads `CLAUDE.md` automatically (which includes a backlink to `AGENTS.md`)
+5. Claude follows the `AGENTS.md` instructions, reads `STRUCTURE.json` for architecture context, and checks `tasks.json` for pending work
+6. **Review history** — press `Ctrl+Shift+H` to open the history panel and browse past sessions
+7. **Manage tasks** — press `Ctrl+T` to open the tasks panel and track progress
+
+## Keyboard Shortcuts
+
+### Panel Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+B` | Toggle sidebar |
+| `Ctrl+T` | Toggle tasks panel |
+| `Ctrl+Shift+H` | Toggle history panel |
+| `Ctrl+Shift+P` | Toggle plugins panel |
+| `Ctrl+Shift+G` | Toggle GitHub panel |
+| `Ctrl+,` | Toggle settings panel |
+
+### Terminal Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+K` | Start Claude Code |
+| `Ctrl+I` | Run /init |
+| `Ctrl+Shift+C` | Run /commit |
+| `Ctrl+H` | Open history file |
+| `Ctrl+Shift+T` | New terminal |
+| `Ctrl+Shift+W` | Close terminal |
+| `Ctrl+Tab` | Next terminal |
+| `Ctrl+Shift+Tab` | Previous terminal |
+| `Ctrl+1-9` | Switch to terminal N |
+| `Ctrl+Shift+G` | Toggle grid view |
+
+### Navigation Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+E` | Focus project list |
+| `Ctrl+Shift+E` | Focus file tree |
+| `Ctrl+Shift+[` | Previous project |
+| `Ctrl+Shift+]` | Next project |
+
+> **Note**: On macOS, use `Cmd` instead of `Ctrl` for all shortcuts.
+
+## Settings
+
+Open the settings panel with `Ctrl+,` to configure:
+
+- **AI tool paths** — Custom paths for Claude Code, Codex CLI, and Gemini CLI
+- **Default shell** — Override the default terminal shell
+- **Theme** — Appearance preferences
+- **Terminal behavior** — Scroll-to-bottom, font size, and other terminal options
+
+Settings are persisted via localStorage and the settings manager.
+
 ## For AI Assistants (Claude)
+
+SubFrame enhances your native capabilities — all built-in Claude Code features (`/init`, `/commit`, `/compact`, `/memory`, etc.) work exactly as normal. SubFrame adds structured context on top.
 
 1. **First**: Read `STRUCTURE.json` for architecture overview
 2. **Then**: Check `PROJECT_NOTES.md` for current context and decisions

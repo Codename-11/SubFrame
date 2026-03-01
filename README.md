@@ -1,8 +1,6 @@
 # SubFrame
 
-A lightweight, IDE-style desktop application built specifically for working with [Claude Code](https://claude.com/claude-code). Think VS Code, but streamlined for Claude Code workflows. Cross-platform: Windows, macOS, and Linux.
-
-Update : SubFrame now supports Codex CLI and Gemini CLI too.
+A lightweight, IDE-style desktop application built for AI-assisted development with [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). Think VS Code, but streamlined for AI coding workflows. Cross-platform: Windows, macOS, and Linux.
 
 
 
@@ -13,7 +11,7 @@ https://github.com/user-attachments/assets/6fe108d1-70c8-441e-a913-b34583c803b0
 
 SubFrame is a project management IDE for Claude Code that aims to:
 
-1. **Bring a standard to AI coding projects** - Consistent project structure with AGENTS.md (+ CLAUDE.md symlink), STRUCTURE.json, PROJECT_NOTES.md, and tasks.json
+1. **Bring a standard to AI coding projects** - Consistent project structure with AGENTS.md, CLAUDE.md, STRUCTURE.json, PROJECT_NOTES.md, and tasks.json
 2. **Improve context and memory problems as projects grow** - Automatic context preservation, session notes, and decision tracking
 3. **Make project management easier** - Visual task management, plugins panel, and streamlined workflows
 
@@ -31,6 +29,8 @@ The key innovation: **Claude Code launches directly in your selected project dir
 
 **SubFrame's Solution**: A standardized project structure that Claude Code reads automatically at the start of each session, combined with tools to track decisions, tasks, and context - so nothing gets lost.
 
+**Design Philosophy**: SubFrame builds on top of your existing AI tools — it never replaces them. Claude Code, Gemini CLI, and Codex CLI work exactly as they normally would. SubFrame adds a structured layer (tasks, codebase mapping, context preservation) that enhances what's already there. Native AI files like CLAUDE.md and GEMINI.md remain user-owned; SubFrame only injects a small backlink reference. When native tools add new features, SubFrame supports and integrates — it never conflicts.
+
 When working with Claude Code, you often need to:
 1. See your project structure
 2. Run Claude Code in the right directory
@@ -39,6 +39,34 @@ When working with Claude Code, you often need to:
 5. Work with multiple terminals simultaneously
 
 This app does all of that in one window, with a clean VS Code-inspired interface.
+
+## SubFrame Project System
+
+When you initialize a SubFrame project (via the Initialize button or `/init`), SubFrame creates a standardized set of files that give your AI tools persistent context and structure. This is what makes SubFrame more than a terminal — every project speaks the same language.
+
+### What gets created
+
+| File | Purpose |
+|------|---------|
+| `AGENTS.md` | AI-agnostic instructions file. Contains project rules, conventions, and context that any AI tool can read. Native tool files (`CLAUDE.md`, `GEMINI.md`) contain a small backlink reference to AGENTS.md, and Codex CLI gets context via a wrapper script (`.subframe/bin/codex`). Each tool picks up the same instructions in its native format. |
+| `STRUCTURE.json` | Machine-readable module map of your codebase. Tracks exports, dependencies, IPC channels, and functions with line numbers. Includes an `intentIndex` for fast keyword-to-file lookup. Auto-updated via pre-commit hook for JS files. |
+| `tasks.json` | Structured task tracking that bridges conversation to project management. AI detects tasks from your conversation and asks to add them. The visual task panel in SubFrame lets you filter, update status, and send tasks directly back to Claude. |
+| `PROJECT_NOTES.md` | Session notes and decisions preserved verbatim (not summarized). AI prompts you to save important moments so context carries forward between sessions. |
+| `.subframe/config.json` | Project-level settings and configuration. |
+
+### Useful commands
+
+```bash
+# Rebuild STRUCTURE.json for the entire project
+npm run structure
+
+# Find which file implements a feature by keyword
+node scripts/find-module.js <keyword>
+```
+
+### Why this matters
+
+Context is not lost between sessions. Every project has the same structure, so AI tools know exactly where to look. Decisions, tasks, and architecture are all tracked in files that both you and your AI tools can read — no re-explaining required.
 
 ## Screenshots
 
@@ -79,6 +107,12 @@ This app does all of that in one window, with a clean VS Code-inspired interface
   - **Sessions Tab** (default): Browse past Claude Code sessions with state indicators (active/recent/inactive), resume with split button (default tool, custom command)
   - **Plugins Tab**: Browse, enable/disable, and install Claude Code plugins
   - **Collapsible**: Collapse arrow shrinks to icon strip, click icons to expand back
+- **Overview Dashboard**: Project metrics and stats at a glance — see your project health in one view
+- **GitHub Panel**: Browse repository issues directly from the sidebar without leaving SubFrame
+- **Git Branches**: View, switch, create, and delete branches from a dedicated panel
+- **Settings Panel**: Configure AI tool commands, preferences, and project-level settings
+- **AI Tool Switching**: Switch between Claude Code, Codex CLI, and Gemini CLI — each tool gets context injected in its native format
+- **Claude Usage Tracking**: Monitor Claude Code usage statistics from within the app
 - **Context Preservation**: Automatic prompts to save important decisions to PROJECT_NOTES.md
 
 ### Multi-Terminal Features
@@ -382,7 +416,7 @@ npm run dev
 # Package for current platform (unpacked)
 npm run dist
 
-# Windows installer (NSIS)
+# Windows installer (NSIS) — auto-requests admin if needed
 npm run dist:win
 
 # macOS (signed DMG)
@@ -418,6 +452,11 @@ winget install Microsoft.PowerShell
 - Check that you selected a valid folder
 - Check console for errors: View → Toggle DevTools
 - Try clicking "Select Project Folder" again
+
+### Windows build fails with "Cannot create symbolic link"
+The `dist:win` script auto-requests admin elevation via UAC. If that fails:
+- **Option A:** Enable Developer Mode — Settings → System → For Developers
+- **Option B:** Run your terminal as Administrator
 
 ### Grid view stuck after switching to tabs
 Fixed in latest version. The grid CSS properties are now properly cleared when switching to tab view.

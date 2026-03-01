@@ -74,17 +74,9 @@ body {
 }
 
 .logo-icon {
-  width: 28px;
-  height: 28px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
-  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--bg-primary);
+  line-height: 0;
 }
 
 .logo-text {

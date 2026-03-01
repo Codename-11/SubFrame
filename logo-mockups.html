@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SubFrame Logo — Final</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0c;
+    color: #e8e6e3;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 40px;
+    padding: 48px;
+  }
+  .card {
+    background: #0f0f10;
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 16px;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+  }
+  .card h2 {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+  }
+  .label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.5px;
+    text-align: center;
+    max-width: 320px;
+    line-height: 1.6;
+  }
+  .brand {
+    font-size: 22px;
+    font-weight: 600;
+    color: #e8e6e3;
+    letter-spacing: -0.3px;
+  }
+
+  /* Loading bar */
+  .loading-bar {
+    width: 120px; height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .loading-fill {
+    height: 100%; width: 40%;
+    background: linear-gradient(90deg, #b480ff, #ff6eb4);
+    border-radius: 2px;
+    animation: slide 1.2s ease-in-out infinite;
+  }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+
+  /* Splash sim */
+  .splash-sim {
+    width: 700px;
+    min-height: 380px;
+    background: #0f0f10;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .splash-brand {
+    font-size: 20px;
+    font-weight: 600;
+    color: #e8e6e3;
+    letter-spacing: -0.3px;
+  }
+
+  /* Sidebar sim */
+  .sidebar-sim {
+    width: 260px;
+    background: #141418;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+  .sidebar-header-sim {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 14px;
+    font-weight: 600;
+    color: #e8e6e3;
+  }
+  .sidebar-body-sim {
+    padding: 12px 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================
+     FINAL LOGO
+     Varied speeds (4s/5.5s/7s), 1.5px orbits,
+     60deg rings, dashed middle, frame draw-in
+     ============================================ -->
+<div class="card" style="width: 460px;">
+  <h2>SubFrame Logo — Final</h2>
+  <svg width="200" height="200" viewBox="0 0 180 180">
+    <defs>
+      <filter id="glow-e" x="-150%" y="-150%" width="400%" height="400%">
+        <feGaussianBlur stdDeviation="4" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
+      </filter>
+      <filter id="glow-nuc" x="-300%" y="-300%" width="700%" height="700%">
+        <feGaussianBlur stdDeviation="8" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
+      </filter>
+      <filter id="glow-frame" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="2" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
+      </filter>
+      <radialGradient id="amb">
+        <stop offset="0%" stop-color="rgba(255,110,180,0.15)"/>
+        <stop offset="50%" stop-color="rgba(180,128,255,0.04)"/>
+        <stop offset="100%" stop-color="transparent"/>
+      </radialGradient>
+      <linearGradient id="frame-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#b480ff" stop-opacity="0.5"/>
+        <stop offset="50%" stop-color="#ff6eb4" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#64d8ff" stop-opacity="0.5"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Ambient glow -->
+    <circle cx="90" cy="90" r="40" fill="url(#amb)">
+      <animate attributeName="r" values="36;48;36" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/>
+      <animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/>
+    </circle>
+
+    <!-- Orbit 1: Purple — 4s -->
+    <g transform="rotate(0, 90, 90)">
+      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.25)" stroke-width="1.5"/>
+      <path id="o1" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+      <circle r="3" fill="#b480ff" filter="url(#glow-e)">
+        <animateMotion dur="4s" begin="0s" repeatCount="indefinite"><mpath href="#o1"/></animateMotion>
+      </circle>
+    </g>
+
+    <!-- Orbit 2: Pink — 5.5s, DASHED -->
+    <g transform="rotate(60, 90, 90)">
+      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.22)" stroke-width="1.5" stroke-dasharray="5 3.5"/>
+      <path id="o2" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+      <circle r="3" fill="#ff6eb4" filter="url(#glow-e)">
+        <animateMotion dur="5.5s" begin="-1.833s" repeatCount="indefinite"><mpath href="#o2"/></animateMotion>
+      </circle>
+    </g>
+
+    <!-- Orbit 3: Cyan — 7s -->
+    <g transform="rotate(120, 90, 90)">
+      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.2)" stroke-width="1.5"/>
+      <path id="o3" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+      <circle r="3" fill="#64d8ff" filter="url(#glow-e)">
+        <animateMotion dur="7s" begin="-4.667s" repeatCount="indefinite"><mpath href="#o3"/></animateMotion>
+      </circle>
+    </g>
+
+    <!-- Nucleus -->
+    <circle cx="90" cy="90" r="5" fill="#ff6eb4" filter="url(#glow-nuc)">
+      <animate attributeName="r" values="4.5;6;4.5" dur="2.5s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/>
+    </circle>
+
+    <!-- Frame outline — draws in -->
+    <rect x="10" y="10" width="160" height="160" rx="14" ry="14"
+          fill="none" stroke="url(#frame-grad)" stroke-width="1.5"
+          stroke-dasharray="632" stroke-dashoffset="632"
+          filter="url(#glow-frame)" opacity="0">
+      <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="632" to="0"
+               dur="2s" begin="0.5s" fill="freeze"
+               calcMode="spline" keySplines="0.25 0.1 0.25 1"/>
+    </rect>
+  </svg>
+  <div class="brand">SubFrame</div>
+  <div class="label">
+    1.5px orbits &bull; Varied speeds (4s / 5.5s / 7s)<br>
+    60&deg; ring intervals &bull; Dashed middle &bull; Frame draw-in
+  </div>
+</div>
+
+<!-- ============================================
+     Splash Screen Preview
+     ============================================ -->
+<div class="card" style="width: 780px; padding: 24px;">
+  <h2>Splash Screen Preview</h2>
+  <div class="splash-sim">
+    <svg width="140" height="140" viewBox="0 0 180 180">
+      <defs>
+        <filter id="sp-glow-e" x="-200%" y="-200%" width="500%" height="500%">
+          <feGaussianBlur stdDeviation="5" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
+        </filter>
+        <filter id="sp-glow-nuc" x="-400%" y="-400%" width="900%" height="900%">
+          <feGaussianBlur stdDeviation="10" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
+        </filter>
+        <filter id="sp-glow-frame" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2.5" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
+        </filter>
+        <radialGradient id="sp-amb">
+          <stop offset="0%" stop-color="rgba(255,110,180,0.18)"/>
+          <stop offset="50%" stop-color="rgba(180,128,255,0.05)"/>
+          <stop offset="100%" stop-color="transparent"/>
+        </radialGradient>
+        <linearGradient id="sp-frame-grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#b480ff" stop-opacity="0.5"/>
+          <stop offset="50%" stop-color="#ff6eb4" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#64d8ff" stop-opacity="0.5"/>
+        </linearGradient>
+      </defs>
+      <circle cx="90" cy="90" r="40" fill="url(#sp-amb)">
+        <animate attributeName="r" values="36;48;36" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/>
+      </circle>
+      <g transform="rotate(0, 90, 90)">
+        <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.3)" stroke-width="1.5"/>
+        <path id="sp-o1" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+        <circle r="3" fill="#b480ff" filter="url(#sp-glow-e)">
+          <animateMotion dur="4s" begin="0s" repeatCount="indefinite"><mpath href="#sp-o1"/></animateMotion>
+        </circle>
+      </g>
+      <g transform="rotate(60, 90, 90)">
+        <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.25)" stroke-width="1.5" stroke-dasharray="5 3.5"/>
+        <path id="sp-o2" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+        <circle r="3" fill="#ff6eb4" filter="url(#sp-glow-e)">
+          <animateMotion dur="5.5s" begin="-1.833s" repeatCount="indefinite"><mpath href="#sp-o2"/></animateMotion>
+        </circle>
+      </g>
+      <g transform="rotate(120, 90, 90)">
+        <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.22)" stroke-width="1.5"/>
+        <path id="sp-o3" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+        <circle r="3" fill="#64d8ff" filter="url(#sp-glow-e)">
+          <animateMotion dur="7s" begin="-4.667s" repeatCount="indefinite"><mpath href="#sp-o3"/></animateMotion>
+        </circle>
+      </g>
+      <circle cx="90" cy="90" r="5.5" fill="#ff6eb4" filter="url(#sp-glow-nuc)">
+        <animate attributeName="r" values="5;6.5;5" dur="2.5s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/>
+      </circle>
+      <rect x="10" y="10" width="160" height="160" rx="14" ry="14"
+            fill="none" stroke="url(#sp-frame-grad)" stroke-width="1.5"
+            stroke-dasharray="632" stroke-dashoffset="632"
+            filter="url(#sp-glow-frame)" opacity="0">
+        <animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze"/>
+        <animate attributeName="stroke-dashoffset" from="632" to="0"
+                 dur="2s" begin="0.5s" fill="freeze"
+                 calcMode="spline" keySplines="0.25 0.1 0.25 1"/>
+      </rect>
+    </svg>
+    <span class="splash-brand">SubFrame</span>
+    <div class="loading-bar"><div class="loading-fill"></div></div>
+  </div>
+</div>
+
+<!-- ============================================
+     Sidebar Header — 54px
+     ============================================ -->
+<div class="card" style="padding: 24px;">
+  <h2>Sidebar Header Preview</h2>
+  <div class="sidebar-sim">
+    <div class="sidebar-header-sim">
+      <svg width="54" height="54" viewBox="0 0 180 180">
+        <defs>
+          <filter id="sb-glow" x="-200%" y="-200%" width="500%" height="500%">
+            <feGaussianBlur stdDeviation="5" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
+          </filter>
+          <filter id="sb-nuc" x="-400%" y="-400%" width="900%" height="900%">
+            <feGaussianBlur stdDeviation="10" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
+          </filter>
+        </defs>
+        <g transform="rotate(0, 90, 90)">
+          <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.45)" stroke-width="3"/>
+          <path id="sb-o1" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+          <circle r="5" fill="#b480ff" filter="url(#sb-glow)">
+            <animateMotion dur="4s" begin="0s" repeatCount="indefinite"><mpath href="#sb-o1"/></animateMotion>
+          </circle>
+        </g>
+        <g transform="rotate(60, 90, 90)">
+          <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.4)" stroke-width="3" stroke-dasharray="5 4"/>
+          <path id="sb-o2" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+          <circle r="5" fill="#ff6eb4" filter="url(#sb-glow)">
+            <animateMotion dur="5.5s" begin="-1.833s" repeatCount="indefinite"><mpath href="#sb-o2"/></animateMotion>
+          </circle>
+        </g>
+        <g transform="rotate(120, 90, 90)">
+          <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.35)" stroke-width="3"/>
+          <path id="sb-o3" d="M 32,90 A 58,22 0 1,0 148,90 A 58,22 0 1,0 32,90" fill="none"/>
+          <circle r="5" fill="#64d8ff" filter="url(#sb-glow)">
+            <animateMotion dur="7s" begin="-4.667s" repeatCount="indefinite"><mpath href="#sb-o3"/></animateMotion>
+          </circle>
+        </g>
+        <circle cx="90" cy="90" r="10" fill="#ff6eb4" filter="url(#sb-nuc)"/>
+      </svg>
+      SubFrame
+    </div>
+    <div class="sidebar-body-sim">Projects &bull; Files &bull; Settings</div>
+  </div>
+  <div class="label" style="margin-top: 16px;">54px sidebar icon</div>
+</div>
+
+</body>
+</html>

@@ -116,8 +116,9 @@ function render() {
   const customCommand = (settingsData.aiTools && settingsData.aiTools[toolId] && settingsData.aiTools[toolId].customCommand) || '';
   const displayCommand = customCommand || defaultCommand;
 
-  const generalSettings = settingsData.general || { autoCreateTerminal: false };
+  const generalSettings = settingsData.general || { autoCreateTerminal: false, defaultProjectDir: '' };
   const terminalSettings = settingsData.terminal || { fontSize: 14, scrollback: 10000 };
+  const defaultProjectDir = generalSettings.defaultProjectDir || '';
 
   contentElement.innerHTML = `
     <div class="settings-section">
@@ -136,7 +137,32 @@ function render() {
             <span class="settings-toggle-slider"></span>
           </label>
         </div>
-        <div class="settings-hint">Automatically create a terminal when Frame launches.</div>
+        <div class="settings-hint">Automatically create a terminal when SubFrame launches.</div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>Projects</span>
+      </div>
+      <div class="settings-section-body">
+        <div class="settings-field">
+          <label class="settings-label">Default Project Directory</label>
+          <div class="settings-dir-row">
+            <input type="text" id="settings-default-project-dir" class="settings-input"
+              value="${escapeHtml(defaultProjectDir)}" readonly
+              placeholder="No directory selected" />
+            <button id="settings-browse-dir" class="settings-btn settings-btn-primary">Browse</button>
+          </div>
+          <div class="settings-hint">Subdirectories of this folder will appear automatically in the project list.</div>
+        </div>
+        <div class="settings-actions">
+          <button id="settings-scan-now" class="settings-btn settings-btn-secondary" ${!defaultProjectDir ? 'disabled' : ''}>Scan Now</button>
+          <button id="settings-clear-dir" class="settings-btn settings-btn-secondary" ${!defaultProjectDir ? 'disabled' : ''}>Clear</button>
+        </div>
       </div>
     </div>
 
@@ -213,6 +239,56 @@ function bindActionListeners() {
         key: 'general.autoCreateTerminal',
         value: autoTerminalToggle.checked
       });
+    });
+  }
+
+  // Default project directory: Browse
+  const browseDirBtn = document.getElementById('settings-browse-dir');
+  if (browseDirBtn) {
+    browseDirBtn.addEventListener('click', async () => {
+      const selectedPath = await ipcRenderer.invoke(IPC.SELECT_DEFAULT_PROJECT_DIR);
+      if (selectedPath) {
+        await ipcRenderer.invoke(IPC.UPDATE_SETTING, {
+          key: 'general.defaultProjectDir',
+          value: selectedPath
+        });
+        const dirInput = document.getElementById('settings-default-project-dir');
+        if (dirInput) dirInput.value = selectedPath;
+        // Enable scan/clear buttons
+        const scanBtn = document.getElementById('settings-scan-now');
+        const clearBtn = document.getElementById('settings-clear-dir');
+        if (scanBtn) scanBtn.disabled = false;
+        if (clearBtn) clearBtn.disabled = false;
+        // Auto-refresh project list
+        ipcRenderer.send(IPC.LOAD_WORKSPACE);
+        showToast('Default project directory set', 'success');
+      }
+    });
+  }
+
+  // Default project directory: Scan Now
+  const scanNowBtn = document.getElementById('settings-scan-now');
+  if (scanNowBtn) {
+    scanNowBtn.addEventListener('click', () => {
+      ipcRenderer.send(IPC.LOAD_WORKSPACE);
+      showToast('Project list refreshed', 'success');
+    });
+  }
+
+  // Default project directory: Clear
+  const clearDirBtn = document.getElementById('settings-clear-dir');
+  if (clearDirBtn) {
+    clearDirBtn.addEventListener('click', async () => {
+      await ipcRenderer.invoke(IPC.UPDATE_SETTING, {
+        key: 'general.defaultProjectDir',
+        value: ''
+      });
+      const dirInput = document.getElementById('settings-default-project-dir');
+      if (dirInput) dirInput.value = '';
+      scanNowBtn.disabled = true;
+      clearDirBtn.disabled = true;
+      ipcRenderer.send(IPC.LOAD_WORKSPACE);
+      showToast('Default project directory cleared', 'info');
     });
   }
 

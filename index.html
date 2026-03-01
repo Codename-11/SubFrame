@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>SubFrame</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
   <link rel="stylesheet" href="node_modules/xterm/css/xterm.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,22 +32,9 @@
       align-items: center;
       gap: 24px;
     }
-    .loading-logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .loading-logo-icon {
-      width: 10px;
-      height: 10px;
-      background: #d4a574;
-      border-radius: 3px;
-      box-shadow: 0 0 16px rgba(212, 165, 116, 0.5);
-      animation: loading-pulse 1.8s ease-in-out infinite;
-    }
     .loading-logo-text {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 600;
       color: #e8e6e3;
       letter-spacing: -0.3px;
@@ -61,13 +49,9 @@
     .loading-bar-fill {
       height: 100%;
       width: 40%;
-      background: #d4a574;
+      background: linear-gradient(90deg, #b480ff, #ff6eb4);
       border-radius: 2px;
       animation: loading-slide 1.2s ease-in-out infinite;
-    }
-    @keyframes loading-pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.85); }
     }
     @keyframes loading-slide {
       0% { transform: translateX(-100%); }
@@ -79,10 +63,22 @@
   <!-- Loading screen — pure CSS, renders before any JS executes -->
   <div id="app-loading">
     <div class="loading-content">
-      <div class="loading-logo">
-        <div class="loading-logo-icon"></div>
-        <span class="loading-logo-text">SubFrame</span>
-      </div>
+      <svg width="140" height="140" viewBox="0 0 180 180">
+        <defs>
+          <filter id="lg-ge" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="5" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+          <filter id="lg-gn" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="10" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+          <filter id="lg-gf" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+          <radialGradient id="lg-ag"><stop offset="0%" stop-color="rgba(255,110,180,0.18)"/><stop offset="50%" stop-color="rgba(180,128,255,0.05)"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+          <linearGradient id="lg-fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#b480ff" stop-opacity="0.5"/><stop offset="50%" stop-color="#ff6eb4" stop-opacity="0.4"/><stop offset="100%" stop-color="#64d8ff" stop-opacity="0.5"/></linearGradient>
+        </defs>
+        <circle cx="90" cy="90" r="40" fill="url(#lg-ag)"><animate attributeName="r" values="36;48;36" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/></circle>
+        <g transform="rotate(0,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.3)" stroke-width="1.5"/><path id="lg-p1" d="M32,90A58,22 0 1,0 148,90A58,22 0 1,0 32,90" fill="none"/><circle r="3" fill="#b480ff" filter="url(#lg-ge)"><animateMotion dur="4s" begin="0s" repeatCount="indefinite"><mpath href="#lg-p1"/></animateMotion></circle></g>
+        <g transform="rotate(60,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.25)" stroke-width="1.5" stroke-dasharray="5 3.5"/><path id="lg-p2" d="M32,90A58,22 0 1,0 148,90A58,22 0 1,0 32,90" fill="none"/><circle r="3" fill="#ff6eb4" filter="url(#lg-ge)"><animateMotion dur="5.5s" begin="-1.833s" repeatCount="indefinite"><mpath href="#lg-p2"/></animateMotion></circle></g>
+        <g transform="rotate(120,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.22)" stroke-width="1.5"/><path id="lg-p3" d="M32,90A58,22 0 1,0 148,90A58,22 0 1,0 32,90" fill="none"/><circle r="3" fill="#64d8ff" filter="url(#lg-ge)"><animateMotion dur="7s" begin="-4.667s" repeatCount="indefinite"><mpath href="#lg-p3"/></animateMotion></circle></g>
+        <circle cx="90" cy="90" r="5.5" fill="#ff6eb4" filter="url(#lg-gn)"><animate attributeName="r" values="5;6.5;5" dur="2.5s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"/></circle>
+        <rect x="10" y="10" width="160" height="160" rx="14" ry="14" fill="none" stroke="url(#lg-fg)" stroke-width="1.5" stroke-dasharray="632" stroke-dashoffset="632" filter="url(#lg-gf)" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.3s" begin="0.5s" fill="freeze"/><animate attributeName="stroke-dashoffset" from="632" to="0" dur="2s" begin="0.5s" fill="freeze" calcMode="spline" keySplines="0.25 0.1 0.25 1"/></rect>
+      </svg>
+      <span class="loading-logo-text">SubFrame</span>
       <div class="loading-bar"><div class="loading-bar-fill"></div></div>
     </div>
   </div>
@@ -91,6 +87,7 @@
   <div id="sidebar">
     <div id="sidebar-resize-handle"></div>
     <div id="sidebar-header">
+      <span id="sidebar-logo"></span>
       <span>SubFrame</span>
       <button id="btn-settings" class="btn-icon sidebar-settings-btn" tabindex="-1" title="Settings (Ctrl+,)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -101,8 +98,14 @@
     </div>
 
     <div class="sidebar-tabs">
-      <button class="sidebar-tab-btn active" data-sidebar-tab="projects">Projects</button>
-      <button class="sidebar-tab-btn" data-sidebar-tab="files">Files</button>
+      <button class="sidebar-tab-btn active" data-sidebar-tab="projects" title="Projects">
+        <span class="tab-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+        <span class="tab-label">Projects</span>
+      </button>
+      <button class="sidebar-tab-btn" data-sidebar-tab="files" title="Files">
+        <span class="tab-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+        <span class="tab-label">Files</span>
+      </button>
     </div>
 
     <!-- Projects Tab Content -->
@@ -181,6 +184,12 @@
     </div>
 
     <div id="sidebar-collapse-bar">
+      <button id="btn-expand-sidebar" class="btn-icon sidebar-expand-btn" tabindex="-1" title="Expand sidebar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="13 17 18 12 13 7"/>
+          <polyline points="6 17 11 12 6 7"/>
+        </svg>
+      </button>
       <button id="btn-collapse-sidebar" class="btn-icon" tabindex="-1" title="Collapse sidebar (Ctrl+B)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="11 17 6 12 11 7"/>
@@ -190,13 +199,8 @@
     </div>
   </div>
 
-  <!-- Sidebar expand button (visible when sidebar is collapsed) -->
-  <button id="btn-expand-sidebar" class="btn-icon sidebar-expand-btn" tabindex="-1" title="Expand sidebar (Ctrl+B)" style="display:none;">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="13 17 18 12 13 7"/>
-      <polyline points="6 17 11 12 6 7"/>
-    </svg>
-  </button>
+  <!-- Floating logo (visible when sidebar is fully hidden, overlays main content) -->
+  <button id="sidebar-float-logo" class="sidebar-float-logo" title="Show sidebar (Ctrl+B)"></button>
 
   <!-- Main Content Area -->
   <div id="main-content">
@@ -266,6 +270,11 @@
             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
           </svg>
         </button>
+        <button class="claude-collapsed-icon" data-expand-tab="ai-files" title="AI Files">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/>
+          </svg>
+        </button>
         <button class="claude-collapsed-icon claude-collapsed-close" title="Close panel">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/>
@@ -304,6 +313,12 @@
           </svg>
           Plugins
         </button>
+        <button class="claude-tab-btn" data-tab="ai-files">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/>
+          </svg>
+          AI Files
+        </button>
       </div>
       <div class="sessions-tab-content" data-tab-content="sessions">
 
@@ -327,6 +342,11 @@
         </div>
         <div id="plugins-content">
           <!-- Plugins will be populated here -->
+        </div>
+      </div>
+      <div class="ai-files-tab-content" data-tab-content="ai-files" style="display:none;">
+        <div id="ai-files-content">
+          <!-- AI Files will be populated here -->
         </div>
       </div>
       </div><!-- /.claude-expanded-content -->
@@ -431,8 +451,8 @@
             <li><span class="file-icon">&#128193;</span> .subframe/ <span class="file-desc">config directory</span></li>
             <li><span class="file-icon">&#128193;</span> .subframe/bin/ <span class="file-desc">AI tool wrappers</span></li>
             <li><span class="file-icon">&#128196;</span> AGENTS.md <span class="file-desc">AI instructions</span></li>
-            <li><span class="file-icon">&#128279;</span> CLAUDE.md <span class="file-desc">symlink to AGENTS.md</span></li>
-            <li><span class="file-icon">&#128279;</span> GEMINI.md <span class="file-desc">symlink to AGENTS.md</span></li>
+            <li><span class="file-icon">&#128196;</span> CLAUDE.md <span class="file-desc">references AGENTS.md</span></li>
+            <li><span class="file-icon">&#128196;</span> GEMINI.md <span class="file-desc">references AGENTS.md</span></li>
             <li><span class="file-icon">&#128196;</span> STRUCTURE.json <span class="file-desc">module map</span></li>
             <li><span class="file-icon">&#128196;</span> PROJECT_NOTES.md <span class="file-desc">session notes</span></li>
             <li><span class="file-icon">&#128196;</span> tasks.json <span class="file-desc">task tracking</span></li>

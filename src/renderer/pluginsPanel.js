@@ -8,6 +8,13 @@ const { IPC } = require('../shared/ipcChannels');
 const state = require('./state');
 const aiToolSelector = require('./aiToolSelector');
 
+// Lazy-loaded to avoid circular dependency
+let aiFilesPanel = null;
+function getAiFilesPanel() {
+  if (!aiFilesPanel) aiFilesPanel = require('./aiFilesPanel');
+  return aiFilesPanel;
+}
+
 let isVisible = false;
 let isCollapsed = false;
 let pluginsData = [];
@@ -196,6 +203,8 @@ function show() {
     loadPlugins();
   } else if (currentTab === 'sessions') {
     loadSessions();
+  } else if (currentTab === 'ai-files') {
+    getAiFilesPanel().loadStatus();
   }
 }
 
@@ -274,6 +283,8 @@ function expand() {
     loadPlugins();
   } else if (currentTab === 'sessions') {
     loadSessions();
+  } else if (currentTab === 'ai-files') {
+    getAiFilesPanel().loadStatus();
   }
 }
 
@@ -307,6 +318,8 @@ function setTab(tab) {
   // Load data for the active tab
   if (tab === 'sessions' && !sessionsLoaded) {
     loadSessions();
+  } else if (tab === 'ai-files') {
+    getAiFilesPanel().loadStatus();
   }
 }
 

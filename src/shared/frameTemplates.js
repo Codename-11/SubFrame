@@ -28,6 +28,26 @@ function getAgentsTemplate(projectName) {
 
 This project is managed with **SubFrame**. AI assistants should follow the rules below to keep documentation up to date.
 
+> **Note:** This file is named \`AGENTS.md\` to be AI-tool agnostic. CLAUDE.md and GEMINI.md contain a reference to this file.
+
+---
+
+## Relationship to Native AI Tools
+
+SubFrame **enhances** native AI coding tools — it does not replace them.
+
+**Claude Code** works exactly as normal. Built-in features (\`/init\`, \`/commit\`, \`/review-pr\`, \`/compact\`, \`/memory\`, CLAUDE.md) are fully supported. CLAUDE.md is Claude Code's native instruction file — users can add their own tool-specific instructions freely. SubFrame adds a small backlink reference pointing to this AGENTS.md file using HTML comment markers (\`<!-- SUBFRAME:BEGIN -->\` / \`<!-- SUBFRAME:END -->\`). SubFrame will never overwrite user content in CLAUDE.md.
+
+**Gemini CLI** works exactly as normal. Built-in features (\`/init\`, \`/model\`, \`/memory\`, \`/compress\`, \`/settings\`, GEMINI.md) are fully supported. GEMINI.md is Gemini CLI's native instruction file — same backlink approach as CLAUDE.md. Users can add their own instructions freely and SubFrame won't overwrite them.
+
+**Codex CLI** gets SubFrame context via a wrapper script at \`.subframe/bin/codex\` that injects AGENTS.md as an initial prompt.
+
+**This file (AGENTS.md)** contains SubFrame-specific rules that apply across all tools:
+- Task management (\`tasks.json\`)
+- Codebase mapping (\`STRUCTURE.json\`)
+- Context preservation (\`PROJECT_NOTES.md\`)
+- Session notes and decision tracking
+
 ---
 
 ## Task Management (tasks.json)
@@ -188,7 +208,7 @@ No problem, continue. The user can also say what they consider important themsel
 
 ---
 
-**Note:** This file is named \`AGENTS.md\` to be AI-tool agnostic. A \`CLAUDE.md\` symlink is provided for Claude Code compatibility.
+**Note:** This file is named \`AGENTS.md\` to be AI-tool agnostic. CLAUDE.md and GEMINI.md contain a reference to this file.
 `;
 }
 
@@ -367,9 +387,14 @@ function getFrameConfigTemplate(projectName) {
       autoUpdateNotes: false,
       taskRecognition: true
     },
+    backlink: {
+      customMessage: "",
+      additionalRefs: []
+    },
     files: {
       agents: "AGENTS.md",
-      claudeSymlink: "CLAUDE.md",
+      claude: "CLAUDE.md",
+      gemini: "GEMINI.md",
       structure: "STRUCTURE.json",
       notes: "PROJECT_NOTES.md",
       tasks: "tasks.json",
@@ -456,6 +481,175 @@ fi
 `;
 }
 
+/**
+ * Native AI file template (CLAUDE.md, GEMINI.md)
+ * Returns just the backlink block that references AGENTS.md
+ */
+function getNativeFileTemplate() {
+  const { getBacklinkBlock } = require('./backlinkUtils');
+  return getBacklinkBlock() + '\n';
+}
+
+/**
+ * Pre-commit hook template for user projects
+ * Bash script that detects staged JS files in src/ and runs the updater script.
+ */
+function getPreCommitHookTemplate() {
+  return `#!/bin/bash
+#
+# SubFrame pre-commit hook
+# Auto-updates STRUCTURE.json when JS files in src/ are committed.
+#
+
+# Check if any JS files in src/ are staged
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep '^src/.*\\.js$' || true)
+
+# Also check for deleted JS files
+DELETED_JS=$(git diff --cached --name-only --diff-filter=D | grep '^src/.*\\.js$' || true)
+
+if [ -z "$STAGED_JS" ] && [ -z "$DELETED_JS" ]; then
+  exit 0
+fi
+
+# Only update if STRUCTURE.json exists (SubFrame project)
+if [ ! -f "STRUCTURE.json" ]; then
+  exit 0
+fi
+
+# Only update if the updater script exists
+UPDATER=".githooks/update-structure.js"
+if [ ! -f "$UPDATER" ]; then
+  exit 0
+fi
+
+echo "[SubFrame] JS files changed, updating STRUCTURE.json..."
+
+# Run the updater with staged/deleted file lists as env vars
+STAGED_FILES="$STAGED_JS" DELETED_FILES="$DELETED_JS" node "$UPDATER"
+
+# Stage the updated STRUCTURE.json
+git add STRUCTURE.json
+
+echo "[SubFrame] STRUCTURE.json updated and staged."
+
+exit 0
+`;
+}
+
+/**
+ * Pre-commit hook updater script (Node.js)
+ * Companion to the pre-commit bash hook. Parses staged JS files and
+ * updates STRUCTURE.json with module info (exports, deps, functions).
+ */
+function getHookUpdaterScript() {
+  return `#!/usr/bin/env node
+/**
+ * SubFrame STRUCTURE.json Updater
+ * Called by .githooks/pre-commit when JS files in src/ are staged.
+ * Reads STAGED_FILES and DELETED_FILES from environment variables.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = process.cwd();
+const STRUCTURE_FILE = path.join(ROOT, 'STRUCTURE.json');
+const SRC_DIR = path.join(ROOT, 'src');
+
+// Load existing STRUCTURE.json
+let structure;
+try {
+  structure = JSON.parse(fs.readFileSync(STRUCTURE_FILE, 'utf-8'));
+} catch (e) {
+  process.exit(0);
+}
+
+if (!structure.modules) {
+  structure.modules = {};
+}
+
+const files = (process.env.STAGED_FILES || '').split('\\n').filter(Boolean);
+const deleted = (process.env.DELETED_FILES || '').split('\\n').filter(Boolean);
+
+// Remove deleted modules
+for (const file of deleted) {
+  const key = path.relative(SRC_DIR, path.join(ROOT, file))
+    .replace(/\\.js$/, '').replace(/\\\\/g, '/');
+  if (structure.modules[key]) {
+    delete structure.modules[key];
+  }
+}
+
+// Parse each staged file
+for (const file of files) {
+  const fullPath = path.join(ROOT, file);
+  if (!fs.existsSync(fullPath)) continue;
+
+  let content;
+  try {
+    content = fs.readFileSync(fullPath, 'utf-8');
+  } catch (e) {
+    continue;
+  }
+
+  const key = path.relative(SRC_DIR, fullPath)
+    .replace(/\\.js$/, '').replace(/\\\\/g, '/');
+
+  // Extract description from top JSDoc comment
+  let description = '';
+  const docMatch = content.match(/^\\/\\*\\*\\s*\\n\\s*\\*\\s*([^\\n]+)/);
+  if (docMatch) description = docMatch[1].trim();
+
+  // Extract exports from module.exports = { ... }
+  const xports = [];
+  const expMatch = content.match(/module\\.exports\\s*=\\s*\\{([^}]+)\\}/);
+  if (expMatch) {
+    expMatch[1].split(',').forEach(function(s) {
+      const name = s.trim().split(':')[0].trim();
+      if (name && !name.startsWith('//')) xports.push(name);
+    });
+  }
+
+  // Extract require() dependencies
+  const deps = [];
+  const reqRe = /require\\s*\\(\\s*['"]([^'"]+)['"]\\s*\\)/g;
+  let m;
+  while ((m = reqRe.exec(content)) !== null) {
+    const dep = m[1];
+    if (dep.startsWith('./') || dep.startsWith('../')) {
+      deps.push(dep.replace(/^\\.+\\//, '').replace(/\\.js$/, ''));
+    } else {
+      deps.push(dep);
+    }
+  }
+
+  // Extract function names with line numbers
+  const functions = {};
+  const fnRe = /^(?:async\\s+)?function\\s+(\\w+)\\s*\\(/gm;
+  while ((m = fnRe.exec(content)) !== null) {
+    const lineNum = content.substring(0, m.index).split('\\n').length;
+    functions[m[1]] = { line: lineNum };
+  }
+
+  const existing = structure.modules[key] || {};
+  structure.modules[key] = {
+    file: file,
+    description: description || existing.description || '',
+    exports: xports,
+    depends: deps.filter(function(v, i, a) { return a.indexOf(v) === i; }),
+    functions: Object.keys(functions).length > 0 ? functions : (existing.functions || {})
+  };
+}
+
+// Update timestamp and save
+structure.lastUpdated = new Date().toISOString().split('T')[0];
+if (structure._frame_metadata) {
+  structure._frame_metadata.lastUpdated = structure.lastUpdated;
+}
+fs.writeFileSync(STRUCTURE_FILE, JSON.stringify(structure, null, 2) + '\\n');
+`;
+}
+
 module.exports = {
   getAgentsTemplate,
   getStructureTemplate,
@@ -464,5 +658,8 @@ module.exports = {
   getQuickstartTemplate,
   getFrameConfigTemplate,
   getCodexWrapperTemplate,
-  getGenericWrapperTemplate
+  getGenericWrapperTemplate,
+  getNativeFileTemplate,
+  getPreCommitHookTemplate,
+  getHookUpdaterScript
 };

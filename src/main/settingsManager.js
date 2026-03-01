@@ -14,7 +14,8 @@ let settingsPath = null;
 // Default settings
 const DEFAULT_SETTINGS = {
   general: {
-    autoCreateTerminal: false
+    autoCreateTerminal: false,
+    defaultProjectDir: ''
   },
   aiTools: {},
   terminal: {

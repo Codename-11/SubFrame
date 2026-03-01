@@ -1,6 +1,6 @@
 /**
  * Application State Module
- * Manages project path, Frame status, and UI state
+ * Manages project path, SubFrame status, and UI state
  */
 
 const { ipcRenderer } = require('electron');
@@ -63,7 +63,7 @@ function setProjectPath(path) {
     multiTerminalUI.setCurrentProject(path);
   }
 
-  // Check if it's a Frame project
+  // Check if it's a SubFrame project
   if (path) {
     ipcRenderer.send(IPC.CHECK_IS_FRAME_PROJECT, path);
   } else {
@@ -82,14 +82,14 @@ function onProjectChange(callback) {
 }
 
 /**
- * Get Frame project status
+ * Get SubFrame project status
  */
 function getIsFrameProject() {
   return isCurrentProjectFrame;
 }
 
 /**
- * Set Frame project status
+ * Set SubFrame project status
  */
 function setIsFrameProject(isFrame) {
   isCurrentProjectFrame = isFrame;
@@ -100,25 +100,25 @@ function setIsFrameProject(isFrame) {
 }
 
 /**
- * Register callback for Frame status change
+ * Register callback for SubFrame status change
  */
 function onFrameStatusChange(callback) {
   onFrameStatusChangeCallbacks.push(callback);
 }
 
 /**
- * Register callback for Frame project initialized
+ * Register callback for SubFrame project initialized
  */
 function onFrameInitialized(callback) {
   onFrameInitializedCallbacks.push(callback);
 }
 
 /**
- * Update Frame-related UI
+ * Update SubFrame-related UI
  */
 function updateFrameUI() {
   if (initializeFrameBtn) {
-    // Show "Initialize as Frame" button only for non-Frame projects
+    // Show "Initialize as SubFrame" button only for non-SubFrame projects
     if (currentProjectPath && !isCurrentProjectFrame) {
       initializeFrameBtn.style.display = 'block';
       showInitSpotlight();
@@ -129,7 +129,7 @@ function updateFrameUI() {
 }
 
 /**
- * Initialize current project as Frame project
+ * Initialize current project as SubFrame project
  */
 function initializeAsFrameProject() {
   if (currentProjectPath) {
@@ -138,7 +138,7 @@ function initializeAsFrameProject() {
 }
 
 /**
- * Show custom initialize Frame modal
+ * Show custom initialize SubFrame modal
  */
 function showInitializeFrameModal() {
   const modal = document.getElementById('initialize-frame-modal');
@@ -148,7 +148,7 @@ function showInitializeFrameModal() {
 }
 
 /**
- * Hide initialize Frame modal
+ * Hide initialize SubFrame modal
  */
 function hideInitializeFrameModal() {
   const modal = document.getElementById('initialize-frame-modal');
@@ -158,7 +158,7 @@ function hideInitializeFrameModal() {
 }
 
 /**
- * Handle initialize Frame confirmation
+ * Handle initialize SubFrame confirmation
  */
 function handleInitializeFrame() {
   hideInitializeFrameModal();
@@ -173,7 +173,7 @@ function handleInitializeFrame() {
 }
 
 /**
- * Setup initialize Frame modal listeners
+ * Setup initialize SubFrame modal listeners
  */
 function setupInitFrameModalListeners() {
   const modal = document.getElementById('initialize-frame-modal');

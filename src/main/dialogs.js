@@ -65,6 +65,21 @@ async function showNewProjectDialog(event) {
 }
 
 /**
+ * Show default project directory picker
+ */
+async function showDefaultProjectDirPicker() {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Select Default Project Directory'
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+  return null;
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIPC(ipcMain) {
@@ -74,6 +89,10 @@ function setupIPC(ipcMain) {
 
   ipcMain.on(IPC.CREATE_NEW_PROJECT, async (event) => {
     await showNewProjectDialog(event);
+  });
+
+  ipcMain.handle(IPC.SELECT_DEFAULT_PROJECT_DIR, async () => {
+    return showDefaultProjectDirPicker();
   });
 }
 

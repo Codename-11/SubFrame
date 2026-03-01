@@ -69,7 +69,7 @@ function getMenuTemplate() {
   // macOS app menu
   if (process.platform === 'darwin') {
     template.unshift({
-      label: 'Frame',
+      label: 'SubFrame',
       submenu: [
         { role: 'about' },
         { type: 'separator' },

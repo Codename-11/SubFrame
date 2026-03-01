@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.1",
-  "lastUpdated": "2026-02-28T22:28:41.152Z",
+  "lastUpdated": "2026-02-28T23:00:00.000Z",
   "taskSchema": {
     "_comment": "This schema shows the expected structure for each task",
     "id": "unique-id (task-xxx format)",
@@ -132,6 +132,21 @@
         "context": "todos.json - shortTerm",
         "createdAt": "2026-01-21T00:00:00Z",
         "updatedAt": "2026-01-24T23:15:10.001Z",
+        "completedAt": null
+      },
+      {
+        "id": "task-terminal-warp",
+        "title": "Warp-style terminal UX improvements",
+        "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
+        "userRequest": "I want to compare to Warp terminal and their clean smooth terminal features. I want the ability to have right click context and ctrl+c and ctrl+v and shift+enter features in terminal properly and overlay to scroll to bottom like they have per terminal.",
+        "acceptanceCriteria": "1. Ctrl+C copies when selection exists, sends SIGINT otherwise. 2. Ctrl+V pastes from clipboard directly. 3. Right-click opens context menu with Copy/Paste/Select All/Clear. 4. Shift+Enter inserts newline. 5. Scroll-to-bottom button visible and functional per terminal in tab and grid views.",
+        "notes": "Current stack: xterm.js 5.3.0 + node-pty 1.0.0 + xterm-addon-fit 0.8.0. Key handler is in terminalManager.js attachCustomKeyEventHandler. Warp uses its own Rust-based renderer — we stay on xterm.js but match the UX patterns.",
+        "status": "pending",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-02-28 - Terminal UX modernization",
+        "createdAt": "2026-02-28T23:00:00Z",
+        "updatedAt": "2026-02-28T23:00:00Z",
         "completedAt": null
       }
     ],
@@ -324,7 +339,7 @@
     ]
   },
   "metadata": {
-    "totalCreated": 20,
+    "totalCreated": 21,
     "totalCompleted": 13
   },
   "categories": {

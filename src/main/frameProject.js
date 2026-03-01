@@ -7,9 +7,10 @@ const fs = require('fs');
 const path = require('path');
 const { dialog } = require('electron');
 const { IPC } = require('../shared/ipcChannels');
-const { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES, FRAME_BIN_DIR } = require('../shared/frameConstants');
-const templates = require('../shared/frameTemplates');
+const { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES } = require('../shared/frameConstants');
 const workspace = require('./workspace');
+const { initializeProject, checkExistingFiles } = require('../shared/projectInit');
+const { getNativeFileStatus, getClaudeNativeStatus } = require('../shared/backlinkUtils');
 
 let mainWindow = null;
 
@@ -41,113 +42,62 @@ function getFrameConfig(projectPath) {
   }
 }
 
-/**
- * Create file if it doesn't exist
- */
-function createFileIfNotExists(filePath, content) {
-  if (!fs.existsSync(filePath)) {
-    const contentStr = typeof content === 'string'
-      ? content
-      : JSON.stringify(content, null, 2);
-    fs.writeFileSync(filePath, contentStr, 'utf8');
-    return true;
-  }
-  return false;
-}
-
-/**
- * Create a symlink safely with Windows fallback
- * @param {string} target - The target file name (relative)
- * @param {string} linkPath - The full path for the symlink
- * @returns {boolean} - Whether the operation succeeded
- */
-function createSymlinkSafe(target, linkPath) {
-  try {
-    // Check if symlink/file already exists
-    if (fs.existsSync(linkPath)) {
-      const stats = fs.lstatSync(linkPath);
-      if (stats.isSymbolicLink()) {
-        // Remove existing symlink to recreate it
-        fs.unlinkSync(linkPath);
-      } else {
-        // Regular file exists - don't overwrite, skip
-        console.warn(`${linkPath} exists and is not a symlink, skipping`);
-        return false;
-      }
-    }
-
-    // Create relative symlink
-    fs.symlinkSync(target, linkPath);
-    return true;
-  } catch (error) {
-    // Windows without admin/Developer Mode - copy file as fallback
-    if (error.code === 'EPERM' || error.code === 'EPROTO') {
-      try {
-        const targetPath = path.resolve(path.dirname(linkPath), target);
-        if (fs.existsSync(targetPath)) {
-          fs.copyFileSync(targetPath, linkPath);
-          console.warn(`Symlink not supported, copied ${target} to ${linkPath}`);
-          return true;
-        }
-      } catch (copyError) {
-        console.error('Failed to create symlink or copy file:', copyError);
-      }
-    } else {
-      console.error('Failed to create symlink:', error);
-    }
-    return false;
-  }
-}
-
-/**
- * Check which SubFrame files already exist in the project
- */
-function checkExistingFrameFiles(projectPath) {
-  const existingFiles = [];
-  const filesToCheck = [
-    { name: 'AGENTS.md', path: path.join(projectPath, FRAME_FILES.AGENTS) },
-    { name: 'CLAUDE.md', path: path.join(projectPath, FRAME_FILES.CLAUDE_SYMLINK) },
-    { name: 'STRUCTURE.json', path: path.join(projectPath, FRAME_FILES.STRUCTURE) },
-    { name: 'PROJECT_NOTES.md', path: path.join(projectPath, FRAME_FILES.NOTES) },
-    { name: 'tasks.json', path: path.join(projectPath, FRAME_FILES.TASKS) },
-    { name: 'QUICKSTART.md', path: path.join(projectPath, FRAME_FILES.QUICKSTART) },
-    { name: '.subframe/', path: path.join(projectPath, FRAME_DIR) }
-  ];
-
-  for (const file of filesToCheck) {
-    if (fs.existsSync(file.path)) {
-      existingFiles.push(file.name);
-    }
-  }
-
-  return existingFiles;
-}
 
 /**
  * Show confirmation dialog before initializing SubFrame project
+ * Provides enhanced messaging when CLAUDE.md/GEMINI.md have existing content
+ * or when .claude/ directory is present.
  */
 async function showInitializeConfirmation(projectPath) {
-  const existingFiles = checkExistingFrameFiles(projectPath);
+  const existingFiles = checkExistingFiles(projectPath);
+
+  const hasGitDir = fs.existsSync(path.join(projectPath, '.git'));
+  const claudeStatus = getNativeFileStatus(projectPath, FRAME_FILES.CLAUDE);
+  const geminiStatus = getNativeFileStatus(projectPath, FRAME_FILES.GEMINI);
+  const claudeNative = getClaudeNativeStatus(projectPath);
 
   let message = 'This will create the following files in your project:\n\n';
   message += '  • .subframe/ (config directory)\n';
   message += '  • .subframe/bin/ (AI tool wrappers)\n';
   message += '  • AGENTS.md (AI instructions)\n';
-  message += '  • CLAUDE.md (symlink to AGENTS.md)\n';
+  message += '  • CLAUDE.md (references AGENTS.md)\n';
   message += '  • STRUCTURE.json (module map)\n';
   message += '  • PROJECT_NOTES.md (session notes)\n';
   message += '  • tasks.json (task tracking)\n';
   message += '  • QUICKSTART.md (getting started)\n';
+
+  if (hasGitDir) {
+    message += '  • .githooks/pre-commit (auto-updates STRUCTURE.json on commit)\n';
+  }
 
   if (existingFiles.length > 0) {
     message += '\n⚠️ These files already exist and will NOT be overwritten:\n';
     message += existingFiles.map(f => `  • ${f}`).join('\n');
   }
 
+  // Enhanced messaging for existing CLAUDE.md with user content
+  if (claudeStatus.exists && claudeStatus.hasUserContent && !claudeStatus.hasBacklink) {
+    message += '\n\n📝 CLAUDE.md already has content. SubFrame will add a small reference to AGENTS.md at the top. Your existing content will be preserved.';
+  }
+
+  // Enhanced messaging for existing GEMINI.md with user content
+  if (geminiStatus.exists && geminiStatus.hasUserContent && !geminiStatus.hasBacklink) {
+    message += '\n\n📝 GEMINI.md already has content. SubFrame will add a small reference to AGENTS.md at the top. Your existing content will be preserved.';
+  }
+
+  // Note about .claude/ directory (Claude Code's native settings)
+  if (claudeNative.exists) {
+    message += '\n\nℹ️ .claude/ directory detected (Claude Code settings). SubFrame will not touch this directory — it is managed by Claude Code.';
+  }
+
   message += '\n\nDo you want to continue?';
 
+  const hasWarnings = existingFiles.length > 0 ||
+    (claudeStatus.exists && claudeStatus.hasUserContent) ||
+    (geminiStatus.exists && geminiStatus.hasUserContent);
+
   const result = await dialog.showMessageBox(mainWindow, {
-    type: existingFiles.length > 0 ? 'warning' : 'question',
+    type: hasWarnings ? 'warning' : 'question',
     buttons: ['Cancel', 'Initialize'],
     defaultId: 0,
     cancelId: 0,
@@ -161,80 +111,15 @@ async function showInitializeConfirmation(projectPath) {
 
 /**
  * Initialize a project as SubFrame project
+ * Delegates to the shared projectInit module, then updates workspace state.
  */
 function initializeFrameProject(projectPath, projectName) {
-  const name = projectName || path.basename(projectPath);
-  const frameDirPath = path.join(projectPath, FRAME_DIR);
+  const result = initializeProject(projectPath, { name: projectName });
 
-  // Create .subframe directory
-  if (!fs.existsSync(frameDirPath)) {
-    fs.mkdirSync(frameDirPath, { recursive: true });
-  }
-
-  // Create .subframe/config.json
-  const config = templates.getFrameConfigTemplate(name);
-  fs.writeFileSync(
-    path.join(frameDirPath, FRAME_CONFIG_FILE),
-    JSON.stringify(config, null, 2),
-    'utf8'
-  );
-
-  // Create root-level SubFrame files (only if they don't exist)
-
-  // AGENTS.md - Main instructions file for AI assistants
-  createFileIfNotExists(
-    path.join(projectPath, FRAME_FILES.AGENTS),
-    templates.getAgentsTemplate(name)
-  );
-
-  // CLAUDE.md - Symlink to AGENTS.md for Claude Code compatibility
-  createSymlinkSafe(
-    FRAME_FILES.AGENTS,
-    path.join(projectPath, FRAME_FILES.CLAUDE_SYMLINK)
-  );
-
-  // GEMINI.md - Symlink to AGENTS.md for Gemini CLI compatibility
-  createSymlinkSafe(
-    FRAME_FILES.AGENTS,
-    path.join(projectPath, FRAME_FILES.GEMINI_SYMLINK)
-  );
-
-  createFileIfNotExists(
-    path.join(projectPath, FRAME_FILES.STRUCTURE),
-    templates.getStructureTemplate(name)
-  );
-
-  createFileIfNotExists(
-    path.join(projectPath, FRAME_FILES.NOTES),
-    templates.getNotesTemplate(name)
-  );
-
-  createFileIfNotExists(
-    path.join(projectPath, FRAME_FILES.TASKS),
-    templates.getTasksTemplate(name)
-  );
-
-  createFileIfNotExists(
-    path.join(projectPath, FRAME_FILES.QUICKSTART),
-    templates.getQuickstartTemplate(name)
-  );
-
-  // Create .subframe/bin directory for AI tool wrappers
-  const binDirPath = path.join(frameDirPath, FRAME_BIN_DIR);
-  if (!fs.existsSync(binDirPath)) {
-    fs.mkdirSync(binDirPath, { recursive: true });
-  }
-
-  // Create Codex CLI wrapper script
-  const codexWrapperPath = path.join(binDirPath, 'codex');
-  if (!fs.existsSync(codexWrapperPath)) {
-    fs.writeFileSync(codexWrapperPath, templates.getCodexWrapperTemplate(), { mode: 0o755 });
-  }
-
-  // Update workspace to mark as SubFrame project
+  // Update workspace to mark as SubFrame project (Electron-only concern)
   workspace.updateProjectFrameStatus(projectPath, true);
 
-  return config;
+  return result.config;
 }
 
 /**

@@ -96,24 +96,45 @@ function createProjectItem(project, index) {
   name.title = project.path;
   item.appendChild(name);
 
-  // Frame badge
+  // SubFrame badge
   if (project.isFrameProject) {
     const badge = document.createElement('span');
     badge.className = 'frame-badge';
-    badge.textContent = 'Frame';
+    badge.textContent = 'SubFrame';
     item.appendChild(badge);
   }
 
-  // Remove button (visible on hover)
-  const removeBtn = document.createElement('button');
-  removeBtn.className = 'project-remove-btn';
-  removeBtn.title = 'Remove from list';
-  removeBtn.innerHTML = '&times;';
-  removeBtn.addEventListener('click', (e) => {
-    e.stopPropagation(); // Prevent project selection
-    confirmRemoveProject(project.path, project.name);
-  });
-  item.appendChild(removeBtn);
+  // Auto badge for scanned projects
+  if (project.source === 'scanned') {
+    const autoBadge = document.createElement('span');
+    autoBadge.className = 'frame-badge auto-badge';
+    autoBadge.textContent = 'Auto';
+    item.appendChild(autoBadge);
+  }
+
+  if (project.source === 'scanned') {
+    // "Add to workspace" button for scanned projects
+    const addBtn = document.createElement('button');
+    addBtn.className = 'project-add-btn';
+    addBtn.title = 'Add to workspace';
+    addBtn.innerHTML = '+';
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addProject(project.path, project.name, project.isFrameProject);
+    });
+    item.appendChild(addBtn);
+  } else {
+    // Remove button for manual projects (visible on hover)
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'project-remove-btn';
+    removeBtn.title = 'Remove from list';
+    removeBtn.innerHTML = '&times;';
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      confirmRemoveProject(project.path, project.name);
+    });
+    item.appendChild(removeBtn);
+  }
 
   // Click handler
   item.addEventListener('click', () => {
@@ -280,45 +301,64 @@ function _showContextMenu(x, y, itemElement) {
   const project = projects.find(p => p.path === projectPath);
   if (!project) return;
 
-  // Rename option
-  const renameItem = document.createElement('div');
-  renameItem.className = 'project-context-menu-item';
-  renameItem.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-    </svg>
-    Rename
-  `;
-  renameItem.addEventListener('click', (e) => {
-    e.stopPropagation();
-    _startRename(itemElement);
-    _hideContextMenu();
-  });
+  if (project.source === 'scanned') {
+    // "Add to workspace" option for scanned projects
+    const addItem = document.createElement('div');
+    addItem.className = 'project-context-menu-item';
+    addItem.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      Add to workspace
+    `;
+    addItem.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addProject(project.path, project.name, project.isFrameProject);
+      _hideContextMenu();
+    });
+    contextMenu.appendChild(addItem);
+  } else {
+    // Rename option
+    const renameItem = document.createElement('div');
+    renameItem.className = 'project-context-menu-item';
+    renameItem.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>
+      Rename
+    `;
+    renameItem.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _startRename(itemElement);
+      _hideContextMenu();
+    });
 
-  // Divider
-  const divider = document.createElement('div');
-  divider.className = 'project-context-menu-divider';
+    // Divider
+    const divider = document.createElement('div');
+    divider.className = 'project-context-menu-divider';
 
-  // Remove option
-  const removeItem = document.createElement('div');
-  removeItem.className = 'project-context-menu-item';
-  removeItem.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="18" y1="6" x2="6" y2="18"></line>
-      <line x1="6" y1="6" x2="18" y2="18"></line>
-    </svg>
-    Remove
-  `;
-  removeItem.addEventListener('click', (e) => {
-    e.stopPropagation();
-    confirmRemoveProject(project.path, project.name);
-    _hideContextMenu();
-  });
+    // Remove option
+    const removeItem = document.createElement('div');
+    removeItem.className = 'project-context-menu-item';
+    removeItem.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+      Remove
+    `;
+    removeItem.addEventListener('click', (e) => {
+      e.stopPropagation();
+      confirmRemoveProject(project.path, project.name);
+      _hideContextMenu();
+    });
 
-  contextMenu.appendChild(renameItem);
-  contextMenu.appendChild(divider);
-  contextMenu.appendChild(removeItem);
+    contextMenu.appendChild(renameItem);
+    contextMenu.appendChild(divider);
+    contextMenu.appendChild(removeItem);
+  }
 
   // Position and show
   contextMenu.style.left = `${x}px`;
@@ -349,7 +389,7 @@ function _hideContextMenu() {
  */
 function confirmRemoveProject(projectPath, projectName) {
   const confirmed = window.confirm(
-    `Remove "${projectName}" from the project list?\n\nThis will only remove it from Frame's list. The project files will not be deleted.`
+    `Remove "${projectName}" from the project list?\n\nThis will only remove it from SubFrame's list. The project files will not be deleted.`
   );
 
   if (confirmed) {

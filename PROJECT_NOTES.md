@@ -373,21 +373,33 @@ mainWindow.webContents.openDevTools();
 - [x] Grid cell resize
 - [x] Terminal rename
 - [x] File editor overlay
+- [x] Resizable sidebar
+- [x] Settings panel
+- [x] Git integration (branches panel)
+- [x] Project renaming
+- [x] Custom AI tool start command
+- [x] Cross-platform Windows support
+- [x] Terminal scroll-to-bottom button
+- [x] Tasks panel with real-time updates
+- [x] Plugins panel
+- [x] Claude sessions panel
+- [x] Overview dashboard
+- [x] Automated Windows dev setup (DEV_SETUP.bat)
 
-### Next Steps
-- [ ] File click → cat command
-- [ ] File tree refresh
+### Short-term
 - [ ] Search in files
-- [ ] Resizable sidebar
-- [ ] Git integration
-- [ ] Settings panel
+- [ ] Theme customization
+
+### Medium-term
+- [ ] Full Claude chat sidebar
+- [ ] Extensions/plugins
+- [ ] Remote development (SSH)
 
 ### Future Vision
-- Project dashboard with cards
 - Auto-documentation (SESSION_LOG.md, DECISIONS.md)
 - Claude API integration for context optimization
 - Session timeline view
-- **SubFrame Server (Web App mode)** - Run SubFrame on headless server, access via browser (like code-server)
+- **SubFrame Server (Web App mode)** — Run SubFrame on headless server, access via browser (like code-server)
 
 ---
 
@@ -412,12 +424,31 @@ mainWindow.webContents.openDevTools();
 ---
 
 **Project Start:** 2026-01-21
-**Last Updated:** 2026-01-30
-**Status:** SubFrame System + Task Management + GitHub Panel Complete
+**Last Updated:** 2026-02-28
+**Status:** SubFrame rebrand complete — Sessions panel, Gemini CLI, overview dashboard shipped
 
 ---
 
 ## Session Notes
+
+### [2026-02-28] CLAUDE.md Rearchitecture — From Symlinks to Independent Files with Backlink Injection
+
+**Context:** The original init flow created `CLAUDE.md` and `GEMINI.md` as symlinks pointing to `AGENTS.md`. This caused problems: symlinks require elevated permissions on Windows, users couldn't add their own tool-specific instructions to CLAUDE.md without editing the shared AGENTS.md, and it conflicted with the philosophy that native AI files belong to the user.
+
+**Decision:** Replace the symlink approach with independent native files that contain a small backlink reference to AGENTS.md. The backlink is wrapped in HTML comment markers (`<!-- SUBFRAME:BEGIN -->` / `<!-- SUBFRAME:END -->`) so SubFrame can manage its own section without touching user content.
+
+**What changed:**
+- `frameProject.js` init flow now creates real CLAUDE.md and GEMINI.md files (not symlinks) with a backlink block referencing AGENTS.md
+- `backlinkUtils.js` added — shared utilities for injecting/removing/detecting the backlink block
+- `aiFilesManager.js` added — IPC handlers for backlink injection, removal, symlink migration, and file status checks
+- `aiFilesPanel.js` added — renderer UI showing status of CLAUDE.md/GEMINI.md with action buttons (inject, remove, create, migrate)
+- Existing symlinks are detected and can be migrated to real files via the UI
+- `config.json` template updated: `claudeSymlink` key renamed to `claude`
+- All documentation updated to replace "symlink" language with "backlink reference"
+
+**Design philosophy established:** "Enhance, not replace." SubFrame builds on top of native AI tools — it never takes over their files or conflicts with their features. CLAUDE.md and GEMINI.md are user-owned. SubFrame only injects a small reference. When native tools add new features, SubFrame supports and integrates.
+
+---
 
 ### [2026-01-25] Project Navigation System
 
@@ -617,12 +648,12 @@ xterm.js (same)                 xterm.js (same)
 **Architectural decision — Symlink vs Wrapper:**
 - Codex CLI required a **wrapper script** (no native file reading support, AGENTS.md is injected via `.subframe/bin/codex`)
 - Gemini CLI reads `GEMINI.md` **natively** (just like Claude Code reads CLAUDE.md)
-- Therefore no wrapper script was needed for Gemini — we used the same **symlink approach** as CLAUDE.md: `GEMINI.md → AGENTS.md`
+- Originally used symlinks (`GEMINI.md → AGENTS.md`), later rearchitected to independent files with backlink injection (see [2026-02-28] session note)
 
 **Files changed:**
-- `src/shared/frameConstants.js` - Added `GEMINI_SYMLINK: 'GEMINI.md'`
+- `src/shared/frameConstants.js` - Added `GEMINI_SYMLINK: 'GEMINI.md'` (later renamed to GEMINI constant)
 - `src/main/aiToolManager.js` - Added Gemini CLI tool definition (commands: `/init`, `/model`, `/memory`, `/compress`, `/settings`, `/help`)
-- `src/main/frameProject.js` - Creates `GEMINI.md → AGENTS.md` symlink on SubFrame init
+- `src/main/frameProject.js` - Creates `GEMINI.md` on SubFrame init (originally symlink, now independent file with backlink)
 - `src/main/menu.js` - Added Gemini-specific menu commands: Memory, Compress Context, Settings
 - `README.md` - Updated to include Gemini CLI support
 

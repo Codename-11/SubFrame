@@ -27,6 +27,8 @@ const gitBranchesManager = require('./gitBranchesManager');
 const aiToolManager = require('./aiToolManager');
 const claudeSessionsManager = require('./claudeSessionsManager');
 const settingsManager = require('./settingsManager');
+const aiFilesManager = require('./aiFilesManager');
+const { getLogoSVG, LOGO_COLORS } = require('../shared/logoSVG');
 
 let mainWindow = null;
 let splashWindow = null;
@@ -68,26 +70,24 @@ function saveWindowState() {
  * Uses a data URL with inline HTML/CSS — no file I/O, no network, no blocking.
  */
 function createSplash(bounds, isMaximized) {
+  const logoSVG = getLogoSVG({ size: 140, id: 'sp', frame: true });
   const splashHTML = `
     <html><head><style>
       html, body { margin: 0; height: 100%; background: #0f0f10; display: flex;
         align-items: center; justify-content: center; overflow: hidden; }
       .c { display: flex; flex-direction: column; align-items: center; gap: 24px; }
-      .logo { display: flex; align-items: center; gap: 10px; }
-      .dot { width: 10px; height: 10px; background: #d4a574; border-radius: 3px;
-        box-shadow: 0 0 16px rgba(212,165,116,0.5);
-        animation: p 1.8s ease-in-out infinite; }
       .t { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        font-size: 18px; font-weight: 600; color: #e8e6e3; letter-spacing: -0.3px; }
+        font-size: 20px; font-weight: 600; color: #e8e6e3; letter-spacing: -0.3px; }
       .bar { width: 120px; height: 3px; background: rgba(255,255,255,0.06);
         border-radius: 2px; overflow: hidden; }
-      .fill { height: 100%; width: 40%; background: #d4a574; border-radius: 2px;
+      .fill { height: 100%; width: 40%; border-radius: 2px;
+        background: ${LOGO_COLORS.gradientCSS};
         animation: s 1.2s ease-in-out infinite; }
-      @keyframes p { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.85)} }
       @keyframes s { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }
     </style></head><body>
       <div class="c">
-        <div class="logo"><div class="dot"></div><span class="t">SubFrame</span></div>
+        ${logoSVG}
+        <span class="t">SubFrame</span>
         <div class="bar"><div class="fill"></div></div>
       </div>
     </body></html>`;
@@ -225,6 +225,7 @@ function setupAllIPC() {
   overviewManager.setupIPC(ipcMain);
   gitBranchesManager.setupIPC(ipcMain);
   claudeSessionsManager.setupIPC(ipcMain);
+  aiFilesManager.setupIPC(ipcMain);
 
   // Terminal input handler (needs prompt logger integration)
   ipcMain.on(IPC.TERMINAL_INPUT, (event, data) => {
@@ -248,7 +249,7 @@ function init() {
  * Initialize modules that need window reference
  */
 function initModulesWithWindow(window) {
-  workspace.init(app, window);
+  workspace.init(app, window, settingsManager);
   frameProject.init(window);
   fileEditor.init(window);
   tasksManager.init(window);
@@ -258,11 +259,12 @@ function initModulesWithWindow(window) {
   overviewManager.init(window);
   gitBranchesManager.init(window);
   claudeSessionsManager.init(window);
+  aiFilesManager.init(window);
 }
 
 // App lifecycle
 app.whenReady().then(() => {
-  // macOS'ta menü bar'da "Frame" görünsün
+  // macOS'ta menü bar'da "SubFrame" görünsün
   app.setName('SubFrame');
 
   init();

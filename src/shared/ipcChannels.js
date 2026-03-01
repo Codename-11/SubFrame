@@ -36,7 +36,11 @@ const IPC = {
   REMOVE_PROJECT_FROM_WORKSPACE: 'remove-project-from-workspace',
   RENAME_PROJECT: 'rename-project',
 
-  // Frame Project
+  // Default Project Directory
+  SCAN_PROJECT_DIR: 'scan-project-dir',
+  SELECT_DEFAULT_PROJECT_DIR: 'select-default-project-dir',
+
+  // SubFrame Project
   INITIALIZE_FRAME_PROJECT: 'initialize-frame-project',
   FRAME_PROJECT_INITIALIZED: 'frame-project-initialized',
   CHECK_IS_FRAME_PROJECT: 'check-is-frame-project',
@@ -121,7 +125,26 @@ const IPC = {
   LOAD_SETTINGS: 'load-settings',
   SETTINGS_DATA: 'settings-data',
   UPDATE_SETTING: 'update-setting',
-  SETTINGS_UPDATED: 'settings-updated'
+  SETTINGS_UPDATED: 'settings-updated',
+
+  // AI Files Management
+  GET_AI_FILES_STATUS: 'get-ai-files-status',
+  AI_FILES_STATUS_DATA: 'ai-files-status-data',
+  INJECT_BACKLINK: 'inject-backlink',
+  REMOVE_BACKLINK: 'remove-backlink',
+  CREATE_NATIVE_FILE: 'create-native-file',
+  MIGRATE_SYMLINK: 'migrate-symlink',
+  AI_FILE_UPDATED: 'ai-file-updated',
+  VERIFY_BACKLINKS: 'verify-backlinks',
+  BACKLINK_VERIFICATION_RESULT: 'backlink-verification-result',
+
+  // Backlink Customization
+  GET_BACKLINK_CONFIG: 'get-backlink-config',
+  BACKLINK_CONFIG_DATA: 'backlink-config-data',
+  SAVE_BACKLINK_CONFIG: 'save-backlink-config',
+  BACKLINK_CONFIG_SAVED: 'backlink-config-saved',
+  UPDATE_ALL_BACKLINKS: 'update-all-backlinks',
+  ALL_BACKLINKS_UPDATED: 'all-backlinks-updated'
 };
 
 module.exports = { IPC };

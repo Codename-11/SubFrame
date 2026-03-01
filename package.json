@@ -5,7 +5,7 @@
   "description": "SubFrame - Project Management IDE for Claude Code",
   "main": "src/main/index.js",
   "scripts": {
-    "postinstall": "electron-rebuild",
+    "postinstall": "electron-builder install-app-deps",
     "build": "esbuild src/renderer/index.js --bundle --outfile=dist/renderer.js --platform=node --external:electron",
     "watch": "esbuild src/renderer/index.js --bundle --outfile=dist/renderer.js --platform=node --external:electron --watch",
     "start": "npm run build && electron .",
@@ -15,9 +15,11 @@
     "find-module": "node scripts/find-module.js",
     "prepare": "git config core.hooksPath .githooks || true",
     "dist": "npm run build && electron-builder --dir",
-    "dist:win": "npm run build && electron-builder --win",
+    "dist:win": "node scripts/dist-win.js",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:mac:unsigned": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac"
+    "dist:mac:unsigned": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
+    "generate-icons": "node scripts/generate-icons.js",
+    "init": "node scripts/init.js"
   },
   "keywords": [
     "electron",
@@ -30,7 +32,6 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@electron/rebuild": "^3.6.0",
     "electron": "^28.0.0",
     "electron-builder": "^26.7.0",
     "esbuild": "^0.27.2"
@@ -43,16 +44,19 @@
   "build": {
     "appId": "com.subframe.ide",
     "productName": "SubFrame",
+    "npmRebuild": false,
+    "icon": "assets/icon.png",
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": ["dmg"],
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "identity": null
+      "identity": null,
+      "icon": "assets/icon.png"
     },
     "win": {
       "target": ["nsis"],
-      "icon": null
+      "icon": "assets/icon.ico"
     },
     "dmg": {
       "title": "${productName} ${version}",
@@ -68,6 +72,8 @@
       "index.html",
       "src/**/*",
       "dist/**/*",
+      "assets/icon.*",
+      "assets/icon-*.png",
       "node_modules/**/*",
       "!node_modules/**/*.md",
       "!node_modules/**/test/**",

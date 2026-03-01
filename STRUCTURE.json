@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "Claude Code IDE - Module structure and IPC communication map",
-  "lastUpdated": "2026-02-26",
+  "lastUpdated": "2026-03-01",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.js",
@@ -10,7 +10,7 @@
   },
   "modules": {
     "main/index": {
-      "file": "src/main/index.js",
+      "file": "src\\main\\index.js",
       "description": "Main Process Entry Point",
       "exports": [
         "createWindow"
@@ -18,6 +18,7 @@
       "depends": [
         "electron",
         "path",
+        "fs",
         "shared/ipcChannels",
         "pty",
         "ptyManager",
@@ -35,23 +36,46 @@
         "overviewManager",
         "gitBranchesManager",
         "aiToolManager",
-        "claudeSessionsManager"
+        "claudeSessionsManager",
+        "settingsManager",
+        "aiFilesManager",
+        "shared/logoSVG"
       ],
       "functions": {
+        "getWindowStatePath": {
+          "line": 39,
+          "purpose": "Get path for persisted window state"
+        },
+        "loadWindowState": {
+          "line": 46,
+          "purpose": "Load saved window state (bounds + maximized)"
+        },
+        "saveWindowState": {
+          "line": 58,
+          "purpose": "Save current window state"
+        },
+        "createSplash": {
+          "line": 72,
+          "params": [
+            "bounds",
+            "isMaximized"
+          ],
+          "purpose": "Uses a data URL with inline HTML/CSS — no file I/O, no network, no blocking."
+        },
         "createWindow": {
-          "line": 34,
+          "line": 119,
           "purpose": "Create main application window"
         },
         "setupAllIPC": {
-          "line": 78,
+          "line": 211,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 106,
+          "line": 240,
           "purpose": "Initialize application"
         },
         "initModulesWithWindow": {
-          "line": 117,
+          "line": 251,
           "params": [
             "window"
           ],
@@ -66,7 +90,7 @@
       }
     },
     "main/pty": {
-      "file": "src/main/pty.js",
+      "file": "src\\main\\pty.js",
       "description": "PTY Management Module",
       "exports": [
         "init",
@@ -157,7 +181,7 @@
       }
     },
     "main/menu": {
-      "file": "src/main/menu.js",
+      "file": "src\\main\\menu.js",
       "description": "Application Menu Module",
       "exports": [
         "init",
@@ -224,7 +248,7 @@
       }
     },
     "main/dialogs": {
-      "file": "src/main/dialogs.js",
+      "file": "src\\main\\dialogs.js",
       "description": "Dialogs Module",
       "exports": [
         "init",
@@ -259,8 +283,12 @@
           ],
           "purpose": "Show new project dialog"
         },
-        "setupIPC": {
+        "showDefaultProjectDirPicker": {
           "line": 70,
+          "purpose": "Show default project directory picker"
+        },
+        "setupIPC": {
+          "line": 85,
           "params": [
             "ipcMain"
           ],
@@ -270,7 +298,8 @@
       "ipc": {
         "listens": [
           "SELECT_PROJECT_FOLDER",
-          "CREATE_NEW_PROJECT"
+          "CREATE_NEW_PROJECT",
+          "SELECT_DEFAULT_PROJECT_DIR"
         ],
         "emits": [
           "PROJECT_SELECTED"
@@ -278,7 +307,7 @@
       }
     },
     "main/fileTree": {
-      "file": "src/main/fileTree.js",
+      "file": "src\\main\\fileTree.js",
       "description": "File Tree Module",
       "exports": [
         "getFileTree",
@@ -316,7 +345,7 @@
       }
     },
     "main/promptLogger": {
-      "file": "src/main/promptLogger.js",
+      "file": "src\\main\\promptLogger.js",
       "description": "Prompt Logger Module",
       "exports": [
         "init",
@@ -371,7 +400,7 @@
       }
     },
     "main/tasksManager": {
-      "file": "src/main/tasksManager.js",
+      "file": "src\\main\\tasksManager.js",
       "description": "Tasks Manager Module",
       "exports": [
         "init",
@@ -381,6 +410,8 @@
         "addTask",
         "updateTask",
         "deleteTask",
+        "watchTasksFile",
+        "unwatchTasksFile",
         "setupIPC"
       ],
       "depends": [
@@ -391,35 +422,35 @@
       ],
       "functions": {
         "init": {
-          "line": 17,
+          "line": 19,
           "params": [
             "window"
           ],
           "purpose": "Initialize tasks manager"
         },
         "setProjectPath": {
-          "line": 24,
+          "line": 26,
           "params": [
             "projectPath"
           ],
           "purpose": "Set current project path"
         },
         "getTasksFilePath": {
-          "line": 31,
+          "line": 33,
           "params": [
             "projectPath"
           ],
           "purpose": "Get tasks file path for a project"
         },
         "loadTasks": {
-          "line": 38,
+          "line": 40,
           "params": [
             "projectPath"
           ],
           "purpose": "Load tasks from project"
         },
         "saveTasks": {
-          "line": 56,
+          "line": 60,
           "params": [
             "projectPath",
             "tasksData"
@@ -427,11 +458,11 @@
           "purpose": "Save tasks to project"
         },
         "generateTaskId": {
-          "line": 72,
+          "line": 76,
           "purpose": "Generate unique task ID"
         },
         "addTask": {
-          "line": 79,
+          "line": 83,
           "params": [
             "projectPath",
             "task"
@@ -439,7 +470,7 @@
           "purpose": "Add a new task"
         },
         "updateTask": {
-          "line": 108,
+          "line": 112,
           "params": [
             "projectPath",
             "taskId",
@@ -448,15 +479,26 @@
           "purpose": "Update an existing task"
         },
         "deleteTask": {
-          "line": 157,
+          "line": 161,
           "params": [
             "projectPath",
             "taskId"
           ],
           "purpose": "Delete a task"
         },
+        "watchTasksFile": {
+          "line": 180,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Start watching tasks file for external changes"
+        },
+        "unwatchTasksFile": {
+          "line": 207,
+          "purpose": "Stop watching tasks file"
+        },
         "setupIPC": {
-          "line": 176,
+          "line": 218,
           "params": [
             "ipcMain"
           ],
@@ -466,6 +508,8 @@
       "ipc": {
         "listens": [
           "LOAD_TASKS",
+          "WATCH_TASKS",
+          "UNWATCH_TASKS",
           "ADD_TASK",
           "UPDATE_TASK",
           "DELETE_TASK"
@@ -477,8 +521,8 @@
       }
     },
     "main/frameProject": {
-      "file": "src/main/frameProject.js",
-      "description": "Frame Project Module",
+      "file": "src\\main\\frameProject.js",
+      "description": "SubFrame Project Module",
       "exports": [
         "init",
         "isFrameProject",
@@ -492,71 +536,49 @@
         "electron",
         "shared/ipcChannels",
         "shared/frameConstants",
-        "shared/frameTemplates",
-        "workspace"
+        "workspace",
+        "shared/projectInit",
+        "shared/backlinkUtils"
       ],
       "functions": {
         "init": {
-          "line": 19,
+          "line": 20,
           "params": [
             "window"
           ],
           "purpose": "Initialize frame project module"
         },
         "isFrameProject": {
-          "line": 26,
+          "line": 27,
           "params": [
             "projectPath"
           ],
-          "purpose": "Check if a project is a Frame project"
+          "purpose": "Check if a project is a SubFrame project"
         },
         "getFrameConfig": {
-          "line": 34,
+          "line": 35,
           "params": [
             "projectPath"
           ],
-          "purpose": "Get Frame config from project"
-        },
-        "createFileIfNotExists": {
-          "line": 47,
-          "params": [
-            "filePath",
-            "content"
-          ],
-          "purpose": "Create file if it doesn't exist"
-        },
-        "createSymlinkSafe": {
-          "line": 64,
-          "params": [
-            "target",
-            "linkPath"
-          ],
-          "purpose": "Create a symlink safely with Windows fallback"
-        },
-        "checkExistingFrameFiles": {
-          "line": 105,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Check which Frame files already exist in the project"
+          "purpose": "Get SubFrame config from project"
         },
         "showInitializeConfirmation": {
-          "line": 129,
+          "line": 51,
           "params": [
             "projectPath"
           ],
-          "purpose": "Show confirmation dialog before initializing Frame project"
+          "purpose": "or when .claude/ directory is present."
         },
         "initializeFrameProject": {
-          "line": 165,
+          "line": 116,
           "params": [
             "projectPath",
             "projectName"
           ],
-          "purpose": "Initialize a project as Frame project"
+          "purpose": "Delegates to the shared projectInit module, then updates workspace state."
         },
         "setupIPC": {
-          "line": 243,
+          "line": 128,
           "params": [
             "ipcMain"
           ],
@@ -622,14 +644,17 @@
       }
     },
     "main/workspace": {
-      "file": "src/main/workspace.js",
+      "file": "src\\main\\workspace.js",
       "description": "Workspace Module",
       "exports": [
         "init",
         "loadWorkspace",
         "getProjects",
+        "getProjectsWithScanned",
+        "scanProjectDir",
         "addProject",
         "removeProject",
+        "renameProject",
         "updateProjectLastOpened",
         "updateProjectFrameStatus",
         "setupIPC"
@@ -643,38 +668,39 @@
       ],
       "functions": {
         "init": {
-          "line": 19,
+          "line": 20,
           "params": [
             "app",
-            "window"
+            "window",
+            "settings"
           ],
           "purpose": "Initialize workspace module"
         },
         "ensureWorkspaceDir": {
-          "line": 29,
+          "line": 31,
           "purpose": "Ensure workspace directory and file exist"
         },
         "createDefaultWorkspace": {
-          "line": 42,
+          "line": 44,
           "purpose": "Create default workspace structure"
         },
         "loadWorkspace": {
-          "line": 59,
+          "line": 61,
           "purpose": "Load workspace from file"
         },
         "saveWorkspace": {
-          "line": 72,
+          "line": 74,
           "params": [
             "data"
           ],
           "purpose": "Save workspace to file"
         },
         "getProjects": {
-          "line": 83,
+          "line": 85,
           "purpose": "Get projects from active workspace"
         },
         "addProject": {
-          "line": 92,
+          "line": 94,
           "params": [
             "projectPath",
             "name",
@@ -683,29 +709,48 @@
           "purpose": "Add project to workspace"
         },
         "removeProject": {
-          "line": 117,
+          "line": 119,
           "params": [
             "projectPath"
           ],
           "purpose": "Remove project from workspace"
         },
         "updateProjectLastOpened": {
-          "line": 130,
+          "line": 132,
           "params": [
             "projectPath"
           ],
           "purpose": "Update project's last opened timestamp"
         },
+        "renameProject": {
+          "line": 148,
+          "params": [
+            "projectPath",
+            "newName"
+          ],
+          "purpose": "Rename a project in the workspace"
+        },
+        "scanProjectDir": {
+          "line": 169,
+          "params": [
+            "dirPath"
+          ],
+          "purpose": "Returns array of { path, name, isFrameProject, source: 'scanned' }"
+        },
+        "getProjectsWithScanned": {
+          "line": 202,
+          "purpose": "Manual projects take priority over scanned duplicates"
+        },
         "updateProjectFrameStatus": {
-          "line": 146,
+          "line": 226,
           "params": [
             "projectPath",
             "isFrame"
           ],
-          "purpose": "Update project's Frame status"
+          "purpose": "Update project's SubFrame status"
         },
         "setupIPC": {
-          "line": 162,
+          "line": 242,
           "params": [
             "ipcMain"
           ],
@@ -716,7 +761,9 @@
         "listens": [
           "LOAD_WORKSPACE",
           "ADD_PROJECT_TO_WORKSPACE",
-          "REMOVE_PROJECT_FROM_WORKSPACE"
+          "REMOVE_PROJECT_FROM_WORKSPACE",
+          "RENAME_PROJECT",
+          "SCAN_PROJECT_DIR"
         ],
         "emits": [
           "WORKSPACE_DATA",
@@ -725,7 +772,7 @@
       }
     },
     "renderer/index": {
-      "file": "src/renderer/index.js",
+      "file": "src\\renderer\\index.js",
       "description": "Renderer Entry Point",
       "exports": [],
       "depends": [
@@ -739,25 +786,32 @@
         "projectListUI",
         "editor",
         "sidebarResize",
-        "aiToolSelector"
+        "aiToolSelector",
+        "settingsPanel",
+        "aiFilesPanel",
+        "shared/logoSVG"
       ],
       "functions": {
-        "init": {
-          "line": 21,
-          "purpose": "Initialize all modules"
+        "initCritical": {
+          "line": 24,
+          "purpose": "Initialize critical-path modules (visible UI, layout, interaction)"
+        },
+        "initDeferred": {
+          "line": 85,
+          "purpose": "Runs after the first paint so it doesn't block the UI."
         },
         "setupButtonHandlers": {
-          "line": 132,
+          "line": 149,
           "purpose": "Setup button click handlers"
         },
         "setupKeyboardShortcuts": {
-          "line": 199,
+          "line": 229,
           "purpose": "Setup keyboard shortcuts"
         }
       }
     },
     "renderer/terminal": {
-      "file": "src/renderer/terminal.js",
+      "file": "src\\renderer\\terminal.js",
       "description": "Terminal UI Module",
       "exports": [
         "initTerminal",
@@ -845,7 +899,7 @@
       }
     },
     "renderer/fileTreeUI": {
-      "file": "src/renderer/fileTreeUI.js",
+      "file": "src\\renderer\\fileTreeUI.js",
       "description": "File Tree UI Module",
       "exports": [
         "init",
@@ -947,7 +1001,7 @@
       }
     },
     "renderer/historyPanel": {
-      "file": "src/renderer/historyPanel.js",
+      "file": "src\\renderer\\historyPanel.js",
       "description": "History Panel Module",
       "exports": [
         "init",
@@ -1014,7 +1068,7 @@
       }
     },
     "renderer/state": {
-      "file": "src/renderer/state.js",
+      "file": "src\\renderer\\state.js",
       "description": "Application State Module",
       "exports": [
         "init",
@@ -1070,52 +1124,52 @@
         },
         "getIsFrameProject": {
           "line": 87,
-          "purpose": "Get Frame project status"
+          "purpose": "Get SubFrame project status"
         },
         "setIsFrameProject": {
           "line": 94,
           "params": [
             "isFrame"
           ],
-          "purpose": "Set Frame project status"
+          "purpose": "Set SubFrame project status"
         },
         "onFrameStatusChange": {
           "line": 105,
           "params": [
             "callback"
           ],
-          "purpose": "Register callback for Frame status change"
+          "purpose": "Register callback for SubFrame status change"
         },
         "onFrameInitialized": {
           "line": 112,
           "params": [
             "callback"
           ],
-          "purpose": "Register callback for Frame project initialized"
+          "purpose": "Register callback for SubFrame project initialized"
         },
         "updateFrameUI": {
           "line": 119,
-          "purpose": "Update Frame-related UI"
+          "purpose": "Update SubFrame-related UI"
         },
         "initializeAsFrameProject": {
           "line": 134,
-          "purpose": "Initialize current project as Frame project"
+          "purpose": "Initialize current project as SubFrame project"
         },
         "showInitializeFrameModal": {
           "line": 143,
-          "purpose": "Show custom initialize Frame modal"
+          "purpose": "Show custom initialize SubFrame modal"
         },
         "hideInitializeFrameModal": {
           "line": 153,
-          "purpose": "Hide initialize Frame modal"
+          "purpose": "Hide initialize SubFrame modal"
         },
         "handleInitializeFrame": {
           "line": 163,
-          "purpose": "Handle initialize Frame confirmation"
+          "purpose": "Handle initialize SubFrame confirmation"
         },
         "setupInitFrameModalListeners": {
           "line": 178,
-          "purpose": "Setup initialize Frame modal listeners"
+          "purpose": "Setup initialize SubFrame modal listeners"
         },
         "showInitSpotlight": {
           "line": 204,
@@ -1161,7 +1215,7 @@
       }
     },
     "renderer/tasksPanel": {
-      "file": "src/renderer/tasksPanel.js",
+      "file": "src\\renderer\\tasksPanel.js",
       "description": "Tasks Panel Module",
       "exports": [
         "init",
@@ -1188,49 +1242,49 @@
           "purpose": "Setup event listeners"
         },
         "setupIPCListeners": {
-          "line": 70,
+          "line": 79,
           "purpose": "Setup IPC listeners"
         },
         "loadTasks": {
-          "line": 92,
+          "line": 101,
           "purpose": "Load tasks for current project"
         },
         "show": {
-          "line": 102,
+          "line": 111,
           "purpose": "Show tasks panel"
         },
         "hide": {
-          "line": 113,
+          "line": 122,
           "purpose": "Hide tasks panel"
         },
         "toggle": {
-          "line": 123,
+          "line": 132,
           "purpose": "Toggle tasks panel visibility"
         },
         "setFilter": {
-          "line": 134,
+          "line": 143,
           "params": [
             "filter"
           ],
           "purpose": "Set filter"
         },
         "getFilteredTasks": {
-          "line": 148,
+          "line": 157,
           "purpose": "Get filtered tasks"
         },
         "render": {
-          "line": 173,
+          "line": 182,
           "purpose": "Render tasks list"
         },
         "renderTaskItem": {
-          "line": 219,
+          "line": 228,
           "params": [
             "task"
           ],
           "purpose": "Render single task item"
         },
         "handleTaskAction": {
-          "line": 296,
+          "line": 305,
           "params": [
             "taskId",
             "action"
@@ -1238,7 +1292,7 @@
           "purpose": "Handle task action buttons"
         },
         "showToast": {
-          "line": 345,
+          "line": 354,
           "params": [
             "message",
             "type = 'info'"
@@ -1246,79 +1300,79 @@
           "purpose": "Show toast notification"
         },
         "getToastIcon": {
-          "line": 380,
+          "line": 389,
           "params": [
             "type"
           ],
           "purpose": "Get toast icon based on type"
         },
         "sendTaskToClaude": {
-          "line": 394,
+          "line": 403,
           "params": [
             "task"
           ],
           "purpose": "Send task to Claude Code via terminal"
         },
         "setClaudeRunning": {
-          "line": 417,
+          "line": 426,
           "params": [
             "running"
           ],
           "purpose": "Mark Claude Code as running (called from external modules)"
         },
         "isClaudeRunning": {
-          "line": 424,
+          "line": 433,
           "purpose": "Check if Claude Code is marked as running"
         },
         "deleteTask": {
-          "line": 431,
+          "line": 440,
           "params": [
             "taskId"
           ],
           "purpose": "Delete task"
         },
         "showAddTaskModal": {
-          "line": 443,
+          "line": 452,
           "purpose": "Show add task modal"
         },
         "showEditTaskModal": {
-          "line": 462,
+          "line": 471,
           "params": [
             "taskId"
           ],
           "purpose": "Show edit task modal"
         },
         "hideTaskModal": {
-          "line": 488,
+          "line": 497,
           "purpose": "Hide task modal"
         },
         "handleTaskFormSubmit": {
-          "line": 498,
+          "line": 507,
           "params": [
             "e"
           ],
           "purpose": "Handle task form submit"
         },
         "setupModalListeners": {
-          "line": 536,
+          "line": 545,
           "purpose": "Setup modal event listeners"
         },
         "escapeHtml": {
-          "line": 567,
+          "line": 576,
           "params": [
             "text"
           ],
           "purpose": "Escape HTML for safe rendering"
         },
         "formatDate": {
-          "line": 576,
+          "line": 585,
           "params": [
             "isoString"
           ],
           "purpose": "Format date for display"
         },
         "initWhenReady": {
-          "line": 593,
+          "line": 602,
           "purpose": "Initialize when DOM is ready"
         }
       },
@@ -1338,7 +1392,7 @@
       }
     },
     "renderer/editor": {
-      "file": "src/renderer/editor.js",
+      "file": "src\\renderer\\editor.js",
       "description": "File Editor Module",
       "exports": [
         "init",
@@ -1417,7 +1471,7 @@
       }
     },
     "renderer/projectListUI": {
-      "file": "src/renderer/projectListUI.js",
+      "file": "src\\renderer\\projectListUI.js",
       "description": "Project List UI Module",
       "exports": [
         "init",
@@ -1439,7 +1493,7 @@
       ],
       "functions": {
         "init": {
-          "line": 18,
+          "line": 19,
           "params": [
             "containerId",
             "onSelectCallback"
@@ -1447,26 +1501,50 @@
           "purpose": "Initialize project list UI"
         },
         "loadProjects": {
-          "line": 27,
+          "line": 29,
           "purpose": "Load projects from workspace"
         },
         "renderProjects": {
-          "line": 34,
+          "line": 36,
           "params": [
             "projectsList"
           ],
           "purpose": "Render project list"
         },
         "createProjectItem": {
-          "line": 73,
+          "line": 75,
           "params": [
             "project",
             "index"
           ],
           "purpose": "Create a project item element"
         },
+        "_startRename": {
+          "line": 163,
+          "params": [
+            "itemElement"
+          ],
+          "purpose": "Start inline rename on a project item"
+        },
+        "_createContextMenu": {
+          "line": 223,
+          "purpose": "Create the right-click context menu element"
+        },
+        "_showContextMenu": {
+          "line": 296,
+          "params": [
+            "x",
+            "y",
+            "itemElement"
+          ],
+          "purpose": "Show context menu at position for a project item"
+        },
+        "_hideContextMenu": {
+          "line": 381,
+          "purpose": "Hide context menu"
+        },
         "confirmRemoveProject": {
-          "line": 127,
+          "line": 390,
           "params": [
             "projectPath",
             "projectName"
@@ -1474,25 +1552,25 @@
           "purpose": "Show confirmation dialog and remove project"
         },
         "selectProject": {
-          "line": 153,
+          "line": 416,
           "params": [
             "projectPath"
           ],
           "purpose": "Terminal session switching is handled by state.js via multiTerminalUI"
         },
         "setActiveProject": {
-          "line": 164,
+          "line": 427,
           "params": [
             "projectPath"
           ],
           "purpose": "Set active project (visual only)"
         },
         "getActiveProject": {
-          "line": 183,
+          "line": 446,
           "purpose": "Get active project path"
         },
         "addProject": {
-          "line": 190,
+          "line": 453,
           "params": [
             "projectPath",
             "projectName",
@@ -1501,37 +1579,37 @@
           "purpose": "Add project to workspace"
         },
         "removeProject": {
-          "line": 201,
+          "line": 464,
           "params": [
             "projectPath"
           ],
           "purpose": "Remove project from workspace"
         },
         "setupIPC": {
-          "line": 208,
+          "line": 471,
           "purpose": "Setup IPC listeners"
         },
         "selectNextProject": {
-          "line": 221,
+          "line": 484,
           "purpose": "Select next project in list"
         },
         "selectPrevProject": {
-          "line": 232,
+          "line": 495,
           "purpose": "Select previous project in list"
         },
         "focus": {
-          "line": 243,
+          "line": 506,
           "purpose": "Focus project list for keyboard navigation"
         },
         "handleKeydown": {
-          "line": 266,
+          "line": 529,
           "params": [
             "e"
           ],
           "purpose": "Handle keyboard navigation in project list"
         },
         "blur": {
-          "line": 301,
+          "line": 570,
           "purpose": "Blur/unfocus project list"
         }
       },
@@ -1542,18 +1620,21 @@
         ],
         "emits": [
           "LOAD_WORKSPACE",
+          "RENAME_PROJECT",
           "ADD_PROJECT_TO_WORKSPACE",
           "REMOVE_PROJECT_FROM_WORKSPACE"
         ]
       }
     },
     "renderer/multiTerminalUI": {
-      "file": "src/renderer/multiTerminalUI.js",
+      "file": "src\\renderer\\multiTerminalUI.js",
       "description": "Multi-Terminal UI Module",
       "exports": [
         "MultiTerminalUI"
       ],
       "depends": [
+        "electron",
+        "shared/ipcChannels",
         "terminalManager",
         "terminalTabBar",
         "terminalGrid",
@@ -1562,7 +1643,7 @@
       "functions": {}
     },
     "renderer/terminalManager": {
-      "file": "src/renderer/terminalManager.js",
+      "file": "src\\renderer\\terminalManager.js",
       "description": "Terminal Manager Module",
       "exports": [
         "TerminalManager"
@@ -1592,7 +1673,7 @@
       }
     },
     "shared/ipcChannels": {
-      "file": "src/shared/ipcChannels.js",
+      "file": "src\\shared\\ipcChannels.js",
       "description": "IPC Channel Constants",
       "exports": [
         "IPC"
@@ -1601,8 +1682,8 @@
       "functions": {}
     },
     "shared/frameConstants": {
-      "file": "src/shared/frameConstants.js",
-      "description": "Frame Constants",
+      "file": "src\\shared\\frameConstants.js",
+      "description": "SubFrame Constants",
       "exports": [
         "FRAME_DIR",
         "FRAME_CONFIG_FILE",
@@ -1610,25 +1691,23 @@
         "WORKSPACE_FILE",
         "FRAME_FILES",
         "FRAME_BIN_DIR",
+        "GITHOOKS_DIR",
         "FRAME_VERSION"
       ],
       "depends": [],
       "functions": {}
     },
     "shared/frameTemplates": {
-      "file": "src/shared/frameTemplates.js",
-      "description": "Frame Templates",
+      "file": "src\\shared\\frameTemplates.js",
+      "description": "SubFrame Templates",
       "exports": [
-        "getAgentsTemplate",
-        "getStructureTemplate",
-        "getNotesTemplate",
-        "getTasksTemplate",
-        "getQuickstartTemplate",
-        "getFrameConfigTemplate",
-        "getCodexWrapperTemplate",
-        "getGenericWrapperTemplate"
+        "..."
       ],
-      "depends": [],
+      "depends": [
+        "backlinkUtils",
+        "fs",
+        "path"
+      ],
       "functions": {
         "getDateString": {
           "line": 10,
@@ -1646,56 +1725,68 @@
           "purpose": "This file is read by AI coding tools (Claude Code, Codex CLI, etc.)"
         },
         "getStructureTemplate": {
-          "line": 198,
+          "line": 218,
           "params": [
             "projectName"
           ],
           "purpose": "STRUCTURE.json template"
         },
         "getNotesTemplate": {
-          "line": 222,
+          "line": 242,
           "params": [
             "projectName"
           ],
           "purpose": "PROJECT_NOTES.md template"
         },
         "getTasksTemplate": {
-          "line": 242,
+          "line": 262,
           "params": [
             "projectName"
           ],
           "purpose": "tasks.json template"
         },
         "getQuickstartTemplate": {
-          "line": 292,
+          "line": 312,
           "params": [
             "projectName"
           ],
           "purpose": "QUICKSTART.md template"
         },
         "getFrameConfigTemplate": {
-          "line": 358,
+          "line": 378,
           "params": [
             "projectName"
           ],
-          "purpose": ".frame/config.json template"
+          "purpose": ".subframe/config.json template"
         },
         "getCodexWrapperTemplate": {
-          "line": 390,
+          "line": 415,
           "purpose": "Instructs Codex to read AGENTS.md as initial prompt"
         },
         "getGenericWrapperTemplate": {
-          "line": 427,
+          "line": 452,
           "params": [
             "toolCommand",
             "promptFlag = ''"
           ],
           "purpose": "Can be customized for other AI tools in the future"
+        },
+        "getNativeFileTemplate": {
+          "line": 488,
+          "purpose": "Returns just the backlink block that references AGENTS.md"
+        },
+        "getPreCommitHookTemplate": {
+          "line": 497,
+          "purpose": "Bash script that detects staged JS files in src/ and runs the updater script."
+        },
+        "getHookUpdaterScript": {
+          "line": 544,
+          "purpose": "updates STRUCTURE.json with module info (exports, deps, functions)."
         }
       }
     },
     "main/fileEditor": {
-      "file": "src/main/fileEditor.js",
+      "file": "src\\main\\fileEditor.js",
       "description": "File Editor Module",
       "exports": [
         "init",
@@ -1758,7 +1849,7 @@
       }
     },
     "main/ptyManager": {
-      "file": "src/main/ptyManager.js",
+      "file": "src\\main\\ptyManager.js",
       "description": "PTY Manager Module",
       "exports": [
         "init",
@@ -1886,7 +1977,7 @@
       }
     },
     "renderer/sidebarResize": {
-      "file": "src/renderer/sidebarResize.js",
+      "file": "src\\renderer\\sidebarResize.js",
       "description": "Sidebar Resize Module",
       "exports": [
         "init",
@@ -1896,73 +1987,93 @@
         "toggle",
         "hide",
         "show",
-        "isVisible"
+        "expand",
+        "collapse",
+        "hideAll",
+        "isVisible",
+        "isCollapsed"
       ],
       "depends": [],
       "functions": {
         "init": {
-          "line": 25,
+          "line": 39,
           "params": [
             "onResize"
           ],
           "purpose": "Initialize sidebar resize functionality"
         },
-        "handleMouseDown": {
-          "line": 65,
+        "restoreState": {
+          "line": 102,
+          "purpose": "── State helpers ──────────────────────────────────────────"
+        },
+        "saveState": {
+          "line": 118
+        },
+        "applyState": {
+          "line": 123,
           "params": [
-            "e"
-          ],
-          "purpose": "Handle mouse down on resize handle"
+            "state"
+          ]
         },
-        "handleMouseMove": {
-          "line": 79,
-          "params": [
-            "e"
-          ],
-          "purpose": "Handle mouse move during resize"
+        "collapse": {
+          "line": 143,
+          "purpose": "── Public state transitions ───────────────────────────────"
         },
-        "handleMouseUp": {
-          "line": 95,
-          "params": [
-            "e"
-          ],
-          "purpose": "Handle mouse up to finish resize"
+        "hideAll": {
+          "line": 155
         },
-        "resetWidth": {
-          "line": 115,
-          "purpose": "Reset sidebar width to default"
-        },
-        "getWidth": {
-          "line": 128,
-          "purpose": "Get current sidebar width"
-        },
-        "setWidth": {
-          "line": 136,
-          "params": [
-            "width"
-          ],
-          "purpose": "Set sidebar width programmatically"
+        "expand": {
+          "line": 169
         },
         "toggle": {
-          "line": 151,
-          "purpose": "Toggle sidebar visibility"
+          "line": 183,
+          "purpose": "If currently collapsed, goes to expanded."
         },
         "hide": {
-          "line": 164,
-          "purpose": "Hide sidebar"
+          "line": 192,
+          "purpose": "── Backward-compat public API (used by index.js tab handler) ──"
         },
         "show": {
-          "line": 180,
-          "purpose": "Show sidebar"
+          "line": 198
         },
         "isVisible": {
-          "line": 196,
-          "purpose": "Check if sidebar is hidden"
+          "line": 201
+        },
+        "isCollapsed": {
+          "line": 206
+        },
+        "handleMouseDown": {
+          "line": 212,
+          "params": [
+            "e"
+          ],
+          "purpose": "── Drag resize (only when expanded) ───────────────────────"
+        },
+        "handleMouseMove": {
+          "line": 222,
+          "params": [
+            "e"
+          ]
+        },
+        "handleMouseUp": {
+          "line": 230
+        },
+        "resetWidth": {
+          "line": 243
+        },
+        "getWidth": {
+          "line": 250
+        },
+        "setWidth": {
+          "line": 257,
+          "params": [
+            "width"
+          ]
         }
       }
     },
     "renderer/terminalGrid": {
-      "file": "src/renderer/terminalGrid.js",
+      "file": "src\\renderer\\terminalGrid.js",
       "description": "Terminal Grid Module",
       "exports": [
         "TerminalGrid",
@@ -1972,7 +2083,7 @@
       "functions": {}
     },
     "renderer/terminalTabBar": {
-      "file": "src/renderer/terminalTabBar.js",
+      "file": "src\\renderer\\terminalTabBar.js",
       "description": "Terminal Tab Bar Module",
       "exports": [
         "TerminalTabBar"
@@ -1996,7 +2107,7 @@
       }
     },
     "main/pluginsManager": {
-      "file": "src/main/pluginsManager.js",
+      "file": "src\\main\\pluginsManager.js",
       "description": "Plugins Manager Module",
       "exports": [
         "init",
@@ -2085,106 +2196,126 @@
       }
     },
     "renderer/pluginsPanel": {
-      "file": "src/renderer/pluginsPanel.js",
+      "file": "src\\renderer\\pluginsPanel.js",
       "description": "Plugins Panel Module",
       "exports": [
         "init",
         "show",
         "hide",
         "toggle",
+        "collapse",
+        "expand",
         "loadPlugins",
-        "isVisible"
+        "isVisible",
+        "isCollapsed"
       ],
       "depends": [
         "electron",
         "shared/ipcChannels",
-        "state"
+        "state",
+        "aiToolSelector",
+        "aiFilesPanel"
       ],
       "functions": {
+        "getAiFilesPanel": {
+          "line": 13
+        },
         "init": {
-          "line": 27,
+          "line": 36,
           "purpose": "Initialize plugins panel"
         },
         "setupEventListeners": {
-          "line": 44,
+          "line": 53,
           "purpose": "Setup event listeners"
         },
         "setupIPCListeners": {
-          "line": 89,
+          "line": 113,
           "purpose": "Setup IPC listeners"
         },
         "loadPlugins": {
-          "line": 113,
+          "line": 137,
           "purpose": "Load plugins"
         },
         "refreshPlugins": {
-          "line": 127,
+          "line": 151,
           "purpose": "Refresh plugins from marketplace"
         },
         "show": {
-          "line": 161,
-          "purpose": "Show plugins panel"
+          "line": 185,
+          "purpose": "Show plugins panel (expanded)"
         },
         "hide": {
-          "line": 178,
-          "purpose": "Hide plugins panel"
+          "line": 214,
+          "purpose": "Hide plugins panel completely"
         },
         "toggle": {
-          "line": 188,
+          "line": 234,
           "purpose": "Toggle plugins panel visibility"
         },
+        "collapse": {
+          "line": 245,
+          "purpose": "Collapse to icon strip"
+        },
+        "expand": {
+          "line": 266,
+          "purpose": "Expand from collapsed icon strip"
+        },
+        "toggleCollapse": {
+          "line": 294,
+          "purpose": "Toggle between collapsed and expanded"
+        },
         "setTab": {
-          "line": 199,
+          "line": 305,
           "params": [
             "tab"
           ],
           "purpose": "Set active tab"
         },
         "setFilter": {
-          "line": 221,
+          "line": 329,
           "params": [
             "filter"
           ],
           "purpose": "Set filter"
         },
         "getFilteredPlugins": {
-          "line": 235,
+          "line": 343,
           "purpose": "Get filtered plugins"
         },
         "render": {
-          "line": 251,
+          "line": 359,
           "purpose": "Render plugins list"
         },
         "renderPluginItem": {
-          "line": 295,
+          "line": 403,
           "params": [
             "plugin"
           ],
           "purpose": "Render single plugin item"
         },
         "getPluginIcon": {
-          "line": 341,
+          "line": 449,
           "params": [
             "name"
           ],
           "purpose": "Get icon for plugin based on name"
         },
         "togglePlugin": {
-          "line": 380,
+          "line": 488,
           "params": [
             "pluginId"
           ],
           "purpose": "Toggle plugin enabled/disabled"
         },
         "installPlugin": {
-          "line": 392,
+          "line": 500,
           "params": [
             "pluginName"
           ],
           "purpose": "Install plugin via terminal command"
         },
         "showToast": {
-          "line": 409,
+          "line": 517,
           "params": [
             "message",
             "type = 'info'"
@@ -2192,54 +2323,70 @@
           "purpose": "Show toast notification"
         },
         "getToastIcon": {
-          "line": 444,
+          "line": 552,
           "params": [
             "type"
           ],
           "purpose": "Get toast icon based on type"
         },
         "escapeHtml": {
-          "line": 458,
+          "line": 566,
           "params": [
             "text"
           ],
           "purpose": "Escape HTML for safe rendering"
         },
         "loadSessions": {
-          "line": 469,
+          "line": 577,
           "purpose": "Load sessions from Claude data"
         },
         "refreshSessions": {
-          "line": 494,
+          "line": 602,
           "purpose": "Refresh sessions with spinner animation"
         },
         "renderSessions": {
-          "line": 516,
+          "line": 624,
           "purpose": "Render sessions list"
         },
         "renderSessionItem": {
-          "line": 544,
+          "line": 660,
           "params": [
             "session"
           ],
           "purpose": "Render a single session item"
         },
         "renderSessionsEmpty": {
-          "line": 573,
+          "line": 703,
           "params": [
             "message"
           ],
           "purpose": "Render sessions empty state"
         },
         "resumeSession": {
-          "line": 595,
+          "line": 726,
+          "params": [
+            "sessionId",
+            "customCommand"
+          ],
+          "purpose": "Uses the configured AI tool command by default."
+        },
+        "showResumeDropdown": {
+          "line": 741,
+          "params": [
+            "anchorEl",
+            "sessionId"
+          ],
+          "purpose": "Show resume dropdown with command options"
+        },
+        "showCustomCommandPrompt": {
+          "line": 812,
           "params": [
             "sessionId"
           ],
-          "purpose": "Resume a session by sending command to terminal"
+          "purpose": "Show a simple inline prompt for custom command"
         },
         "formatRelativeTime": {
-          "line": 609,
+          "line": 822,
           "params": [
             "dateString"
           ],
@@ -2255,7 +2402,7 @@
       }
     },
     "main/githubManager": {
-      "file": "src/main/githubManager.js",
+      "file": "src\\main\\githubManager.js",
       "description": "GitHub Manager Module",
       "exports": [
         "init",
@@ -2327,7 +2474,7 @@
       }
     },
     "renderer/githubPanel": {
-      "file": "src/renderer/githubPanel.js",
+      "file": "src\\renderer\\githubPanel.js",
       "description": "GitHub Panel Module",
       "exports": [
         "init",
@@ -2567,7 +2714,7 @@
       }
     },
     "main/claudeUsageManager": {
-      "file": "src/main/claudeUsageManager.js",
+      "file": "src\\main\\claudeUsageManager.js",
       "description": "Claude Usage Manager Module",
       "exports": [
         "init",
@@ -2579,49 +2726,67 @@
       ],
       "depends": [
         "child_process",
+        "fs",
+        "path",
+        "os",
         "https",
         "shared/ipcChannels"
       ],
       "functions": {
         "init": {
-          "line": 18,
+          "line": 21,
           "params": [
             "window"
           ],
           "purpose": "Initialize the module with window reference"
         },
+        "extractToken": {
+          "line": 32,
+          "params": [
+            "credentials"
+          ],
+          "purpose": "Extract access token from a parsed credentials object"
+        },
+        "getTokenFromCredentialsFile": {
+          "line": 47,
+          "purpose": "Used on Windows and Linux where macOS Keychain is unavailable"
+        },
+        "getTokenFromKeychain": {
+          "line": 65,
+          "purpose": "Read OAuth token from macOS Keychain"
+        },
         "getOAuthToken": {
-          "line": 28,
-          "purpose": "Get OAuth token from macOS Keychain"
+          "line": 89,
+          "purpose": "- All platforms: ANTHROPIC_API_KEY env var as final fallback"
         },
         "fetchUsage": {
-          "line": 61,
+          "line": 119,
           "purpose": "Fetch usage data from Claude OAuth API"
         },
         "sendUsageToRenderer": {
-          "line": 165,
+          "line": 223,
           "purpose": "Send usage data to renderer"
         },
         "startPolling": {
-          "line": 176,
+          "line": 234,
           "params": [
             "interval = 60000"
           ],
           "purpose": "Start periodic polling for usage updates"
         },
         "stopPolling": {
-          "line": 194,
+          "line": 252,
           "purpose": "Stop polling"
         },
         "setupIPC": {
-          "line": 205,
+          "line": 263,
           "params": [
             "ipcMain"
           ],
           "purpose": "Setup IPC handlers"
         },
         "cleanup": {
-          "line": 222,
+          "line": 280,
           "purpose": "Cleanup on app quit"
         }
       },
@@ -2636,7 +2801,7 @@
       }
     },
     "main/overviewManager": {
-      "file": "src/main/overviewManager.js",
+      "file": "src\\main\\overviewManager.js",
       "description": "Overview Manager Module",
       "exports": [
         "init",
@@ -2693,29 +2858,37 @@
           ],
           "purpose": "Load project stats (lines of code, files, git info)"
         },
-        "countLinesOfCode": {
+        "findFilesRecursive": {
           "line": 209,
           "params": [
-            "projectPath"
+            "dir",
+            "ext"
           ],
-          "purpose": "Count lines of code in src directory"
+          "purpose": "Recursively find files matching an extension (cross-platform)"
         },
-        "countFiles": {
-          "line": 233,
+        "countLinesOfCode": {
+          "line": 230,
           "params": [
             "projectPath"
           ],
-          "purpose": "Count files in src directory"
+          "purpose": "Count lines of code in src directory (cross-platform)"
+        },
+        "countFiles": {
+          "line": 256,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Count files in src directory (cross-platform)"
         },
         "getGitInfo": {
-          "line": 256,
+          "line": 277,
           "params": [
             "projectPath"
           ],
           "purpose": "Get git information"
         },
         "getFileGitHistory": {
-          "line": 286,
+          "line": 307,
           "params": [
             "projectPath",
             "filePath"
@@ -2723,7 +2896,7 @@
           "purpose": "Get file git history (contributors, commits, blame)"
         },
         "getFileCommits": {
-          "line": 323,
+          "line": 344,
           "params": [
             "projectPath",
             "filePath"
@@ -2731,7 +2904,7 @@
           "purpose": "Get recent commits for a file"
         },
         "getFileContributors": {
-          "line": 354,
+          "line": 375,
           "params": [
             "projectPath",
             "filePath"
@@ -2739,15 +2912,15 @@
           "purpose": "Get contributors for a file"
         },
         "getFileBlame": {
-          "line": 387,
+          "line": 409,
           "params": [
             "projectPath",
             "filePath"
           ],
-          "purpose": "Get blame summary for a file (who wrote how many lines)"
+          "purpose": "Cross-platform: parses git blame output in Node.js instead of piping through Unix commands"
         },
         "setupIPC": {
-          "line": 419,
+          "line": 443,
           "params": [
             "ipcMain"
           ],
@@ -2763,7 +2936,7 @@
       }
     },
     "renderer/overviewPanel": {
-      "file": "src/renderer/overviewPanel.js",
+      "file": "src\\renderer\\overviewPanel.js",
       "description": "Overview Panel Module",
       "exports": [
         "init",
@@ -2876,7 +3049,7 @@
       }
     },
     "renderer/structureMap": {
-      "file": "src/renderer/structureMap.js",
+      "file": "src\\renderer\\structureMap.js",
       "description": "Structure Map Module",
       "exports": [
         "init",
@@ -3033,7 +3206,7 @@
       }
     },
     "main/gitBranchesManager": {
-      "file": "src/main/gitBranchesManager.js",
+      "file": "src\\main\\gitBranchesManager.js",
       "description": "Git Branches Manager Module",
       "exports": [
         "init",
@@ -3159,7 +3332,7 @@
       }
     },
     "main/aiToolManager": {
-      "file": "src/main/aiToolManager.js",
+      "file": "src\\main\\aiToolManager.js",
       "description": "AI Tool Manager",
       "exports": [
         "init",
@@ -3177,7 +3350,8 @@
         "electron",
         "fs",
         "path",
-        "shared/ipcChannels"
+        "shared/ipcChannels",
+        "settingsManager"
       ],
       "functions": {
         "init": {
@@ -3240,8 +3414,15 @@
           ],
           "purpose": "Get command for specific action"
         },
-        "getStartCommand": {
+        "getCustomCommand": {
           "line": 205,
+          "params": [
+            "toolId"
+          ],
+          "purpose": "Get custom command override from settings for a tool"
+        },
+        "getStartCommand": {
+          "line": 218,
           "purpose": "Get the start command for active tool"
         }
       },
@@ -3256,7 +3437,7 @@
       }
     },
     "renderer/aiToolSelector": {
-      "file": "src/renderer/aiToolSelector.js",
+      "file": "src\\renderer\\aiToolSelector.js",
       "description": "AI Tool Selector Module",
       "exports": [
         "init",
@@ -3316,7 +3497,7 @@
       }
     },
     "main/claudeSessionsManager": {
-      "file": "src/main/claudeSessionsManager.js",
+      "file": "src\\main\\claudeSessionsManager.js",
       "description": "Claude Sessions Manager Module",
       "exports": [
         "init",
@@ -3331,28 +3512,42 @@
       ],
       "functions": {
         "init": {
-          "line": 19,
+          "line": 20,
           "params": [
             "window"
           ],
           "purpose": "Initialize sessions manager"
         },
         "encodeProjectPath": {
-          "line": 27,
+          "line": 29,
           "params": [
             "projectPath"
           ],
-          "purpose": "e.g. /Users/dev/MyProject -> -Users-dev-MyProject"
+          "purpose": "e.g. C:\\Users\\Bailey\\MyProject  -> C--Users-Bailey-MyProject"
+        },
+        "extractMessageText": {
+          "line": 37,
+          "params": [
+            "message"
+          ],
+          "purpose": "Handles string messages, {content: string}, and {content: [{type, text}]} formats."
+        },
+        "parseSessionFile": {
+          "line": 60,
+          "params": [
+            "filePath"
+          ],
+          "purpose": "Parse a single .jsonl session file and extract metadata"
         },
         "getSessionsForProject": {
-          "line": 34,
+          "line": 124,
           "params": [
             "projectPath"
           ],
           "purpose": "Get sessions for a given project path"
         },
         "setupIPC": {
-          "line": 66,
+          "line": 156,
           "params": [
             "ipcMain"
           ],
@@ -3365,6 +3560,604 @@
           "REFRESH_CLAUDE_SESSIONS"
         ],
         "emits": []
+      }
+    },
+    "main/aiFilesManager": {
+      "file": "src\\main\\aiFilesManager.js",
+      "description": "AI Files Manager Module",
+      "exports": [
+        "init",
+        "setupIPC",
+        "getAIFilesStatus",
+        "handleInjectBacklink",
+        "handleRemoveBacklink",
+        "handleCreateNativeFile",
+        "handleMigrateSymlink",
+        "handleVerifyOnProjectOpen",
+        "getBacklinkConfig",
+        "saveBacklinkConfig",
+        "handleUpdateAllBacklinks"
+      ],
+      "depends": [
+        "fs",
+        "path",
+        "shared/ipcChannels",
+        "shared/frameConstants",
+        "shared/backlinkUtils"
+      ],
+      "functions": {
+        "init": {
+          "line": 27,
+          "params": [
+            "window"
+          ],
+          "purpose": "Initialize AI files manager"
+        },
+        "getAIFilesStatus": {
+          "line": 36,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Get status of all AI-related files in a project"
+        },
+        "handleInjectBacklink": {
+          "line": 61,
+          "params": [
+            "projectPath",
+            "filename"
+          ],
+          "purpose": "Inject backlink into a native AI file"
+        },
+        "handleRemoveBacklink": {
+          "line": 72,
+          "params": [
+            "projectPath",
+            "filename"
+          ],
+          "purpose": "Remove backlink from a native AI file"
+        },
+        "handleCreateNativeFile": {
+          "line": 83,
+          "params": [
+            "projectPath",
+            "filename"
+          ],
+          "purpose": "Create a new native AI file with backlink"
+        },
+        "handleMigrateSymlink": {
+          "line": 97,
+          "params": [
+            "projectPath",
+            "filename"
+          ],
+          "purpose": "Migrate a symlink to a real file with backlink"
+        },
+        "handleVerifyOnProjectOpen": {
+          "line": 115,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Non-blocking — sends results to the renderer for display"
+        },
+        "getBacklinkConfig": {
+          "line": 135,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Read backlink customization config from .subframe/config.json"
+        },
+        "saveBacklinkConfig": {
+          "line": 153,
+          "params": [
+            "projectPath",
+            "backlinkConfig"
+          ],
+          "purpose": "Save backlink customization config to .subframe/config.json"
+        },
+        "buildBacklinkOptions": {
+          "line": 175,
+          "params": [
+            "backlinkConfig"
+          ],
+          "purpose": "Build backlink options from config (returns undefined if no customization)"
+        },
+        "handleUpdateAllBacklinks": {
+          "line": 187,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Update all existing backlinks in a project with current config"
+        },
+        "setupIPC": {
+          "line": 213,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Setup IPC handlers for AI file operations"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "GET_AI_FILES_STATUS",
+          "INJECT_BACKLINK",
+          "REMOVE_BACKLINK",
+          "CREATE_NATIVE_FILE",
+          "MIGRATE_SYMLINK",
+          "VERIFY_BACKLINKS",
+          "GET_BACKLINK_CONFIG",
+          "SAVE_BACKLINK_CONFIG",
+          "UPDATE_ALL_BACKLINKS"
+        ],
+        "emits": [
+          "BACKLINK_VERIFICATION_RESULT",
+          "AI_FILES_STATUS_DATA",
+          "AI_FILE_UPDATED",
+          "BACKLINK_CONFIG_DATA",
+          "BACKLINK_CONFIG_SAVED",
+          "ALL_BACKLINKS_UPDATED"
+        ]
+      }
+    },
+    "main/settingsManager": {
+      "file": "src\\main\\settingsManager.js",
+      "description": "Settings Manager",
+      "exports": [
+        "init",
+        "loadSettings",
+        "saveSettings",
+        "updateSetting",
+        "getSetting"
+      ],
+      "depends": [
+        "electron",
+        "fs",
+        "path",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "init": {
+          "line": 32,
+          "params": [
+            "window",
+            "app"
+          ],
+          "purpose": "Initialize the settings manager"
+        },
+        "loadSettings": {
+          "line": 42,
+          "purpose": "Load settings from file"
+        },
+        "saveSettings": {
+          "line": 61,
+          "purpose": "Save settings to file"
+        },
+        "updateSetting": {
+          "line": 72,
+          "params": [
+            "keyPath",
+            "value"
+          ],
+          "purpose": "Update a setting by key path (e.g. 'aiTools.claude.customCommand')"
+        },
+        "getSetting": {
+          "line": 97,
+          "params": [
+            "keyPath"
+          ],
+          "purpose": "Get a setting by key path"
+        },
+        "deepMerge": {
+          "line": 112,
+          "params": [
+            "target",
+            "source"
+          ],
+          "purpose": "Deep merge two objects"
+        },
+        "setupIPC": {
+          "line": 133,
+          "purpose": "Setup IPC handlers"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "LOAD_SETTINGS",
+          "UPDATE_SETTING"
+        ],
+        "emits": [
+          "SETTINGS_UPDATED"
+        ]
+      }
+    },
+    "renderer/aiFilesPanel": {
+      "file": "src\\renderer\\aiFilesPanel.js",
+      "description": "AI Files Panel Module",
+      "exports": [
+        "init",
+        "loadStatus",
+        "runVerification"
+      ],
+      "depends": [
+        "electron",
+        "shared/ipcChannels",
+        "state",
+        "editor"
+      ],
+      "functions": {
+        "init": {
+          "line": 30,
+          "purpose": "Initialize AI files panel"
+        },
+        "runVerification": {
+          "line": 47,
+          "purpose": "Trigger backlink verification for the current project"
+        },
+        "setupIPCListeners": {
+          "line": 56,
+          "purpose": "Setup IPC listeners for status updates"
+        },
+        "loadStatus": {
+          "line": 113,
+          "purpose": "Load AI files status for the current project"
+        },
+        "render": {
+          "line": 126,
+          "purpose": "Render the AI files list"
+        },
+        "renderFileItem": {
+          "line": 207,
+          "params": [
+            "file",
+            "status"
+          ],
+          "purpose": "Render a single file item"
+        },
+        "renderVerificationSection": {
+          "line": 281,
+          "purpose": "Shows color-coded issues from the last verification run"
+        },
+        "renderClaudeSettingsSection": {
+          "line": 341,
+          "purpose": "SubFrame never touches .claude/ — it belongs to Claude Code."
+        },
+        "getStatusDisplay": {
+          "line": 380,
+          "params": [
+            "file",
+            "status"
+          ],
+          "purpose": "Get display info for a file status"
+        },
+        "wireActionButtons": {
+          "line": 423,
+          "purpose": "Wire up action button click handlers"
+        },
+        "renderBacklinkCustomize": {
+          "line": 477,
+          "purpose": "Populates #backlink-customize-section if it exists"
+        },
+        "wireBacklinkCustomizeButtons": {
+          "line": 529,
+          "purpose": "Wire up event handlers for backlink customize form"
+        },
+        "renderEmpty": {
+          "line": 581,
+          "params": [
+            "message"
+          ],
+          "purpose": "Render empty state"
+        },
+        "renderError": {
+          "line": 600,
+          "params": [
+            "error"
+          ],
+          "purpose": "Render error state"
+        },
+        "showToast": {
+          "line": 619,
+          "params": [
+            "message",
+            "type = 'info'"
+          ],
+          "purpose": "Show toast notification (reuses pluginsPanel pattern)"
+        },
+        "escapeHtml": {
+          "line": 649,
+          "params": [
+            "text"
+          ],
+          "purpose": "Escape HTML for safe rendering"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "AI_FILES_STATUS_DATA",
+          "AI_FILE_UPDATED",
+          "BACKLINK_CONFIG_DATA",
+          "BACKLINK_CONFIG_SAVED",
+          "ALL_BACKLINKS_UPDATED",
+          "BACKLINK_VERIFICATION_RESULT"
+        ],
+        "emits": [
+          "VERIFY_BACKLINKS",
+          "GET_AI_FILES_STATUS",
+          "GET_BACKLINK_CONFIG",
+          "INJECT_BACKLINK",
+          "REMOVE_BACKLINK",
+          "CREATE_NATIVE_FILE",
+          "MIGRATE_SYMLINK",
+          "SAVE_BACKLINK_CONFIG",
+          "SAVE_BACKLINK_CONFIG",
+          "UPDATE_ALL_BACKLINKS",
+          "SAVE_BACKLINK_CONFIG"
+        ]
+      }
+    },
+    "renderer/settingsPanel": {
+      "file": "src\\renderer\\settingsPanel.js",
+      "description": "Settings Panel Module",
+      "exports": [
+        "init",
+        "show",
+        "hide",
+        "toggle",
+        "isVisible"
+      ],
+      "depends": [
+        "electron",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "init": {
+          "line": 20,
+          "purpose": "Initialize settings panel"
+        },
+        "setupEventListeners": {
+          "line": 36,
+          "purpose": "Setup event listeners"
+        },
+        "setupIPCListeners": {
+          "line": 51,
+          "purpose": "Setup IPC listeners"
+        },
+        "loadSettings": {
+          "line": 61,
+          "purpose": "Load settings and AI tool config"
+        },
+        "show": {
+          "line": 78,
+          "purpose": "Show settings panel"
+        },
+        "hide": {
+          "line": 89,
+          "purpose": "Hide settings panel"
+        },
+        "toggle": {
+          "line": 99,
+          "purpose": "Toggle settings panel visibility"
+        },
+        "render": {
+          "line": 110,
+          "purpose": "Render settings content"
+        },
+        "bindActionListeners": {
+          "line": 233,
+          "purpose": "Bind action button listeners after render"
+        },
+        "showToast": {
+          "line": 357,
+          "params": [
+            "message",
+            "type = 'info'"
+          ],
+          "purpose": "Show toast notification"
+        },
+        "getToastIcon": {
+          "line": 387,
+          "params": [
+            "type"
+          ],
+          "purpose": "Get toast icon based on type"
+        },
+        "escapeHtml": {
+          "line": 401,
+          "params": [
+            "text"
+          ],
+          "purpose": "Escape HTML for safe rendering"
+        }
+      },
+      "ipc": {
+        "listens": [
+          "SETTINGS_UPDATED"
+        ],
+        "emits": [
+          "LOAD_WORKSPACE",
+          "LOAD_WORKSPACE",
+          "LOAD_WORKSPACE"
+        ]
+      }
+    },
+    "shared/backlinkUtils": {
+      "file": "src\\shared\\backlinkUtils.js",
+      "description": "Backlink Utilities",
+      "exports": [
+        "BACKLINK_START",
+        "BACKLINK_END",
+        "getBacklinkBlock",
+        "hasBacklink",
+        "injectBacklink",
+        "updateBacklink",
+        "removeBacklink",
+        "isSymlinkFile",
+        "getNativeFileStatus",
+        "getClaudeNativeStatus",
+        "getBacklinkTarget",
+        "verifyBacklinks"
+      ],
+      "depends": [
+        "fs",
+        "path"
+      ],
+      "functions": {
+        "getBacklinkBlock": {
+          "line": 20,
+          "params": [
+            "options"
+          ]
+        },
+        "hasBacklink": {
+          "line": 39,
+          "params": [
+            "filePath"
+          ],
+          "purpose": "Check if a file already contains the backlink marker"
+        },
+        "injectBacklink": {
+          "line": 58,
+          "params": [
+            "filePath",
+            "options"
+          ],
+          "purpose": "If file exists but has no backlink, prepends the block."
+        },
+        "updateBacklink": {
+          "line": 87,
+          "params": [
+            "filePath",
+            "options"
+          ],
+          "purpose": "If no backlink exists, injects one at the top instead."
+        },
+        "removeBacklink": {
+          "line": 120,
+          "params": [
+            "filePath"
+          ],
+          "purpose": "Remove the backlink block from a file, preserving all other content"
+        },
+        "isSymlinkFile": {
+          "line": 154,
+          "params": [
+            "filePath"
+          ],
+          "purpose": "Check if a file is a symlink"
+        },
+        "getNativeFileStatus": {
+          "line": 170,
+          "params": [
+            "projectPath",
+            "filename"
+          ],
+          "purpose": "Get the status of a native AI file (CLAUDE.md, GEMINI.md)"
+        },
+        "getClaudeNativeStatus": {
+          "line": 217,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "This is read-only detection for user awareness in the AI Files panel."
+        },
+        "getBacklinkTarget": {
+          "line": 249,
+          "params": [
+            "filePath"
+          ],
+          "purpose": "Parses the markdown link inside the SUBFRAME markers to find the referenced file"
+        },
+        "verifyNativeFile": {
+          "line": 273,
+          "params": [
+            "projectPath",
+            "filename"
+          ],
+          "purpose": "Verify a single native AI file's backlink status"
+        },
+        "collectNativeFileIssues": {
+          "line": 312,
+          "params": [
+            "result",
+            "filename",
+            "fileStatus"
+          ],
+          "purpose": "Collect issues for a native AI file and push them to the result"
+        },
+        "verifyBacklinks": {
+          "line": 359,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Checks AGENTS.md existence, native file backlinks, and target validity"
+        }
+      }
+    },
+    "shared/logoSVG": {
+      "file": "src\\shared\\logoSVG.js",
+      "description": "SubFrame Logo — Centralized SVG definitions",
+      "exports": [
+        "getLogoSVG",
+        "LOGO_COLORS"
+      ],
+      "depends": [
+        "logoSVG"
+      ],
+      "functions": {
+        "getLogoSVG": {
+          "line": 26,
+          "params": [
+            "options = {}"
+          ]
+        }
+      }
+    },
+    "shared/projectInit": {
+      "file": "src\\shared\\projectInit.js",
+      "description": "SubFrame Project Initialization (Pure Node.js)",
+      "exports": [
+        "initializeProject",
+        "checkExistingFiles",
+        "createFileIfNotExists",
+        "createOrMigrateNativeFile"
+      ],
+      "depends": [
+        "fs",
+        "path",
+        "child_process",
+        "frameConstants",
+        "frameTemplates",
+        "backlinkUtils"
+      ],
+      "functions": {
+        "createFileIfNotExists": {
+          "line": 18,
+          "params": [
+            "filePath",
+            "content"
+          ],
+          "purpose": "Create file if it doesn't exist"
+        },
+        "createOrMigrateNativeFile": {
+          "line": 34,
+          "params": [
+            "filePath"
+          ],
+          "purpose": "Handles symlink migration and idempotent backlink injection."
+        },
+        "checkExistingFiles": {
+          "line": 50,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Check which SubFrame files already exist in the project"
+        },
+        "initializeProject": {
+          "line": 81,
+          "params": [
+            "projectPath",
+            "options = {}"
+          ]
+        }
       }
     }
   },
@@ -3700,36 +4493,55 @@
     }
   },
   "intentIndex": {
+    "ai-files": [
+      {
+        "module": "main/aiFilesManager",
+        "file": "src\\main\\aiFilesManager.js",
+        "description": "AI Files Manager Module"
+      },
+      {
+        "module": "renderer/aiFilesPanel",
+        "file": "src\\renderer\\aiFilesPanel.js",
+        "description": "AI Files Panel Module"
+      }
+    ],
     "ai-tool": [
       {
         "module": "main/aiToolManager",
-        "file": "src/main/aiToolManager.js",
+        "file": "src\\main\\aiToolManager.js",
         "description": "AI Tool Manager"
       },
       {
         "module": "renderer/aiToolSelector",
-        "file": "src/renderer/aiToolSelector.js",
+        "file": "src\\renderer\\aiToolSelector.js",
         "description": "AI Tool Selector Module"
+      }
+    ],
+    "backlink-utils": [
+      {
+        "module": "shared/backlinkUtils",
+        "file": "src\\shared\\backlinkUtils.js",
+        "description": "Backlink Utilities"
       }
     ],
     "claude-sessions": [
       {
         "module": "main/claudeSessionsManager",
-        "file": "src/main/claudeSessionsManager.js",
+        "file": "src\\main\\claudeSessionsManager.js",
         "description": "Claude Sessions Manager Module"
       }
     ],
     "claude-usage": [
       {
         "module": "main/claudeUsageManager",
-        "file": "src/main/claudeUsageManager.js",
+        "file": "src\\main\\claudeUsageManager.js",
         "description": "Claude Usage Manager Module"
       }
     ],
     "dialogs": [
       {
         "module": "main/dialogs",
-        "file": "src/main/dialogs.js",
+        "file": "src\\main\\dialogs.js",
         "description": "Dialogs Module"
       }
     ],
@@ -3741,206 +4553,232 @@
       },
       {
         "module": "renderer/editor",
-        "file": "src/renderer/editor.js",
+        "file": "src\\renderer\\editor.js",
         "description": "File Editor Module"
       }
     ],
     "file-editor": [
       {
         "module": "main/fileEditor",
-        "file": "src/main/fileEditor.js",
+        "file": "src\\main\\fileEditor.js",
         "description": "File Editor Module"
       }
     ],
     "file-tree": [
       {
         "module": "main/fileTree",
-        "file": "src/main/fileTree.js",
+        "file": "src\\main\\fileTree.js",
         "description": "File Tree Module"
       },
       {
         "module": "renderer/fileTreeUI",
-        "file": "src/renderer/fileTreeUI.js",
+        "file": "src\\renderer\\fileTreeUI.js",
         "description": "File Tree UI Module"
       }
     ],
     "frame-config": [
       {
         "module": "main/frameProject",
-        "file": "src/main/frameProject.js",
-        "description": "Frame Project Module"
+        "file": "src\\main\\frameProject.js",
+        "description": "SubFrame Project Module"
       },
       {
         "module": "shared/frameConstants",
-        "file": "src/shared/frameConstants.js",
-        "description": "Frame Constants"
+        "file": "src\\shared\\frameConstants.js",
+        "description": "SubFrame Constants"
       },
       {
         "module": "shared/frameTemplates",
-        "file": "src/shared/frameTemplates.js",
-        "description": "Frame Templates"
+        "file": "src\\shared\\frameTemplates.js",
+        "description": "SubFrame Templates"
       }
     ],
     "git-branches": [
       {
         "module": "main/gitBranchesManager",
-        "file": "src/main/gitBranchesManager.js",
+        "file": "src\\main\\gitBranchesManager.js",
         "description": "Git Branches Manager Module"
       }
     ],
     "github": [
       {
         "module": "main/githubManager",
-        "file": "src/main/githubManager.js",
+        "file": "src\\main\\githubManager.js",
         "description": "GitHub Manager Module"
       },
       {
         "module": "renderer/githubPanel",
-        "file": "src/renderer/githubPanel.js",
+        "file": "src\\renderer\\githubPanel.js",
         "description": "GitHub Panel Module"
       }
     ],
     "history": [
       {
         "module": "main/promptLogger",
-        "file": "src/main/promptLogger.js",
+        "file": "src\\main\\promptLogger.js",
         "description": "Prompt Logger Module"
       },
       {
         "module": "renderer/historyPanel",
-        "file": "src/renderer/historyPanel.js",
+        "file": "src\\renderer\\historyPanel.js",
         "description": "History Panel Module"
       }
     ],
     "index": [
       {
         "module": "main/index",
-        "file": "src/main/index.js",
+        "file": "src\\main\\index.js",
         "description": "Main Process Entry Point"
       },
       {
         "module": "renderer/index",
-        "file": "src/renderer/index.js",
+        "file": "src\\renderer\\index.js",
         "description": "Renderer Entry Point"
       }
     ],
     "ipc": [
       {
         "module": "shared/ipcChannels",
-        "file": "src/shared/ipcChannels.js",
+        "file": "src\\shared\\ipcChannels.js",
         "description": "IPC Channel Constants"
+      }
+    ],
+    "logo-svg": [
+      {
+        "module": "shared/logoSVG",
+        "file": "src\\shared\\logoSVG.js",
+        "description": "SubFrame Logo — Centralized SVG definitions"
       }
     ],
     "menu": [
       {
         "module": "main/menu",
-        "file": "src/main/menu.js",
+        "file": "src\\main\\menu.js",
         "description": "Application Menu Module"
       }
     ],
     "overview": [
       {
         "module": "main/overviewManager",
-        "file": "src/main/overviewManager.js",
+        "file": "src\\main\\overviewManager.js",
         "description": "Overview Manager Module"
       },
       {
         "module": "renderer/overviewPanel",
-        "file": "src/renderer/overviewPanel.js",
+        "file": "src\\renderer\\overviewPanel.js",
         "description": "Overview Panel Module"
       }
     ],
     "plugins": [
       {
         "module": "main/pluginsManager",
-        "file": "src/main/pluginsManager.js",
+        "file": "src\\main\\pluginsManager.js",
         "description": "Plugins Manager Module"
       },
       {
         "module": "renderer/pluginsPanel",
-        "file": "src/renderer/pluginsPanel.js",
+        "file": "src\\renderer\\pluginsPanel.js",
         "description": "Plugins Panel Module"
+      }
+    ],
+    "project-init": [
+      {
+        "module": "shared/projectInit",
+        "file": "src\\shared\\projectInit.js",
+        "description": "SubFrame Project Initialization (Pure Node.js)"
+      }
+    ],
+    "settings": [
+      {
+        "module": "main/settingsManager",
+        "file": "src\\main\\settingsManager.js",
+        "description": "Settings Manager"
+      },
+      {
+        "module": "renderer/settingsPanel",
+        "file": "src\\renderer\\settingsPanel.js",
+        "description": "Settings Panel Module"
       }
     ],
     "sidebar": [
       {
         "module": "renderer/projectListUI",
-        "file": "src/renderer/projectListUI.js",
+        "file": "src\\renderer\\projectListUI.js",
         "description": "Project List UI Module"
       },
       {
         "module": "renderer/sidebarResize",
-        "file": "src/renderer/sidebarResize.js",
+        "file": "src\\renderer\\sidebarResize.js",
         "description": "Sidebar Resize Module"
       }
     ],
     "state": [
       {
         "module": "renderer/state",
-        "file": "src/renderer/state.js",
+        "file": "src\\renderer\\state.js",
         "description": "Application State Module"
       }
     ],
     "structure": [
       {
         "module": "renderer/structureMap",
-        "file": "src/renderer/structureMap.js",
+        "file": "src\\renderer\\structureMap.js",
         "description": "Structure Map Module"
       }
     ],
     "tasks": [
       {
         "module": "main/tasksManager",
-        "file": "src/main/tasksManager.js",
+        "file": "src\\main\\tasksManager.js",
         "description": "Tasks Manager Module"
       },
       {
         "module": "renderer/tasksPanel",
-        "file": "src/renderer/tasksPanel.js",
+        "file": "src\\renderer\\tasksPanel.js",
         "description": "Tasks Panel Module"
       }
     ],
     "terminal": [
       {
         "module": "main/pty",
-        "file": "src/main/pty.js",
+        "file": "src\\main\\pty.js",
         "description": "PTY Management Module"
       },
       {
         "module": "main/ptyManager",
-        "file": "src/main/ptyManager.js",
+        "file": "src\\main\\ptyManager.js",
         "description": "PTY Manager Module"
       },
       {
         "module": "renderer/multiTerminalUI",
-        "file": "src/renderer/multiTerminalUI.js",
+        "file": "src\\renderer\\multiTerminalUI.js",
         "description": "Multi-Terminal UI Module"
       },
       {
         "module": "renderer/terminal",
-        "file": "src/renderer/terminal.js",
+        "file": "src\\renderer\\terminal.js",
         "description": "Terminal UI Module"
       },
       {
         "module": "renderer/terminalGrid",
-        "file": "src/renderer/terminalGrid.js",
+        "file": "src\\renderer\\terminalGrid.js",
         "description": "Terminal Grid Module"
       },
       {
         "module": "renderer/terminalManager",
-        "file": "src/renderer/terminalManager.js",
+        "file": "src\\renderer\\terminalManager.js",
         "description": "Terminal Manager Module"
       },
       {
         "module": "renderer/terminalTabBar",
-        "file": "src/renderer/terminalTabBar.js",
+        "file": "src\\renderer\\terminalTabBar.js",
         "description": "Terminal Tab Bar Module"
       }
     ],
     "workspace": [
       {
         "module": "main/workspace",
-        "file": "src/main/workspace.js",
+        "file": "src\\main\\workspace.js",
         "description": "Workspace Module"
       }
     ]

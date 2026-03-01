@@ -1,6 +1,6 @@
 /**
  * Tasks Manager Module
- * Handles task CRUD operations for Frame projects
+ * Handles task CRUD operations for SubFrame projects
  */
 
 const fs = require('fs');

@@ -10,6 +10,135 @@
   padding: var(--space-lg);
   position: relative;
   flex-shrink: 0;
+  transition: width 250ms ease, min-width 250ms ease, max-width 250ms ease, padding 250ms ease;
+}
+
+/* ---- Collapsed sidebar state ---- */
+#sidebar.collapsed {
+  width: 54px !important;
+  min-width: 54px;
+  max-width: 54px;
+  padding: var(--space-lg) var(--space-xs);
+  overflow: hidden;
+}
+
+/* Hide header text + settings button when collapsed */
+#sidebar.collapsed #sidebar-header > span:not(#sidebar-logo) { display: none; }
+#sidebar.collapsed .sidebar-settings-btn { display: none; }
+
+/* Scale down the logo when collapsed */
+#sidebar.collapsed #sidebar-logo {
+  margin: 0 auto;
+}
+#sidebar.collapsed #sidebar-logo svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* Header becomes centered when collapsed */
+#sidebar.collapsed #sidebar-header {
+  justify-content: center;
+  margin-bottom: var(--space-md);
+}
+
+/* Tabs become vertical icon column when collapsed */
+#sidebar.collapsed .sidebar-tabs {
+  flex-direction: column;
+  border-bottom: none;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+#sidebar.collapsed .sidebar-tab-btn {
+  padding: var(--space-sm);
+  justify-content: center;
+  border-bottom: none;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+#sidebar.collapsed .sidebar-tab-btn.active {
+  border-bottom: none;
+  border-left-color: var(--accent-primary);
+  background: var(--accent-subtle);
+}
+
+/* Hide tab labels, show tab icons when collapsed */
+#sidebar.collapsed .sidebar-tab-btn .tab-label { display: none; }
+#sidebar.collapsed .sidebar-tab-btn .tab-icon { display: flex; }
+
+/* Hide all tab content panels when collapsed */
+#sidebar.collapsed .sidebar-tab-content { display: none !important; }
+
+/* Hide project info, project actions when collapsed */
+#sidebar.collapsed #project-info { display: none; }
+#sidebar.collapsed #project-actions { display: none; }
+
+/* Expand button: hidden when expanded, shown when collapsed */
+.sidebar-expand-btn { display: none; }
+#sidebar.collapsed .sidebar-expand-btn { display: flex; }
+
+/* Hide resize handle when collapsed */
+#sidebar.collapsed #sidebar-resize-handle { display: none; }
+
+/* Collapse bar: two buttons side by side when collapsed */
+#sidebar.collapsed #sidebar-collapse-bar {
+  border-top: none;
+  margin-top: auto;
+  gap: 2px;
+}
+
+#sidebar.collapsed #sidebar-collapse-bar .btn-icon {
+  flex: 1;
+  padding: var(--space-xs);
+}
+
+/* ---- Fully hidden sidebar state ---- */
+#sidebar.sidebar-hidden {
+  width: 0 !important;
+  min-width: 0;
+  max-width: 0;
+  padding: 0;
+  border-right: none;
+  overflow: hidden;
+}
+
+#sidebar.sidebar-hidden::after { display: none; }
+
+/* ---- Floating logo overlay (visible when sidebar is fully hidden) ---- */
+.sidebar-float-logo {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 50;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  transition: all var(--transition-fast);
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  opacity: 0;
+}
+
+.sidebar-float-logo.visible {
+  display: flex;
+  animation: float-logo-in 250ms ease forwards;
+}
+
+@keyframes float-logo-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.sidebar-float-logo:hover {
+  border-color: var(--accent-primary);
+  background: var(--accent-subtle);
+  box-shadow: 0 2px 16px rgba(180, 128, 255, 0.2);
 }
 
 #sidebar::after {
@@ -115,35 +244,16 @@ body.sidebar-resizing * {
   background: var(--accent-subtle);
 }
 
-/* Sidebar expand button (shown when sidebar is collapsed) */
-.sidebar-expand-btn {
-  position: fixed;
-  left: 0;
-  bottom: 8px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-left: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  padding: var(--space-sm) var(--space-xs);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  transition: all var(--transition-fast);
-  z-index: 100;
+#btn-collapse-sidebar svg {
+  transition: transform 250ms ease;
 }
 
-.sidebar-expand-btn:hover {
-  color: var(--accent-primary);
-  background: var(--accent-subtle);
-  border-color: var(--accent-primary);
-}
+/* (Floating expand button removed — collapse/expand is now inside the sidebar) */
 
-#sidebar-header::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  background: var(--accent-primary);
-  border-radius: 2px;
-  box-shadow: 0 0 12px var(--accent-primary);
+#sidebar-logo {
+  display: flex;
+  align-items: center;
+  line-height: 0;
 }
 
 /* Sidebar Tabs */
@@ -167,6 +277,22 @@ body.sidebar-resizing * {
   transition: all var(--transition-fast);
   flex: 1;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+/* Tab icons: hidden when expanded, shown when collapsed (via #sidebar.collapsed rules) */
+.sidebar-tab-btn .tab-icon {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.sidebar-tab-btn .tab-label {
+  /* visible by default when expanded */
 }
 
 .sidebar-tab-btn:hover {
@@ -369,6 +495,37 @@ body.sidebar-resizing * {
 .project-item .project-remove-btn:hover {
   background: var(--error);
   color: white;
+}
+
+.project-item .auto-badge {
+  background: var(--bg-hover);
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.project-item .project-add-btn {
+  opacity: 0;
+  visibility: hidden;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  margin-left: var(--space-xs);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.project-item:hover .project-add-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+.project-item .project-add-btn:hover {
+  background: var(--accent-primary);
+  color: var(--bg-deep);
 }
 
 .no-projects-message {

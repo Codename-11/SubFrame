@@ -2,7 +2,7 @@
 
 This project is managed with **SubFrame**. AI assistants should follow the rules below to keep documentation up to date.
 
-> **Note:** This file is named `AGENTS.md` to be AI-tool agnostic. A `CLAUDE.md` symlink is provided for Claude Code compatibility.
+> **Note:** This file is named `AGENTS.md` to be AI-tool agnostic. CLAUDE.md and GEMINI.md contain a reference to this file.
 
 ---
 
@@ -17,6 +17,24 @@ This project is managed with **SubFrame**. AI assistants should follow the rules
 - The user's request must be completed first. Additional ideas come after, as proposals.
 
 **Example:** If the user asks for a modal design change, only change the visual appearance. Do not add new IPC channels, modify event flows, or restructure code.
+
+---
+
+## Relationship to Native AI Tools
+
+SubFrame **enhances** native AI coding tools — it does not replace them.
+
+**Claude Code** works exactly as normal. Built-in features (`/init`, `/commit`, `/review-pr`, `/compact`, `/memory`, CLAUDE.md) are fully supported. CLAUDE.md is Claude Code's native instruction file — users can add their own tool-specific instructions freely. SubFrame adds a small backlink reference pointing to this AGENTS.md file using HTML comment markers (`<!-- SUBFRAME:BEGIN -->` / `<!-- SUBFRAME:END -->`). SubFrame will never overwrite user content in CLAUDE.md.
+
+**Gemini CLI** works exactly as normal. Built-in features (`/init`, `/model`, `/memory`, `/compress`, `/settings`, GEMINI.md) are fully supported. GEMINI.md is Gemini CLI's native instruction file — same backlink approach as CLAUDE.md. Users can add their own instructions freely and SubFrame won't overwrite them.
+
+**Codex CLI** gets SubFrame context via a wrapper script at `.subframe/bin/codex` that injects AGENTS.md as an initial prompt.
+
+**This file (AGENTS.md)** contains SubFrame-specific rules that apply across all tools:
+- Task management (`tasks.json`)
+- Codebase mapping (`STRUCTURE.json`)
+- Context preservation (`PROJECT_NOTES.md`)
+- Session notes and decision tracking
 
 ---
 
@@ -122,6 +140,22 @@ This searches STRUCTURE.json's intentIndex and returns the exact files you need.
 - When task is completed: `status: "completed"`, update `completedAt`
 - After commit: Check and update the status of related tasks
 
+### Task Lifecycle Rules
+
+- When starting a task, immediately mark `in_progress` and set `updatedAt`
+- When code is committed and working, mark `completed` and set `completedAt`
+- If a task grows beyond its original scope, split it into subtasks — create new tasks and reference the parent task ID in `notes`
+- When reopening a completed task, reset status to `pending` and add a note explaining why it was reopened
+- Cross-reference relevant commit hashes or PR numbers in the task's `notes` field
+- Don't create duplicate tasks — search existing tasks first before creating a new one
+- Update the task `description` if the technical approach changes significantly during implementation
+
+### Priority Guidelines
+
+- **high** — Blocking other work or explicitly flagged as urgent by the user
+- **medium** — Normal feature work and standard bug fixes
+- **low** — Nice-to-have improvements, deferred items, and minor polish
+
 ---
 
 ## PROJECT_NOTES.md Rules
@@ -143,6 +177,14 @@ Conversation/decision as is, with its context...
 - Update immediately after a decision is made
 - You can add without asking the user (for important decisions)
 - You can accumulate small decisions and add them in bulk
+
+### Organization Rules
+
+- Keep **"Project Vision"** at the top, then **"Session Notes"** in chronological order
+- Avoid duplicating information already captured in STRUCTURE.json's `architectureNotes` — cross-reference instead (e.g., "See architectureNotes.circularDependencies in STRUCTURE.json")
+- When notes grow beyond ~500 lines, consider archiving older session notes to `docs/archive/` or grouping by month
+- Notes should capture the **why** (decisions, trade-offs, alternatives rejected), not the **what** (code structure belongs in STRUCTURE.json)
+- When the same topic spans multiple sessions, consolidate related notes under the original date heading rather than creating duplicate entries
 
 ---
 
@@ -182,6 +224,23 @@ Pay attention to these signals:
 ### If User Says "No"
 
 No problem, continue. The user can also say what they consider important themselves: "add this to notes"
+
+### What Counts as "Important"
+
+Use this threshold: **would it take more than 5 minutes to re-derive or re-explain in a future session?** If yes, capture it.
+
+**Always capture:**
+- Architecture decisions and their reasoning
+- Technology choices and trade-offs
+- Approach changes mid-task
+- User preferences discovered during work
+
+**Never capture:**
+- Routine debugging steps
+- Simple config changes
+- Typo fixes
+
+**Note failed approaches too** — a brief "We tried X, it didn't work because Y" prevents future re-exploration of dead ends.
 
 ---
 
@@ -226,6 +285,15 @@ No problem, continue. The user can also say what they consider important themsel
 - Pre-commit hook updates automatically (before commit)
 - Manual: `npm run structure`
 - If you added a new IPC channel, check the ipcChannels section
+
+### Maintenance Rules
+
+- The pre-commit hook **only processes `.js` files** in `src/`. Non-JS changes (HTML, CSS, JSON configs) require manual `npm run structure` or hand-editing the relevant section
+- When deleting files, remove their entries from `modules` and update any `depends` arrays that referenced them
+- When adding IPC channels in `ipcChannels.js`, also add them to the `ipcChannels` section of STRUCTURE.json with `direction` and `handler`
+- `architectureNotes` is for **structural patterns** (e.g., circular dependency workarounds, init ordering). Use PROJECT_NOTES.md for **decisions and session context**
+- `intentIndex` should be updated when adding new feature areas so `find-module.js` can locate them
+- If function line numbers drift significantly after edits, run `npm run structure` to refresh them
 
 ---
 
