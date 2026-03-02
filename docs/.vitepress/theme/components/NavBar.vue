@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { withBase } from 'vitepress'
 import LogoSvg from './LogoSvg.vue'
 
 const emit = defineEmits<{
@@ -14,7 +15,7 @@ function onAnchorClick(e: Event, href: string) {
 <template>
   <nav class="sf-nav">
     <div class="container">
-      <a href="/" class="logo">
+      <a :href="withBase('/')" class="logo">
         <div class="logo-icon">
           <LogoSvg :size="54" id="nv" :frame="true" />
         </div>
@@ -28,7 +29,7 @@ function onAnchorClick(e: Event, href: string) {
         <a href="#features" @click="onAnchorClick($event, '#features')">Features</a>
         <a href="#showcase" @click="onAnchorClick($event, '#showcase')">Showcase</a>
         <a href="#faq" @click="onAnchorClick($event, '#faq')">FAQ</a>
-        <a href="/blog/">Blog</a>
+        <a :href="withBase('/blog/')">Blog</a>
         <a href="https://github.com/Codename-11/SubFrame" target="_blank">GitHub</a>
       </div>
 

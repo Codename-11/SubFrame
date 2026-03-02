@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import NavBar from './components/NavBar.vue'
 import Footer from './components/Footer.vue'
 import './styles/blog.css'
@@ -23,7 +23,7 @@ function formatDate(dateStr: string): string {
     <article>
       <header class="post-header">
         <div class="blog-container">
-          <a href="/blog/" class="post-back">&larr; All posts</a>
+          <a :href="withBase('/blog/')" class="post-back">&larr; All posts</a>
           <div class="post-meta">
             <span class="post-date">{{ formatDate(frontmatter.date) }}</span>
             <span class="post-tag">{{ frontmatter.tag }}</span>
