@@ -1,0 +1,92 @@
+/* Global VitePress overrides + SubFrame design tokens */
+
+:root {
+  /* SubFrame palette */
+  --sf-bg-primary: #0a0a0b;
+  --sf-bg-secondary: #111113;
+  --sf-bg-elevated: #18181b;
+  --sf-bg-card: #141416;
+
+  --sf-text-primary: #fafafa;
+  --sf-text-secondary: #a1a1aa;
+  --sf-text-tertiary: #71717a;
+
+  --sf-accent: #f59e0b;
+  --sf-accent-dim: #d97706;
+  --sf-accent-glow: rgba(245, 158, 11, 0.15);
+  --sf-accent-subtle: rgba(245, 158, 11, 0.08);
+
+  /* Logo palette — neon synthwave */
+  --sf-logo-purple: #b480ff;
+  --sf-logo-pink: #ff6eb4;
+  --sf-logo-cyan: #64d8ff;
+  --sf-logo-gradient: linear-gradient(135deg, #b480ff, #ff6eb4, #64d8ff);
+  --sf-logo-glow-purple: rgba(180, 128, 255, 0.15);
+  --sf-logo-glow-pink: rgba(255, 110, 180, 0.12);
+  --sf-logo-glow-cyan: rgba(100, 216, 255, 0.10);
+
+  --sf-border: rgba(255, 255, 255, 0.06);
+  --sf-border-hover: rgba(255, 255, 255, 0.12);
+
+  /* Typography */
+  --sf-font-display: 'Inter', -apple-system, sans-serif;
+  --sf-font-body: 'Inter', -apple-system, sans-serif;
+  --sf-font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing */
+  --sf-space-xs: 4px;
+  --sf-space-sm: 8px;
+  --sf-space-md: 16px;
+  --sf-space-lg: 24px;
+  --sf-space-xl: 32px;
+  --sf-space-2xl: 48px;
+  --sf-space-3xl: 64px;
+  --sf-space-4xl: 96px;
+
+  /* Effects */
+  --sf-radius-sm: 6px;
+  --sf-radius-md: 10px;
+  --sf-radius-lg: 16px;
+  --sf-radius-xl: 24px;
+  --sf-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sf-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sf-transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset VitePress defaults — we use fully custom layouts */
+.VPNav,
+.VPSidebar,
+.VPFooter,
+.VPLocalNav,
+.VPDoc {
+  display: none !important;
+}
+
+/* Strip VitePress default page styling */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--sf-bg-primary) !important;
+  color: var(--sf-text-primary);
+}
+
+#app,
+.Layout,
+.VPContent,
+.VPContent > div,
+.VPPage {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  margin: 0;
+  padding: 0;
+}
+
+/* Override VitePress brand color */
+:root {
+  --vp-c-brand-1: var(--sf-accent);
+  --vp-c-bg: var(--sf-bg-primary);
+  --vp-c-bg-soft: var(--sf-bg-secondary);
+  --vp-c-default-1: var(--sf-text-primary);
+}
