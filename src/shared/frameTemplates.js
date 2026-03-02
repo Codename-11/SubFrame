@@ -492,20 +492,20 @@ function getNativeFileTemplate() {
 
 /**
  * Pre-commit hook template for user projects
- * Bash script that detects staged JS files in src/ and runs the updater script.
+ * Bash script that detects staged source files in src/ and runs the updater script.
  */
 function getPreCommitHookTemplate() {
   return `#!/bin/bash
 #
 # SubFrame pre-commit hook
-# Auto-updates STRUCTURE.json when JS files in src/ are committed.
+# Auto-updates STRUCTURE.json when source files in src/ are committed.
 #
 
-# Check if any JS files in src/ are staged
-STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep '^src/.*\\.js$' || true)
+# Check if any source files in src/ are staged
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep -E '^src/.*\\.(js|ts|tsx|jsx)$' || true)
 
-# Also check for deleted JS files
-DELETED_JS=$(git diff --cached --name-only --diff-filter=D | grep '^src/.*\\.js$' || true)
+# Also check for deleted source files
+DELETED_JS=$(git diff --cached --name-only --diff-filter=D | grep -E '^src/.*\\.(js|ts|tsx|jsx)$' || true)
 
 if [ -z "$STAGED_JS" ] && [ -z "$DELETED_JS" ]; then
   exit 0
@@ -556,6 +556,11 @@ const ROOT = process.cwd();
 const STRUCTURE_FILE = path.join(ROOT, 'STRUCTURE.json');
 const SRC_DIR = path.join(ROOT, 'src');
 
+/** Strip file extension (.js, .ts, .tsx, .jsx) from a path */
+function stripExt(p) {
+  return p.replace(/\\.(js|ts|tsx|jsx)$/, '');
+}
+
 // Load existing STRUCTURE.json
 let structure;
 try {
@@ -573,8 +578,8 @@ const deleted = (process.env.DELETED_FILES || '').split('\\n').filter(Boolean);
 
 // Remove deleted modules
 for (const file of deleted) {
-  const key = path.relative(SRC_DIR, path.join(ROOT, file))
-    .replace(/\\.js$/, '').replace(/\\\\/g, '/');
+  const key = stripExt(path.relative(SRC_DIR, path.join(ROOT, file)))
+    .replace(/\\\\/g, '/');
   if (structure.modules[key]) {
     delete structure.modules[key];
   }
@@ -592,15 +597,15 @@ for (const file of files) {
     continue;
   }
 
-  const key = path.relative(SRC_DIR, fullPath)
-    .replace(/\\.js$/, '').replace(/\\\\/g, '/');
+  const key = stripExt(path.relative(SRC_DIR, fullPath))
+    .replace(/\\\\/g, '/');
 
   // Extract description from top JSDoc comment
   let description = '';
   const docMatch = content.match(/^\\/\\*\\*\\s*\\n\\s*\\*\\s*([^\\n]+)/);
   if (docMatch) description = docMatch[1].trim();
 
-  // Extract exports from module.exports = { ... }
+  // Extract exports — CJS (module.exports) and ESM (export { ... }, export function)
   const xports = [];
   const expMatch = content.match(/module\\.exports\\s*=\\s*\\{([^}]+)\\}/);
   if (expMatch) {
@@ -609,15 +614,30 @@ for (const file of files) {
       if (name && !name.startsWith('//')) xports.push(name);
     });
   }
+  // ESM named exports: export function foo, export const bar, etc.
+  const esmExportRe = /^export\\s+(?:function|const|let|class|async\\s+function)\\s+(\\w+)/gm;
+  let em;
+  while ((em = esmExportRe.exec(content)) !== null) {
+    if (!xports.includes(em[1])) xports.push(em[1]);
+  }
 
-  // Extract require() dependencies
+  // Extract dependencies — CJS require() and ESM import
   const deps = [];
   const reqRe = /require\\s*\\(\\s*['"]([^'"]+)['"]\\s*\\)/g;
   let m;
   while ((m = reqRe.exec(content)) !== null) {
     const dep = m[1];
     if (dep.startsWith('./') || dep.startsWith('../')) {
-      deps.push(dep.replace(/^\\.+\\//, '').replace(/\\.js$/, ''));
+      deps.push(stripExt(dep.replace(/^\\.+\\//, '')));
+    } else {
+      deps.push(dep);
+    }
+  }
+  const importRe = /import\\s+.*?from\\s+['"]([^'"]+)['"]/g;
+  while ((m = importRe.exec(content)) !== null) {
+    const dep = m[1];
+    if (dep.startsWith('./') || dep.startsWith('../')) {
+      deps.push(stripExt(dep.replace(/^\\.+\\//, '')));
     } else {
       deps.push(dep);
     }
@@ -625,7 +645,7 @@ for (const file of files) {
 
   // Extract function names with line numbers
   const functions = {};
-  const fnRe = /^(?:async\\s+)?function\\s+(\\w+)\\s*\\(/gm;
+  const fnRe = /^(?:export\\s+)?(?:async\\s+)?function\\s+(\\w+)\\s*\\(/gm;
   while ((m = fnRe.exec(content)) !== null) {
     const lineNum = content.substring(0, m.index).split('\\n').length;
     functions[m[1]] = { line: lineNum };
@@ -650,6 +670,621 @@ fs.writeFileSync(STRUCTURE_FILE, JSON.stringify(structure, null, 2) + '\\n');
 `;
 }
 
+/**
+ * Session-start hook template (deployed to .subframe/hooks/session-start.js)
+ */
+function getSessionStartHookTemplate() {
+  return `#!/usr/bin/env node
+/**
+ * SubFrame SessionStart Hook
+ * Injects pending/in-progress sub-tasks into Claude's context at session start.
+ * Fires on: startup, resume, compact (re-injects after context compaction).
+ * Output on stdout is added to Claude's conversation context.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+function findTasksFile(startDir) {
+  let dir = startDir || process.cwd();
+  while (dir !== path.dirname(dir)) {
+    const tasksPath = path.join(dir, '.subframe', 'tasks.json');
+    if (fs.existsSync(tasksPath)) return tasksPath;
+    dir = path.dirname(dir);
+  }
+  return null;
+}
+
+function main() {
+  const tasksPath = findTasksFile();
+  if (!tasksPath) process.exit(0);
+
+  let data;
+  try {
+    const raw = fs.readFileSync(tasksPath, 'utf8').replace(/,\\s*([\\\\]}])/g, '$1');
+    data = JSON.parse(raw);
+  } catch {
+    process.exit(0);
+  }
+
+  const inProgress = data.tasks?.inProgress || [];
+  const pending = data.tasks?.pending || [];
+
+  function pi(p) { return p === 'high' ? '\\u25B2' : p === 'low' ? '\\u25BD' : '\\u25C7'; }
+
+  const lines = ['<sub-tasks-context>'];
+
+  if (inProgress.length > 0) {
+    lines.push('\\u25C6 SubFrame \\u2500 \\uD83D\\uDD04 In Progress (' + inProgress.length + '):');
+    for (const t of inProgress) {
+      lines.push('  ' + pi(t.priority) + ' [' + t.id + '] ' + t.title);
+      if (t.notes) {
+        const lastNote = t.notes.split('\\n').pop().trim();
+        if (lastNote) lines.push('    \\u2514 ' + lastNote);
+      }
+    }
+  }
+
+  if (pending.length > 0) {
+    lines.push('\\u25C6 SubFrame \\u2500 \\uD83D\\uDCCB Pending (' + pending.length + '):');
+    const sorted = [...pending].sort((a, b) => {
+      const p = { high: 0, medium: 1, low: 2 };
+      return (p[a.priority] || 1) - (p[b.priority] || 1);
+    });
+    const shown = sorted.slice(0, 5);
+    for (const t of shown) {
+      lines.push('  ' + pi(t.priority) + ' [' + t.id + '] ' + t.title);
+    }
+    if (pending.length > 5) {
+      lines.push('  \\u2026 +' + (pending.length - 5) + ' more \\u2192 node scripts/task.js list');
+    }
+  }
+
+  lines.push('Use: start <id> | complete <id> | add --title "..."');
+  lines.push('</sub-tasks-context>');
+
+  console.log(lines.join('\\n'));
+}
+
+main();
+`;
+}
+
+/**
+ * Prompt-submit hook template (deployed to .subframe/hooks/prompt-submit.js)
+ */
+function getPromptSubmitHookTemplate() {
+  return `#!/usr/bin/env node
+/**
+ * SubFrame UserPromptSubmit Hook
+ * Fuzzy-matches user prompts against pending sub-task titles.
+ * Reads hook input from stdin (JSON with { prompt } field).
+ * Output on stdout is added to Claude's conversation context.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+function findTasksFile(startDir) {
+  let dir = startDir || process.cwd();
+  while (dir !== path.dirname(dir)) {
+    const tasksPath = path.join(dir, '.subframe', 'tasks.json');
+    if (fs.existsSync(tasksPath)) return tasksPath;
+    dir = path.dirname(dir);
+  }
+  return null;
+}
+
+function matchScore(prompt, title) {
+  const promptWords = new Set(prompt.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/).filter(w => w.length > 2));
+  const titleWords = title.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/).filter(w => w.length > 2);
+  if (titleWords.length === 0) return 0;
+  let matches = 0;
+  for (const word of titleWords) {
+    if (promptWords.has(word)) matches++;
+  }
+  return matches / titleWords.length;
+}
+
+function main() {
+  let input = '';
+  try { input = fs.readFileSync(0, 'utf8'); } catch { process.exit(0); }
+  let hookData;
+  try { hookData = JSON.parse(input); } catch { process.exit(0); }
+
+  const prompt = hookData.prompt;
+  if (!prompt || typeof prompt !== 'string' || prompt.length < 10) process.exit(0);
+  if (prompt.startsWith('/')) process.exit(0);
+
+  const tasksPath = findTasksFile(hookData.cwd) || findTasksFile(process.cwd());
+  if (!tasksPath) process.exit(0);
+
+  let data;
+  try {
+    const raw = fs.readFileSync(tasksPath, 'utf8').replace(/,\\s*([\\\\]}])/g, '$1');
+    data = JSON.parse(raw);
+  } catch { process.exit(0); }
+
+  const pending = data.tasks?.pending || [];
+  if (pending.length === 0) process.exit(0);
+
+  let bestTask = null;
+  let bestScore = 0;
+
+  for (const task of pending) {
+    const titleScore = matchScore(prompt, task.title);
+    const descScore = task.description ? matchScore(prompt, task.description) * 0.5 : 0;
+    const score = Math.max(titleScore, descScore);
+    if (score > bestScore) {
+      bestScore = score;
+      bestTask = task;
+    }
+  }
+
+  if (bestScore >= 0.4 && bestTask) {
+    console.log('<sub-task-match>');
+    console.log('\\u25C6 SubFrame \\u2500 \\uD83C\\uDFAF Matches sub-task [' + bestTask.id + ']: "' + bestTask.title + '" (' + bestTask.priority + ')');
+    console.log('\\u2192 Start: node scripts/task.js start ' + bestTask.id);
+    console.log('</sub-task-match>');
+  }
+}
+
+main();
+`;
+}
+
+/**
+ * Stop hook template (deployed to .subframe/hooks/stop.js)
+ */
+function getStopHookTemplate() {
+  return `#!/usr/bin/env node
+/**
+ * SubFrame Stop Hook
+ * Reminds about in-progress sub-tasks and detects untracked work.
+ * Output on stdout is added to Claude's conversation context.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+function findProjectRoot(startDir) {
+  let dir = startDir || process.cwd();
+  while (dir !== path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, '.subframe'))) return dir;
+    dir = path.dirname(dir);
+  }
+  return null;
+}
+
+function findTasksFile(startDir) {
+  const root = findProjectRoot(startDir);
+  if (!root) return null;
+  const tasksPath = path.join(root, '.subframe', 'tasks.json');
+  return fs.existsSync(tasksPath) ? tasksPath : null;
+}
+
+function getModifiedSourceFiles(projectRoot) {
+  try {
+    const output = execSync('git diff --name-only HEAD -- src/', {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      timeout: 3000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    if (!output) return [];
+    return output.split('\\n').filter(f => /\\.(ts|tsx|js|jsx)$/.test(f));
+  } catch {
+    return [];
+  }
+}
+
+function main() {
+  let input = '';
+  try { input = fs.readFileSync(0, 'utf8'); } catch { process.exit(0); }
+  let hookData;
+  try { hookData = JSON.parse(input); } catch { process.exit(0); }
+
+  const projectRoot = findProjectRoot(hookData.cwd) || findProjectRoot(process.cwd());
+  if (!projectRoot) process.exit(0);
+
+  const tasksPath = findTasksFile(hookData.cwd) || findTasksFile(process.cwd());
+  if (!tasksPath) process.exit(0);
+
+  let data;
+  try {
+    const raw = fs.readFileSync(tasksPath, 'utf8').replace(/,\\s*([\\\\]}])/g, '$1');
+    data = JSON.parse(raw);
+  } catch { process.exit(0); }
+
+  const inProgress = data.tasks?.inProgress || [];
+  const lines = [];
+
+  if (inProgress.length > 0) {
+    lines.push('<sub-task-reminder>');
+    lines.push('\\u25C6 SubFrame \\u2500 \\uD83D\\uDD04 ' + inProgress.length + ' sub-task(s) in progress:');
+    for (const t of inProgress) {
+      lines.push('  \\u2022 [' + t.id + '] ' + t.title);
+    }
+    lines.push('\\u2192 Done? complete <id> | Notes? update <id> --add-note "..."');
+    lines.push('</sub-task-reminder>');
+  }
+
+  if (inProgress.length === 0) {
+    const modifiedFiles = getModifiedSourceFiles(projectRoot);
+    if (modifiedFiles.length >= 2) {
+      lines.push('<sync-check>');
+      lines.push('\\u25C6 SubFrame \\u2500 \\u26A0 ' + modifiedFiles.length + ' source file(s) changed but no sub-task is tracking this work.');
+      lines.push('  Before wrapping up, consider:');
+      lines.push('  \\u2022 Track: node scripts/task.js add --title "..." && node scripts/task.js complete <id>');
+      lines.push('  \\u2022 Decisions \\u2192 .subframe/PROJECT_NOTES.md');
+      lines.push('  \\u2022 Changes \\u2192 .subframe/docs-internal/changelog.md');
+      lines.push('</sync-check>');
+    }
+  }
+
+  if (lines.length > 0) {
+    console.log(lines.join('\\n'));
+  }
+}
+
+main();
+`;
+}
+
+/**
+ * Pre-tool-use hook template (deployed to .subframe/hooks/pre-tool-use.js)
+ * Reads from scripts/hooks/ — the source of truth for hook content.
+ */
+function getPreToolUseHookTemplate() {
+  const hookPath = path.join(__dirname, '..', '..', 'scripts', 'hooks', 'pre-tool-use.js');
+  return require('fs').readFileSync(hookPath, 'utf8');
+}
+
+/**
+ * Post-tool-use hook template (deployed to .subframe/hooks/post-tool-use.js)
+ * Reads from scripts/hooks/ — the source of truth for hook content.
+ */
+function getPostToolUseHookTemplate() {
+  const hookPath = path.join(__dirname, '..', '..', 'scripts', 'hooks', 'post-tool-use.js');
+  return require('fs').readFileSync(hookPath, 'utf8');
+}
+
+/**
+ * Claude Code settings.json hooks template
+ */
+function getClaudeSettingsHooksTemplate() {
+  return {
+    hooks: {
+      "SessionStart": [
+        {
+          matcher: "",
+          hooks: [{ type: "command", command: "node .subframe/hooks/session-start.js" }]
+        }
+      ],
+      "UserPromptSubmit": [
+        {
+          matcher: "",
+          hooks: [{ type: "command", command: "node .subframe/hooks/prompt-submit.js" }]
+        }
+      ],
+      "Stop": [
+        {
+          matcher: "",
+          hooks: [{ type: "command", command: "node .subframe/hooks/stop.js" }]
+        }
+      ],
+      "PreToolUse": [
+        {
+          matcher: "",
+          hooks: [{ type: "command", command: "node .subframe/hooks/pre-tool-use.js" }]
+        }
+      ],
+      "PostToolUse": [
+        {
+          matcher: "",
+          hooks: [{ type: "command", command: "node .subframe/hooks/post-tool-use.js" }]
+        }
+      ]
+    }
+  };
+}
+
+/**
+ * /sub-tasks skill template — deployed version uses direct file manipulation
+ */
+function getSubTasksSkillTemplate() {
+  return `---
+name: sub-tasks
+description: View and manage SubFrame Sub-Tasks. Use when starting work, completing tasks, checking what's pending, or creating new tasks from conversation.
+disable-model-invocation: false
+argument-hint: [list|start|complete|add|get|archive]
+allowed-tools: Bash, Read, Write, Edit, Glob
+---
+
+# SubFrame Sub-Tasks
+
+Manage the project's Sub-Task system. Sub-Tasks are SubFrame's project task tracking stored as individual markdown files in \`.subframe/tasks/\`.
+
+## Dynamic Context
+
+Current task index:
+!\`cat .subframe/tasks.json 2>/dev/null || echo "No tasks.json found"\`
+
+## Instructions
+
+**Argument:** \`$ARGUMENTS\`
+
+### Task File Format
+
+Each task is a markdown file in \`.subframe/tasks/\` with YAML frontmatter:
+
+\\\`\\\`\\\`markdown
+---
+id: task-abc123
+title: My task title
+status: pending
+priority: medium
+category: feature
+description: What needs to be done
+userRequest: The user's original words
+acceptanceCriteria: How to verify completion
+blockedBy: []
+blocks: []
+createdAt: 2024-01-01T00:00:00.000Z
+updatedAt: 2024-01-01T00:00:00.000Z
+completedAt: null
+---
+
+## Notes
+
+Session notes go here.
+
+## Steps
+
+- [ ] Step one
+- [x] Step two (completed)
+\\\`\\\`\\\`
+
+### Operations
+
+#### List tasks
+Read \`.subframe/tasks.json\` for the index overview, or glob \`.subframe/tasks/*.md\` and read frontmatter.
+
+#### Get task details
+Read the specific \`.subframe/tasks/<id>.md\` file.
+
+#### Start a task (pending → in_progress)
+Edit the task's frontmatter: set \`status: in_progress\` and update \`updatedAt\`.
+
+#### Complete a task
+Edit the task's frontmatter: set \`status: completed\`, set \`completedAt\` to current ISO timestamp, update \`updatedAt\`.
+
+#### Add a new task
+Create a new \`.subframe/tasks/<id>.md\` file with:
+- Generate id: \`task-\` + 8 random alphanumeric chars
+- Set \`status: pending\`, \`createdAt\` and \`updatedAt\` to current ISO timestamp
+- \`completedAt: null\`
+- Include all required fields in frontmatter
+
+#### Update a task
+Edit the frontmatter fields as needed. Always update \`updatedAt\`.
+
+#### Archive completed tasks
+Move completed \`.md\` files to \`.subframe/tasks/archive/YYYY/\` (create directory if needed).
+
+### After Any Write Operation
+
+Regenerate the \`.subframe/tasks.json\` index by reading all \`.subframe/tasks/*.md\` files (excluding archive/) and building the JSON structure with tasks grouped by status (pending, inProgress, completed).
+
+### If invoked without arguments
+
+Show the current task list and ask the user what they'd like to do:
+1. Start a pending task
+2. Complete an in-progress task
+3. Create a new task
+4. Archive completed tasks
+
+### If invoked with a task ID
+
+Show full details for that task by reading its .md file.
+
+### Creating tasks from conversation
+
+When the user says things like "let's do this later", "add a task for...", or "we should...":
+1. Capture the user's exact words as \`userRequest\`
+2. Write a detailed \`description\` explaining what, how, and which files
+3. Set appropriate \`priority\` and \`category\`
+4. Create the .md file
+5. Regenerate the index
+6. Confirm the task was created
+`;
+}
+
+/**
+ * /sub-docs skill template — generalized for any SubFrame-managed project
+ */
+function getSubDocsSkillTemplate() {
+  return `---
+name: sub-docs
+description: Sync all SubFrame documentation after feature work. Updates CLAUDE.md lists, changelog, PROJECT_NOTES decisions, and STRUCTURE.json.
+argument-hint: [summary of what changed]
+disable-model-invocation: false
+allowed-tools: Bash, Read, Edit, Write, Grep, Glob
+---
+
+# SubFrame Documentation Sync
+
+After significant feature work, synchronize all SubFrame documentation references. This skill automates the "Before Ending Work" checklist.
+
+## Dynamic Context
+
+Current version:
+!\`node -e "console.log(require('./package.json').version)" 2>/dev/null || echo "unknown"\`
+
+Recent commits (last 10):
+!\`git log --oneline --no-decorate -10 2>/dev/null || echo "No git history"\`
+
+Files changed (unstaged + staged):
+!\`git diff --name-only HEAD 2>/dev/null | head -30\`
+
+## Instructions
+
+**Argument:** \`$ARGUMENTS\`
+
+The argument should describe what feature/changes were made. If empty, infer from recent git changes.
+
+### Step 1: Identify What Changed
+
+Read the recent changes (git diff, argument context) and categorize:
+- **New source modules** → update CLAUDE.md module lists (if applicable)
+- **New components** → update CLAUDE.md component lists (if applicable)
+- **Architecture decisions** → add to \`.subframe/PROJECT_NOTES.md\` Session Notes
+- **User-facing features** → add to \`.subframe/docs-internal/changelog.md\` under [Unreleased]
+
+### Step 2: Update CLAUDE.md
+
+Read \`CLAUDE.md\` and update only the sections that need changes. If CLAUDE.md has module/component lists, add new entries. Preserve existing formatting and ordering.
+
+**Rules:**
+- Only add genuinely new entries — don't duplicate
+- Keep formatting consistent with existing entries
+- Don't modify user-written content outside SubFrame-managed sections
+
+### Step 3: Update Changelog
+
+Read \`.subframe/docs-internal/changelog.md\` and add entries under \`## [Unreleased]\`.
+
+**Format:** Follow the existing changelog style:
+- Group under \`### Added\`, \`### Changed\`, \`### Fixed\`, \`### Removed\`
+- Bold feature name, em-dash, brief description
+- Sub-bullets for implementation details
+
+### Step 4: Update PROJECT_NOTES (if architecture decision)
+
+If the work involved an architecture decision worth preserving, add a session note to \`.subframe/PROJECT_NOTES.md\` under \`## Session Notes\`.
+
+**Format:**
+\\\`\\\`\\\`markdown
+### [YYYY-MM-DD] Title
+
+**Context:** Why this decision was needed.
+
+**Decision:** What was chosen.
+
+**Key architectural choices:**
+- Point 1
+- Point 2
+
+**Files:** list of key files
+\\\`\\\`\\\`
+
+**Skip this step** for routine changes (bug fixes, minor UI tweaks, config changes).
+
+### Step 5: Regenerate STRUCTURE.json
+
+Run: \`npm run structure\`
+
+This picks up any new/renamed/deleted source files.
+
+### Step 6: Summary
+
+Present a checklist of what was updated:
+- [ ] CLAUDE.md — what was added/changed
+- [ ] changelog.md — entries added
+- [ ] PROJECT_NOTES.md — decision added (or skipped)
+- [ ] STRUCTURE.json — regenerated
+`;
+}
+
+/**
+ * /sub-audit skill template — generalized for any SubFrame-managed project
+ */
+function getSubAuditSkillTemplate() {
+  return `---
+name: sub-audit
+description: Run a code review and documentation audit on recent changes. Finds bugs, edge cases, missing docs, and type safety issues.
+argument-hint: [scope - e.g., "auth feature", "last 5 commits"]
+disable-model-invocation: false
+allowed-tools: Bash, Read, Grep, Glob, Agent
+---
+
+# SubFrame Audit
+
+Run a thorough audit on recent changes, combining code review and documentation checks.
+
+## Dynamic Context
+
+Recent commits (last 15):
+!\`git log --oneline --no-decorate -15 2>/dev/null || echo "No git history"\`
+
+Files changed vs main:
+!\`git diff --name-only main...HEAD 2>/dev/null | head -40\`
+
+## Instructions
+
+**Argument:** \`$ARGUMENTS\`
+
+The argument should describe the scope to audit. If empty, audit all changes since the last merge to main.
+
+### Phase 1: Identify Scope
+
+Determine which files to audit:
+- If argument specifies a feature/scope, identify the relevant files
+- If empty, use \`git diff --name-only main...HEAD\` to find all changed files
+- Group files by layer (e.g., backend, frontend, shared, config, tests)
+
+### Phase 2: Code Review (spawn agent)
+
+Spawn a code review agent (\`feature-dev:code-reviewer\` subagent type) to review the changed files. The agent should check for:
+
+1. **Critical bugs** — null/undefined access, race conditions, unhandled errors, infinite loops
+2. **Type safety** — \`as any\` casts, missing type imports, loose typing where strict types exist
+3. **Platform issues** — Windows path handling, file system edge cases
+4. **Security** — command injection, XSS in rendered content, path traversal
+5. **Logic errors** — off-by-one, incorrect conditions, missing edge cases
+
+### Phase 3: Documentation Audit (spawn agent)
+
+Spawn an explore agent (\`Explore\` subagent type) to check documentation completeness:
+
+1. **CLAUDE.md** — Are all modules/components listed?
+2. **changelog.md** — Does [Unreleased] reflect all new features?
+3. **PROJECT_NOTES.md** — Are architecture decisions documented?
+4. **STRUCTURE.json** — Is it up to date? (compare module count with actual files)
+
+### Phase 4: Report
+
+Present findings in this format:
+
+\\\`\\\`\\\`
+## Audit Report
+
+### Critical Issues (must fix)
+1. [FILE:LINE] Description — severity, impact
+
+### Important Issues (should fix)
+1. [FILE:LINE] Description — severity, impact
+
+### Documentation Gaps
+1. [FILE] What's missing
+
+### Suggestions (nice to have)
+1. Description
+\\\`\\\`\\\`
+
+**Confidence filtering:** Only report issues you are confident about. Skip speculative concerns or style preferences. Each reported issue should include:
+- Exact file and line number
+- What the problem is
+- Why it matters (impact)
+- Suggested fix
+
+### Phase 5: Offer Fixes
+
+After presenting the report, ask the user if they want to fix any of the reported issues. If yes, apply fixes starting with Critical → Important → Documentation.
+`;
+}
+
 module.exports = {
   getAgentsTemplate,
   getStructureTemplate,
@@ -661,5 +1296,14 @@ module.exports = {
   getGenericWrapperTemplate,
   getNativeFileTemplate,
   getPreCommitHookTemplate,
-  getHookUpdaterScript
+  getHookUpdaterScript,
+  getSessionStartHookTemplate,
+  getPromptSubmitHookTemplate,
+  getStopHookTemplate,
+  getPreToolUseHookTemplate,
+  getPostToolUseHookTemplate,
+  getClaudeSettingsHooksTemplate,
+  getSubTasksSkillTemplate,
+  getSubDocsSkillTemplate,
+  getSubAuditSkillTemplate
 };

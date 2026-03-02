@@ -1,0 +1,106 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* SubFrame is always dark — use class selector so dark: variants work
+   regardless of OS color scheme. Requires class="dark" on <html>. */
+@variant dark (&:is(.dark *));
+
+@theme {
+  /* ── SubFrame Theme Tokens ─────────────────────────────────────────── */
+  --color-bg-deep: #0f0f10;
+  --color-bg-primary: #151516;
+  --color-bg-secondary: #1a1a1c;
+  --color-bg-tertiary: #222225;
+  --color-bg-elevated: #28282c;
+  --color-bg-hover: #2e2e33;
+  --color-text-primary: #e8e6e3;
+  --color-text-secondary: #a09b94;
+  --color-text-tertiary: #6b6660;
+  --color-text-muted: #4a4642;
+  --color-accent: #d4a574;
+  --color-accent-secondary: #c9956a;
+  --color-accent-subtle: rgba(212, 165, 116, 0.15);
+  --color-accent-glow: rgba(212, 165, 116, 0.08);
+  --color-success: #7cb382;
+  --color-warning: #e0a458;
+  --color-error: #d47878;
+  --color-info: #78a5d4;
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-default: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(212, 165, 116, 0.08);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+  /* ── shadcn/ui Standard Tokens (mapped to SubFrame dark theme) ───── */
+  /* These are required by shadcn/ui components (dropdown-menu, tooltip,
+     context-menu, dialog, alert-dialog, command, button, input, etc.)
+     which use classes like bg-popover, text-foreground, border, etc. */
+
+  /* Base surfaces */
+  --color-background: #0f0f10;
+  --color-foreground: #e8e6e3;
+
+  /* Card */
+  --color-card: #151516;
+  --color-card-foreground: #e8e6e3;
+
+  /* Popover (dropdowns, context menus, command palette) */
+  --color-popover: #1a1a1c;
+  --color-popover-foreground: #e8e6e3;
+
+  /* Primary (used by shadcn Button default variant) */
+  --color-primary: #d4a574;
+  --color-primary-foreground: #0f0f10;
+
+  /* Secondary */
+  --color-secondary: #222225;
+  --color-secondary-foreground: #e8e6e3;
+
+  /* Muted */
+  --color-muted: #222225;
+  --color-muted-foreground: #6b6660;
+
+  /* Accent (focus highlight on menu items) */
+  /* NOTE: shadcn 'accent' = hover/focus bg for interactive items.
+     We use bg-hover so it doesn't clash with SubFrame's amber --color-accent. */
+  --color-accent-foreground: #e8e6e3;
+
+  /* Destructive */
+  --color-destructive: #d47878;
+  --color-destructive-foreground: #e8e6e3;
+
+  /* Border / Input / Ring */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-input: rgba(255, 255, 255, 0.08);
+  --color-ring: rgba(212, 165, 116, 0.3);
+}
+
+/* Subtle scrollbar for dropdowns/panels */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+
+/* Green pulse animation for active project dots */
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.5); }
+  50% { box-shadow: 0 0 0 3px rgba(76, 175, 80, 0); }
+}

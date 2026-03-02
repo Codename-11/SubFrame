@@ -2,13 +2,13 @@
 /**
  * STRUCTURE.json Auto-Updater
  *
- * Parses JS files and updates STRUCTURE.json with module info.
+ * Parses JS/TS/TSX files and updates STRUCTURE.json with module info.
  * Can run in full mode (all files) or incremental mode (changed files only).
  *
  * Usage:
  *   node scripts/update-structure.js              # Full update
  *   node scripts/update-structure.js --changed    # Only git staged changes
- *   node scripts/update-structure.js file1.js file2.js  # Specific files
+ *   node scripts/update-structure.js file1.ts file2.tsx  # Specific files
  */
 
 const fs = require('fs');
@@ -16,11 +16,24 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const ROOT_DIR = path.join(__dirname, '..');
-const STRUCTURE_FILE = path.join(ROOT_DIR, 'STRUCTURE.json');
+const STRUCTURE_FILE = path.join(ROOT_DIR, '.subframe', 'STRUCTURE.json');
 const SRC_DIR = path.join(ROOT_DIR, 'src');
 
+// File extensions to process
+const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
+
+// Directories to exclude from scanning
+const EXCLUDE_DIRS = ['node_modules', 'dist', 'components/ui'];
+
 /**
- * Parse a JS file and extract module information
+ * Check if a file has a supported source extension
+ */
+function isSourceFile(filename) {
+  return SOURCE_EXTENSIONS.some(ext => filename.endsWith(ext));
+}
+
+/**
+ * Parse a source file and extract module information
  */
 function parseJSFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
@@ -31,7 +44,8 @@ function parseJSFile(filePath) {
     description: extractDescription(content),
     exports: extractExports(content),
     depends: extractDependencies(content),
-    functions: {}
+    functions: {},
+    loc: lines.length
   };
 
   // Extract functions with line numbers
@@ -69,17 +83,16 @@ function extractDescription(content) {
 }
 
 /**
- * Extract module.exports
+ * Extract exports (supports both CJS and ESM/TypeScript)
  */
 function extractExports(content) {
   const exports = [];
 
-  // module.exports = { func1, func2 }
+  // CJS: module.exports = { func1, func2 }
   const objectMatch = content.match(/module\.exports\s*=\s*\{([^}]+)\}/);
   if (objectMatch) {
     const items = objectMatch[1].split(',').map(s => s.trim());
     items.forEach(item => {
-      // Handle "name: value" and just "name"
       const name = item.split(':')[0].trim();
       if (name && !name.startsWith('//')) {
         exports.push(name);
@@ -87,7 +100,7 @@ function extractExports(content) {
     });
   }
 
-  // module.exports.funcName = ...
+  // CJS: module.exports.funcName = ...
   const namedMatches = content.matchAll(/module\.exports\.(\w+)\s*=/g);
   for (const match of namedMatches) {
     if (!exports.includes(match[1])) {
@@ -95,48 +108,98 @@ function extractExports(content) {
     }
   }
 
+  // ESM: export function name(
+  const exportFuncMatches = content.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm);
+  for (const match of exportFuncMatches) {
+    if (!exports.includes(match[1])) {
+      exports.push(match[1]);
+    }
+  }
+
+  // ESM: export const/let/var name
+  const exportConstMatches = content.matchAll(/^export\s+(?:const|let|var)\s+(\w+)/gm);
+  for (const match of exportConstMatches) {
+    if (!exports.includes(match[1])) {
+      exports.push(match[1]);
+    }
+  }
+
+  // ESM: export { name1, name2 }
+  const exportBlockMatches = content.matchAll(/^export\s*\{([^}]+)\}/gm);
+  for (const match of exportBlockMatches) {
+    const items = match[1].split(',').map(s => s.trim());
+    items.forEach(item => {
+      // Handle "name as alias" — use the original name
+      const name = item.split(/\s+as\s+/)[0].trim();
+      if (name && !exports.includes(name)) {
+        exports.push(name);
+      }
+    });
+  }
+
+  // ESM: export default function name(
+  const exportDefaultFunc = content.match(/^export\s+default\s+function\s+(\w+)/m);
+  if (exportDefaultFunc && !exports.includes(exportDefaultFunc[1])) {
+    exports.push(exportDefaultFunc[1]);
+  }
+
+  // ESM: export interface/type (skip — not runtime exports)
+
   return exports;
 }
 
 /**
- * Extract require() dependencies
+ * Extract dependencies (supports both require() and import)
  */
 function extractDependencies(content) {
   const deps = [];
-  const matches = content.matchAll(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/g);
 
-  for (const match of matches) {
-    const dep = match[1];
-    // Convert relative paths to module names
-    if (dep.startsWith('./') || dep.startsWith('../')) {
-      // Convert to module path format
-      const normalized = dep.replace(/^\.\.?\//, '').replace(/\.js$/, '');
-      deps.push(normalized);
-    } else {
-      // External module
-      deps.push(dep);
-    }
+  // CJS: require('...')
+  const requireMatches = content.matchAll(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/g);
+  for (const match of requireMatches) {
+    deps.push(match[1]);
   }
 
-  return [...new Set(deps)]; // Remove duplicates
+  // ESM: import ... from '...' (skip type-only imports)
+  const importMatches = content.matchAll(/^import\s+(?!type\s).*?\s+from\s+['"]([^'"]+)['"]/gm);
+  for (const match of importMatches) {
+    deps.push(match[1]);
+  }
+
+  // Normalize all deps
+  const normalized = deps.map(dep => {
+    if (dep.startsWith('./') || dep.startsWith('../')) {
+      return dep.replace(/^\.\.?\//, '').replace(/\.(js|ts|tsx)$/, '');
+    }
+    return dep;
+  });
+
+  return [...new Set(normalized)];
+}
+
+/**
+ * Strip TypeScript type annotations from a parameter string
+ * e.g. "window: BrowserWindow" → "window", "items: string[] = []" → "items"
+ */
+function stripTypeAnnotation(param) {
+  return param.replace(/\s*[:?].*$/, '').replace(/\s*=.*$/, '').trim();
 }
 
 /**
  * Extract function definitions with line numbers
+ * Supports JS and TypeScript syntax (type annotations, export keyword)
  */
 function extractFunctions(content, lines) {
   const functions = {};
 
-  // Match function declarations: function name(params) {
-  const funcRegex = /^(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)/gm;
+  // Match function declarations: [export] [async] function name[<generics>](params) [: returnType] {
+  const funcRegex = /^(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*(?:<[^>]*>)?\s*\(([^)]*)\)/gm;
   let match;
 
   while ((match = funcRegex.exec(content)) !== null) {
     const name = match[1];
-    const params = match[2].split(',').map(p => p.trim()).filter(p => p);
+    const params = match[2].split(',').map(p => stripTypeAnnotation(p)).filter(p => p);
     const lineNum = content.substring(0, match.index).split('\n').length;
-
-    // Try to extract purpose from preceding comment
     const purpose = extractFunctionPurpose(lines, lineNum - 1);
 
     functions[name] = {
@@ -145,7 +208,6 @@ function extractFunctions(content, lines) {
       purpose: purpose || undefined
     };
 
-    // Clean up undefined values
     Object.keys(functions[name]).forEach(key => {
       if (functions[name][key] === undefined) {
         delete functions[name][key];
@@ -153,14 +215,14 @@ function extractFunctions(content, lines) {
     });
   }
 
-  // Match const name = function(params) or const name = (params) =>
-  const constFuncRegex = /^(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:function\s*)?\(([^)]*)\)\s*(?:=>)?\s*[{]/gm;
+  // Match const/let/var assignments: [export] const name = [async] function(params) or (params) =>
+  const constFuncRegex = /^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:function\s*)?\(([^)]*)\)\s*(?::\s*\w[^=>{]*?)?\s*(?:=>)?\s*[{]/gm;
 
   while ((match = constFuncRegex.exec(content)) !== null) {
     const name = match[1];
-    if (functions[name]) continue; // Skip if already found
+    if (functions[name]) continue;
 
-    const params = match[2].split(',').map(p => p.trim()).filter(p => p);
+    const params = match[2].split(',').map(p => stripTypeAnnotation(p)).filter(p => p);
     const lineNum = content.substring(0, match.index).split('\n').length;
     const purpose = extractFunctionPurpose(lines, lineNum - 1);
 
@@ -252,29 +314,45 @@ function extractIPC(content) {
  */
 function getModuleKey(filePath) {
   const relative = path.relative(SRC_DIR, filePath);
-  return relative.replace(/\.js$/, '').replace(/\\/g, '/');
+  return relative.replace(/\.(ts|tsx|js|jsx)$/, '').replace(/\\/g, '/');
 }
 
 /**
- * Get list of changed JS files from git
+ * Check if a path should be excluded from scanning
+ */
+function isExcluded(filePath) {
+  const relative = path.relative(SRC_DIR, filePath).replace(/\\/g, '/');
+  return EXCLUDE_DIRS.some(dir => {
+    // Match as a path segment (not substring) to avoid false positives
+    // e.g. 'dist' should not match 'distributed/'
+    if (dir.includes('/')) {
+      // Multi-segment pattern (e.g. 'components/ui') — match as path prefix
+      return relative.includes(dir + '/') || relative.endsWith(dir);
+    }
+    // Single segment — check each path part
+    return relative.split('/').includes(dir);
+  });
+}
+
+/**
+ * Get list of changed source files from git
  */
 function getChangedFiles() {
   try {
-    // Get staged changes
     const staged = execSync('git diff --cached --name-only --diff-filter=ACMR', {
       cwd: ROOT_DIR,
       encoding: 'utf-8'
     });
 
-    // Get unstaged changes too
     const unstaged = execSync('git diff --name-only --diff-filter=ACMR', {
       cwd: ROOT_DIR,
       encoding: 'utf-8'
     });
 
     const files = [...staged.split('\n'), ...unstaged.split('\n')]
-      .filter(f => f.endsWith('.js') && f.startsWith('src/'))
-      .map(f => path.join(ROOT_DIR, f));
+      .filter(f => f.startsWith('src/') && isSourceFile(f))
+      .map(f => path.join(ROOT_DIR, f))
+      .filter(f => !isExcluded(f));
 
     return [...new Set(files)];
   } catch (e) {
@@ -284,7 +362,7 @@ function getChangedFiles() {
 }
 
 /**
- * Get list of deleted JS files from git
+ * Get list of deleted source files from git
  */
 function getDeletedFiles() {
   try {
@@ -294,16 +372,17 @@ function getDeletedFiles() {
     });
 
     return deleted.split('\n')
-      .filter(f => f.endsWith('.js') && f.startsWith('src/'));
+      .filter(f => f.startsWith('src/') && isSourceFile(f))
+      .filter(f => !isExcluded(path.join(ROOT_DIR, f)));
   } catch (e) {
     return [];
   }
 }
 
 /**
- * Get all JS files in src directory
+ * Get all source files in src directory
  */
-function getAllJSFiles(dir = SRC_DIR) {
+function getAllSourceFiles(dir = SRC_DIR) {
   const files = [];
 
   const items = fs.readdirSync(dir);
@@ -312,8 +391,10 @@ function getAllJSFiles(dir = SRC_DIR) {
     const stat = fs.statSync(fullPath);
 
     if (stat.isDirectory()) {
-      files.push(...getAllJSFiles(fullPath));
-    } else if (item.endsWith('.js')) {
+      if (!isExcluded(fullPath)) {
+        files.push(...getAllSourceFiles(fullPath));
+      }
+    } else if (isSourceFile(item) && !isExcluded(fullPath)) {
       files.push(fullPath);
     }
   }
@@ -331,7 +412,7 @@ function loadStructure() {
     // Return minimal structure if file doesn't exist
     return {
       version: "1.0",
-      description: "Auto-generated module structure",
+      description: "SubFrame - Module structure and IPC communication map",
       lastUpdated: new Date().toISOString().split('T')[0],
       architecture: {},
       modules: {},
@@ -378,7 +459,7 @@ function main() {
     }
 
     if (filesToProcess.length === 0 && deleted.length === 0) {
-      console.log('No JS changes detected.');
+      console.log('No source file changes detected.');
       return;
     }
   } else if (args.length > 0 && !args[0].startsWith('--')) {
@@ -388,7 +469,10 @@ function main() {
   } else {
     // Full mode: all files
     mode = 'full';
-    filesToProcess = getAllJSFiles();
+    filesToProcess = getAllSourceFiles();
+
+    // In full mode, clear stale modules (e.g. old .js entries replaced by .ts)
+    structure.modules = {};
   }
 
   console.log(`Mode: ${mode}, Processing ${filesToProcess.length} file(s)...`);
@@ -412,10 +496,38 @@ function main() {
     }
   }
 
+  // Auto-detect architecture entry points
+  updateArchitectureEntryPoints(structure);
+
   // Generate intent index from modules
   generateIntentIndex(structure);
 
+  // Update description
+  structure.description = 'SubFrame - Module structure and IPC communication map';
+
   saveStructure(structure);
+}
+
+/**
+ * Auto-detect architecture entry points from actual files
+ */
+function updateArchitectureEntryPoints(structure) {
+  const mainCandidates = ['src/main/index.ts', 'src/main/index.tsx', 'src/main/index.js'];
+  const rendererCandidates = ['src/renderer/index.tsx', 'src/renderer/index.ts', 'src/renderer/index.js'];
+
+  for (const candidate of mainCandidates) {
+    if (fs.existsSync(path.join(ROOT_DIR, candidate))) {
+      structure.architecture.mainProcess = candidate;
+      break;
+    }
+  }
+
+  for (const candidate of rendererCandidates) {
+    if (fs.existsSync(path.join(ROOT_DIR, candidate))) {
+      structure.architecture.rendererProcess = candidate;
+      break;
+    }
+  }
 }
 
 /**

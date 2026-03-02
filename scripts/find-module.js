@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const STRUCTURE_FILE = path.join(__dirname, '..', 'STRUCTURE.json');
+const STRUCTURE_FILE = path.join(__dirname, '..', '.subframe', 'STRUCTURE.json');
 
 function loadStructure() {
   try {

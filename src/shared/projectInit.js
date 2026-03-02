@@ -7,9 +7,10 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES, FRAME_BIN_DIR, GITHOOKS_DIR } = require('./frameConstants');
+const { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES, FRAME_BIN_DIR, GITHOOKS_DIR, SUBFRAME_HOOKS_DIR } = require('./frameConstants');
 const templates = require('./frameTemplates');
 const { injectBacklink, isSymlinkFile } = require('./backlinkUtils');
+const { readClaudeSettings, mergeSubFrameHooks, writeClaudeSettings } = require('./claudeSettingsUtils');
 
 /**
  * Create file if it doesn't exist
@@ -57,6 +58,10 @@ function checkExistingFiles(projectPath) {
     { name: 'PROJECT_NOTES.md', path: path.join(projectPath, FRAME_FILES.NOTES) },
     { name: 'tasks.json', path: path.join(projectPath, FRAME_FILES.TASKS) },
     { name: 'QUICKSTART.md', path: path.join(projectPath, FRAME_FILES.QUICKSTART) },
+    { name: '.subframe/docs-internal/', path: path.join(projectPath, FRAME_FILES.DOCS_INTERNAL) },
+    { name: '.claude/skills/sub-tasks/', path: path.join(projectPath, '.claude', 'skills', 'sub-tasks') },
+    { name: '.claude/skills/sub-docs/', path: path.join(projectPath, '.claude', 'skills', 'sub-docs') },
+    { name: '.claude/skills/sub-audit/', path: path.join(projectPath, '.claude', 'skills', 'sub-audit') },
     { name: '.subframe/', path: path.join(projectPath, FRAME_DIR) }
   ];
 
@@ -190,6 +195,68 @@ function initializeProject(projectPath, options = {}) {
       created.push('.githooks/update-structure.js');
     } else {
       skipped.push('.githooks/pre-commit');
+    }
+  }
+
+  // Claude Code skills (.claude/skills/sub-tasks/, sub-docs/, sub-audit/)
+  const skillDirs = ['sub-tasks', 'sub-docs', 'sub-audit'];
+  const skillTemplates = {
+    'sub-tasks': templates.getSubTasksSkillTemplate,
+    'sub-docs': templates.getSubDocsSkillTemplate,
+    'sub-audit': templates.getSubAuditSkillTemplate,
+  };
+  for (const skillName of skillDirs) {
+    const skillDir = path.join(projectPath, '.claude', 'skills', skillName);
+    if (!fs.existsSync(skillDir)) {
+      fs.mkdirSync(skillDir, { recursive: true });
+    }
+    track(`.claude/skills/${skillName}/SKILL.md`, createFileIfNotExists(
+      path.join(skillDir, 'SKILL.md'),
+      skillTemplates[skillName]()
+    ));
+  }
+
+  // Claude Code hooks (.subframe/hooks/ + .claude/settings.json merge)
+  const claudeHooks = options.claudeHooks !== false;
+  if (claudeHooks) {
+    // Create .subframe/hooks/ directory
+    const subframeHooksDir = path.join(projectPath, SUBFRAME_HOOKS_DIR);
+    if (!fs.existsSync(subframeHooksDir)) {
+      fs.mkdirSync(subframeHooksDir, { recursive: true });
+    }
+
+    // Deploy hook scripts
+    track('.subframe/hooks/session-start.js', createFileIfNotExists(
+      path.join(projectPath, FRAME_FILES.HOOKS_SESSION_START),
+      templates.getSessionStartHookTemplate()
+    ));
+    track('.subframe/hooks/prompt-submit.js', createFileIfNotExists(
+      path.join(projectPath, FRAME_FILES.HOOKS_PROMPT_SUBMIT),
+      templates.getPromptSubmitHookTemplate()
+    ));
+    track('.subframe/hooks/stop.js', createFileIfNotExists(
+      path.join(projectPath, FRAME_FILES.HOOKS_STOP),
+      templates.getStopHookTemplate()
+    ));
+    track('.subframe/hooks/pre-tool-use.js', createFileIfNotExists(
+      path.join(projectPath, FRAME_FILES.HOOKS_PRE_TOOL_USE),
+      templates.getPreToolUseHookTemplate()
+    ));
+    track('.subframe/hooks/post-tool-use.js', createFileIfNotExists(
+      path.join(projectPath, FRAME_FILES.HOOKS_POST_TOOL_USE),
+      templates.getPostToolUseHookTemplate()
+    ));
+
+    // Merge hooks into .claude/settings.json (preserves existing settings)
+    try {
+      const existing = readClaudeSettings(projectPath);
+      const subframeHooksConfig = templates.getClaudeSettingsHooksTemplate();
+      const merged = mergeSubFrameHooks(existing, subframeHooksConfig);
+      writeClaudeSettings(projectPath, merged);
+      created.push('.claude/settings.json (hooks merged)');
+    } catch (err) {
+      console.error('Error merging Claude settings:', err);
+      skipped.push('.claude/settings.json (merge failed)');
     }
   }
 

@@ -73,17 +73,18 @@ Examples:
   npm run init -- --name "My App"
 
 Created files:
-  .subframe/             Config directory
-  .subframe/config.json  Project configuration
-  .subframe/bin/codex    Codex CLI wrapper
-  AGENTS.md              AI instructions (tool-agnostic)
-  CLAUDE.md              Backlink to AGENTS.md (Claude Code)
-  GEMINI.md              Backlink to AGENTS.md (Gemini CLI)
-  STRUCTURE.json         Codebase module map
-  PROJECT_NOTES.md       Session notes and decisions
-  tasks.json             Task tracking
-  QUICKSTART.md          Getting started guide
-  .githooks/pre-commit   Auto-update STRUCTURE.json on commit
+  .subframe/                    Project files directory
+  .subframe/config.json         Project configuration
+  .subframe/bin/codex           Codex CLI wrapper
+  .subframe/STRUCTURE.json      Codebase module map
+  .subframe/PROJECT_NOTES.md    Session notes and decisions
+  .subframe/tasks.json          Task tracking
+  .subframe/QUICKSTART.md       Getting started guide
+  .subframe/docs-internal/      Internal documentation
+  AGENTS.md                     AI instructions (tool-agnostic)
+  CLAUDE.md                     Backlink to AGENTS.md (Claude Code)
+  GEMINI.md                     Backlink to AGENTS.md (Gemini CLI)
+  .githooks/pre-commit          Auto-update STRUCTURE.json on commit
 `);
 }
 

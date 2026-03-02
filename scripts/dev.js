@@ -14,17 +14,36 @@ const root = path.resolve(__dirname, '..');
 const esbuildBin = path.join(root, 'node_modules', '.bin', isWin ? 'esbuild.cmd' : 'esbuild');
 const electronBin = path.join(root, 'node_modules', '.bin', isWin ? 'electron.cmd' : 'electron');
 
-console.log('[dev] Starting esbuild watch + Electron...\n');
+// Resolve node binary for spawning scripts
+const nodeBin = process.execPath;
 
-// 1. Start esbuild in watch mode
-const esbuild = spawn(esbuildBin, [
-  'src/renderer/index.js',
+console.log('[dev] Building main process + starting React watch + Electron...\n');
+
+// 0. Build main process first (fast — ~40ms)
+const mainBuild = spawn(esbuildBin, [
+  'src/main/index.ts',
   '--bundle',
-  '--outfile=dist/renderer.js',
   '--platform=node',
+  '--outdir=dist/main',
   '--external:electron',
+  '--external:node-pty',
+  '--format=cjs',
+  '--sourcemap'
+], { cwd: root, stdio: 'inherit', shell: isWin });
+
+mainBuild.on('close', (code) => {
+  if (code !== 0) {
+    console.error('[dev] Main process build failed');
+    process.exit(1);
+  }
+  console.log('[dev] Main process built.\n');
+});
+
+// 1. Start React renderer in watch mode (no shell needed — node.exe is not a .cmd)
+const esbuild = spawn(nodeBin, [
+  path.join(root, 'scripts', 'build-react.js'),
   '--watch'
-], { cwd: root, stdio: 'pipe', shell: isWin });
+], { cwd: root, stdio: 'pipe' });
 
 let electronProc = null;
 
@@ -33,7 +52,7 @@ esbuild.stdout.on('data', (data) => {
   if (msg) console.log(`[esbuild] ${msg}`);
 
   // Launch Electron after first successful build
-  if (!electronProc && msg.includes('watch mode enabled')) {
+  if (!electronProc && (msg.includes('watch mode enabled') || msg.includes('Watching'))) {
     startElectron();
   }
 });
@@ -43,7 +62,7 @@ esbuild.stderr.on('data', (data) => {
   if (msg) console.error(`[esbuild] ${msg}`);
 
   // esbuild 0.27+ prints the watch message to stderr
-  if (!electronProc && msg.includes('watching')) {
+  if (!electronProc && (msg.includes('watching') || msg.includes('Watching'))) {
     startElectron();
   }
 });
@@ -62,7 +81,8 @@ function startElectron() {
   electronProc = spawn(electronBin, ['.'], {
     cwd: root,
     stdio: 'inherit',
-    shell: isWin
+    shell: isWin,
+    env: { ...process.env, ELECTRON_DEV: '1' }
   });
 
   electronProc.on('close', (code) => {
