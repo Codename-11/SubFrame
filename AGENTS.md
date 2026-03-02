@@ -31,9 +31,9 @@ SubFrame **enhances** native AI coding tools — it does not replace them.
 **Codex CLI** gets SubFrame context via a wrapper script at `.subframe/bin/codex` that injects AGENTS.md as an initial prompt.
 
 **This file (AGENTS.md)** contains SubFrame-specific rules that apply across all tools:
-- Task management (`tasks.json`)
-- Codebase mapping (`STRUCTURE.json`)
-- Context preservation (`PROJECT_NOTES.md`)
+- Sub-Task management (`.subframe/tasks.json`)
+- Codebase mapping (`.subframe/STRUCTURE.json`)
+- Context preservation (`.subframe/PROJECT_NOTES.md`)
 - Session notes and decision tracking
 
 ---
@@ -42,20 +42,20 @@ SubFrame **enhances** native AI coding tools — it does not replace them.
 
 **Read these files at the start of each session:**
 
-1. **STRUCTURE.json** - Module map, which file is where
-2. **PROJECT_NOTES.md** - Project vision, past decisions, session notes
-3. **tasks.json** - Pending tasks
+1. **.subframe/STRUCTURE.json** - Module map, which file is where
+2. **.subframe/PROJECT_NOTES.md** - Project vision, past decisions, session notes
+3. **.subframe/tasks.json** - Pending sub-tasks
 
 **Workflow:**
 1. Read these files to understand the project and capture context
 2. Identify relevant files based on the task
-3. Update STRUCTURE.json after making changes (if new modules/files are added)
+3. Update .subframe/STRUCTURE.json after making changes (if new modules/files are added)
 
 **Fast File Lookup:** When searching for files related to a feature or concept, run:
 ```bash
 node scripts/find-module.js <keyword>
 ```
-This searches STRUCTURE.json's intentIndex and returns the exact files you need. Use this **before** doing manual grep/glob searches. Examples:
+This searches .subframe/STRUCTURE.json's intentIndex and returns the exact files you need. Use this **before** doing manual grep/glob searches. Examples:
 - `node scripts/find-module.js github` → finds githubManager.js + githubPanel.js
 - `node scripts/find-module.js terminal` → finds all terminal-related files
 - `node scripts/find-module.js --list` → lists all features and their files
@@ -64,31 +64,61 @@ This searches STRUCTURE.json's intentIndex and returns the exact files you need.
 
 ---
 
-## Task Management (tasks.json)
+## Sub-Task Management (.subframe/tasks.json)
 
-### Task Recognition Rules
+> **Terminology:** "Sub-Tasks" are SubFrame's project task tracking system. The name plays on "Sub" from SubFrame and disambiguates from Claude Code's internal todo tools — not to be confused with sub-tasks as in tasks under a main task. When the user says "sub-task", they mean this system.
 
-**These ARE TASKS - add to tasks.json:**
+### CLI Script (Preferred Method)
+
+**Always use the CLI script instead of hand-editing tasks.json directly.** This prevents JSON syntax errors, ensures correct timestamps, and validates inputs:
+
+```bash
+node scripts/task.js list [--all]          # Show active sub-tasks (--all includes completed)
+node scripts/task.js get <id>              # Show full sub-task details
+node scripts/task.js start <id>            # Mark pending → in_progress
+node scripts/task.js complete <id>         # Mark → completed
+node scripts/task.js add --title "..." [--description "..." --priority medium --category feature --user-request "..."]
+node scripts/task.js update <id> [--status pending --notes "..." --add-note "..."]
+node scripts/task.js archive               # Move completed to .subframe/tasks/archive/<year>.json
+```
+
+Also available as `npm run task -- <command>` or via the `/sub-tasks` skill in Claude Code.
+
+### Hooks (Automatic Awareness)
+
+Project-level hooks in `.claude/settings.json` automate sub-task management:
+- **SessionStart** (`scripts/hooks/session-start.js`) — injects pending/in-progress sub-tasks into Claude's context at startup, resume, and after compaction
+- **UserPromptSubmit** (`scripts/hooks/prompt-submit.js`) — fuzzy-matches user prompts against pending sub-task titles and suggests marking them in_progress
+- **Stop** (`scripts/hooks/stop.js`) — reminds about in-progress sub-tasks when Claude finishes responding
+
+These hooks ensure sub-task awareness even if the AI forgets to check tasks.json manually.
+
+### Sub-Task Recognition Rules
+
+**These ARE SUB-TASKS - add to .subframe/tasks.json:**
 - When the user requests a feature or change
 - Decisions like "Let's do this", "Let's add this", "Improve this"
 - Deferred work when we say "We'll do this later", "Let's leave it for now"
 - Gaps or improvement opportunities discovered while coding
 - Situations requiring bug fixes
 
-**These are NOT TASKS:**
+**These are NOT SUB-TASKS:**
 - Error messages and debugging sessions
 - Questions, explanations, information exchange
 - Temporary experiments and tests
 - Work already completed and closed
 - Instant fixes (like typo fixes)
 
-### Task Creation Flow
+### Sub-Task Creation Flow
 
-1. Detect task patterns during conversation
-2. Ask the user at an appropriate moment: "I identified these tasks from our conversation, should I add them to tasks.json?"
-3. If the user approves, add to tasks.json
+1. Detect sub-task patterns during conversation
+2. Ask the user at an appropriate moment: "I identified these sub-tasks from our conversation, should I add them?"
+3. If the user approves, create via CLI:
+   ```bash
+   node scripts/task.js add --title "..." --description "..." --user-request "..." --acceptance-criteria "..." --priority medium --category feature
+   ```
 
-### Task Structure
+### Sub-Task Structure
 
 ```json
 {
@@ -100,7 +130,7 @@ This searches STRUCTURE.json's intentIndex and returns the exact files you need.
   "notes": "Important notes, decisions, alternatives that came up during discussion",
   "status": "pending | in_progress | completed",
   "priority": "high | medium | low",
-  "category": "feature | fix | refactor | docs | test",
+  "category": "feature | fix | refactor | docs | test | chore",
   "context": "Session date and context",
   "createdAt": "ISO date",
   "updatedAt": "ISO date",
@@ -108,7 +138,7 @@ This searches STRUCTURE.json's intentIndex and returns the exact files you need.
 }
 ```
 
-### Task Content Rules
+### Sub-Task Content Rules
 
 **title:** Short, action-oriented title
 - ✅ "Add tasks button to terminal toolbar"
@@ -134,21 +164,27 @@ This searches STRUCTURE.json's intentIndex and returns the exact files you need.
 - Important decisions and their reasons
 - Dependencies marked as "we'll do this later"
 
-### Task Status Updates
+### Sub-Task Status Updates
 
-- When starting work on a task: `status: "in_progress"`
-- When task is completed: `status: "completed"`, update `completedAt`
-- After commit: Check and update the status of related tasks
+**Before starting any work**, run `node scripts/task.js list` to check for a matching sub-task. If one exists, run `node scripts/task.js start <id>` — do not create a duplicate.
 
-### Task Lifecycle Rules
+**Status transitions (use CLI commands):**
+- `pending` → `in_progress`: `node scripts/task.js start <id>`
+- `in_progress` → `completed`: `node scripts/task.js complete <id>`
+- `completed` → `pending` (reopen): `node scripts/task.js update <id> --status pending --add-note "Reopening because..."`
+- After commit: Check and update the status of all related sub-tasks
 
-- When starting a task, immediately mark `in_progress` and set `updatedAt`
-- When code is committed and working, mark `completed` and set `completedAt`
-- If a task grows beyond its original scope, split it into subtasks — create new tasks and reference the parent task ID in `notes`
-- When reopening a completed task, reset status to `pending` and add a note explaining why it was reopened
-- Cross-reference relevant commit hashes or PR numbers in the task's `notes` field
-- Don't create duplicate tasks — search existing tasks first before creating a new one
-- Update the task `description` if the technical approach changes significantly during implementation
+**Incomplete work:** If a sub-task is partially done when a session ends, leave it as `in_progress`. Add notes: `node scripts/task.js update <id> --add-note "Completed X, Y remains"`
+
+### Sub-Task Lifecycle Rules
+
+- When starting a sub-task, immediately run `node scripts/task.js start <id>`
+- When code is committed and working, run `node scripts/task.js complete <id>`
+- If a sub-task grows beyond its original scope, split it — create new sub-tasks and reference the parent ID in notes
+- When reopening a completed sub-task, use `update --status pending --add-note "reason"`
+- Cross-reference relevant commit hashes or PR numbers via `--add-note`
+- Don't create duplicate sub-tasks — run `node scripts/task.js list` first
+- Update the description if the approach changes: `node scripts/task.js update <id> --description "..."`
 
 ### Priority Guidelines
 
@@ -158,7 +194,7 @@ This searches STRUCTURE.json's intentIndex and returns the exact files you need.
 
 ---
 
-## PROJECT_NOTES.md Rules
+## .subframe/PROJECT_NOTES.md Rules
 
 ### When to Update?
 - When an important architectural decision is made
@@ -181,7 +217,7 @@ Conversation/decision as is, with its context...
 ### Organization Rules
 
 - Keep **"Project Vision"** at the top, then **"Session Notes"** in chronological order
-- Avoid duplicating information already captured in STRUCTURE.json's `architectureNotes` — cross-reference instead (e.g., "See architectureNotes.circularDependencies in STRUCTURE.json")
+- Avoid duplicating information already captured in .subframe/STRUCTURE.json's `architectureNotes` — cross-reference instead (e.g., "See architectureNotes.circularDependencies in .subframe/STRUCTURE.json")
 - When notes grow beyond ~500 lines, consider archiving older session notes to `docs/archive/` or grouping by month
 - Notes should capture the **why** (decisions, trade-offs, alternatives rejected), not the **what** (code structure belongs in STRUCTURE.json)
 - When the same topic spans multiple sessions, consolidate related notes under the original date heading rather than creating duplicate entries
@@ -194,12 +230,12 @@ SubFrame's core purpose is to prevent context loss. Therefore, capture important
 
 ### When to Ask?
 
-Ask the user when one of the following situations occurs: **"Should I add this conversation to PROJECT_NOTES.md?"**
+Ask the user when one of the following situations occurs: **"Should I add this conversation to .subframe/PROJECT_NOTES.md?"**
 
-- When a task is successfully completed
+- When a sub-task is successfully completed
 - When an important architectural/technical decision is made
 - When a bug is fixed and the solution method is noteworthy
-- When "let's do this later" is said (in this case, also add to tasks.json)
+- When "let's do this later" is said (in this case, also add to .subframe/tasks.json as a sub-task)
 - When a new pattern or best practice is discovered
 
 ### Completion Detection
@@ -244,7 +280,7 @@ Use this threshold: **would it take more than 5 minutes to re-derive or re-expla
 
 ---
 
-## STRUCTURE.json Rules
+## .subframe/STRUCTURE.json Rules
 
 **This file is the map of the codebase.**
 
@@ -291,13 +327,13 @@ Use this threshold: **would it take more than 5 minutes to re-derive or re-expla
 - The pre-commit hook **only processes `.js` files** in `src/`. Non-JS changes (HTML, CSS, JSON configs) require manual `npm run structure` or hand-editing the relevant section
 - When deleting files, remove their entries from `modules` and update any `depends` arrays that referenced them
 - When adding IPC channels in `ipcChannels.js`, also add them to the `ipcChannels` section of STRUCTURE.json with `direction` and `handler`
-- `architectureNotes` is for **structural patterns** (e.g., circular dependency workarounds, init ordering). Use PROJECT_NOTES.md for **decisions and session context**
+- `architectureNotes` is for **structural patterns** (e.g., circular dependency workarounds, init ordering). Use .subframe/PROJECT_NOTES.md for **decisions and session context**
 - `intentIndex` should be updated when adding new feature areas so `find-module.js` can locate them
 - If function line numbers drift significantly after edits, run `npm run structure` to refresh them
 
 ---
 
-## QUICKSTART.md Rules
+## .subframe/QUICKSTART.md Rules
 
 ### When to Update?
 - When installation steps change
@@ -306,12 +342,88 @@ Use this threshold: **would it take more than 5 minutes to re-derive or re-expla
 
 ---
 
+## Cross-File Sync Rules
+
+Changes to shared concepts must be reflected in **all** locations that reference them. This prevents docs from drifting out of sync with code.
+
+### Sub-Task Schema Changes
+When adding, removing, or renaming fields in the Sub-Task schema, update:
+1. `.subframe/tasks.json` — `taskSchema` object
+2. `AGENTS.md` — Sub-Task Structure code block and Content Rules
+3. `CLAUDE.md` — Sub-Task System quick reference (required fields list)
+4. `src/shared/frameTemplates.ts` — `getTasksTemplate()` function (for new projects)
+5. `scripts/task.js` — CLI `cmdAdd()` default fields and `cmdUpdate()` allowed fields
+
+### Sub-Task Hooks or CLI Changes
+When modifying the hooks or CLI script:
+1. `scripts/task.js` — CLI script (commands, options, validation)
+2. `scripts/hooks/session-start.js` — SessionStart hook (context injection)
+3. `scripts/hooks/prompt-submit.js` — UserPromptSubmit hook (fuzzy matching)
+4. `scripts/hooks/stop.js` — Stop hook (in-progress reminders)
+5. `.claude/settings.json` — hook wiring configuration
+6. `.claude/skills/sub-tasks/SKILL.md` — `/sub-tasks` skill (CLI reference, instructions)
+7. `CLAUDE.md` and `AGENTS.md` — CLI command reference and hook documentation
+
+### IPC Channel Changes
+When adding, removing, or renaming IPC channels:
+1. `src/shared/ipcChannels.ts` — source of truth
+2. `.subframe/STRUCTURE.json` — `ipcChannels` section (direction + handler + payload)
+3. Relevant main process manager — handler implementation
+4. Relevant renderer component — `useIpcQuery`/`useIpcMutation` hook call
+
+### New Modules or Files
+1. Register in `src/main/index.ts` if it's a main process module
+2. Add component in `src/renderer/components/` if it's a renderer module
+3. Run `npm run structure` to update .subframe/STRUCTURE.json automatically
+4. Add to `intentIndex` in .subframe/STRUCTURE.json if it introduces a new feature area
+
+### UI Terminology or Branding
+When changing user-facing labels or terminology:
+1. `index.html` — panel headers, modal titles, button text
+2. Renderer TSX components — toast messages, empty states, alerts, tooltips
+3. `CLAUDE.md` and `AGENTS.md` — documentation references
+4. `src/shared/frameTemplates.ts` — templates for new projects
+
+### Version Bumps
+**Single source of truth:** `package.json` `"version"` field.
+
+**Preferred method:** Use the `/release` skill (`.claude/skills/release/SKILL.md`) which automates the full workflow: version bump, doc sync, release notes generation, commit, and tag.
+
+**Manual checklist** (if not using `/release`):
+1. `package.json` — update `"version"` field
+2. `docs/index.html` — update `softwareVersion` in Schema.org structured data
+3. `RELEASE_NOTES.md` — write release notes following `.claude/skills/release/release-notes.md` format
+4. Commit: `chore(release): bump version to X.Y.Z`
+5. Tag: `git tag vX.Y.Z`
+6. `src/shared/frameConstants.ts` — `FRAME_VERSION` reads from `package.json` automatically (no manual update needed)
+
+**Note:** Template schema versions in `frameTemplates.ts` are **file format versions**, not the app version — only update them when the schema shape changes.
+
+## Versioning & Releases
+
+**Format:** [SemVer](https://semver.org/) — `MAJOR.MINOR.PATCH[-prerelease]`
+- Pre-release: `0.1.0-beta.1`, `0.1.0-beta.2`, etc.
+- Stable: `1.0.0`, `1.1.0`, etc.
+
+**Conventional Commits drive version bumps:**
+
+| Commit Type | Version Bump |
+|---|---|
+| `feat!`, `fix!`, `BREAKING CHANGE` | MAJOR |
+| `feat` | MINOR |
+| `fix`, `docs`, `perf`, `chore`, `refactor` | PATCH |
+| `style`, `test`, `ci` | No bump |
+
+**Release workflow:** Use `/release <patch|minor|major|x.y.z>` — see `.claude/skills/release/SKILL.md`.
+
+**Release notes:** Written to `RELEASE_NOTES.md` following the template in `.claude/skills/release/release-notes.md`. Focus on user-facing changes, omit empty sections.
+
 ## General Rules
 
 1. **Language:** Write documentation in English (except code examples)
 2. **Date Format:** ISO 8601 (YYYY-MM-DDTHH:mm:ssZ)
-3. **After Commit:** Check tasks.json and STRUCTURE.json
-4. **Session Start:** Review pending tasks in tasks.json
+3. **After Commit:** Check .subframe/tasks.json and .subframe/STRUCTURE.json
+4. **Session Start:** Review pending sub-tasks in .subframe/tasks.json
 
 ---
 

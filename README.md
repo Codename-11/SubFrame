@@ -1,532 +1,296 @@
-# SubFrame
+<p align="center">
+  <img src="assets/icon.png" width="128" alt="SubFrame" />
+</p>
 
-A lightweight, IDE-style desktop application built for AI-assisted development with [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). Think VS Code, but streamlined for AI coding workflows. Cross-platform: Windows, macOS, and Linux.
+<h1 align="center">SubFrame</h1>
 
+<p align="center">
+  Terminal-centric IDE for AI-assisted development
+  <br />
+  <em>Enhances your AI coding tools — never replaces them</em>
+</p>
 
+<p align="center">
+  <a href="https://github.com/Codename-11/SubFrame/actions/workflows/ci.yml"><img src="https://github.com/Codename-11/SubFrame/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/license-BSL--1.1-blue" alt="License" />
+  <img src="https://img.shields.io/badge/version-0.1.0--beta.1-orange" alt="Version" />
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white" alt="Electron" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows" />
+  <img src="https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white" alt="macOS" />
+  <img src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black" alt="Linux" />
+</p>
+
+<p align="center">
+  <a href="#installation">Install</a> · <a href="#features">Features</a> · <a href="#development">Development</a> · <a href="https://axiom-labs.cloud">Website</a>
+</p>
+
+---
+
+A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). SubFrame wraps your existing AI tools in a structured workspace — persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions. Cross-platform: Windows, macOS, and Linux.
+
+> SubFrame builds upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozhan](https://github.com/kaanozhan), extended with React 19, TypeScript, and a modernized architecture.
 
 https://github.com/user-attachments/assets/6fe108d1-70c8-441e-a913-b34583c803b0
 
+## Why SubFrame?
 
-## What is this?
+As AI-assisted projects grow, context gets lost between sessions. Decisions are forgotten, tasks slip through the cracks, and you re-explain the same things over and over.
 
-SubFrame is a project management IDE for Claude Code that aims to:
+SubFrame solves this with a **standardized project layer** that your AI tools read automatically at session start — tasks, codebase structure, session notes, and architecture decisions all carry forward. A single **Initialize Workspace** command sets up everything your AI tools need, so every session starts with full context instead of a blank slate.
 
-1. **Bring a standard to AI coding projects** - Consistent project structure with AGENTS.md, CLAUDE.md, STRUCTURE.json, PROJECT_NOTES.md, and tasks.json
-2. **Improve context and memory problems as projects grow** - Automatic context preservation, session notes, and decision tracking
-3. **Make project management easier** - Visual task management, plugins panel, and streamlined workflows
-
-This is an Electron-based desktop application that combines:
-- **Project Explorer** (left panel) - Browse your project files with a collapsible tree view
-- **Multi-Terminal** (center) - Multiple terminal instances with tabs or grid view
-- **File Editor** - Quick overlay editor for file viewing and editing
-- **Prompt History** (right panel) - See all your commands with timestamps
-
-The key innovation: **Claude Code launches directly in your selected project directory**, so you don't need to `cd` around. Just select a project, click "Start Claude Code", and you're ready to go.
-
-## Why build this?
-
-**The Core Problem**: As projects grow with Claude Code, context gets lost between sessions. Decisions are forgotten, tasks slip through the cracks, and you end up re-explaining the same things over and over.
-
-**SubFrame's Solution**: A standardized project structure that Claude Code reads automatically at the start of each session, combined with tools to track decisions, tasks, and context - so nothing gets lost.
-
-**Design Philosophy**: SubFrame builds on top of your existing AI tools — it never replaces them. Claude Code, Gemini CLI, and Codex CLI work exactly as they normally would. SubFrame adds a structured layer (tasks, codebase mapping, context preservation) that enhances what's already there. Native AI files like CLAUDE.md and GEMINI.md remain user-owned; SubFrame only injects a small backlink reference. When native tools add new features, SubFrame supports and integrates — it never conflicts.
-
-When working with Claude Code, you often need to:
-1. See your project structure
-2. Run Claude Code in the right directory
-3. Track what commands you've run
-4. Switch between projects quickly
-5. Work with multiple terminals simultaneously
-
-This app does all of that in one window, with a clean VS Code-inspired interface.
-
-## SubFrame Project System
-
-When you initialize a SubFrame project (via the Initialize button or `/init`), SubFrame creates a standardized set of files that give your AI tools persistent context and structure. This is what makes SubFrame more than a terminal — every project speaks the same language.
-
-### What gets created
-
-| File | Purpose |
-|------|---------|
-| `AGENTS.md` | AI-agnostic instructions file. Contains project rules, conventions, and context that any AI tool can read. Native tool files (`CLAUDE.md`, `GEMINI.md`) contain a small backlink reference to AGENTS.md, and Codex CLI gets context via a wrapper script (`.subframe/bin/codex`). Each tool picks up the same instructions in its native format. |
-| `STRUCTURE.json` | Machine-readable module map of your codebase. Tracks exports, dependencies, IPC channels, and functions with line numbers. Includes an `intentIndex` for fast keyword-to-file lookup. Auto-updated via pre-commit hook for JS files. |
-| `tasks.json` | Structured task tracking that bridges conversation to project management. AI detects tasks from your conversation and asks to add them. The visual task panel in SubFrame lets you filter, update status, and send tasks directly back to Claude. |
-| `PROJECT_NOTES.md` | Session notes and decisions preserved verbatim (not summarized). AI prompts you to save important moments so context carries forward between sessions. |
-| `.subframe/config.json` | Project-level settings and configuration. |
-
-### Useful commands
-
-```bash
-# Rebuild STRUCTURE.json for the entire project
-npm run structure
-
-# Find which file implements a feature by keyword
-node scripts/find-module.js <keyword>
-```
-
-### Why this matters
-
-Context is not lost between sessions. Every project has the same structure, so AI tools know exactly where to look. Decisions, tasks, and architecture are all tracked in files that both you and your AI tools can read — no re-explaining required.
-
-## Screenshots
-
-```
-┌──────────────┬─────────────────────────┬──────────────┐
-│   Project    │      Terminal Tabs      │   Prompt     │
-│   Explorer   │ [Term 1] [Term 2] [+]   │   History    │
-│              ├─────────────────────────┤              │
-│ 📁 src/      │                         │ 2026-01-21   │
-│   📄 app.js  │  $ claude               │ > claude     │
-│ 📁 test/     │  > Help me refactor...  │              │
-│ 📄 README.md │                         │ 2026-01-21   │
-│              │  [Claude response]      │ > /init      │
-│ [Start       │                         │              │
-│  Claude]     │                         │              │
-└──────────────┴─────────────────────────┴──────────────┘
-```
+The core principle: **augment, don't replace.** Claude Code, Gemini CLI, and Codex CLI work exactly as they normally would. SubFrame layers structure on top — persistent context, task management, and a unified workspace — making each tool more effective without changing how any of them behaves.
 
 ## Features
 
-### Core Features
-- **IDE Layout**: 3-panel design (explorer, terminal, history)
-- **Real Terminal**: Full PTY support via node-pty - not a fake terminal
-- **Multi-Terminal**: Up to 9 terminals with tab or grid view
-- **File Tree**: Collapsible folders, 5 levels deep, filters node_modules
-- **File Editor**: Overlay editor for quick file viewing/editing
-- **Project-Aware**: Terminal starts in your selected project directory
-- **Prompt History**: All commands saved with timestamps, viewable in side panel
-- **Cross-Platform**: Windows, macOS, Linux support
+### Initialize Workspace
 
-### SubFrame Project Management
-- **Task Detection**: Claude Code automatically detects tasks from conversations and asks to add them to tasks.json
-- **Task Panel**: Visual task management with filters (All, Pending, In Progress, Completed)
-- **Manual Task Creation**: Add tasks manually through the UI
-- **Task Actions**: Start, complete, pause, or reopen tasks with one click
-- **Send to Claude**: Click play button to send a task directly to Claude Code terminal
-- **Claude Panel**: Sessions and Plugins in a collapsible right-side panel
-  - **Sessions Tab** (default): Browse past Claude Code sessions with state indicators (active/recent/inactive), resume with split button (default tool, custom command)
-  - **Plugins Tab**: Browse, enable/disable, and install Claude Code plugins
-  - **Collapsible**: Collapse arrow shrinks to icon strip, click icons to expand back
-- **Overview Dashboard**: Project metrics and stats at a glance — see your project health in one view
-- **GitHub Panel**: Browse repository issues directly from the sidebar without leaving SubFrame
-- **Git Branches**: View, switch, create, and delete branches from a dedicated panel
-- **Settings Panel**: Configure AI tool commands, preferences, and project-level settings
-- **AI Tool Switching**: Switch between Claude Code, Codex CLI, and Gemini CLI — each tool gets context injected in its native format
-- **Claude Usage Tracking**: Monitor Claude Code usage statistics from within the app
-- **Context Preservation**: Automatic prompts to save important decisions to PROJECT_NOTES.md
+The entry point to SubFrame. Run `subframe init` from the CLI or click the **Initialize** button in the GUI. One command creates a standardized project layer that AI tools pick up automatically:
 
-### Multi-Terminal Features
-- **Tab View**: Default view with terminal tabs
-- **Grid View**: 2x1, 2x2, 3x1, 3x2, 3x3 layouts
-- **Resizable Grid**: Drag borders to resize grid cells
-- **Terminal Naming**: Double-click tab to rename terminals
-- **Maximum 9 Terminals**: Manage multiple sessions efficiently
+```
+.subframe/
+  config.json               # Project configuration
+  STRUCTURE.json             # Codebase module map (auto-updates on commit)
+  PROJECT_NOTES.md           # Session notes and decisions
+  tasks.json                 # Sub-Task index (auto-generated)
+  tasks/                     # Individual task markdown files
+  QUICKSTART.md              # Getting started guide
+  docs-internal/             # ADRs, architecture, changelog, IPC reference
+  bin/codex                  # Codex CLI wrapper script
+AGENTS.md                    # AI instructions (tool-agnostic)
+CLAUDE.md                    # Backlink to AGENTS.md (Claude Code reads natively)
+GEMINI.md                    # Backlink to AGENTS.md (Gemini CLI reads natively)
+.githooks/pre-commit         # Auto-updates STRUCTURE.json on commit
+.claude/
+  settings.json              # Hook wiring configuration
+  skills/                    # Slash command skills
+```
 
-### Smart Defaults
-- **Shell Selection**: PowerShell Core (Windows), bash/zsh (macOS/Linux)
-- **Keyboard Shortcuts**:
-  - `Ctrl+K` - Start Claude Code
-  - `Ctrl+Shift+H` - Toggle history panel
-  - `Ctrl+I` - Run /init
-  - `Ctrl+Shift+C` - Run /commit
-  - `Ctrl+Shift+T` - New terminal
-  - `Ctrl+Shift+W` - Close current terminal
-  - `Ctrl+Tab` - Next terminal
-  - `Ctrl+Shift+Tab` - Previous terminal
-  - `Ctrl+1-9` - Switch to terminal by number
-  - `Ctrl+Shift+G` - Toggle grid view
-- **Focus Management**: Enter key only works in terminal, never on buttons
-- **Auto-resize**: Terminal adjusts when panels open/close
+Existing user content in CLAUDE.md and GEMINI.md is preserved — SubFrame only adds a small backlink reference.
 
-### Quality of Life
-- File icons (folders, JS, JSON, MD)
-- Alphabetical sorting (folders first)
-- VS Code dark theme
-- Scrollable history (10,000 lines)
-- Menu bar commands for quick access
+### Hooks and Automation
+
+SubFrame installs hooks that automate context awareness throughout your workflow:
+
+- **SessionStart** — Injects pending/in-progress sub-tasks into context at startup, resume, and after compaction
+- **UserPromptSubmit** — Fuzzy-matches user prompts against pending sub-task titles and suggests starting them
+- **Stop** — Reminds about in-progress sub-tasks when Claude finishes responding
+- **PreToolUse / PostToolUse** — Monitor agent tool usage for the Agent Timeline
+- **Git pre-commit** — Auto-updates STRUCTURE.json before each commit
+
+### Skills (Slash Commands)
+
+SubFrame installs Claude Code skills as slash commands:
+
+| Command | Description |
+|---------|-------------|
+| `/sub-tasks` | View and manage sub-tasks (list, start, complete, add, archive) |
+| `/sub-audit` | Run code review and documentation audit on recent changes |
+| `/sub-docs` | Sync all SubFrame documentation after feature work |
+| `/sub-ipc` | Regenerate IPC channel reference documentation |
+| `/release` | Version bump, changelog, release notes, commit, and tag |
+
+### Sub-Task System
+
+Markdown-based task tracking stored in `.subframe/tasks/` with YAML frontmatter. Each task captures the original user request, acceptance criteria, and session context.
+
+- **CLI management** — `node scripts/task.js list|start|complete|add|update|archive`
+- **Visual task panel** — Table view with status filters, priority sorting, inline expand
+- **Multiple views** — Table, timeline, dependency graph, and kanban board
+- **Lifecycle** — `pending` → `in_progress` → `completed`
+- **Auto-detected** — Hooks recognize task-like requests from conversation and suggest creating them
+
+### IDE Workspace
+
+- **3-Panel Layout** — File explorer, multi-terminal center, contextual side panels
+- **Multi-Terminal** — Up to 9 terminals with tabs or grid view (2x1 through 3x3), resizable cells
+- **File Editor** — CodeMirror 6 overlay with syntax highlighting for 15+ languages
+- **Real PTY** — Full pseudo-terminal via node-pty, not subprocess pipes
+- **File Previews** — Inline preview for Markdown, HTML, and images
+
+### Context Preservation
+
+Every session starts informed instead of cold:
+
+- **PROJECT_NOTES.md** — Captures architecture decisions, technology choices, and approach changes as they happen
+- **STRUCTURE.json** — Maps modules, exports, dependencies, and function locations across the codebase
+- **tasks.json** — Tracks work with original user requests and acceptance criteria preserved
+- **Auto-loaded** — AI reads all three at the start of each session, surviving context compaction
+
+### Health and Audit Panel
+
+Per-component health status for the entire SubFrame installation, grouped by category (Core, Hooks, Skills, Claude Integration, Git):
+
+- **Status badges** — Healthy, Outdated, or Missing for each component
+- **One-click updates** — "Update All" to fix outdated components, or update individually
+- **Granular uninstall** — Checkboxes to selectively remove hooks, skills, backlinks, AGENTS.md, or the .subframe/ directory
+- **Dry run preview** — See what would change before committing to an uninstall
+
+### Agent Activity Monitor
+
+Real-time visibility into Claude Code agent sessions:
+
+- **Session status** — Active, busy, idle, or completed with live status badges
+- **Tool tracking** — Displays the current tool being used and total step count
+- **Timeline view** — Chronological view of all agent steps with tool usage details
+- **Session list** — Browse and review past agent sessions in full-view mode
+
+### AI Tool Integration
+
+- **Multi-Tool Support** — Switch between Claude Code, Codex CLI, and Gemini CLI from the toolbar
+- **Native Context Injection** — Claude reads CLAUDE.md, Gemini reads GEMINI.md, Codex uses a wrapper script that injects AGENTS.md
+- **Sessions Panel** — Browse past Claude Code sessions with conversation history
+- **Usage Tracking** — Monitor Claude Code session counts and weekly usage statistics
+- **AI Files Panel** — View and manage context files (AGENTS.md, CLAUDE.md, GEMINI.md) from the UI
+
+### Git and GitHub
+
+- **Branch Management** — View, switch, create, and delete branches
+- **GitHub Issues** — Browse repository issues directly from the sidebar
+
+### Other
+
+- **Overview Dashboard** — Project metrics, module counts, task summaries, health status, and recent file activity at a glance
+- **Plugin System** — Extend SubFrame with plugins
+- **Structure Map** — Interactive D3.js force-directed graph of module dependencies, color-coded by process layer
+- **Settings Panel** — Configure project and workspace preferences
+- **Keyboard Shortcuts** — Full keyboard navigation:
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+B` | Toggle sidebar |
+| `Ctrl+Shift+T` | New terminal |
+| `Ctrl+Shift+W` | Close terminal |
+| `Ctrl+1-9` | Jump to terminal |
+| `Ctrl+Shift+G` | Toggle grid view |
+| `Ctrl+Shift+S` | Sub-Tasks panel |
+| `Ctrl+Shift+A` | Agent Activity panel |
+| `Ctrl+,` | Settings |
+| `Ctrl+?` | Show all shortcuts |
+
+### SubFrame Project System
+
+Initializing a workspace creates a standard set of files your AI tools read automatically:
+
+| File | Purpose |
+|------|---------|
+| `AGENTS.md` | AI-agnostic instructions — native tool files (CLAUDE.md, GEMINI.md) backlink here |
+| `.subframe/STRUCTURE.json` | Machine-readable module map (exports, dependencies, function locations) |
+| `.subframe/tasks/` | Individual task markdown files with YAML frontmatter |
+| `.subframe/tasks.json` | Auto-generated task index for backward-compatible access |
+| `.subframe/PROJECT_NOTES.md` | Session notes and decisions preserved verbatim |
+| `.subframe/config.json` | Project-level configuration |
+| `.subframe/docs-internal/` | ADRs, architecture overview, changelog, IPC channel reference |
+| `.subframe/QUICKSTART.md` | Getting started guide |
+| `.claude/settings.json` | Hook wiring configuration |
+| `.claude/skills/` | Slash command skills (sub-tasks, sub-audit, sub-docs, sub-ipc, release) |
+| `.githooks/pre-commit` | Auto-updates STRUCTURE.json before each commit |
 
 ## Tech Stack
 
-| Component | Technology | Why? |
-|-----------|-----------|------|
-| Desktop Framework | Electron 28 | Cross-platform, mature, well-documented |
-| Terminal Emulator | xterm.js 5.3 | Industry standard (used by VS Code) |
-| PTY | node-pty 1.0 | Real pseudo-terminal, not subprocess pipes |
-| Bundler | esbuild | Fast bundling for modular renderer code |
-| UI | HTML/CSS/JS | Native Electron renderer |
-
-**Why these choices?**
-- **Electron**: One codebase, works everywhere
-- **xterm.js**: Full VT100/ANSI support, handles colors, progress bars, everything Claude Code outputs
-- **node-pty**: Creates a real PTY so Claude Code thinks it's in a real terminal
-- **esbuild**: Sub-second builds for modular development
+| Component | Technology |
+|-----------|-----------|
+| Framework | Electron 28 |
+| Renderer | React 19 · TypeScript (strict) |
+| State | Zustand · TanStack Query |
+| UI | shadcn/ui · Tailwind CSS v4 |
+| Animations | Framer Motion |
+| Editor | CodeMirror 6 |
+| Terminal | xterm.js 5.3 |
+| PTY | node-pty 1.0 |
+| Bundler | esbuild |
 
 ## Installation
 
 ### Prerequisites
-- Node.js 18+ (https://nodejs.org)
-- npm (comes with Node.js)
-- Python (for node-gyp native module compilation)
-- C++ Build Tools (for compiling `node-pty`):
-  - **Windows**: Visual Studio 2022 Build Tools with "Desktop development with C++" workload
-  - **macOS**: Xcode Command Line Tools (`xcode-select --install`)
-  - **Linux**: `build-essential` (`sudo apt install build-essential`)
-- Git (optional, for cloning)
+- **Node.js 18+** and npm
+- **Python** + **C++ Build Tools** (for `node-pty` native compilation):
+  - **Windows** — VS 2022 Build Tools with "Desktop development with C++"
+  - **macOS** — `xcode-select --install`
+  - **Linux** — `sudo apt install build-essential`
 
-### Windows Quick Setup
-
-Run the automated setup script — it checks and installs all prerequisites:
-
-```
-DEV_SETUP.bat
-```
-
-### Manual Setup (All Platforms)
+### Quick Start
 
 ```bash
-# Clone the repo
 git clone https://github.com/Codename-11/SubFrame.git
 cd SubFrame
-
-# Install dependencies
 npm install
-
-# Run the app (development mode with auto-rebuild)
-npm run dev
-
-# Or: single build + launch
-npm start
+npm run dev     # Watch mode + Electron
 ```
 
-### Installing Claude Code
-If you don't have Claude Code installed:
+> **Windows**: Run `DEV_SETUP.bat` for automated prerequisite installation.
+
+### Installing AI Tools
+
 ```bash
-npm install -g @anthropic-ai/claude-code
+npm install -g @anthropic-ai/claude-code   # Claude Code
 ```
 
-## Usage
-
-### Basic Workflow
-
-1. **Launch the app**: `npm start`
-2. **Select a project**:
-   - Click "Select Project Folder"
-   - Browse to your project directory
-   - File tree loads automatically
-3. **Start Claude Code**:
-   - Click "Start Claude Code" button
-   - Or press `Ctrl+K`
-   - Claude Code launches in that directory
-4. **View history**:
-   - Press `Ctrl+Shift+H`
-   - See all your commands with timestamps
-
-### Multi-Terminal Usage
-
-1. **Create new terminal**: Click [+] button or `Ctrl+Shift+T`
-2. **Switch terminals**: Click tabs or `Ctrl+Tab`
-3. **Grid view**: Click grid icon or `Ctrl+Shift+G`
-4. **Change grid layout**: Use dropdown menu (2x1, 2x2, 3x1, 3x2, 3x3)
-5. **Rename terminal**: Double-click on tab name
-6. **Close terminal**: Click X on tab or `Ctrl+Shift+W`
-
-### File Editor
-
-- Click on any file in the file tree to open the editor overlay
-- Edit and save changes directly
-- Press Escape or click outside to close
-
-### Tips
-
-**Multiple Projects**
-- Switch projects anytime with "Select Project Folder"
-- Terminal restarts in the new directory
-- File tree updates automatically
-
-**Prompt History**
-- Automatically logs all terminal input
-- Stored at: `%APPDATA%/SubFrame/prompts-history.txt` (Windows) or `~/Library/Application Support/SubFrame/prompts-history.txt` (macOS)
-- Open in text editor: `Ctrl+H`
-- View in side panel: `Ctrl+Shift+H`
+See [Codex CLI](https://github.com/openai/codex) and [Gemini CLI](https://github.com/google-gemini/gemini-cli) for their respective install instructions.
 
 ## Development
 
-### Project Structure
+### Commands
 
-```
-SubFrame/
-├── src/
-│   ├── main/                # Electron main process
-│   │   ├── index.js         # Main entry, window & IPC management
-│   │   ├── ptyManager.js    # Multi-PTY management
-│   │   ├── settingsManager.js   # Settings persistence
-│   │   ├── tasksManager.js  # Task CRUD with file watching
-│   │   └── ...              # Other managers (workspace, sessions, etc.)
-│   │
-│   ├── renderer/            # Electron renderer (bundled by esbuild)
-│   │   ├── index.js         # Entry point
-│   │   ├── terminalManager.js    # Multi-terminal state
-│   │   ├── multiTerminalUI.js    # Terminal orchestrator
-│   │   ├── settingsPanel.js # Settings panel UI
-│   │   ├── tasksPanel.js    # Task management UI
-│   │   └── ...              # Other UI modules
-│   │
-│   └── shared/              # Shared between main & renderer
-│       └── ipcChannels.js   # IPC channel constants
-│
-├── scripts/
-│   ├── dev.js               # Cross-platform dev script
-│   ├── dev_setup.ps1        # Windows prerequisites installer
-│   ├── find-module.js       # Module search utility
-│   └── update-structure.js  # STRUCTURE.json generator
-│
-├── index.html               # UI layout and styles
-├── package.json             # Dependencies and scripts
-├── DEV_SETUP.bat            # Windows setup launcher
-├── PROJECT_NOTES.md         # Detailed technical docs
-└── README.md                # This file
-```
-
-### Key Modules Explained
-
-**src/main/index.js** - The Node.js backend
-- Creates splash window + main application window
-- Two-stage startup: splash (instant, data URL) → main window (`ready-to-show`)
-- Persists window state (bounds, maximized) across sessions
-- Handles IPC messages
-- Manages file system operations
-- Integrates PTY manager
-
-**src/main/ptyManager.js** - Multi-PTY Management
-- Creates and manages multiple PTY instances
-- Routes input/output by terminal ID
-- Handles terminal lifecycle (create/destroy)
-
-**src/renderer/terminalManager.js** - Terminal State
-- Manages xterm.js instances
-- Tracks active terminal
-- Handles view mode (tabs/grid)
-
-**src/renderer/multiTerminalUI.js** - UI Orchestrator
-- Combines tab bar, grid, and terminal manager
-- Handles keyboard shortcuts
-- Manages view transitions
-
-**src/shared/ipcChannels.js** - IPC Constants
-- Centralized IPC channel definitions
-- Prevents typos in channel names
-- Used by both main and renderer
-
-### Startup Flow
-
-```
-app.whenReady()
-  │
-  ├─ Splash window (frameless, data: URL, instant)
-  │    Logo + animated progress bar
-  │
-  ├─ Main window (show: false, loads index.html)
-  │    │
-  │    ├─ DOMContentLoaded → initCritical()
-  │    │    Sidebar, project list, resize, shortcuts
-  │    │
-  │    ├─ requestAnimationFrame → initDeferred()
-  │    │    File tree, editor, panels (tasks, plugins, etc.)
-  │    │
-  │    └─ ready-to-show → show main, close splash
-  │
-  └─ Window state restored (bounds + maximized from previous session)
+```bash
+npm run dev          # Watch mode (main TS + React) + Electron
+npm run build        # Build main TS + React renderer
+npm run typecheck    # TypeScript strict-mode check (main + renderer)
+npm test             # Vitest test suite
+npm run lint         # ESLint (TS/TSX)
+npm run check        # typecheck + lint + test (all quality gates)
+npm run structure    # Update .subframe/STRUCTURE.json
 ```
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│           Electron Main Process (Node.js)                │
-│                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ PTY Manager  │  │ File System  │  │ Prompt Logger│  │
-│  │ (Multi-PTY)  │  │              │  │              │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
-│         │                 │                  │          │
-│         └─────────────────┴──────────────────┘          │
-│                           │                             │
-│                      IPC Channels                       │
-│                           │                             │
-└───────────────────────────┼─────────────────────────────┘
-                            │
-┌───────────────────────────┼─────────────────────────────┐
-│           Electron Renderer (Browser)                    │
-│                           │                             │
-│  ┌────────────────────────┴────────────────────────┐   │
-│  │              MultiTerminalUI                     │   │
-│  │  ┌───────────┐ ┌────────────┐ ┌──────────────┐  │   │
-│  │  │  TabBar   │ │   Grid     │ │TerminalMgr  │  │   │
-│  │  └───────────┘ └────────────┘ └──────────────┘  │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                         │
-│  ┌────────────┬───────────────┬──────────────┐         │
-│  │  Sidebar   │  Terminal(s)  │   History    │         │
-│  │ (File Tree)│   (xterm.js)  │   Panel      │         │
-│  └────────────┴───────────────┴──────────────┘         │
-└─────────────────────────────────────────────────────────┘
-```
+Electron app with two processes communicating over typed IPC channels (`src/shared/ipcChannels.ts`):
 
-**IPC Messages (Multi-Terminal):**
-- `terminal-create` - Create new PTY instance
-- `terminal-created` - PTY created response
-- `terminal-destroy` - Destroy PTY instance
-- `terminal-input-id` - Input to specific terminal
-- `terminal-output-id` - Output from specific terminal
-- `terminal-resize-id` - Resize specific terminal
+| Layer | Path | Stack |
+|-------|------|-------|
+| **Main** | `src/main/*.ts` | Node.js · TypeScript · Manager modules (`init()` + `setupIPC()`) |
+| **Renderer** | `src/renderer/` | React 19 · TSX · Zustand stores · TanStack Query hooks · shadcn/ui |
+| **Shared** | `src/shared/*.ts` | Typed IPC channels · Constants · Templates |
 
-### Building Renderer
+Detailed architecture docs live in `.subframe/docs-internal/`.
 
-The renderer uses esbuild for bundling:
+### Production Builds
 
 ```bash
-# Build renderer (runs automatically on npm start)
-npm run build
-
-# Watch mode for development
-npm run watch
-
-# Development mode (watch + Electron, cross-platform)
-npm run dev
+npm run dist          # Current platform (unpacked)
+npm run dist:win      # Windows installer (NSIS)
+npm run dist:mac      # macOS (signed DMG)
 ```
-
-### Adding Features
-
-**Want to add a new terminal feature?**
-1. Add IPC channel in `src/shared/ipcChannels.js`
-2. Add handler in `src/main/ptyManager.js` or `src/main/index.js`
-3. Add UI in `src/renderer/terminalManager.js` or related UI module
-4. Run `npm run build` to bundle
-
-**Want to add a new panel?**
-1. Add HTML container in `index.html`
-2. Add CSS styles
-3. Create module in `src/renderer/`
-4. Import in `src/renderer/index.js`
-5. Build with esbuild
-
-## Building for Production
-
-```bash
-# Package for current platform (unpacked)
-npm run dist
-
-# Windows installer (NSIS) — auto-requests admin if needed
-npm run dist:win
-
-# macOS (signed DMG)
-npm run dist:mac
-
-# macOS (unsigned, local testing)
-npm run dist:mac:unsigned
-```
-
-Output: `release/` folder with installers for your platform
-
-## Troubleshooting
-
-### "claude: command not found"
-Claude Code is not installed. Install it:
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-### "Cannot find module 'node-pty'"
-Dependencies not installed:
-```bash
-npm install
-```
-
-### Terminal shows "Windows PowerShell" header
-This is normal if PowerShell Core (`pwsh`) is not installed. The app falls back to Windows PowerShell. To get PowerShell Core:
-```bash
-winget install Microsoft.PowerShell
-```
-
-### File tree not showing
-- Check that you selected a valid folder
-- Check console for errors: View → Toggle DevTools
-- Try clicking "Select Project Folder" again
-
-### Windows build fails with "Cannot create symbolic link"
-The `dist:win` script auto-requests admin elevation via UAC. If that fails:
-- **Option A:** Enable Developer Mode — Settings → System → For Developers
-- **Option B:** Run your terminal as Administrator
-
-### Grid view stuck after switching to tabs
-Fixed in latest version. The grid CSS properties are now properly cleared when switching to tab view.
-
-## Roadmap
-
-See [PROJECT_NOTES.md](./PROJECT_NOTES.md) for detailed roadmap.
-
-### Completed
-- [x] IDE layout (3 panel)
-- [x] File tree explorer
-- [x] Prompt history panel
-- [x] Multi-terminal (tabs)
-- [x] Multi-terminal (grid view)
-- [x] File editor overlay
-- [x] Modular architecture with esbuild
-- [x] Settings panel
-- [x] Project renaming
-- [x] Custom AI tool start command
-- [x] Cross-platform Windows support
-- [x] Resizable sidebar
-- [x] Terminal scroll-to-bottom button
-- [x] Tasks panel with real-time updates
-- [x] Git branches panel
-- [x] Plugins panel
-- [x] Claude sessions panel
-- [x] Overview dashboard
-- [x] Automated Windows dev setup (DEV_SETUP.bat)
-
-### Short-term
-- [ ] Search in files
-- [ ] Theme customization
-
-### Medium-term
-- [ ] Full Claude chat sidebar
-- [ ] Extensions/plugins
-- [ ] Remote development (SSH)
 
 ## Contributing
 
-This is a POC/personal project, but contributions welcome!
+Contributions welcome!
 
 1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, etc.)
+4. Open a Pull Request
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) file
+Business Source License 1.1 — see [LICENSE](./LICENSE)
+
+Source code is available for reading, forking, and contribution. Commercial use that competes with SubFrame requires a separate agreement with Axiom-Labs. Each version converts to Apache-2.0 four years after release.
 
 ## Acknowledgments
 
-- Built with [Claude Code](https://claude.com/claude-code) (meta!)
-- Terminal powered by [xterm.js](https://xtermjs.org/)
-- PTY via [node-pty](https://github.com/microsoft/node-pty)
-- Inspired by VS Code's terminal
+SubFrame is built upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozhan](https://github.com/kaanozhan), whose original project provided the foundation — multi-terminal PTY management, file explorer, and the vision for a terminal-centric AI coding IDE.
 
-## Questions?
-
-See [PROJECT_NOTES.md](./PROJECT_NOTES.md) for:
-- Detailed architecture
-- Implementation decisions
-- Code examples
-- Lessons learned during development
+- Terminal powered by [xterm.js](https://xtermjs.org/) and [node-pty](https://github.com/microsoft/node-pty)
+- UI components from [shadcn/ui](https://ui.shadcn.com/)
+- Built with [Claude Code](https://claude.com/claude-code)
 
 ---
 
-**Status**: Full-featured IDE with multi-terminal, task management, settings, and cross-platform support
-
-**Started**: January 21, 2026
-**Author**: Built in collaboration with Claude Code
+<p align="center">
+  <strong>v0.1.0-beta</strong> · Active development · <a href="https://axiom-labs.cloud">Axiom-Labs</a>
+</p>

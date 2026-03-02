@@ -435,6 +435,48 @@ mainWindow.webContents.openDevTools();
 
 ## Session Notes
 
+### [2026-03-01] Claude Code Skills as Deployable Components
+
+**Context:** SubFrame's 3 universal skills (`/sub-tasks`, `/sub-docs`, `/sub-audit`) only existed in SubFrame's own `.claude/skills/` directory. Projects initialized by SubFrame didn't get these skills deployed.
+
+**Decision:** Make skills a first-class deployable component — same lifecycle as hooks (deploy on init, track in health panel, update when outdated, remove on uninstall). New `'skills'` category added to the component registry (18 total components across 5 categories).
+
+**Key architectural choices:**
+- Deployed `/sub-tasks` uses direct `.subframe/tasks/*.md` file manipulation instead of `node scripts/task.js` (CLI only exists in SubFrame app, not deployed projects)
+- `/sub-docs` and `/sub-audit` generalized to remove SubFrame-app-specific references (no `/sub-ipc`, no hardcoded file lists)
+- Skills deployed to `.claude/skills/` — updated AI Files panel description to reflect SubFrame now writes to `.claude/`
+- Content-comparison health checks via `getTemplate()` — same pattern as hooks
+
+**Files:** `frameConstants.ts`, `frameTemplates.ts`, `ipcChannels.ts`, `subframeHealth.ts`, `projectInit.ts`, `frameProject.ts`, `SubFrameHealthPanel.tsx`, `OverviewPanel.tsx`, `AIFilesPanel.tsx` (+ CJS mirrors)
+
+---
+
+### CodeMirror 6 for Built-in Editor
+**Date:** 2026-03-01
+**Decision:** Chose CodeMirror 6 over Monaco Editor for the built-in file editor.
+**Rationale:** Native esbuild compatibility (no workers needed), ~500KB vs 5-10MB bundle, zero Electron configuration (no CDN/AMD conflicts), modular extension system. Obsidian (similar Electron app) uses CM6 as precedent.
+**Features:** Syntax highlighting (20+ languages via Lezer parser), minimap (@replit/codemirror-minimap), autocomplete, find/replace, multi-cursor, code folding, bracket matching, JSON linting, custom SubFrame dark theme.
+**Files:** `src/renderer/lib/codemirror-theme.ts`, `src/renderer/lib/codemirror-extensions.ts`, `src/renderer/components/Editor.tsx`
+
+---
+
+### [2026-03-01] SubFrame Project Enhancement Lifecycle (Install → Status → Update → Uninstall)
+
+**Context:** SubFrame initializes projects with documentation files, task tracking, and git hooks — but the Claude Code hooks (session-start context injection, prompt fuzzy-matching, stop sync-check) were NOT deployed to initialized projects. Every SubFrame project outside of SubFrame's own repo was vulnerable to drift. No way to check what's installed, update outdated components, or cleanly remove SubFrame.
+
+**Decision:** Merge three pending sub-tasks into one coherent feature covering the full lifecycle. Component registry pattern: 15 deployable components across 4 categories (core, hooks, claude-integration, git), each with existence-only or content-comparison checks.
+
+**Key architectural choices:**
+- SubFrame hooks identified by `.subframe/hooks/` prefix in command field — unambiguous detection for safe merge/remove without touching user hooks
+- `claudeSettingsUtils.ts` handles all `.claude/settings.json` manipulation — read/write/merge/remove as pure functions
+- `subframeHealth.ts` uses component registry pattern — each entry defines what to check, where, and how to verify currency
+- Uninstall supports dry-run mode — preview what would be removed before committing
+- CJS fallback chain (`scripts/init.js` → `projectInit.js` → `frameTemplates.js`) synced with TS versions
+
+**Stale `.js` discovery:** Vitest loaded `.js` files over `.ts` when both existed (standard Node resolution). Fixed with `resolve.extensions: ['.ts', '.tsx', '.js', '.jsx', '.json']` in vitest config. Root cause: legacy CJS files from pre-TypeScript era coexist with `.ts` during migration.
+
+---
+
 ### [2026-03-01] Multi-Workspace UI, Sidebar Restructure & Session Grouping
 
 **Context:** The `workspaces.json` data model already supported multiple workspaces (`activeWorkspace` + `workspaces` object) but the UI was locked to "default" with no way to create, switch, rename, or delete workspaces. Additionally, the sidebar had redundant elements and the sessions panel showed every `.jsonl` file as a separate entry.
@@ -465,6 +507,24 @@ mainWindow.webContents.openDevTools();
 - `window.prompt()` does NOT work in Electron (returns null silently) — use inline editing instead
 - `window.alert()` and `window.confirm()` DO work
 - Native `<select>` on Windows swallows right-click/contextmenu events — use custom dropdown components
+
+---
+
+### [2026-03-01] Real-Time Agent State Visualization — Ports & Adapters Architecture
+
+**Context:** Users wanted to see what Claude Code is doing in real time — which tool it's using, what file it's reading, what command it's running — directly in SubFrame's UI. The `claude-code-by-agents` project demonstrated this with React Flow visualizations, but SubFrame needed a lighter, sidebar-friendly approach.
+
+**Decision:** Implement a "Ports & Adapters" architecture where Claude Code hooks (adapters) write to a generic `.subframe/agent-state.json` file (the port), and the renderer only depends on the port's schema. This allows adding support for other AI tools (Gemini, Copilot) by writing new adapter hooks without touching the UI.
+
+**Key architectural choices:**
+- Claude Code `PreToolUse`/`PostToolUse` hooks write running/completed steps to `agent-state.json` — each hook reads stdin JSON, updates state, outputs nothing
+- Main process `agentStateManager.ts` watches `.subframe/` directory (not the file — more reliable cross-platform) with 200ms debounce and `lastUpdated` dedup
+- Renderer `useAgentState` hook uses send/on IPC pattern with TanStack Query cache — IPC listener registered with empty deps to avoid race condition where response arrives before listener setup
+- Three UI layers: `SidebarAgentStatus` (pulsing dot), `AgentStateView` panel (compact timeline), `AgentStateView` full-view (session list + detail)
+- 5-minute stale session cleanup prevents ghost "active" sessions from hard kills
+- Windows-safe atomic writes: `renameSync` with fallback to direct `writeFileSync` when file is locked
+
+**Files:** `src/shared/agentStateTypes.ts`, `src/main/agentStateManager.ts`, `src/renderer/hooks/useAgentState.ts`, `src/renderer/components/AgentStateView.tsx`, `src/renderer/components/AgentTimeline.tsx`, `src/renderer/components/SidebarAgentStatus.tsx`, `scripts/hooks/pre-tool-use.js`, `scripts/hooks/post-tool-use.js`
 
 ---
 
@@ -1205,6 +1265,73 @@ function useTerminal(containerRef: RefObject<HTMLDivElement>, options: ITerminal
 
 ---
 
+### [2026-03-01] Quality Infrastructure & Documentation Audit
+
+**Context:** Session focused on auditing all docs/refs against actual code, comparing with Axiom-Portal's internal docs pattern, and adding quality infrastructure (tests, linting, CI).
+
+**Decision — Vitest over Jest:**
+- Vitest chosen because the project already uses esbuild as its bundler. Vitest uses esbuild/Vite transforms internally, so TypeScript files compile with zero extra config. Jest would require `ts-jest` or `babel-jest` + presets.
+- Tests target Node.js shared modules (`backlinkUtils.ts`, `frameConstants.ts`) — no Electron mocking needed.
+
+**Decision — ESLint 9 (not 10):**
+- `eslint-plugin-react-hooks` (v5) has a peer dependency on `eslint@^9`. ESLint 10 was released but the hooks plugin hasn't caught up. Pinned to `eslint@^9` to avoid peer dep conflict.
+- Used flat config format (`.mjs` file) since the project has no `"type": "module"` in package.json.
+
+**Decision — CI with `--ignore-scripts`:**
+- GitHub Actions CI uses `npm ci --ignore-scripts` to skip `electron-builder install-app-deps`. This avoids compiling native modules (`node-pty`) in CI, which would require platform-specific build tools.
+- Trade-off: main process tests that need `node-pty` can't run in CI. Current tests only cover shared modules, so this is fine. If main-process tests are added later, the CI step should be split.
+
+**Decision — ADR pattern from Axiom-Portal:**
+- Adopted Architecture Decision Records in `.subframe/docs-internal/adr/`. Axiom-Portal uses `docs/decisions/` with rich Context/Decision/Alternatives/Consequences format.
+- SubFrame's implementation lives inside `.subframe/` (not root `docs/`) to stay within SubFrame's project folder convention.
+
+**Decision — IPC channels reference doc:**
+- Created `.subframe/docs-internal/refs/ipc-channels.md` as a human-readable reference derived from `ipcChannels.ts`.
+- Initial version had 93 channels. Audit found 112 actual channels (19 were missing from doc). Regenerated with accurate counts: 32 handle, 41 send, 32 event, 8 untyped/legacy.
+- Channels not in any TypeScript type map (`IPCHandleMap`, `IPCSendMap`, `IPCEventMap`) are marked with ⚠ — candidates for cleanup or typing.
+
+**Structure script TypeScript support:**
+- `update-structure.js` was only parsing `.js` files and CJS `require`/`module.exports`.
+- Updated to handle `.ts`/`.tsx` files, ESM `import`/`export` syntax, TypeScript generics in function signatures (`<T>`), and type annotation stripping.
+- Path segment matching for exclusions (previously substring — `'dist'` would match `'distributed'`).
+- STRUCTURE.json went from 6 modules to 66.
+
+**Code review fixes (13 issues):**
+- `vitest.config.ts` — `__dirname` is CJS-only, fixed with `fileURLToPath(import.meta.url)` for ESM.
+- `tsconfig.test.json` created — test files weren't type-checked by any tsconfig.
+- Function regex in structure script — failed on TypeScript generics `function foo<T>(...)`, added `(?:<[^>]*>)?` lookahead.
+- `frameConstants.js` diverged from `.ts` — synced both (`.ts` is source of truth, `.js` is CJS fallback).
+- `getDeletedFiles()` in structure script — wasn't filtering excluded paths.
+- Backlink tests — added mid-file removal test, made line-count assertion resilient.
+
+---
+
+### [2026-03-01] Overview Panel Enhancements & Build Config Fix
+
+#### Stats Hero Pattern
+- **Decision:** Elevated Stats from a card in the grid to a dedicated full-width hero section above the card grid. Stats and Decisions both gained full-view detail panels (like Structure Map and Tasks already had).
+- **Rationale:** Stats are the first thing users look for when opening Overview — treating them equally with other cards buried them. The hero pattern gives immediate visibility with click-through for deeper analysis.
+- **New files:** `StatsDetailView.tsx`, `DecisionsDetailView.tsx`
+- **Store change:** `FullViewContent` type extended with `'stats' | 'decisions'`
+
+#### esbuild Platform: browser + IIFE for Electron Renderer
+- **Decision:** Changed `build-react.js` from `platform: 'node'` to `platform: 'browser'` with `format: 'iife'` and `mainFields: ['module', 'browser', 'main']`.
+- **Problem 1:** `style-mod` (CodeMirror dependency) declares `const top = globalThis` at module scope. With CJS output and `platform: 'node'`, this collided with the read-only `window.top` in Electron's browser-like renderer context.
+- **Problem 2:** `@lezer/highlight` + `@lezer/css` had circular dependencies. CJS `require()` uses snapshot-at-require-time, causing `tags.className` to be `undefined` during initialization. ESM uses live bindings, resolving this.
+- **Solution:** `platform: 'browser'` resolves ESM entry points (`"module"` field) with live bindings. `format: 'iife'` wraps everything in `(() => { ... })()`, making `const top` function-scoped. `external: ['electron']` preserves `require('electron')` for Electron's `nodeIntegration`.
+- **Key insight:** Electron's renderer IS a browser context for bundling purposes — `platform: 'browser'` is correct despite Node.js APIs being available.
+
+#### Keyboard Shortcut Conflict Avoidance (Ctrl+T → Ctrl+Shift+S)
+- **Decision:** Remapped Sub-Tasks shortcut from Ctrl+T to Ctrl+Shift+S across all files.
+- **Rationale:** SubFrame enhances Claude Code — it must not override Claude Code's built-in shortcuts. Ctrl+T is Claude Code's internal todos shortcut. SubFrame shortcuts should use modifier combinations (Ctrl+Shift+X) to stay out of the way.
+- **Files changed:** App.tsx, TerminalTabBar.tsx, RightPanel.tsx, KeyboardShortcuts.tsx, QUICKSTART.md
+
+#### Sidebar State Cycling
+- **Decision:** Ctrl+B now cycles through 3 states: `expanded → collapsed → hidden → expanded` (was a 2-state toggle).
+- **Rationale:** Users sometimes want the sidebar completely hidden for maximum terminal space, not just collapsed to an icon strip.
+
+---
+
 ### React Refactor — Runtime Bug Fixes (Session 2026-03-01)
 
 #### Usage Bar Displaying 3000%/4400%
@@ -1234,3 +1361,33 @@ function useTerminal(containerRef: RefObject<HTMLDivElement>, options: ITerminal
   2. Replaced `focus:bg-accent`/`hover:bg-accent` with `focus:bg-bg-hover`/`hover:bg-bg-hover` in all shadcn component files to avoid the amber collision.
   3. Added `@variant dark (&:is(.dark *))` to `globals.css` and `class="dark"` to `index.html` so `dark:` variants work via class selector instead of media query.
 - **Files changed:** `globals.css`, `index.html`, `dropdown-menu.tsx`, `context-menu.tsx`, `command.tsx`, `button.tsx`, `dialog.tsx`, `sheet.tsx`.
+
+#### TasksPanel Infinite Render Loop (UI Freeze)
+- **Symptom:** TasksPanel re-rendered ~3x/sec continuously (67+ renders with no user interaction), making the entire UI unresponsive.
+- **Root cause:** `tasksManager.ts` file watcher sent `TASKS_DATA` IPC events repeatedly (Windows `fs.watch` fires multiple events). Each event called `queryClient.setQueryData()` with a new object reference. Unlike `queryFn`, `setQueryData` does NOT apply TanStack Query's `structuralSharing` — every call creates a new cache entry and triggers a re-render, even when data is identical.
+- **Fix (3 layers):**
+  1. **Main process** (`tasksManager.ts`): File watcher deduplicates via `lastUpdated` timestamp before sending IPC.
+  2. **Renderer hook** (`useTasks.ts`): IPC handler compares `lastUpdated` before calling `setQueryData`.
+  3. **Derived memoization** (`useTasks.ts`): `allTasks` and `grouped` wrapped in `useMemo([query.data])` for stable references.
+- **Key lesson:** Always deduplicate `setQueryData` calls in IPC-driven hooks — `structuralSharing` only applies to `queryFn` results.
+
+### [2026-03-01] Markdown-Based Task System Migration
+
+**Decision:** Migrate sub-task storage from single `tasks.json` to individual `.md` files with YAML frontmatter.
+
+**Rationale:**
+- Tasks are human-editable in any text editor, including SubFrame's own CodeMirror editor with syntax highlighting + markdown preview
+- Each task is its own file → Git diffs show per-task changes, merge conflicts are localized
+- YAML frontmatter gives structured data while markdown body supports rich content (steps, notes, criteria)
+- `tasks.json` kept as auto-generated index → backward-compatible with all hooks (session-start, prompt-submit, stop)
+
+**New fields:** `blockedBy[]`, `blocks[]`, `steps[]` (parsed from `## Steps` checkboxes)
+
+**Schema version:** 1.1 → 1.2
+
+**Parser:** `gray-matter` npm package for frontmatter, regex for body sections. Round-trip tested.
+
+**Migration:** `scripts/migrate-tasks-to-md.js` — idempotent, creates backup at `.subframe/tasks.json.pre-migration-backup`
+
+**Files created:** `taskMarkdownParser.ts`, `TaskTimeline.tsx`, `TaskGraph.tsx`, `migrate-tasks-to-md.js`
+**Files modified:** `tasksManager.ts` (complete rewrite), `task.js` (complete rewrite), `ipcChannels.ts`, `frameConstants.ts`, `frameTemplates.ts`, `useTasks.ts`, `useUIStore.ts`, `TasksPanel.tsx`

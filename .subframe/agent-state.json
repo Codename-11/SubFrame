@@ -1638,46 +1638,6 @@
       "status": "active",
       "steps": [
         {
-          "id": "step-1772419574404-50",
-          "label": "Reading deploy-docs.yml",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:46:14.404Z",
-          "completedAt": "2026-03-02T02:46:14.951Z"
-        },
-        {
-          "id": "step-1772419574422-50",
-          "label": "Reading .gitignore",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:46:14.422Z",
-          "completedAt": "2026-03-02T02:46:14.924Z"
-        },
-        {
-          "id": "step-1772419576739-50",
-          "label": "Searching content: (?i)\\bframe\\b(?!work|-|d|_script|Server|",
-          "toolName": "Grep",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:46:16.739Z",
-          "completedAt": "2026-03-02T02:46:17.573Z"
-        },
-        {
-          "id": "step-1772419579571-50",
-          "label": "Running command: grep -r \"Frame\" /c/Users/Bailey/Desktop/Open-Proje",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:46:19.571Z",
-          "completedAt": "2026-03-02T02:46:21.043Z"
-        },
-        {
-          "id": "step-1772419582716-50",
-          "label": "Running command: ls -la /c/Users/Bailey/Desktop/Open-Projects/SubFr",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:46:22.716Z",
-          "completedAt": "2026-03-02T02:46:23.707Z"
-        },
-        {
           "id": "step-1772419584771-50",
           "label": "Running command: cat /c/Users/Bailey/Desktop/Open-Projects/SubFrame",
           "toolName": "Bash",
@@ -2031,12 +1991,52 @@
           "id": "step-1772419944186-50",
           "label": "Stage tooling and automation files",
           "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:52:24.186Z",
+          "completedAt": "2026-03-02T02:52:26.499Z"
+        },
+        {
+          "id": "step-1772419955920-50",
+          "label": "Commit tooling and automation",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:52:35.920Z",
+          "completedAt": "2026-03-02T02:52:37.095Z"
+        },
+        {
+          "id": "step-1772419965652-50",
+          "label": "Stage VitePress docs and old HTML deletions",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:52:45.652Z",
+          "completedAt": "2026-03-02T02:52:46.790Z"
+        },
+        {
+          "id": "step-1772419977676-50",
+          "label": "Commit VitePress documentation",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:52:57.676Z",
+          "completedAt": "2026-03-02T02:52:59.444Z"
+        },
+        {
+          "id": "step-1772419983152-50",
+          "label": "Check remaining uncommitted files",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:53:03.152Z",
+          "completedAt": "2026-03-02T02:53:04.153Z"
+        },
+        {
+          "id": "step-1772419988923-50",
+          "label": "Stage project documentation files",
+          "toolName": "Bash",
           "status": "running",
-          "startedAt": "2026-03-02T02:52:24.186Z"
+          "startedAt": "2026-03-02T02:53:08.923Z"
         }
       ],
       "startedAt": "2026-03-02T01:49:44.796Z",
-      "lastActivityAt": "2026-03-02T02:52:24.186Z",
+      "lastActivityAt": "2026-03-02T02:53:08.923Z",
       "currentTool": "Bash"
     },
     {
@@ -2860,54 +2860,6 @@
       "status": "active",
       "steps": [
         {
-          "id": "step-1772419055867-50",
-          "label": "Running command: head -100 \"/c/Users/Bailey/Desktop/Open-Projects/S",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:37:35.867Z",
-          "completedAt": "2026-03-02T02:37:38.142Z"
-        },
-        {
-          "id": "step-1772419056748-50",
-          "label": "Searching files: src/renderer/components/*KeyboardShortcuts*",
-          "toolName": "Glob",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:37:36.748Z",
-          "completedAt": "2026-03-02T02:37:38.116Z"
-        },
-        {
-          "id": "step-1772419056770-50",
-          "label": "Running command: grep -n \"LOAD_SKILLS\\|Skills\\|AgentStateView\" \"/c/",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:37:36.770Z",
-          "completedAt": "2026-03-02T02:37:37.592Z"
-        },
-        {
-          "id": "step-1772419059962-50",
-          "label": "Reading KeyboardShortcuts.tsx",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:37:39.962Z",
-          "completedAt": "2026-03-02T02:37:40.366Z"
-        },
-        {
-          "id": "step-1772419060268-50",
-          "label": "Running command: find \"/c/Users/Bailey/Desktop/Open-Projects/SubFra",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:37:40.268Z",
-          "completedAt": "2026-03-02T02:37:41.593Z"
-        },
-        {
-          "id": "step-1772419060420-50",
-          "label": "Running command: ls -la \"/c/Users/Bailey/Desktop/Open-Projects/SubF",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-02T02:37:40.420Z",
-          "completedAt": "2026-03-02T02:37:41.530Z"
-        },
-        {
           "id": "step-1772419062977-50",
           "label": "Reading ipc-channels.md",
           "toolName": "Read",
@@ -3258,11 +3210,59 @@
           "status": "completed",
           "startedAt": "2026-03-02T02:52:24.858Z",
           "completedAt": "2026-03-02T02:52:25.306Z"
+        },
+        {
+          "id": "step-1772419952783-50",
+          "label": "Editing Sidebar.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:52:32.783Z",
+          "completedAt": "2026-03-02T02:52:33.054Z"
+        },
+        {
+          "id": "step-1772419962579-50",
+          "label": "Editing RightPanel.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:52:42.579Z",
+          "completedAt": "2026-03-02T02:52:42.962Z"
+        },
+        {
+          "id": "step-1772419969593-50",
+          "label": "Editing useUIStore.ts",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:52:49.593Z",
+          "completedAt": "2026-03-02T02:52:49.834Z"
+        },
+        {
+          "id": "step-1772419974337-50",
+          "label": "Editing useUIStore.ts",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:52:54.337Z",
+          "completedAt": "2026-03-02T02:52:54.550Z"
+        },
+        {
+          "id": "step-1772419980693-50",
+          "label": "Editing useUIStore.ts",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-02T02:53:00.693Z",
+          "completedAt": "2026-03-02T02:53:00.903Z"
+        },
+        {
+          "id": "step-1772419985101-50",
+          "label": "Typecheck and build after resize fix",
+          "toolName": "Bash",
+          "status": "running",
+          "startedAt": "2026-03-02T02:53:05.101Z"
         }
       ],
       "startedAt": "2026-03-02T02:17:03.722Z",
-      "lastActivityAt": "2026-03-02T02:52:25.306Z"
+      "lastActivityAt": "2026-03-02T02:53:05.101Z",
+      "currentTool": "Bash"
     }
   ],
-  "lastUpdated": "2026-03-02T02:52:25.306Z"
+  "lastUpdated": "2026-03-02T02:53:08.923Z"
 }

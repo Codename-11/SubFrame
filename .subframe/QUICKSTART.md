@@ -72,7 +72,8 @@ npm run dist:mac:unsigned  # macOS (unsigned, for local testing)
 |------|---------|
 | `STRUCTURE.json` | Module map and architecture |
 | `PROJECT_NOTES.md` | Decisions and context |
-| `tasks.json` | Task tracking |
+| `tasks/*.md` | Sub-Task files (markdown + YAML frontmatter) |
+| `tasks.json` | Sub-Task index (auto-generated) |
 | `AGENTS.md` | Instructions for AI assistants |
 | `CLAUDE.md` | Claude Code instructions (with backlink to AGENTS.md) |
 | `QUICKSTART.md` | This file |
@@ -84,6 +85,9 @@ npm run dist:mac:unsigned  # macOS (unsigned, for local testing)
 SubFrame/
 ├── .subframe/           # SubFrame configuration and AI tool wrappers
 │   ├── config.json      # Project settings
+│   ├── tasks/           # Sub-Task markdown files
+│   │   └── <id>.md      # Individual task (YAML frontmatter)
+│   ├── tasks.json       # Sub-Task index (auto-generated)
 │   └── bin/             # AI tool wrapper scripts
 ├── src/
 │   ├── main/            # Electron main process (Node.js)
@@ -118,7 +122,8 @@ When you open a project in SubFrame for the first time, you can initialize it to
 | `GEMINI.md` | Gemini CLI instructions (with backlink to AGENTS.md) |
 | `STRUCTURE.json` | Module map and architecture overview |
 | `PROJECT_NOTES.md` | Decisions, context, and roadmap |
-| `tasks.json` | Task tracking |
+| `tasks/` | Sub-Task directory (individual .md files) |
+| `tasks.json` | Sub-Task index (auto-generated) |
 | `QUICKSTART.md` | Quick-start guide |
 
 5. **Next steps**: Edit `AGENTS.md` to describe your project's conventions, then update `STRUCTURE.json` to reflect your codebase layout.
@@ -133,7 +138,7 @@ A typical workflow with SubFrame and Claude Code:
 4. Claude reads `CLAUDE.md` automatically (which includes a backlink to `AGENTS.md`)
 5. Claude follows the `AGENTS.md` instructions, reads `STRUCTURE.json` for architecture context, and checks `tasks.json` for pending work
 6. **Review history** — press `Ctrl+Shift+H` to open the history panel and browse past sessions
-7. **Manage tasks** — press `Ctrl+T` to open the tasks panel and track progress
+7. **Manage tasks** — press `Ctrl+Shift+S` to open the tasks panel and track progress
 
 ## Keyboard Shortcuts
 
@@ -142,7 +147,7 @@ A typical workflow with SubFrame and Claude Code:
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+B` | Toggle sidebar |
-| `Ctrl+T` | Toggle tasks panel |
+| `Ctrl+Shift+S` | Toggle tasks panel |
 | `Ctrl+Shift+H` | Toggle history panel |
 | `Ctrl+Shift+P` | Toggle plugins panel |
 | `Ctrl+Shift+G` | Toggle GitHub panel |
