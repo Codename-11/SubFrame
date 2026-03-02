@@ -40,6 +40,7 @@ function onMobileNav(e: Event, href: string) {
         <a href="#features" @click="onAnchorClick($event, '#features')">Features</a>
         <a href="#showcase" @click="onAnchorClick($event, '#showcase')">Showcase</a>
         <a href="#faq" @click="onAnchorClick($event, '#faq')">FAQ</a>
+        <a :href="withBase('/guide/')">Docs</a>
         <a :href="withBase('/blog/')">Blog</a>
         <a href="https://github.com/Codename-11/SubFrame" target="_blank" rel="noopener noreferrer">GitHub</a>
       </div>
@@ -64,6 +65,7 @@ function onMobileNav(e: Event, href: string) {
         <a href="#features" @click="onMobileNav($event, '#features')">Features</a>
         <a href="#showcase" @click="onMobileNav($event, '#showcase')">Showcase</a>
         <a href="#faq" @click="onMobileNav($event, '#faq')">FAQ</a>
+        <a :href="withBase('/guide/')">Docs</a>
         <a :href="withBase('/blog/')">Blog</a>
         <a href="https://github.com/Codename-11/SubFrame" target="_blank" rel="noopener noreferrer">GitHub</a>
         <a href="#download" @click="onMobileNav($event, '#download')">Download</a>
