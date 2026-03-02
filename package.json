@@ -138,7 +138,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "identity": null,
-      "icon": "assets/icon.png"
+      "icon": "assets/icon-1024.png"
     },
     "win": {
       "target": [
