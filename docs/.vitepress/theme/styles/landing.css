@@ -886,6 +886,7 @@
 
   .hero-actions {
     flex-direction: column;
+    align-items: center;
   }
 
   .features-grid {
@@ -902,7 +903,14 @@
 
   .cta-actions {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
+    padding: 0 var(--sf-space-lg);
+  }
+
+  .cta-actions .btn-large {
+    width: 100%;
+    max-width: 320px;
+    justify-content: center;
   }
 
   .structure-tabs button {
@@ -926,9 +934,9 @@
     grid-template-columns: 1fr;
   }
 
-  .hero-actions .btn-large,
-  .cta-actions .btn-large {
+  .hero-actions .btn-large {
     width: 100%;
+    max-width: 320px;
     justify-content: center;
   }
 
