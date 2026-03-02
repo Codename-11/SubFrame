@@ -49,4 +49,23 @@ export default defineConfig({
       )
     }
   },
+
+  themeConfig: {
+    nav: [
+      { text: 'Guide', link: '/guide/' },
+      { text: 'Blog', link: '/blog/' },
+      { text: 'GitHub', link: 'https://github.com/Codename-11/SubFrame' },
+    ],
+
+    sidebar: {
+      '/guide/': [
+        { text: 'Getting Started', link: '/guide/' },
+        { text: 'Features', link: '/guide/features' },
+        { text: 'Keyboard Shortcuts', link: '/guide/keyboard-shortcuts' },
+        { text: 'Configuration', link: '/guide/configuration' },
+        { text: 'AI Tool Setup', link: '/guide/ai-tool-setup' },
+        { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+      ],
+    },
+  },
 })

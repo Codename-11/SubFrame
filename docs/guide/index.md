@@ -1,0 +1,188 @@
+---
+title: Getting Started
+description: Install SubFrame, set up your first workspace, and get oriented with the terminal-first IDE for AI coding tools.
+---
+
+# Getting Started
+
+SubFrame is a terminal-first desktop IDE designed for AI coding tools like [Claude Code](https://claude.ai/), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). It wraps your existing AI tools in a structured workspace with persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions.
+
+SubFrame **enhances** your AI tools. It never replaces them.
+
+## System Requirements
+
+SubFrame is an Electron desktop application that runs on all major platforms:
+
+| Platform | Supported | Installer |
+|----------|-----------|-----------|
+| **Windows** | Windows 10+ | `.exe` (NSIS installer) |
+| **macOS** | macOS 12+ | `.dmg` |
+| **Linux** | Most distributions | AppImage / `.deb` |
+
+You will also need at least one AI coding tool installed. See the [AI Tool Setup](/guide/ai-tool-setup) guide for installation instructions.
+
+## Installation
+
+### Download a Release
+
+Download the latest release for your platform from the [GitHub Releases page](https://github.com/Codename-11/SubFrame/releases).
+
+**macOS:**
+
+1. Download the `.dmg` file
+2. Open the disk image and drag **SubFrame** into your Applications folder
+3. Launch SubFrame from Applications
+
+::: tip macOS Gatekeeper
+On first launch, macOS may warn that SubFrame is from an unidentified developer. Right-click the app and select **Open**, then click **Open** in the dialog to bypass Gatekeeper.
+:::
+
+**Windows:**
+
+1. Download the `.exe` installer
+2. Run the installer — it will install SubFrame automatically
+3. Launch SubFrame from the Start Menu or desktop shortcut
+
+**Linux:**
+
+1. Download the AppImage or `.deb` package
+2. For AppImage: make it executable (`chmod +x SubFrame-*.AppImage`) and run it
+3. For `.deb`: install with `sudo dpkg -i SubFrame-*.deb`
+
+### Build from Source
+
+If you prefer to build from source, you will need **Node.js 18+** and native build tools for `node-pty`:
+
+- **Windows** — Visual Studio 2022 Build Tools with "Desktop development with C++"
+- **macOS** — `xcode-select --install`
+- **Linux** — `sudo apt install build-essential`
+
+```bash
+git clone https://github.com/Codename-11/SubFrame.git
+cd SubFrame
+npm install
+npm run dev
+```
+
+## First Launch
+
+When you open SubFrame for the first time, you will see the **Projects** view in the sidebar — an empty workspace ready for your projects.
+
+### Setting a Default Project Directory
+
+Before adding projects, you may want to set a default project directory. This tells SubFrame where to scan for existing projects on your machine.
+
+1. Click the **Settings** gear icon at the bottom of the sidebar
+2. Under **General**, set the **Default Project Directory** to the folder where you keep your coding projects (e.g., `~/Projects` or `C:\Users\you\Projects`)
+3. SubFrame will automatically scan this directory and list any projects it finds
+
+## Creating Your First Workspace
+
+Workspaces let you organize projects into groups — for example, "Work" and "Personal", or by client.
+
+SubFrame starts with a **Default Workspace**. To create additional workspaces:
+
+1. Click the workspace name at the top of the sidebar
+2. Select **Create Workspace** from the dropdown
+3. Give it a name and press Enter
+
+You can switch between workspaces at any time using the same dropdown.
+
+## Opening a Project
+
+There are two ways to add a project to your workspace:
+
+**Add an existing folder:**
+
+1. Click the **Open Folder** button in the sidebar (or use the menu **File > Open Folder**)
+2. Navigate to your project directory and select it
+3. The project appears in the sidebar project list
+
+**Auto-scanned projects:**
+
+If you set a default project directory in Settings, SubFrame automatically discovers projects in that folder. They appear in the project list with a subtle indicator that they were scanned rather than manually added.
+
+Once a project is listed, click its name to open it. SubFrame will:
+- Load the file tree in the sidebar
+- Open a terminal in the project directory
+- Detect whether the project has been initialized with SubFrame
+
+## Initializing a Workspace
+
+After opening a project, you can **initialize** it with SubFrame to unlock the full feature set — context preservation, task tracking, hooks, and skills.
+
+1. Look for the **Initialize** button in the sidebar (it appears for projects that are not yet initialized)
+2. Click it, and SubFrame will show you a preview of what will be created
+3. Confirm, and SubFrame generates the `.subframe/` directory and supporting files
+
+::: info What does initialization create?
+Initialization creates a standardized project layer that your AI tools read automatically:
+
+- **`.subframe/`** — Project files (structure map, tasks, notes, config)
+- **`AGENTS.md`** — AI instructions that all tools can read
+- **`CLAUDE.md` / `GEMINI.md`** — Backlinks to AGENTS.md for each tool
+- **`.claude/settings.json`** — Hook wiring for automated context awareness
+- **`.githooks/pre-commit`** — Keeps STRUCTURE.json up to date on every commit
+
+For a deeper look, see the blog post [Initialize Workspace: What Happens When You Set Up SubFrame](/blog/initialize-workspace).
+:::
+
+## Interface Overview
+
+SubFrame uses a three-panel layout:
+
+```
++----------+---------------------------+---------------+
+|          |                           |               |
+| Sidebar  |     Terminal Area         |  Right Panel  |
+|          |                           |               |
+|          |                           |               |
++----------+---------------------------+---------------+
+```
+
+### Sidebar (Left)
+
+The sidebar has two tabs:
+
+- **Projects** — Lists all projects in your current workspace. Click a project name to open it. Shows initialization status for each project.
+- **Files** — File explorer for the currently open project. Click files to open them in the editor overlay. Supports file previews for Markdown, HTML, and images.
+
+At the bottom of the sidebar you will find the **Settings** button and the current SubFrame version.
+
+### Terminal Area (Center)
+
+The main workspace. SubFrame provides a full pseudo-terminal (PTY) powered by xterm.js and node-pty — not subprocess pipes. This means your AI coding tools run exactly as they would in any terminal.
+
+Key features:
+
+- **Multiple terminals** — Open up to 9 terminals with tabs along the top
+- **Grid view** — Split the terminal area into a grid (2x1 through 3x3) to see multiple terminals at once
+- **Full PTY** — Supports interactive commands, colors, prompts, and everything your shell provides
+- **AI tool selector** — Switch between Claude Code, Codex CLI, and Gemini CLI from the toolbar
+
+### Right Panel
+
+Context panels that provide additional views without leaving your terminal workflow:
+
+- **Sub-Tasks** — View and manage project tasks in table, timeline, graph, or kanban view
+- **Agent Activity** — Monitor Claude Code sessions in real time with tool usage timeline
+- **Overview** — Project dashboard with metrics, module counts, and recent activity
+- **GitHub** — Browse repository issues and branches
+- **Sessions** — Review past Claude Code conversation history
+- **AI Files** — View and edit context files (AGENTS.md, CLAUDE.md, GEMINI.md)
+- **Health** — Check SubFrame component status and update outdated components
+- **Settings** — Configure project and workspace preferences
+
+::: tip Keyboard shortcuts
+SubFrame is designed for keyboard-driven workflows. Press `Ctrl+?` (or `Cmd+?` on macOS) to see all available shortcuts, or check the [Keyboard Shortcuts](/guide/keyboard-shortcuts) reference.
+:::
+
+## Next Steps
+
+Now that you are up and running, explore these guides to get the most out of SubFrame:
+
+- **[Features](/guide/features)** — Deep dive into terminal management, task tracking, context preservation, and more
+- **[AI Tool Setup](/guide/ai-tool-setup)** — Install and configure Claude Code, Codex CLI, or Gemini CLI
+- **[Keyboard Shortcuts](/guide/keyboard-shortcuts)** — Full shortcut reference for fast navigation
+- **[Configuration](/guide/configuration)** — Customize SubFrame settings and workspace preferences
+- **[Troubleshooting](/guide/troubleshooting)** — Common issues and solutions
