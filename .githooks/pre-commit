@@ -1,21 +1,38 @@
 #!/bin/bash
 #
-# Pre-commit hook: Update STRUCTURE.json if JS files changed
+# SubFrame pre-commit hook
+# Auto-updates STRUCTURE.json when JS files in src/ are committed.
 #
 
 # Check if any JS files in src/ are staged
-STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep '^src/.*\.js$' || true)
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep -E '^src/.*\.(js|ts|tsx|jsx)$' || true)
 
-if [ -n "$STAGED_JS" ]; then
-    echo "JS files changed, updating STRUCTURE.json..."
+# Also check for deleted source files
+DELETED_JS=$(git diff --cached --name-only --diff-filter=D | grep -E '^src/.*\.(js|ts|tsx|jsx)$' || true)
 
-    # Run the structure update script
-    npm run structure:changed --silent
-
-    # Stage the updated STRUCTURE.json
-    git add STRUCTURE.json
-
-    echo "STRUCTURE.json updated and staged."
+if [ -z "$STAGED_JS" ] && [ -z "$DELETED_JS" ]; then
+  exit 0
 fi
+
+# Only update if .subframe/STRUCTURE.json exists (SubFrame project)
+if [ ! -f ".subframe/STRUCTURE.json" ]; then
+  exit 0
+fi
+
+# Only update if the updater script exists
+UPDATER=".githooks/update-structure.js"
+if [ ! -f "$UPDATER" ]; then
+  exit 0
+fi
+
+echo "[SubFrame] Source files changed, updating .subframe/STRUCTURE.json..."
+
+# Run the updater with staged/deleted file lists as env vars
+STAGED_FILES="$STAGED_JS" DELETED_FILES="$DELETED_JS" node "$UPDATER"
+
+# Stage the updated .subframe/STRUCTURE.json
+git add .subframe/STRUCTURE.json
+
+echo "[SubFrame] .subframe/STRUCTURE.json updated and staged."
 
 exit 0

@@ -13,9 +13,10 @@
     "agents": "AGENTS.md",
     "claude": "CLAUDE.md",
     "gemini": "GEMINI.md",
-    "structure": "STRUCTURE.json",
-    "notes": "PROJECT_NOTES.md",
-    "tasks": "tasks.json",
-    "quickstart": "QUICKSTART.md"
+    "structure": ".subframe/STRUCTURE.json",
+    "notes": ".subframe/PROJECT_NOTES.md",
+    "tasks": ".subframe/tasks.json",
+    "quickstart": ".subframe/QUICKSTART.md",
+    "docsInternal": ".subframe/docs-internal"
   }
 }

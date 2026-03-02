@@ -36,3 +36,14 @@ release/
 
 #Walkthroughs
 WALKTHROUGH/
+
+# VitePress
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+# SubFrame temp/runtime files
+.subframe/agent-state.json.tmp.*
+.subframe/tasks.json.pre-migration-backup
+
+# Claude Code local settings (user-specific)
+.claude/settings.local.json

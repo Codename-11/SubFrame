@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Frame AI Tool Wrapper for Codex CLI
+# SubFrame AI Tool Wrapper for Codex CLI
 # This script injects AGENTS.md as initial prompt
 
 AGENTS_FILE="AGENTS.md"

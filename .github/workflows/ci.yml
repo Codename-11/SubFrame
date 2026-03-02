@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Type Check, Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Skip postinstall (electron-builder install-app-deps) — native modules
+      # like node-pty aren't needed for type checking, linting, or shared tests.
+      # If main-process tests are added later that need node-pty, remove --ignore-scripts
+      # and add electron-builder install-app-deps as a separate step.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
