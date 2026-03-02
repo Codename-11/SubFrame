@@ -4,10 +4,8 @@ export default defineConfig({
   title: 'SubFrame',
   description: 'Terminal-First IDE for AI Coding Tools',
   cleanUrls: true,
-  base: '/SubFrame/',
-
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/SubFrame/assets/icon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/icon.svg' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
     [
@@ -22,11 +20,11 @@ export default defineConfig({
   ],
 
   sitemap: {
-    hostname: 'https://axiom-labs.cloud',
+    hostname: 'https://sub-frame.dev',
   },
 
   transformPageData(pageData) {
-    const canonicalUrl = `https://axiom-labs.cloud/${pageData.relativePath}`
+    const canonicalUrl = `https://sub-frame.dev/${pageData.relativePath}`
       .replace(/index\.md$/, '')
       .replace(/\.md$/, '')
 

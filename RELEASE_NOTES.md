@@ -30,7 +30,7 @@ The first public beta of SubFrame — a terminal-centric IDE for Claude Code. Th
 
 ### Documentation
 
-- **VitePress Docs Site** — Custom-themed documentation at axiom-labs.cloud
+- **VitePress Docs Site** — Custom-themed documentation at sub-frame.dev
 - **Animated Logo** — SubFrame atom logo with orbiting electrons, pulsing nucleus, and frame outline
 - **Blog Posts** — Five articles covering Why SubFrame, Context Preservation, Multi-AI Support, SubFrame Server, and Initialize Workspace
 - **Interactive Showcase** — Feature cards with SVG mockups on the landing page

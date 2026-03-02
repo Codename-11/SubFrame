@@ -23,7 +23,7 @@ head:
         "@type": "SoftwareApplication",
         "name": "SubFrame",
         "description": "Terminal-first development environment for AI coding tools. Supports Claude Code, Codex CLI, and Gemini CLI.",
-        "url": "https://axiom-labs.cloud",
+        "url": "https://sub-frame.dev",
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "macOS, Windows, Linux",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },

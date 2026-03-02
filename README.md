@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <a href="#installation">Install</a> · <a href="#features">Features</a> · <a href="#development">Development</a> · <a href="https://axiom-labs.cloud">Website</a>
+  <a href="#installation">Install</a> · <a href="#features">Features</a> · <a href="#development">Development</a> · <a href="https://sub-frame.dev">Website</a>
 </p>
 
 ---
@@ -292,5 +292,5 @@ SubFrame is built upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozha
 ---
 
 <p align="center">
-  <strong>v0.1.0-beta</strong> · Active development · <a href="https://axiom-labs.cloud">Axiom-Labs</a>
+  <strong>v0.1.0-beta</strong> · Active development · <a href="https://sub-frame.dev">Axiom-Labs</a>
 </p>

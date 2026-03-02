@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://axiom-labs.cloud/sitemap.xml
+Sitemap: https://sub-frame.dev/sitemap.xml
