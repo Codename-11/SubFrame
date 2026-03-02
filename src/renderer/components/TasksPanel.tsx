@@ -338,13 +338,13 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   // Columns no longer depend on expandedId — the expand cell uses the
   // toggleExpand callback and reads expandedId only for rendering the icon
   // via a wrapper that receives it as a prop (see TaskRow below).
-  const columns = useMemo<ColumnDef<Task>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<Task>[]>(() => {
+    const cols: ColumnDef<Task>[] = [
       {
         id: 'expand',
         header: '',
         cell: () => null, // Rendered manually in TaskRow
-        size: 28,
+        size: 24,
       },
       {
         accessorKey: 'title',
@@ -355,6 +355,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
           </span>
         ),
         enableMultiSort: true,
+        // No explicit size → takes remaining space in table-fixed layout
       },
       {
         accessorKey: 'status',
@@ -376,7 +377,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         },
         sortingFn: statusSortingFn,
         enableMultiSort: true,
-        size: 110,
+        size: isFullView ? 110 : 90,
       },
       {
         accessorKey: 'category',
@@ -390,7 +391,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
           );
         },
         enableMultiSort: true,
-        size: 55,
+        size: 50,
       },
       {
         accessorKey: 'priority',
@@ -405,9 +406,13 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         },
         sortingFn: prioritySortingFn,
         enableMultiSort: true,
-        size: 55,
+        size: 50,
       },
-      {
+    ];
+
+    // Updated column — only in full-view where there's room
+    if (isFullView) {
+      cols.push({
         accessorKey: 'updatedAt',
         header: ({ column }) => <SortHeader column={column} label="Updated" />,
         cell: ({ getValue }) => (
@@ -415,16 +420,18 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         ),
         enableMultiSort: true,
         size: 70,
-      },
-      {
-        id: 'actions',
-        header: '',
-        cell: () => null, // Rendered manually in TaskRow
-        size: 80,
-      },
-    ],
-    [isFullView]
-  );
+      });
+    }
+
+    cols.push({
+      id: 'actions',
+      header: '',
+      cell: () => null, // Rendered manually in TaskRow
+      size: isFullView ? 80 : 64,
+    });
+
+    return cols;
+  }, [isFullView]);
 
   const table = useReactTable({
     data: filteredTasks,

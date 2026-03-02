@@ -171,7 +171,7 @@ export function RightPanel() {
           const startWidth = rightPanelWidth;
           useUIStore.getState().setIsResizing(true);
           const onMouseMove = (ev: MouseEvent) => {
-            const newWidth = Math.min(600, Math.max(240, startWidth - (ev.clientX - startX)));
+            const newWidth = Math.min(600, Math.max(320, startWidth - (ev.clientX - startX)));
             setRightPanelWidth(newWidth);
           };
           const onMouseUp = () => {

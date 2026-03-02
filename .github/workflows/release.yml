@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            electron-builder-args: --mac
+            artifact-name: release-macos
+            artifact-glob: release/*.dmg
+          - os: windows-latest
+            electron-builder-args: --win
+            artifact-name: release-windows
+            artifact-glob: release/*.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Package with electron-builder
+        run: npx electron-builder ${{ matrix.electron-builder-args }} --publish never
+        env:
+          # Skip code signing in CI (unsigned builds)
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-glob }}
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-macos
+          path: artifacts
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: artifacts
+
+      - name: Detect prerelease
+        id: prerelease
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if echo "$TAG" | grep -qE '(-beta|-alpha|-rc)'; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for release notes
+        id: release_notes
+        run: |
+          if [ -f RELEASE_NOTES.md ]; then
+            echo "has_notes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease == 'true' }}
+          body_path: ${{ steps.release_notes.outputs.has_notes == 'true' && 'RELEASE_NOTES.md' || '' }}
+          generate_release_notes: ${{ steps.release_notes.outputs.has_notes != 'true' }}

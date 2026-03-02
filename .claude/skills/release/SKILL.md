@@ -1,0 +1,89 @@
+---
+name: release
+description: Create a new release with version bump, release notes, commit, and tag
+argument-hint: <patch|minor|major|x.y.z[-prerelease]>
+disable-model-invocation: true
+allowed-tools: Bash, Read, Edit, Write, Grep, Glob
+---
+
+# Release Procedure
+
+Create a release for SubFrame. The argument specifies the version bump type or an explicit version number.
+
+## Dynamic Context
+
+Current version (from package.json):
+!`node -e "console.log(require('./package.json').version)"`
+
+Last 5 tags:
+!`git tag --sort=-v:refname | head -5`
+
+Recent commits (last 30):
+!`git log --oneline --no-decorate -30`
+
+Current branch:
+!`git branch --show-current`
+
+Working tree clean?
+!`git status --porcelain`
+
+## Instructions
+
+**Argument:** `$ARGUMENTS`
+
+### Pre-flight Checks
+
+1. **Verify clean working tree** — if there are uncommitted changes, STOP and warn the user. Releases must be made from a clean state.
+2. **Verify on main branch** — warn if not on `main`.
+3. **Verify build succeeds** — run `npm run build` and confirm it completes without errors.
+
+### Step 1: Determine Version
+
+Parse the argument:
+- `patch`, `minor`, `major` — bump the corresponding segment of the current version (strip any pre-release suffix first)
+- `x.y.z` or `x.y.z-prerelease` (explicit) — use as-is, validate it's greater than current
+- No argument — analyze the commits since last tag and recommend a bump:
+  - Any `feat!`, `fix!`, or `BREAKING CHANGE` -> MAJOR
+  - Any `feat` -> MINOR
+  - Only `fix`/`docs`/`perf`/`chore`/`refactor` -> PATCH
+  - Ask the user to confirm before proceeding
+
+**Pre-release versions:** Supported via explicit version (e.g., `0.2.0-beta.1`). When bumping `patch`/`minor`/`major`, the pre-release suffix is stripped to produce a clean release.
+
+### Step 2: Update package.json
+
+Update the `"version"` field in `package.json` to the new version string. This is the **single source of truth** — `FRAME_VERSION` in `src/shared/frameConstants.js` reads from it automatically via `require()`.
+
+### Step 3: Update version references in docs
+
+Update these version strings to match the new version:
+1. **`docs/index.md`** — the `"softwareVersion"` field in the Schema.org JSON-LD structured data (in the frontmatter `head` array)
+2. **`docs/.vitepress/theme/components/NavBar.vue`** — the `logo-version` span text (e.g., `Latest: v0.2.0`)
+
+### Step 4: Generate Release Notes
+
+Write `RELEASE_NOTES.md` following the format in [release-notes.md](release-notes.md).
+
+Analyze ALL commits since the last tag to build the notes. Group by category, be thorough about user-facing changes.
+
+**Show the draft to the user and ask for approval before continuing.** They may want to adjust wording or add context.
+
+### Step 5: Commit
+
+Stage exactly these files:
+- `package.json`
+- `docs/index.md`
+- `docs/.vitepress/theme/components/NavBar.vue`
+- `RELEASE_NOTES.md`
+
+Commit with message: `chore(release): bump version to X.Y.Z`
+
+### Step 6: Tag
+
+Create an annotated tag: `git tag vX.Y.Z`
+
+**Do NOT push.** Tell the user:
+> Release committed and tagged as `vX.Y.Z`. When ready, push with:
+> ```
+> git push origin main --tags
+> ```
