@@ -38,13 +38,24 @@ onMounted(() => {
       class="faq-item"
       :class="{ open: openIndex === i }"
     >
-      <button class="faq-question" @click="toggle(i)">
+      <button
+        class="faq-question"
+        :id="`faq-btn-${i}`"
+        :aria-expanded="openIndex === i"
+        :aria-controls="`faq-answer-${i}`"
+        @click="toggle(i)"
+      >
         <span>{{ item.question }}</span>
-        <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg aria-hidden="true" class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
-      <div class="faq-answer">
+      <div
+        class="faq-answer"
+        :id="`faq-answer-${i}`"
+        role="region"
+        :aria-labelledby="`faq-btn-${i}`"
+      >
         <p v-html="item.answer"></p>
       </div>
     </div>

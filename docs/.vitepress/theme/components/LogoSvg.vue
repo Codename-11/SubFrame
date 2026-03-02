@@ -18,7 +18,8 @@ const props = withDefaults(defineProps<{
 </script>
 
 <template>
-  <svg :width="size" :height="size" viewBox="0 0 180 180" style="vertical-align: middle">
+  <svg :id="id" role="img" :aria-labelledby="`logo-title-${id}`" :width="size" :height="size" viewBox="0 0 180 180" style="vertical-align: middle">
+    <title :id="`logo-title-${id}`">SubFrame logo</title>
     <defs>
       <!-- Electron glow -->
       <filter :id="`${id}-ge`" x="-150%" y="-150%" width="400%" height="400%">

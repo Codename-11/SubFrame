@@ -16,6 +16,11 @@
   --sf-accent-glow: rgba(245, 158, 11, 0.15);
   --sf-accent-subtle: rgba(245, 158, 11, 0.08);
 
+  --sf-color-success: #22c55e;
+  --sf-color-error: #ef4444;
+  --sf-color-warning: #f59e0b;
+  --sf-color-info: #3b82f6;
+
   /* Logo palette — neon synthwave */
   --sf-logo-purple: #b480ff;
   --sf-logo-pink: #ff6eb4;

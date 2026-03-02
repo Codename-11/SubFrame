@@ -19,18 +19,18 @@
 .blog-container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 var(--sf-space-lg);
 }
 
 .blog-container-wide {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 var(--sf-space-lg);
 }
 
 /* Blog Index */
 .blog-hero {
-  padding: 80px 0 48px;
+  padding: 120px 0 var(--sf-space-2xl);
   text-align: center;
 }
 
@@ -39,7 +39,7 @@
   font-size: 48px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  margin-bottom: 12px;
+  margin-bottom: var(--sf-space-sm);
   color: var(--sf-text-primary);
 }
 
@@ -49,10 +49,10 @@
 }
 
 .blog-list {
-  padding: 0 0 96px;
+  padding: 0 0 var(--sf-space-4xl);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--sf-space-md);
 }
 
 .blog-card {
@@ -60,7 +60,7 @@
   background: var(--sf-bg-card);
   border: 1px solid var(--sf-border);
   border-radius: var(--sf-radius-lg);
-  padding: 32px;
+  padding: var(--sf-space-xl);
   text-decoration: none;
   color: inherit;
   transition: all 200ms ease;
@@ -75,8 +75,8 @@
 .blog-card-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--sf-space-sm);
+  margin-bottom: var(--sf-space-sm);
 }
 
 .blog-card-date {
@@ -97,7 +97,7 @@
 .blog-card h2 {
   font-size: 22px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: var(--sf-space-xs);
   letter-spacing: -0.01em;
   color: var(--sf-text-primary);
 }
@@ -110,7 +110,7 @@
 
 .blog-card-read {
   display: inline-block;
-  margin-top: 12px;
+  margin-top: var(--sf-space-sm);
   font-size: 13px;
   color: var(--sf-accent);
   font-weight: 500;
@@ -118,7 +118,7 @@
 
 /* Blog Post Header */
 .post-header {
-  padding: 80px 0 48px;
+  padding: var(--sf-space-4xl) 0 var(--sf-space-2xl);
 }
 
 .post-back {
@@ -128,7 +128,7 @@
   font-size: 13px;
   color: var(--sf-text-tertiary);
   text-decoration: none;
-  margin-bottom: 32px;
+  margin-bottom: var(--sf-space-xl);
   transition: color var(--sf-transition-fast);
 }
 
@@ -139,8 +139,8 @@
 .post-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--sf-space-sm);
+  margin-bottom: var(--sf-space-md);
 }
 
 .post-date {
@@ -164,7 +164,7 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
-  margin-bottom: 16px;
+  margin-bottom: var(--sf-space-md);
   color: var(--sf-text-primary);
 }
 
@@ -176,13 +176,13 @@
 
 /* Post Content */
 .post-content {
-  padding: 0 0 96px;
+  padding: 0 0 var(--sf-space-4xl);
 }
 
 .post-content h2 {
   font-size: 24px;
   font-weight: 600;
-  margin: 48px 0 16px;
+  margin: var(--sf-space-2xl) 0 var(--sf-space-md);
   letter-spacing: -0.01em;
   color: var(--sf-text-primary);
 }
@@ -190,7 +190,7 @@
 .post-content h3 {
   font-size: 18px;
   font-weight: 600;
-  margin: 32px 0 12px;
+  margin: var(--sf-space-xl) 0 var(--sf-space-sm);
   color: var(--sf-text-primary);
 }
 
@@ -207,25 +207,25 @@
 
 .post-content em {
   color: var(--sf-accent);
-  font-style: normal;
+  font-style: italic;
 }
 
 .post-content ul,
 .post-content ol {
-  margin: 0 0 20px 24px;
+  margin: 0 0 20px var(--sf-space-lg);
   color: var(--sf-text-secondary);
 }
 
 .post-content li {
   font-size: 16px;
   line-height: 1.8;
-  margin-bottom: 8px;
+  margin-bottom: var(--sf-space-xs);
 }
 
 .post-content blockquote {
   border-left: 3px solid var(--sf-accent);
-  padding: 16px 24px;
-  margin: 24px 0;
+  padding: var(--sf-space-md) var(--sf-space-lg);
+  margin: var(--sf-space-lg) 0;
   background: var(--sf-accent-subtle);
   border-radius: 0 var(--sf-radius-md) var(--sf-radius-md) 0;
 }
@@ -249,8 +249,8 @@
   background: var(--sf-bg-card);
   border: 1px solid var(--sf-border);
   border-radius: var(--sf-radius-md);
-  padding: 24px;
-  margin: 24px 0;
+  padding: var(--sf-space-lg);
+  margin: var(--sf-space-lg) 0;
   overflow-x: auto;
 }
 
@@ -278,10 +278,24 @@
   }
 
   .blog-card {
-    padding: 24px;
+    padding: var(--sf-space-lg);
   }
 
   .blog-card h2 {
     font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .blog-hero h1 {
+    font-size: 28px;
+  }
+
+  .blog-card {
+    padding: var(--sf-space-md);
+  }
+
+  .post-header h1 {
+    font-size: 28px;
   }
 }

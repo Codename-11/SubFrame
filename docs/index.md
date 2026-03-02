@@ -15,6 +15,9 @@ head:
   - - meta
     - name: twitter:description
       content: A terminal-first development environment for Claude Code, Codex CLI, and Gemini CLI.
+  - - meta
+    - property: og:image
+      content: https://sub-frame.dev/assets/og-image.png
   - - script
     - type: application/ld+json
     - |
@@ -27,7 +30,7 @@ head:
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "macOS, Windows, Linux",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-        "author": { "@type": "Organization", "name": "Axiom-Labs", "url": "https://github.com/Codename-11" },
+        "author": { "@type": "Organization", "name": "Axiom-Labs", "url": "https://github.com/Codename-11/SubFrame" },
         "softwareVersion": "0.1.0-beta.1",
         "license": "https://spdx.org/licenses/BUSL-1.1.html",
         "codeRepository": "https://github.com/Codename-11/SubFrame"

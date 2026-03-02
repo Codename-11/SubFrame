@@ -292,5 +292,5 @@ SubFrame is built upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozha
 ---
 
 <p align="center">
-  <strong>v0.1.0-beta</strong> · Active development · <a href="https://sub-frame.dev">Axiom-Labs</a>
+  <strong>v0.1.0-beta.1</strong> · Active development · <a href="https://sub-frame.dev">SubFrame</a>
 </p>

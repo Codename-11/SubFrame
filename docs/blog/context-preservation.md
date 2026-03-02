@@ -37,7 +37,7 @@ A machine-readable map of your codebase: which modules exist, what they export, 
 {
   "modules": {
     "main/tasksManager": {
-      "path": "src/main/tasksManager.js",
+      "path": "src/main/tasksManager.ts",
       "purpose": "Task CRUD operations",
       "exports": ["init", "loadTasks", "addTask"],
       "depends": ["fs", "path", "shared/ipcChannels"]

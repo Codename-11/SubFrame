@@ -34,7 +34,7 @@ function formatDate(dateStr: string): string {
           class="blog-card"
         >
           <div class="blog-card-meta">
-            <span class="blog-card-date">{{ post.date }}</span>
+            <span class="blog-card-date">{{ formatDate(post.date) }}</span>
             <span class="blog-card-tag">{{ post.tag }}</span>
           </div>
           <h2>{{ post.title }}</h2>

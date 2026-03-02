@@ -2,12 +2,13 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'SubFrame',
+  titleTemplate: ':title',
   description: 'Terminal-First IDE for AI Coding Tools',
   cleanUrls: true,
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/icon.svg' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
-    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' }],
     [
       'link',
       {
@@ -17,6 +18,9 @@ export default defineConfig({
     ],
     ['meta', { property: 'og:site_name', content: 'SubFrame' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
+    /* TODO: create og-image.png 1200x630 */
+    ['meta', { property: 'og:image', content: 'https://sub-frame.dev/assets/og-image.png' }],
+    ['meta', { name: 'twitter:image', content: 'https://sub-frame.dev/assets/og-image.png' }],
   ],
 
   sitemap: {
