@@ -379,47 +379,70 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         enableMultiSort: true,
         size: isFullView ? 110 : 90,
       },
-      {
-        accessorKey: 'category',
-        header: ({ column }) => <SortHeader column={column} label="Cat" />,
-        cell: ({ getValue }) => {
-          const cat = (getValue() as string) || 'feature';
-          return (
-            <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', CATEGORY_COLORS[cat] || CATEGORY_COLORS.chore)}>
-              {CATEGORY_SHORT[cat] || cat}
-            </Badge>
-          );
-        },
-        enableMultiSort: true,
-        size: 50,
-      },
-      {
-        accessorKey: 'priority',
-        header: ({ column }) => <SortHeader column={column} label="Pri" />,
-        cell: ({ getValue }) => {
-          const priority = getValue() as string;
-          return (
-            <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', PRIORITY_COLORS[priority])}>
-              {priority}
-            </Badge>
-          );
-        },
-        sortingFn: prioritySortingFn,
-        enableMultiSort: true,
-        size: 50,
-      },
     ];
 
-    // Updated column — only in full-view where there's room
     if (isFullView) {
+      // Full-view: separate columns for category, priority, updated
+      cols.push(
+        {
+          accessorKey: 'category',
+          header: ({ column }) => <SortHeader column={column} label="Cat" />,
+          cell: ({ getValue }) => {
+            const cat = (getValue() as string) || 'feature';
+            return (
+              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', CATEGORY_COLORS[cat] || CATEGORY_COLORS.chore)}>
+                {CATEGORY_SHORT[cat] || cat}
+              </Badge>
+            );
+          },
+          enableMultiSort: true,
+          size: 55,
+        },
+        {
+          accessorKey: 'priority',
+          header: ({ column }) => <SortHeader column={column} label="Pri" />,
+          cell: ({ getValue }) => {
+            const priority = getValue() as string;
+            return (
+              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', PRIORITY_COLORS[priority])}>
+                {priority}
+              </Badge>
+            );
+          },
+          sortingFn: prioritySortingFn,
+          enableMultiSort: true,
+          size: 55,
+        },
+        {
+          accessorKey: 'updatedAt',
+          header: ({ column }) => <SortHeader column={column} label="Updated" />,
+          cell: ({ getValue }) => (
+            <span className="text-text-tertiary text-xs whitespace-nowrap">{formatDate(getValue() as string)}</span>
+          ),
+          enableMultiSort: true,
+          size: 70,
+        },
+      );
+    } else {
+      // Panel mode: combined tags column (category + priority stacked) to save space
       cols.push({
-        accessorKey: 'updatedAt',
-        header: ({ column }) => <SortHeader column={column} label="Updated" />,
-        cell: ({ getValue }) => (
-          <span className="text-text-tertiary text-xs whitespace-nowrap">{formatDate(getValue() as string)}</span>
-        ),
-        enableMultiSort: true,
-        size: 70,
+        id: 'tags',
+        header: () => <span className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium">Tags</span>,
+        cell: ({ row }) => {
+          const cat = row.original.category || 'feature';
+          const priority = row.original.priority;
+          return (
+            <div className="flex flex-col gap-0.5">
+              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap w-fit', CATEGORY_COLORS[cat] || CATEGORY_COLORS.chore)}>
+                {CATEGORY_SHORT[cat] || cat}
+              </Badge>
+              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap w-fit', PRIORITY_COLORS[priority])}>
+                {priority}
+              </Badge>
+            </div>
+          );
+        },
+        size: 52,
       });
     }
 
@@ -427,7 +450,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       id: 'actions',
       header: '',
       cell: () => null, // Rendered manually in TaskRow
-      size: isFullView ? 80 : 64,
+      size: isFullView ? 80 : 56,
     });
 
     return cols;
@@ -602,7 +625,10 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                     {hg.headers.map((header) => (
                       <th
                         key={header.id}
-                        className="px-2 py-1.5 text-left text-[10px] uppercase tracking-wider text-text-tertiary font-medium"
+                        className={cn(
+                          'py-1.5 text-left text-[10px] uppercase tracking-wider text-text-tertiary font-medium',
+                          isFullView ? 'px-2' : 'px-1.5',
+                        )}
                         style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                       >
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
@@ -616,9 +642,10 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                   <Fragment key={row.id}>
                     <tr className="border-b border-border-subtle/50 hover:bg-bg-hover/30 transition-colors">
                       {row.getVisibleCells().map((cell) => {
+                        const cellPx = isFullView ? 'px-2' : 'px-1.5';
                         if (cell.column.id === 'expand') {
                           return (
-                            <td key={cell.id} className="px-2 py-2 text-xs">
+                            <td key={cell.id} className={cn(cellPx, 'py-2 text-xs')}>
                               <button
                                 onClick={() => toggleExpand(row.original.id)}
                                 className="p-0.5 text-text-tertiary hover:text-text-primary cursor-pointer"
@@ -630,7 +657,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                         }
                         if (cell.column.id === 'actions') {
                           return (
-                            <td key={cell.id} className="px-2 py-2 text-xs">
+                            <td key={cell.id} className={cn(cellPx, 'py-2 text-xs')}>
                               <TaskActions
                                 task={row.original}
                                 onUpdateStatus={handleUpdateStatus}
@@ -643,7 +670,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                           );
                         }
                         return (
-                          <td key={cell.id} className={cn('px-2 py-2 text-xs', cell.column.id === 'title' ? 'overflow-hidden' : '')}>
+                          <td key={cell.id} className={cn(cellPx, 'py-2 text-xs', cell.column.id === 'title' ? 'overflow-hidden' : '')}>
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
                         );
