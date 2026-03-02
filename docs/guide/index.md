@@ -43,6 +43,10 @@ On first launch, macOS may warn that SubFrame is from an unidentified developer.
 2. Run the installer — it will install SubFrame automatically
 3. Launch SubFrame from the Start Menu or desktop shortcut
 
+::: tip Windows SmartScreen
+Windows may show a "Windows protected your PC" warning. Click **More info**, then click **Run anyway** to proceed with the installation.
+:::
+
 **Linux:**
 
 1. Download the AppImage or `.deb` package
