@@ -39,6 +39,10 @@ interface UIState {
   sidebarFocusRequest: { tab: 'projects' | 'files'; seq: number };
   requestSidebarFocus: (tab: 'projects' | 'files') => void;
 
+  // Resize drag state (disables Framer Motion animation during drag)
+  isResizing: boolean;
+  setIsResizing: (v: boolean) => void;
+
   // Modals
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
@@ -62,8 +66,9 @@ export const useUIStore = create<UIState>((set, get) => ({
     set({ sidebarState: state });
   },
   setSidebarWidth: (width) => {
-    localStorage.setItem('sidebar-width', String(width));
     set({ sidebarWidth: width });
+    // Defer localStorage write to avoid per-frame I/O during resize drag
+    if (!get().isResizing) localStorage.setItem('sidebar-width', String(width));
   },
   toggleSidebar: () => {
     const current = get().sidebarState;
@@ -78,8 +83,8 @@ export const useUIStore = create<UIState>((set, get) => ({
   setActivePanel: (panel) => set({ activePanel: panel, rightPanelVisible: panel !== null, rightPanelCollapsed: false }),
   setRightPanelCollapsed: (collapsed) => set({ rightPanelCollapsed: collapsed }),
   setRightPanelWidth: (width) => {
-    localStorage.setItem('right-panel-width', String(width));
     set({ rightPanelWidth: width });
+    if (!get().isResizing) localStorage.setItem('right-panel-width', String(width));
   },
   togglePanel: (panel) => {
     const current = get().activePanel;
@@ -114,6 +119,16 @@ export const useUIStore = create<UIState>((set, get) => ({
       get().setSidebarState('expanded');
     }
     set({ sidebarFocusRequest: { tab, seq: sidebarFocusRequest.seq + 1 } });
+  },
+
+  isResizing: false,
+  setIsResizing: (v) => {
+    set({ isResizing: v });
+    // Flush deferred localStorage writes when drag ends
+    if (!v) {
+      localStorage.setItem('sidebar-width', String(get().sidebarWidth));
+      localStorage.setItem('right-panel-width', String(get().rightPanelWidth));
+    }
   },
 
   settingsOpen: false,

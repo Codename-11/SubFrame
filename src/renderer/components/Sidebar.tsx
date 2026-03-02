@@ -443,6 +443,7 @@ export function Sidebar() {
           e.preventDefault();
           const startX = e.clientX;
           const startWidth = sidebarWidth;
+          useUIStore.getState().setIsResizing(true);
           const onMouseMove = (e: MouseEvent) => {
             const newWidth = Math.min(500, Math.max(180, startWidth + (e.clientX - startX)));
             setSidebarWidth(newWidth);
@@ -450,6 +451,7 @@ export function Sidebar() {
           const onMouseUp = () => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            useUIStore.getState().setIsResizing(false);
           };
           document.addEventListener('mousemove', onMouseMove);
           document.addEventListener('mouseup', onMouseUp);

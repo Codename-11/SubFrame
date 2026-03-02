@@ -26,6 +26,7 @@ export function App() {
   const togglePanel = useUIStore((s) => s.togglePanel);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
+  const isResizing = useUIStore((s) => s.isResizing);
   const editorFilePath = useUIStore((s) => s.editorFilePath);
   const setEditorFilePath = useUIStore((s) => s.setEditorFilePath);
   const requestSidebarFocus = useUIStore((s) => s.requestSidebarFocus);
@@ -145,7 +146,7 @@ export function App() {
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: resolvedSidebarWidth, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            transition={{ duration: isResizing ? 0 : 0.2, ease: 'easeInOut' }}
             className="relative flex-shrink-0 overflow-hidden"
           >
             <ErrorBoundary name="Sidebar"><Sidebar /></ErrorBoundary>
@@ -170,7 +171,7 @@ export function App() {
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: rightPanelCollapsed ? 44 : rightPanelWidth, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              transition={{ duration: isResizing ? 0 : 0.2, ease: 'easeInOut' }}
               className="flex-shrink-0 overflow-hidden border-l border-border-subtle bg-bg-primary"
             >
               <div className="h-full w-full">

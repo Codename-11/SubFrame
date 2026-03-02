@@ -169,6 +169,7 @@ export function RightPanel() {
           e.preventDefault();
           const startX = e.clientX;
           const startWidth = rightPanelWidth;
+          useUIStore.getState().setIsResizing(true);
           const onMouseMove = (ev: MouseEvent) => {
             const newWidth = Math.min(600, Math.max(240, startWidth - (ev.clientX - startX)));
             setRightPanelWidth(newWidth);
@@ -176,6 +177,7 @@ export function RightPanel() {
           const onMouseUp = () => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            useUIStore.getState().setIsResizing(false);
           };
           document.addEventListener('mousemove', onMouseMove);
           document.addEventListener('mouseup', onMouseUp);
