@@ -1,55 +1,60 @@
-# SubFrame v0.1.0-beta.1
+# SubFrame v0.1.0-beta.2
 
-The first public beta of SubFrame — a terminal-centric IDE for Claude Code. This release marks a ground-up rebuild: the entire codebase has been migrated from JavaScript to strict TypeScript, and the renderer has been rewritten in React 19 with a modern component architecture.
+## Highlights
 
-## What's Changed
+- **Terminal Grid UX** — Keyboard shortcuts, resize persistence, and maximize-in-place
+- **Command Palette** — Quick access to all actions via `Ctrl+/` or `Ctrl+Shift+P`
+- **Onboarding & Prompt Library** — First-run experience and reusable prompt management
+- **Auto-Updater** — Electron auto-update with toast notifications
+- **Keyboard Shortcut Audit** — VS Code-aligned shortcuts throughout
 
-### Architecture
+## New Features
 
-- **TypeScript Migration** — Full codebase converted from JavaScript to TypeScript with strict mode enabled
-- **React 19 Renderer** — Renderer rebuilt from vanilla DOM manipulation to React 19 + Zustand + TanStack Query
-- **shadcn/ui + Tailwind CSS v4** — New component library and design system with warm neutral theme and amber accents
-- **CodeMirror 6 Editor** — Custom SubFrame theme with language-aware syntax highlighting
-- **Typed IPC Channels** — String-based channel names replaced with typed definitions in `ipcChannels.ts`
-- **Framer Motion** — Smooth animations throughout the UI
-- **esbuild Bundler** — Fast builds for main process with custom React bundler for the renderer
+### Terminal Grid Improvements
+- `Ctrl+G` to toggle between grid and tab view
+- Grid resize persistence — custom column/row sizes saved per layout, restored on switch
+- Maximize-in-place — click Focus button or double-click header to expand a cell full-size; `Esc` to restore
+- Wider resize handles (4px) with visible hover indicator lines
+- "Next Grid Layout" / "Previous Grid Layout" commands in command palette
 
-### Features
+### Command Palette (`Ctrl+/` or `Ctrl+Shift+P`)
+- Searchable command list for panels, views, terminal actions, sidebar, navigation, and settings
+- Keyboard shortcut hints shown inline
 
-- **Agent Activity Monitor** — Real-time timeline of AI tool calls (Read, Edit, Bash) with color-coded entries
-- **SubFrame Health Panel** — Component health dashboard for all SubFrame files, hooks, skills, and git integration with one-click updates
-- **Sub-Task System** — Markdown-based task tracking with YAML frontmatter and CLI tool (`scripts/task.js`)
-- **Task Views** — Kanban board, timeline (Gantt-style), and dependency graph views for task management
-- **Skills System** — Slash commands (`/sub-tasks`, `/sub-audit`, `/sub-docs`, `/release`, `/sub-ipc`) for specialized AI capabilities
-- **Hooks & Automation** — Five Claude Code hooks (SessionStart, UserPromptSubmit, Stop, PreToolUse, PostToolUse) for context injection and task matching
-- **Initialize Workspace** — One-click project setup creating AGENTS.md, STRUCTURE.json, PROJECT_NOTES.md, task tracking, hooks, and skills
-- **Project Overview Panel** — Decisions log, module stats, and context preservation dashboard
-- **Multi-AI Support** — Switch between Claude Code, Codex CLI, and Gemini CLI with toolbar selector
-- **File Previews** — Markdown, HTML, and image preview panels in the editor
-- **Keyboard Shortcuts** — Comprehensive shortcut system with help overlay
+### Prompt Library (`Ctrl+Shift+L`)
+- Save, organize, and reuse prompts across sessions
+- Quick-insert into active terminal
 
-### Documentation
+### Onboarding Dialog
+- First-run setup wizard for new users
+- Project initialization guidance
 
-- **VitePress Docs Site** — Custom-themed documentation at sub-frame.dev
-- **Animated Logo** — SubFrame atom logo with orbiting electrons, pulsing nucleus, and frame outline
-- **Blog Posts** — Five articles covering Why SubFrame, Context Preservation, Multi-AI Support, SubFrame Server, and Initialize Workspace
-- **Interactive Showcase** — Feature cards with SVG mockups on the landing page
-- **Comprehensive README** — Full feature coverage with screenshots and getting started guide
+### What's New Panel
+- In-app changelog viewer for tracking new features
 
-### Developer Experience
+### Auto-Updater
+- Electron auto-update integration with non-intrusive toast notifications
 
-- **CI Workflow** — GitHub Actions running typecheck + lint + test on push and PR
-- **Docs Deployment** — Automated VitePress deployment via GitHub Actions
-- **Release Workflow** — Automated Electron builds for macOS (dmg) and Windows (nsis)
-- **ESLint + Prettier** — Configured for TypeScript and TSX
-- **Vitest** — Test framework with shared utility tests
-- **Pre-commit Hook** — Automatic STRUCTURE.json updates on commit
+## Keyboard Shortcut Changes
 
-### Infrastructure
+| Before | After | Action |
+|--------|-------|--------|
+| — | `Ctrl+G` | Toggle grid view |
+| — | `Ctrl+Shift+P` | Command palette (VS Code alias) |
+| `Ctrl+Shift+P` | `Ctrl+Shift+X` | Plugins panel (VS Code Extensions alignment) |
 
-- **electron-builder** — Build configuration for macOS and Windows installers
-- **ADRs** — Six architectural decision records documenting key choices
-- **Internal Docs** — Architecture overview, IPC channel reference, and changelog
+## Improvements
+
+- Warp-style terminal UX with GPU rendering and animated tabs
+- Enhanced project health checks and AGENTS.md template versioning
+- Improved hooks, skills, and task tracking system
+- Updated documentation site with guides and accessibility fixes
+
+## Quality
+
+- TypeScript strict-mode: clean
+- ESLint: 0 errors
+- Tests: 95/95 passing
 
 ---
 
