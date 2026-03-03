@@ -77,6 +77,7 @@ export const IPC = {
   TERMINAL_FOCUS: 'terminal-focus',
   GET_AVAILABLE_SHELLS: 'get-available-shells',
   AVAILABLE_SHELLS_DATA: 'available-shells-data',
+  CLAUDE_ACTIVE_STATUS: 'claude-active-status',
 
   // Tasks Panel
   LOAD_TASKS: 'load-tasks',
@@ -130,6 +131,7 @@ export const IPC = {
   ADD_GIT_WORKTREE: 'add-git-worktree',
   REMOVE_GIT_WORKTREE: 'remove-git-worktree',
   TOGGLE_GIT_BRANCHES_PANEL: 'toggle-git-branches-panel',
+  LOAD_GIT_STATUS: 'load-git-status',
 
   // AI Tool Settings
   GET_AI_TOOL_CONFIG: 'get-ai-tool-config',
@@ -180,6 +182,28 @@ export const IPC = {
 
   // Skills
   LOAD_SKILLS: 'load-skills',
+
+  // Onboarding (AI analysis pipeline)
+  DETECT_PROJECT_INTELLIGENCE: 'detect-project-intelligence',
+  RUN_ONBOARDING_ANALYSIS: 'run-onboarding-analysis',
+  IMPORT_ONBOARDING_RESULTS: 'import-onboarding-results',
+  CANCEL_ONBOARDING_ANALYSIS: 'cancel-onboarding-analysis',
+  ONBOARDING_PROGRESS: 'onboarding-progress',
+
+  // Prompt Library
+  LOAD_PROMPTS: 'load-prompts',
+  SAVE_PROMPT: 'save-prompt',
+  DELETE_PROMPT: 'delete-prompt',
+
+  // What's New / Changelog
+  GET_RELEASE_NOTES: 'get-release-notes',
+
+  // Auto-Updater
+  UPDATER_CHECK: 'updater-check',
+  UPDATER_STATUS: 'updater-status',
+  UPDATER_DOWNLOAD: 'updater-download',
+  UPDATER_INSTALL: 'updater-install',
+  UPDATER_PROGRESS: 'updater-progress',
 } as const;
 
 export type IPCChannel = (typeof IPC)[keyof typeof IPC];
@@ -339,6 +363,43 @@ export interface GitOperationResult {
   path?: string;
   message?: string;
   changes?: string[];
+}
+
+/** Git file status from `git status --porcelain` */
+export interface GitFileStatus {
+  path: string;
+  index: string;
+  working: string;
+}
+
+/** Git status result */
+export interface GitStatusResult {
+  error: string | null;
+  branch: string;
+  ahead: number;
+  behind: number;
+  files: GitFileStatus[];
+  staged: number;
+  modified: number;
+  untracked: number;
+}
+
+/** Saved prompt for the prompt library */
+export interface SavedPrompt {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  category: string;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Result from loading prompts */
+export interface PromptsResult {
+  error: string | null;
+  prompts: SavedPrompt[];
 }
 
 /** GitHub issue label */
@@ -572,6 +633,96 @@ export interface FrameConfig {
   files: Record<string, string>;
 }
 
+// ─── Onboarding Types ────────────────────────────────────────────────────────
+
+/** A detected intelligence file in the project */
+export interface DetectedIntelligence {
+  category: 'ai-config' | 'project-metadata' | 'documentation' | 'dev-config';
+  path: string;
+  label: string;
+  hasContent: boolean;
+  size: number;
+}
+
+/** Result of project intelligence detection */
+export interface OnboardingDetectionResult {
+  projectPath: string;
+  projectName: string;
+  detected: DetectedIntelligence[];
+  hasGit: boolean;
+  sourceFileCount: number;
+  primaryLanguage: string;
+  worthAnalyzing: boolean;
+}
+
+/** Parsed analysis result from AI provider */
+export interface OnboardingAnalysisResult {
+  structure: {
+    description?: string;
+    architecture?: string;
+    conventions?: string[];
+    dataFlow?: string;
+    modules?: Record<string, { purpose?: string; exports?: string[] }>;
+  };
+  projectNotes: {
+    vision?: string;
+    decisions?: Array<{ date: string; title: string; detail: string }>;
+    techStack?: string[];
+  };
+  suggestedTasks: Array<{
+    title: string;
+    description: string;
+    priority: 'high' | 'medium' | 'low';
+    category: string;
+  }>;
+}
+
+/** Progress event during onboarding analysis */
+export interface OnboardingProgressEvent {
+  projectPath: string;
+  phase: 'detecting' | 'gathering' | 'analyzing' | 'parsing' | 'importing' | 'done' | 'error';
+  message: string;
+  progress: number;
+}
+
+/** Result of importing onboarding analysis */
+export interface OnboardingImportResult {
+  imported: string[];
+  skipped: string[];
+  errors: string[];
+}
+
+/** Selection options for what to import */
+export interface OnboardingImportSelections {
+  structure: boolean;
+  projectNotes: boolean;
+  taskIds: number[];
+}
+
+// ─── Updater Types ───────────────────────────────────────────────────────────
+
+/** Result of checking for updates */
+export interface UpdateCheckResult {
+  updateAvailable: boolean;
+  version?: string;
+  releaseNotes?: string;
+}
+
+/** Updater status pushed from main → renderer */
+export interface UpdaterStatus {
+  status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+  version?: string;
+  error?: string;
+}
+
+/** Download progress info */
+export interface UpdaterProgress {
+  percent: number;
+  bytesPerSecond: number;
+  transferred: number;
+  total: number;
+}
+
 // ─── Handle Map (ipcMain.handle → ipcRenderer.invoke) ───────────────────────
 
 /** Maps invoke channels to their argument tuple and return type */
@@ -596,6 +747,7 @@ export interface IPCHandleMap {
   [IPC.LOAD_GIT_WORKTREES]: { args: [projectPath: string]; return: GitWorktreesResult };
   [IPC.ADD_GIT_WORKTREE]: { args: [payload: { projectPath: string; worktreePath: string; branchName: string; createBranch?: boolean }]; return: GitOperationResult };
   [IPC.REMOVE_GIT_WORKTREE]: { args: [payload: { projectPath: string; worktreePath: string; force?: boolean }]; return: GitOperationResult };
+  [IPC.LOAD_GIT_STATUS]: { args: [projectPath: string]; return: GitStatusResult };
 
   // Plugins
   [IPC.LOAD_PLUGINS]: { args: []; return: Plugin[] };
@@ -626,6 +778,24 @@ export interface IPCHandleMap {
 
   // Skills
   [IPC.LOAD_SKILLS]: { args: [projectPath: string]; return: SkillInfo[] };
+
+  // Onboarding
+  [IPC.DETECT_PROJECT_INTELLIGENCE]: { args: [projectPath: string]; return: OnboardingDetectionResult };
+  [IPC.RUN_ONBOARDING_ANALYSIS]: { args: [projectPath: string]; return: { terminalId: string } };
+  [IPC.IMPORT_ONBOARDING_RESULTS]: { args: [payload: { projectPath: string; results: OnboardingAnalysisResult; selections: OnboardingImportSelections }]; return: OnboardingImportResult };
+
+  // Prompt Library
+  [IPC.LOAD_PROMPTS]: { args: [projectPath: string]; return: PromptsResult };
+  [IPC.SAVE_PROMPT]: { args: [payload: { projectPath: string; prompt: SavedPrompt }]; return: PromptsResult };
+  [IPC.DELETE_PROMPT]: { args: [payload: { projectPath: string; promptId: string }]; return: PromptsResult };
+
+  // What's New
+  [IPC.GET_RELEASE_NOTES]: { args: []; return: { version: string; content: string } };
+
+  // Auto-Updater
+  [IPC.UPDATER_CHECK]: { args: []; return: UpdateCheckResult };
+  [IPC.UPDATER_DOWNLOAD]: { args: []; return: void };
+  [IPC.UPDATER_INSTALL]: { args: []; return: void };
 }
 
 // ─── Send Map (ipcRenderer.send → ipcMain.on) ───────────────────────────────
@@ -711,6 +881,9 @@ export interface IPCSendMap {
   [IPC.LOAD_AGENT_STATE]: string; // projectPath
   [IPC.WATCH_AGENT_STATE]: string; // projectPath
   [IPC.UNWATCH_AGENT_STATE]: void;
+
+  // Onboarding
+  [IPC.CANCEL_ONBOARDING_ANALYSIS]: string; // projectPath
 }
 
 // ─── Event Map (main → renderer via webContents.send) ────────────────────────
@@ -729,6 +902,7 @@ export interface IPCEventMap {
   [IPC.TERMINAL_DESTROYED]: { terminalId: string; exitCode: number };
   [IPC.TERMINAL_OUTPUT_ID]: { terminalId: string; data: string };
   [IPC.AVAILABLE_SHELLS_DATA]: { shells: ShellInfo[]; success: boolean; error?: string };
+  [IPC.CLAUDE_ACTIVE_STATUS]: { terminalId: string; active: boolean };
   [IPC.TASKS_DATA]: TasksPayload;
   [IPC.TASK_UPDATED]: { projectPath: string; taskId: string; action: string; success: boolean; error?: string };
   [IPC.PLUGINS_DATA]: Plugin[];
@@ -758,6 +932,13 @@ export interface IPCEventMap {
 
   // Agent State
   [IPC.AGENT_STATE_DATA]: AgentStatePayload;
+
+  // Onboarding
+  [IPC.ONBOARDING_PROGRESS]: OnboardingProgressEvent;
+
+  // Auto-Updater
+  [IPC.UPDATER_STATUS]: UpdaterStatus;
+  [IPC.UPDATER_PROGRESS]: UpdaterProgress;
 }
 
 // ─── CommonJS compat (keep old require('...ipcChannels') working) ────────────

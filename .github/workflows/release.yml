@@ -19,11 +19,9 @@ jobs:
           - os: macos-latest
             electron-builder-args: --mac
             artifact-name: release-macos
-            artifact-glob: release/*.dmg
           - os: windows-latest
             electron-builder-args: --win
             artifact-name: release-windows
-            artifact-glob: release/*.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +47,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: ${{ matrix.artifact-glob }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.blockmap
+            release/*.yml
           if-no-files-found: error
 
   release:

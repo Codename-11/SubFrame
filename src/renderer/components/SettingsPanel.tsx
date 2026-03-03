@@ -181,6 +181,32 @@ export function SettingsPanel() {
                   </Button>
                 )}
               </div>
+
+              {/* Check for Updates */}
+              <div>
+                <div className="text-sm text-text-primary mb-1">Updates</div>
+                <div className="text-xs text-text-tertiary mb-2">Check if a newer version of SubFrame is available</div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="cursor-pointer text-xs"
+                  onClick={async () => {
+                    toast.loading('Checking for updates...', { id: 'updater-manual' });
+                    try {
+                      const result = await typedInvoke(IPC.UPDATER_CHECK);
+                      if (result.updateAvailable) {
+                        toast.dismiss('updater-manual');
+                      } else {
+                        toast.success('You are on the latest version', { id: 'updater-manual' });
+                      }
+                    } catch {
+                      toast.error('Failed to check for updates', { id: 'updater-manual' });
+                    }
+                  }}
+                >
+                  Check for Updates
+                </Button>
+              </div>
             </TabsContent>
 
             {/* AI Tool tab */}

@@ -5,6 +5,10 @@ import { TerminalArea } from './TerminalArea';
 import { RightPanel } from './RightPanel';
 import { SettingsPanel } from './SettingsPanel';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
+import { CommandPalette } from './CommandPalette';
+import { PromptLibrary } from './PromptLibrary';
+import { WhatsNew } from './WhatsNew';
+import { UpdateNotification } from './UpdateNotification';
 import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useUIStore } from '../stores/useUIStore';
@@ -190,6 +194,18 @@ export function App() {
 
       {/* Keyboard shortcuts help overlay */}
       <KeyboardShortcuts />
+
+      {/* Command palette (Ctrl+/) */}
+      <CommandPalette />
+
+      {/* Prompt library (Ctrl+Shift+L) */}
+      <PromptLibrary />
+
+      {/* What's New dialog (auto-shows after updates) */}
+      <WhatsNew />
+
+      {/* Auto-updater notification (side-effect only, renders null) */}
+      <UpdateNotification />
     </div>
   );
 }

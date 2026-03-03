@@ -30,6 +30,8 @@ import * as settingsManager from './settingsManager';
 import * as aiFilesManager from './aiFilesManager';
 import * as agentStateManager from './agentStateManager';
 import * as skillsManager from './skillsManager';
+import * as promptsManager from './promptsManager';
+import * as updaterManager from './updaterManager';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
 // ── Global error handlers — surface errors to terminal on crash/exit ──
@@ -283,11 +285,27 @@ function setupAllIPC(): void {
   aiFilesManager.setupIPC(ipcMain);
   agentStateManager.setupIPC(ipcMain);
   skillsManager.setupIPC(ipcMain);
+  promptsManager.setupIPC(ipcMain);
+  // Note: updaterManager.setupIPC() is called inside updaterManager.init()
+  // because it needs app.isPackaged to be set first
 
-  // Terminal input handler (needs prompt logger integration)
+  // What's New — read RELEASE_NOTES.md from app root
+  ipcMain.handle(IPC.GET_RELEASE_NOTES, () => {
+    const version: string = require('../../package.json').version;
+    const notesPath = path.join(app.getAppPath(), 'RELEASE_NOTES.md');
+    let content = '';
+    try {
+      content = fs.readFileSync(notesPath, 'utf8');
+    } catch {
+      content = `# SubFrame v${version}\n\nNo release notes available for this version.`;
+    }
+    return { version, content };
+  });
+
+  // Legacy single-terminal input handler
   ipcMain.on(IPC.TERMINAL_INPUT, (_event, data: string) => {
     pty.writeToPTY(data);
-    promptLogger.logInput(data);
+    promptLogger.logInput('legacy', data);
   });
 }
 
@@ -318,6 +336,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   claudeSessionsManager.init(window);
   aiFilesManager.init(window);
   agentStateManager.init(window);
+  updaterManager.init(window, app);
 }
 
 // App lifecycle
