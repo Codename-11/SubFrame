@@ -41,7 +41,7 @@ interface TerminalProps {
 
 export function Terminal({ terminalId, className }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { terminalRef, fitAddonRef, searchAddonRef } = useTerminal(containerRef);
+  const { terminalRef, fitAddonRef, searchAddonRef } = useTerminal(containerRef, terminalId);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   // Live output overlay state
@@ -52,13 +52,12 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const renderDisposableRef = useRef<{ dispose: () => void } | null>(null);
 
-  // Wire IPC output → xterm + capture for overlay
+  // Capture IPC output for overlay display (terminal.write handled by registry)
   useEffect(() => {
     const handler = (_event: unknown, payload: { terminalId: string; data: string }) => {
-      if (payload.terminalId === terminalId && terminalRef.current) {
-        terminalRef.current.write(payload.data);
-
+      if (payload.terminalId === terminalId) {
         // Rolling output buffer for overlay
         outputBufferRef.current += payload.data;
         if (outputBufferRef.current.length > OUTPUT_BUFFER_MAX) {
@@ -75,7 +74,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     return () => {
       ipcRenderer.removeListener(IPC.TERMINAL_OUTPUT_ID, handler);
     };
-  }, [terminalId, terminalRef]);
+  }, [terminalId]);
 
   // Wire xterm input → IPC and resize → IPC
   useEffect(() => {
@@ -90,7 +89,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       typedSend(IPC.TERMINAL_RESIZE_ID, { terminalId, cols, rows });
     });
 
-    // Send initial resize so PTY matches
+    // Fit + sync PTY dimensions + auto-focus after (re)attach
     requestAnimationFrame(() => {
       if (fitAddonRef.current) {
         try {
@@ -104,6 +103,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
           rows: terminal.rows,
         });
       }
+      terminal.focus();
     });
 
     return () => {
@@ -139,9 +139,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         // Also track when new content pushes scroll position
         const terminal = terminalRef.current;
         if (terminal) {
-          const renderDisposable = terminal.onRender(updateScroll);
-          // Store for cleanup
-          (container as any).__sfRenderDisposable = renderDisposable;
+          renderDisposableRef.current = terminal.onRender(updateScroll);
         }
       } else {
         // Terminal not mounted yet, retry
@@ -156,10 +154,9 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       if (viewport) {
         viewport.removeEventListener('scroll', updateScroll);
       }
-      const disposable = (container as any).__sfRenderDisposable;
-      if (disposable) {
-        disposable.dispose();
-        delete (container as any).__sfRenderDisposable;
+      if (renderDisposableRef.current) {
+        renderDisposableRef.current.dispose();
+        renderDisposableRef.current = null;
       }
     };
   }, [containerRef, terminalRef]);

@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-03T03:09:31.698Z",
+  "lastUpdated": "2026-03-03T23:18:38.068Z",
   "tasks": {
     "pending": [
       {
@@ -174,8 +174,23 @@
         "createdAt": "2026-03-03T03:09:31.673Z",
         "updatedAt": "2026-03-03T03:09:31.673Z",
         "completedAt": null,
-        "description": "Embed a Claud-ometer-style analytics dashboard directly in SubFrame. Reads \\ data (session .jsonl logs, stats-cache.json, history.jsonl) to show usage, costs, token breakdowns, and session history — no external server needed.",
+        "description": "Embed a Claud-ometer-style analytics dashboard directly in SubFrame. Reads `~/.claude/` data (session .jsonl logs, stats-cache.json, history.jsonl) to show usage, costs, token breakdowns, and session history — no external server needed.",
         "acceptanceCriteria": "- Overview shows total sessions, messages, tokens, cost\n- At least one chart (usage over time or model breakdown)\n- Session list with sort/filter\n- Cost estimates using per-model pricing (input/output/cache tiers)\n- Scopes to current project when project is selected\n- Handles missing ~/.claude/ gracefully (empty state)",
+        "steps": []
+      },
+      {
+        "id": "task-mmb8be8r-dssb",
+        "title": "Enhanced empty state with AI tool indicator",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-03",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-03T23:18:38.042Z",
+        "updatedAt": "2026-03-03T23:18:38.042Z",
+        "completedAt": null,
+        "description": "1. Show which AI tool will start based on settings (e.g., 'Start Claude Code' instead of generic 'Start AI') on the empty terminal state button in TerminalArea.tsx. Mirror the sidebar AI status display. 2. Review empty grid cell UX in TerminalGrid.tsx — consider whether the current Plus button is discoverable enough or needs enhancement.",
         "steps": []
       }
     ],

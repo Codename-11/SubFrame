@@ -182,6 +182,7 @@
     },
     "files": [
       "index.html",
+      "RELEASE_NOTES.md",
       "src/**/*",
       "dist/**/*",
       "assets/icon.*",

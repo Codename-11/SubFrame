@@ -22,6 +22,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { typedSend } from '../lib/ipc';
 import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
+import * as terminalRegistry from '../lib/terminalRegistry';
 import { getLogoSVG } from '../../shared/logoSVG';
 
 const { ipcRenderer } = require('electron');
@@ -113,6 +114,7 @@ export function TerminalArea() {
   // Close terminal helper — scoped to current project
   const closeTerminal = useCallback(
     (id: string) => {
+      terminalRegistry.dispose(id);
       removeTerminal(id, normalizedPath);
       typedSend(IPC.TERMINAL_DESTROY, id);
     },
@@ -146,6 +148,7 @@ export function TerminalArea() {
   useEffect(() => {
     const handler = (_event: unknown, data: { terminalId: string }) => {
       if (terminals.has(data.terminalId)) {
+        terminalRegistry.dispose(data.terminalId);
         removeTerminal(data.terminalId, normalizedPath);
       }
     };
