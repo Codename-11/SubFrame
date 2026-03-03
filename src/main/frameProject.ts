@@ -210,6 +210,37 @@ function setupIPC(ipcMain: IpcMain): void {
           const merged = mergeSubFrameHooks(existing, subframeHooksConfig);
           writeClaudeSettings(projectPath, merged);
           updated.push(id);
+        } else if (entry.templateVersion !== undefined) {
+          // Version-stamped template — backup existing, regenerate from current template
+          const fullPath = path.join(projectPath, entry.path);
+
+          // Backup existing file
+          if (fs.existsSync(fullPath)) {
+            fs.copyFileSync(fullPath, fullPath + '.bak');
+          }
+
+          // Resolve project name from config, fallback to directory name
+          let projectName = path.basename(projectPath);
+          try {
+            const config = JSON.parse(fs.readFileSync(
+              path.join(projectPath, FRAME_DIR, 'config.json'), 'utf8'
+            ));
+            if (config.name && typeof config.name === 'string') {
+              projectName = config.name;
+            }
+          } catch { /* use fallback */ }
+
+          // Dispatch by component ID (templates that need parameters)
+          if (entry.id === 'agents') {
+            const dir = path.dirname(fullPath);
+            if (!fs.existsSync(dir)) {
+              fs.mkdirSync(dir, { recursive: true });
+            }
+            fs.writeFileSync(fullPath, templates.getAgentsTemplate(projectName), 'utf8');
+            updated.push(id);
+          } else {
+            failed.push(id);
+          }
         } else if (entry.getTemplate) {
           // Regenerate from template and overwrite
           const fullPath = path.join(projectPath, entry.path);

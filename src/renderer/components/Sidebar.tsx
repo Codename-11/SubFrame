@@ -9,6 +9,7 @@ import {
   X,
   Loader2,
   CircleHelp,
+  Play,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -39,6 +40,7 @@ import { IPC } from '../../shared/ipcChannels';
 import type { AITool } from '../../shared/ipcChannels';
 import { getLogoSVG } from '../../shared/logoSVG';
 import { SidebarAgentStatus } from './SidebarAgentStatus';
+import { useGitStatus } from '../hooks/useGithub';
 
 /** Read version at module level — avoids importing frameConstants.ts which uses Node's `path` */
 const FRAME_VERSION: string = require('../../../package.json').version;
@@ -176,6 +178,13 @@ export function Sidebar() {
     [currentProjectPath, aiToolConfig]
   );
 
+  // Listen for global start-ai-tool event (keyboard shortcut, command palette, empty state)
+  useEffect(() => {
+    const handler = () => startAITool();
+    window.addEventListener('start-ai-tool', handler);
+    return () => window.removeEventListener('start-ai-tool', handler);
+  }, [startAITool]);
+
   // ── Collapsed: vertical icon strip (matches RightPanel pattern) ──────────
   if (isCollapsed) {
     return (
@@ -185,6 +194,7 @@ export function Sidebar() {
           onClick={() => setSidebarState('expanded')}
           className="p-1 rounded hover:bg-bg-hover transition-colors cursor-pointer mb-1"
           title="Expand sidebar (Ctrl+B)"
+          aria-label="Expand sidebar"
         >
           <div
             className="w-9 h-9 flex-shrink-0"
@@ -207,6 +217,7 @@ export function Sidebar() {
                   : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
               )}
               title={`${tab.label} (${tab.shortcut})`}
+              aria-label={`${tab.label} (${tab.shortcut})`}
             >
               <Icon size={16} />
             </button>
@@ -216,14 +227,42 @@ export function Sidebar() {
         {/* Spacer */}
         <div className="flex-1" />
 
+        {/* Compact git status indicator */}
+        <CollapsedGitStatus />
+
         {/* Agent status (pulsing dot when active) */}
         <SidebarAgentStatus />
+
+        {/* Start AI tool — icon only */}
+        <TooltipProvider delayDuration={400}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                disabled={!currentProjectPath}
+                onClick={() => startAITool()}
+                className={cn(
+                  'p-2 rounded transition-colors cursor-pointer',
+                  'text-success hover:bg-success/15',
+                  'disabled:opacity-30 disabled:cursor-not-allowed'
+                )}
+                aria-label={`Start ${aiToolConfig?.activeTool.name || 'AI Tool'}`}
+              >
+                <Play size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="text-xs">Start {aiToolConfig?.activeTool.name || 'AI Tool'}</p>
+              <p className="font-mono text-[10px] opacity-60">{effectiveCommand}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Help + Settings at bottom */}
         <button
           onClick={() => setShortcutsHelpOpen(true)}
           className="p-2 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-          title="Keyboard shortcuts (Ctrl+?)"
+          title="Keyboard shortcuts (Ctrl+Shift+/)"
+          aria-label="Keyboard shortcuts"
         >
           <CircleHelp size={16} />
         </button>
@@ -231,6 +270,7 @@ export function Sidebar() {
           onClick={() => setSettingsOpen(true)}
           className="p-2 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
           title="Settings (Ctrl+,)"
+          aria-label="Settings"
         >
           <Settings size={16} />
         </button>
@@ -264,7 +304,8 @@ export function Sidebar() {
           <button
             onClick={() => setShortcutsHelpOpen(true)}
             className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-            title="Keyboard shortcuts (Ctrl+?)"
+            title="Keyboard shortcuts (Ctrl+Shift+/)"
+            aria-label="Keyboard shortcuts"
           >
             <CircleHelp className="w-3.5 h-3.5" />
           </button>
@@ -272,6 +313,7 @@ export function Sidebar() {
             onClick={() => setSettingsOpen(true)}
             className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
             title="Settings (Ctrl+,)"
+            aria-label="Settings"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
@@ -279,6 +321,7 @@ export function Sidebar() {
             onClick={() => setSidebarState('collapsed')}
             className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
             title="Collapse sidebar"
+            aria-label="Collapse sidebar"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
@@ -286,6 +329,7 @@ export function Sidebar() {
             onClick={() => setSidebarState('hidden')}
             className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
             title="Hide sidebar (Ctrl+B)"
+            aria-label="Hide sidebar"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -328,8 +372,9 @@ export function Sidebar() {
               <ProjectList />
             </ScrollArea>
 
-            {/* Agent status + Action buttons */}
+            {/* Git status + Agent status + Action buttons */}
             <div className="flex-shrink-0 p-3 border-t border-border-subtle space-y-2">
+              <GitStatusBar />
               <SidebarAgentStatus />
               {/* Start AI Tool — button + dropdown combo */}
               <div className="flex">
@@ -361,6 +406,7 @@ export function Sidebar() {
                                  bg-success/15 text-success border-success/20
                                  hover:bg-success/25 transition-colors
                                  disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      aria-label="Select AI tool"
                     >
                       <ChevronDown className="w-3 h-3" />
                     </button>
@@ -460,6 +506,81 @@ export function Sidebar() {
         title="Drag to resize, double-click to reset"
       />
     </div>
+  );
+}
+
+/** Compact git status bar showing branch + change counts */
+function GitStatusBar() {
+  const { branch, ahead, behind, staged, modified, untracked, error } = useGitStatus();
+
+  if (error || !branch) return null;
+
+  const hasChanges = staged > 0 || modified > 0 || untracked > 0;
+
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-tertiary px-0.5">
+      <GitBranchIcon className="w-3 h-3 flex-shrink-0" />
+      <span className="truncate font-medium text-text-secondary">{branch}</span>
+      {ahead > 0 && <span className="text-success" title={`${ahead} ahead`} aria-label={`${ahead} commits ahead`}>↑{ahead}</span>}
+      {behind > 0 && <span className="text-warning" title={`${behind} behind`} aria-label={`${behind} commits behind`}>↓{behind}</span>}
+      {hasChanges && (
+        <span className="ml-auto flex items-center gap-1">
+          {staged > 0 && <span className="text-success" title={`${staged} staged`} aria-label={`${staged} staged`}>+{staged}</span>}
+          {modified > 0 && <span className="text-warning" title={`${modified} modified`} aria-label={`${modified} modified`}>~{modified}</span>}
+          {untracked > 0 && <span className="text-text-muted" title={`${untracked} untracked`} aria-label={`${untracked} untracked`}>?{untracked}</span>}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Compact git status for collapsed sidebar — colored dot + branch icon */
+function CollapsedGitStatus() {
+  const { branch, staged, modified, untracked, error } = useGitStatus();
+  const togglePanel = useUIStore((s) => s.togglePanel);
+
+  if (error || !branch) return null;
+
+  const hasChanges = staged > 0 || modified > 0 || untracked > 0;
+  const dotColor = hasChanges ? 'bg-warning' : 'bg-success';
+  const summary = hasChanges
+    ? `${branch} — ${[staged && `+${staged}`, modified && `~${modified}`, untracked && `?${untracked}`].filter(Boolean).join(' ')}`
+    : `${branch} — clean`;
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => togglePanel('githubIssues')}
+            className="relative p-2 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+            aria-label={`Git: ${summary}`}
+          >
+            <GitBranchIcon className="w-4 h-4" />
+            <span className={cn('absolute top-1 right-1 w-2 h-2 rounded-full', dotColor)} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <p className="text-xs font-mono">{branch}</p>
+          {hasChanges ? (
+            <p className="text-[10px] opacity-60">
+              {[staged && `${staged} staged`, modified && `${modified} modified`, untracked && `${untracked} untracked`].filter(Boolean).join(', ')}
+            </p>
+          ) : (
+            <p className="text-[10px] opacity-60">Working tree clean</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/** Inline git branch icon to avoid adding another lucide import just for this */
+function GitBranchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" />
+    </svg>
   );
 }
 

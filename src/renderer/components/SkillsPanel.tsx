@@ -114,7 +114,7 @@ function SkillCard({ skill }: { skill: SkillInfo }) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-border-subtle max-h-80 overflow-y-auto scrollbar-thin">
+            <div className="border-t border-border-subtle max-h-80 overflow-y-auto">
               <MarkdownPreview content={skill.content} />
             </div>
           </motion.div>
@@ -162,7 +162,7 @@ export function SkillsPanel() {
             <div className="text-center py-8">
               <Zap size={20} className="mx-auto mb-2 text-text-muted" />
               <p className="text-xs text-text-tertiary mb-1">No skills found</p>
-              <p className="text-[10px] text-text-muted">.claude/skills/*/SKILL.md</p>
+              <p className="text-[10px] text-text-muted">Add SKILL.md files to .claude/skills/ directories</p>
             </div>
           ) : (
             skills.map((skill) => <SkillCard key={skill.id} skill={skill} />)

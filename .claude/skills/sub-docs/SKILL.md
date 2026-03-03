@@ -1,6 +1,6 @@
 ---
 name: sub-docs
-description: Sync all SubFrame documentation after feature work. Updates CLAUDE.md lists, changelog, PROJECT_NOTES decisions, IPC reference, and STRUCTURE.json.
+description: Sync all SubFrame documentation after feature work. Updates CLAUDE.md lists, changelog, PROJECT_NOTES decisions, and STRUCTURE.json.
 argument-hint: [summary of what changed]
 disable-model-invocation: false
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob
@@ -8,15 +8,15 @@ allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 
 # SubFrame Documentation Sync
 
-After significant feature work, synchronize all SubFrame documentation references. This skill automates the checklist from CLAUDE.md's "Before Ending Work" section.
+After significant feature work, synchronize all SubFrame documentation references. This skill automates the "Before Ending Work" checklist.
 
 ## Dynamic Context
 
 Current version:
-!`node -e "console.log(require('./package.json').version)"`
+!`node -e "console.log(require('./package.json').version)" 2>/dev/null || echo "unknown"`
 
 Recent commits (last 10):
-!`git log --oneline --no-decorate -10`
+!`git log --oneline --no-decorate -10 2>/dev/null || echo "No git history"`
 
 Files changed (unstaged + staged):
 !`git diff --name-only HEAD 2>/dev/null | head -30`
@@ -30,28 +30,19 @@ The argument should describe what feature/changes were made. If empty, infer fro
 ### Step 1: Identify What Changed
 
 Read the recent changes (git diff, argument context) and categorize:
-- **New main process modules** → update CLAUDE.md "Key Modules" main process list
-- **New renderer components** → update CLAUDE.md renderer components list
-- **New hooks** → update CLAUDE.md hooks list
-- **New stores** → update CLAUDE.md stores list
-- **New lib modules** → update CLAUDE.md lib list
-- **New IPC channels** → flag for `/sub-ipc` regen
+- **New source modules** → update CLAUDE.md module lists (if applicable)
+- **New components** → update CLAUDE.md component lists (if applicable)
 - **Architecture decisions** → add to `.subframe/PROJECT_NOTES.md` Session Notes
 - **User-facing features** → add to `.subframe/docs-internal/changelog.md` under [Unreleased]
 
 ### Step 2: Update CLAUDE.md
 
-Read `CLAUDE.md` and update only the sections that need changes:
-- **Main process modules** line (line starting with backtick-delimited module names after "Main process")
-- **Renderer components** line (line starting with backtick-delimited component names after "Renderer")
-- **Hooks** line
-- **Stores** line
-- **Lib** line
+Read `CLAUDE.md` and update only the sections that need changes. If CLAUDE.md has module/component lists, add new entries. Preserve existing formatting and ordering.
 
 **Rules:**
-- Preserve alphabetical ordering within each group where it exists
 - Only add genuinely new entries — don't duplicate
-- Keep the inline backtick format consistent with existing entries
+- Keep formatting consistent with existing entries
+- Don't modify user-written content outside SubFrame-managed sections
 
 ### Step 3: Update Changelog
 
@@ -60,7 +51,7 @@ Read `.subframe/docs-internal/changelog.md` and add entries under `## [Unrelease
 **Format:** Follow the existing changelog style:
 - Group under `### Added`, `### Changed`, `### Fixed`, `### Removed`
 - Bold feature name, em-dash, brief description
-- Sub-bullets for implementation details (files, patterns, key decisions)
+- Sub-bullets for implementation details
 
 ### Step 4: Update PROJECT_NOTES (if architecture decision)
 
@@ -95,10 +86,4 @@ Present a checklist of what was updated:
 - [ ] CLAUDE.md — what was added/changed
 - [ ] changelog.md — entries added
 - [ ] PROJECT_NOTES.md — decision added (or skipped)
-- [ ] STRUCTURE.json — regenerated (N modules)
-- [ ] IPC channels — flag if new channels need `/sub-ipc`
-
-### When to suggest `/sub-ipc`
-
-If new IPC channels were added, tell the user:
-> New IPC channels detected. Run `/sub-ipc` to regenerate the IPC reference doc.
+- [ ] STRUCTURE.json — regenerated

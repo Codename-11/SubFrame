@@ -1,14 +1,14 @@
 ---
 id: task-subtask-ux
 title: Sub-Task panel & modal UX overhaul
-status: in_progress
+status: completed
 priority: medium
 category: feature
 blockedBy: []
 blocks: []
-createdAt: '2026-03-01T00:00:00Z'
-updatedAt: '2026-03-02T00:54:07.789Z'
-completedAt: null
+createdAt: '2026-03-01T00:00:00.000Z'
+updatedAt: '2026-03-02T23:38:15.361Z'
+completedAt: '2026-03-02T23:38:15.361Z'
 context: Session 2026-02-28 - Sub-Task system discussion
 ---
 Comprehensive UX improvements to the Sub-Task system's UI. (1) Larger modal — increase max-width from 480px to ~640px, give description a proper resizable textarea. (2) Full schema support in modal — add fields for userRequest, acceptanceCriteria, and notes. These are required by the schema but currently only fillable via JSON. Make userRequest and acceptanceCriteria visible in edit mode but read-only for AI-populated content. (3) Detail/expand view — clicking a sub-task card opens a full detail view (inline expansion or larger modal) showing all fields including userRequest, acceptanceCriteria, notes, dates, and context. (4) Description truncation — cap card descriptions at 2-3 lines with expand/collapse toggle. (5) Search/filter by text — add a search input above the filter buttons to filter by title/description text. (6) Keyboard navigation — arrow keys to navigate cards, Enter to expand, 'n' to add new. (7) Send to Claude — button on detail view to copy sub-task context to clipboard or inject into terminal as a prompt. (8) Better validation — replace raw alert() with inline form validation and error styling.

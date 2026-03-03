@@ -121,7 +121,7 @@ function SegmentTimeline({
   const hasMore = segments.length > MAX_VISIBLE_SEGMENTS;
 
   return (
-    <div className="max-h-60 overflow-y-auto px-3 pb-2">
+    <ScrollArea className="max-h-60 px-3 pb-2">
       <div className="ml-[3px]">
         {visible.map((seg, i) => {
           const isLast = i === visible.length - 1;
@@ -182,7 +182,7 @@ function SegmentTimeline({
           {showAll ? 'Show fewer' : `Show all ${segments.length} segments`}
         </button>
       )}
-    </div>
+    </ScrollArea>
   );
 }
 
@@ -243,7 +243,7 @@ export function SessionsPanel() {
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-tertiary text-sm gap-1">
         <span>No project selected</span>
-        <span className="text-xs opacity-60">Select a project to view sessions</span>
+        <span className="text-xs opacity-60">Select a project in the left sidebar to view sessions</span>
       </div>
     );
   }
@@ -287,8 +287,8 @@ export function SessionsPanel() {
           </div>
         ) : sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-1">
-            <span>No sessions found</span>
-            <span className="text-xs opacity-60">Claude Code sessions will appear here</span>
+            <span>No sessions yet</span>
+            <span className="text-xs opacity-60">Start an AI tool to begin</span>
           </div>
         ) : (
           <div className="flex flex-col">
@@ -344,7 +344,7 @@ export function SessionsPanel() {
                         />
                       ) : (
                         <>
-                          <div className="text-xs font-medium text-text-primary line-clamp-2">{displayTitle}</div>
+                          <div className="text-xs font-medium text-text-primary line-clamp-2 break-words">{displayTitle}</div>
                           {originalName && (
                             <div className="text-[10px] text-text-tertiary truncate mt-0.5 italic opacity-60">
                               {originalName}
@@ -352,14 +352,14 @@ export function SessionsPanel() {
                           )}
                         </>
                       )}
-                      <div className="flex items-center gap-2 mt-1 text-[10px] text-text-tertiary">
-                        <span>{formatRelativeTime(modified || s.created)}</span>
-                        <span>{msgCount} msg{msgCount !== 1 ? 's' : ''}</span>
+                      <div className="flex items-center gap-2 mt-1 text-[10px] text-text-tertiary flex-wrap min-w-0">
+                        <span className="shrink-0">{formatRelativeTime(modified || s.created)}</span>
+                        <span className="shrink-0">{msgCount} msg{msgCount !== 1 ? 's' : ''}</span>
                         {hasSegments && (
-                          <span className="text-text-muted">{s.segmentCount} segments</span>
+                          <span className="text-text-muted shrink-0">{s.segmentCount} segments</span>
                         )}
                         {branch && (
-                          <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-bg-hover text-text-secondary">
+                          <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-bg-hover text-text-secondary truncate max-w-[120px]">
                             {branch}
                           </Badge>
                         )}

@@ -28,8 +28,9 @@ export function DecisionsDetailView() {
             <Loader2 size={20} className="animate-spin text-text-muted" />
           </div>
         ) : items.length === 0 ? (
-          <div className="text-sm text-text-tertiary py-8 text-center">
-            No decisions recorded yet
+          <div className="flex flex-col items-center gap-1 text-text-tertiary py-8 text-center">
+            <span className="text-sm">No decisions recorded yet</span>
+            <span className="text-xs opacity-60">Decisions are tracked in .subframe/PROJECT_NOTES.md to preserve architecture and design choices</span>
           </div>
         ) : (
           <div className="space-y-1.5">

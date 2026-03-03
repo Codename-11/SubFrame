@@ -39,6 +39,7 @@ const FRAME_FILES = {
   SKILLS_SUB_TASKS: path.join('.claude', 'skills', 'sub-tasks', 'SKILL.md'),
   SKILLS_SUB_DOCS: path.join('.claude', 'skills', 'sub-docs', 'SKILL.md'),
   SKILLS_SUB_AUDIT: path.join('.claude', 'skills', 'sub-audit', 'SKILL.md'),
+  SKILLS_ONBOARD: path.join('.claude', 'skills', 'onboard', 'SKILL.md'),
 };
 
 // SubFrame bin directory for AI tool wrappers

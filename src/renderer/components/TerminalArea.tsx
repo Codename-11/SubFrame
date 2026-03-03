@@ -207,15 +207,22 @@ export function TerminalArea() {
       const modKey = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
 
-      // Escape — Navigate back in full-view overlay
-      if (key === 'escape' && fullViewContent) {
-        e.preventDefault();
-        if (fullViewContent === 'stats' || fullViewContent === 'decisions' || fullViewContent === 'structureMap' || fullViewContent === 'tasks') {
-          setFullViewContent('overview');
-        } else {
-          setFullViewContent(null);
+      // Escape — First un-maximize grid cell, then navigate back in full-view overlay
+      if (key === 'escape') {
+        if (useTerminalStore.getState().maximizedTerminalId) {
+          e.preventDefault();
+          useTerminalStore.getState().setMaximizedTerminal(null);
+          return;
         }
-        return;
+        if (fullViewContent) {
+          e.preventDefault();
+          if (fullViewContent === 'stats' || fullViewContent === 'decisions' || fullViewContent === 'structureMap' || fullViewContent === 'tasks') {
+            setFullViewContent('overview');
+          } else {
+            setFullViewContent(null);
+          }
+          return;
+        }
       }
 
       // Ctrl+Shift+T — New terminal
@@ -257,8 +264,8 @@ export function TerminalArea() {
         return;
       }
 
-      // Ctrl+Shift+G — Toggle grid view
-      if (modKey && e.shiftKey && key === 'g') {
+      // Ctrl+G — Toggle grid/tab view
+      if (modKey && !e.shiftKey && key === 'g') {
         e.preventDefault();
         setViewMode(viewMode === 'tabs' ? 'grid' : 'tabs');
         return;
@@ -288,11 +295,11 @@ export function TerminalArea() {
     activeTerminalId,
     projectTerminals,
     setActiveTerminal,
-    viewMode,
-    setViewMode,
     toggleFullView,
     fullViewContent,
     setFullViewContent,
+    viewMode,
+    setViewMode,
   ]);
 
   // Mouse back/forward buttons — navigate full-view overlay
@@ -408,23 +415,48 @@ export function TerminalArea() {
                 dangerouslySetInnerHTML={{ __html: getLogoSVG({ size: 64, id: 'empty-state-logo', frame: false }) }}
               />
 
-              <p className="text-sm text-text-secondary font-medium">No terminals for this project</p>
+              <p className="text-sm text-text-secondary font-medium">
+                {currentProjectPath ? 'No terminals for this project' : 'Select a project to get started'}
+              </p>
 
-              <button
-                onClick={() => createTerminal()}
-                className="bg-accent-subtle text-accent border border-accent/20 hover:bg-accent/20 px-4 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors mt-3"
-              >
-                Create Terminal
-              </button>
+              <div className="flex items-center gap-3 mt-4">
+                <button
+                  onClick={() => window.dispatchEvent(new Event('start-ai-tool'))}
+                  disabled={!currentProjectPath}
+                  className={`px-5 py-2.5 rounded-md text-sm font-semibold transition-colors shadow-sm ${
+                    currentProjectPath
+                      ? 'bg-success/20 text-success border border-success/30 hover:bg-success/30 cursor-pointer shadow-success/10'
+                      : 'bg-bg-elevated text-text-muted border border-border-subtle cursor-not-allowed'
+                  }`}
+                >
+                  Start AI
+                </button>
+                <button
+                  onClick={() => createTerminal()}
+                  className="bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors shadow-sm"
+                >
+                  New Terminal
+                </button>
+              </div>
 
               {/* Keyboard shortcuts section */}
               <div className="mt-6 pt-4 border-t border-border-subtle">
                 <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Keyboard Shortcuts</p>
                 <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
                   <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
+                    Ctrl+Shift+Enter
+                  </kbd>
+                  <span className="text-text-tertiary text-left">Start AI Tool</span>
+
+                  <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
                     Ctrl+Shift+T
                   </kbd>
                   <span className="text-text-tertiary text-left">New Terminal</span>
+
+                  <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
+                    Ctrl+/
+                  </kbd>
+                  <span className="text-text-tertiary text-left">Command Palette</span>
 
                   <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
                     Ctrl+B
@@ -437,7 +469,7 @@ export function TerminalArea() {
                   <span className="text-text-tertiary text-left">Overview</span>
 
                   <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
-                    Ctrl+?
+                    Ctrl+Shift+/
                   </kbd>
                   <button
                     onClick={() => setShortcutsHelpOpen(true)}
@@ -456,7 +488,7 @@ export function TerminalArea() {
           ) : null
         ) : (
           /* Grid view */
-          <TerminalGrid onCloseTerminal={closeTerminal} projectTerminals={projectTerminals} />
+          <TerminalGrid onCloseTerminal={closeTerminal} onCreateTerminal={createTerminal} projectTerminals={projectTerminals} />
         )}
       </div>
     </div>

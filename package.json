@@ -13,6 +13,8 @@
     "start": "npm run build && electron .",
     "dev": "node scripts/dev.js",
     "typecheck": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.renderer.json",
+    "typecheck:main:watch": "tsc --noEmit -p tsconfig.main.json --watch --preserveWatchOutput",
+    "typecheck:renderer:watch": "tsc --noEmit -p tsconfig.renderer.json --watch --preserveWatchOutput",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/",

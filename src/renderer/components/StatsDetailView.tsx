@@ -54,7 +54,7 @@ export function StatsDetailView() {
             <Loader2 size={20} className="animate-spin text-text-muted" />
           </div>
         ) : !stats ? (
-          <div className="text-sm text-text-tertiary">No statistics available</div>
+          <div className="text-sm text-text-tertiary text-center py-8">No statistics available for this project</div>
         ) : (
           <>
             {/* Summary metrics row */}

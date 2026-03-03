@@ -72,6 +72,7 @@ export function checkExistingFiles(projectPath: string): string[] {
     { name: '.claude/skills/sub-tasks/', path: path.join(projectPath, '.claude', 'skills', 'sub-tasks') },
     { name: '.claude/skills/sub-docs/', path: path.join(projectPath, '.claude', 'skills', 'sub-docs') },
     { name: '.claude/skills/sub-audit/', path: path.join(projectPath, '.claude', 'skills', 'sub-audit') },
+    { name: '.claude/skills/onboard/', path: path.join(projectPath, '.claude', 'skills', 'onboard') },
     { name: '.subframe/', path: path.join(projectPath, FRAME_DIR) }
   ];
 
@@ -257,12 +258,13 @@ export function initializeProject(projectPath: string, options: InitOptions = {}
     }
   }
 
-  // Claude Code skills (.claude/skills/sub-tasks/, sub-docs/, sub-audit/)
-  const skillDirs = ['sub-tasks', 'sub-docs', 'sub-audit'] as const;
+  // Claude Code skills (.claude/skills/sub-tasks/, sub-docs/, sub-audit/, onboard/)
+  const skillDirs = ['sub-tasks', 'sub-docs', 'sub-audit', 'onboard'] as const;
   const skillTemplates: Record<string, () => string> = {
     'sub-tasks': templates.getSubTasksSkillTemplate,
     'sub-docs': templates.getSubDocsSkillTemplate,
     'sub-audit': templates.getSubAuditSkillTemplate,
+    'onboard': templates.getOnboardSkillTemplate,
   };
   for (const skillName of skillDirs) {
     const skillDir = path.join(projectPath, '.claude', 'skills', skillName);

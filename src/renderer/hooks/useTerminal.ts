@@ -147,7 +147,12 @@ export function useTerminal(
     return () => {
       mountedRef.current = false;
       observer.disconnect();
-      terminal.dispose();
+      try {
+        terminal.dispose();
+      } catch {
+        // WebGL addon can throw during disposal if the GL context is already lost
+        // or the DOM element has been detached — safe to ignore
+      }
       terminalRef.current = null;
       fitAddonRef.current = null;
       searchAddonRef.current = null;

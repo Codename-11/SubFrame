@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-02",
+  "lastUpdated": "2026-03-03",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -11,7 +11,7 @@
   "modules": {
     "main/agentStateManager": {
       "file": "src\\main\\agentStateManager.ts",
-      "description": "Agent State Manager Module",
+      "description": "Agent State Manager Module Watches .subframe/agent-state.json for changes and broadcasts real-time agent state updates to the renderer via IPC.",
       "exports": [
         "init",
         "loadAgentState",
@@ -44,14 +44,21 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Returns empty state if the file is missing or malformed."
+          "purpose": "Returns empty state if the file is missing or malformed.",
+          "calls": [
+            "emptyState"
+          ]
         },
         "watchAgentState": {
           "line": 67,
           "params": [
             "projectPath"
           ],
-          "purpose": "Start watching the .subframe/ directory for agent-state.json changes."
+          "purpose": "Start watching the .subframe/ directory for agent-state.json changes.",
+          "calls": [
+            "loadAgentState",
+            "unwatchAgentState"
+          ]
         },
         "unwatchAgentState": {
           "line": 102,
@@ -62,7 +69,12 @@
           "params": [
             "ipc"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "loadAgentState",
+            "unwatchAgentState",
+            "watchAgentState"
+          ]
         }
       },
       "loc": 134,
@@ -80,7 +92,7 @@
     },
     "main/aiFilesManager": {
       "file": "src\\main\\aiFilesManager.ts",
-      "description": "AI Files Manager Module",
+      "description": "AI Files Manager Module Handles native AI instruction file operations (CLAUDE.md, GEMINI.md) Manages backlink injection, removal, symlink migration, and status checks",
       "exports": [
         "init",
         "setupIPC",
@@ -113,7 +125,11 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Get status of all AI-related files in a project"
+          "purpose": "Get status of all AI-related files in a project",
+          "calls": [
+            "getClaudeNativeStatus",
+            "getNativeFileStatus"
+          ]
         },
         "handleInjectBacklink": {
           "line": 73,
@@ -121,7 +137,10 @@
             "projectPath",
             "filename"
           ],
-          "purpose": "Inject backlink into a native AI file"
+          "purpose": "Inject backlink into a native AI file",
+          "calls": [
+            "injectBacklink"
+          ]
         },
         "handleRemoveBacklink": {
           "line": 81,
@@ -129,7 +148,10 @@
             "projectPath",
             "filename"
           ],
-          "purpose": "Remove backlink from a native AI file"
+          "purpose": "Remove backlink from a native AI file",
+          "calls": [
+            "removeBacklink"
+          ]
         },
         "handleCreateNativeFile": {
           "line": 89,
@@ -137,7 +159,10 @@
             "projectPath",
             "filename"
           ],
-          "purpose": "Create a new native AI file with backlink"
+          "purpose": "Create a new native AI file with backlink",
+          "calls": [
+            "injectBacklink"
+          ]
         },
         "handleMigrateSymlink": {
           "line": 97,
@@ -145,14 +170,21 @@
             "projectPath",
             "filename"
           ],
-          "purpose": "Migrate a symlink to a real file with backlink"
+          "purpose": "Migrate a symlink to a real file with backlink",
+          "calls": [
+            "injectBacklink",
+            "isSymlinkFile"
+          ]
         },
         "handleVerifyOnProjectOpen": {
           "line": 113,
           "params": [
             "projectPath"
           ],
-          "purpose": "Auto-verify backlinks when a project is opened"
+          "purpose": "Auto-verify backlinks when a project is opened",
+          "calls": [
+            "verifyBacklinks"
+          ]
         },
         "getBacklinkConfig": {
           "line": 131,
@@ -181,14 +213,31 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Update all existing backlinks in a project with current config"
+          "purpose": "Update all existing backlinks in a project with current config",
+          "calls": [
+            "buildBacklinkOptions",
+            "getBacklinkConfig",
+            "hasBacklink",
+            "updateBacklink"
+          ]
         },
         "setupIPC": {
           "line": 202,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers for AI file operations"
+          "purpose": "Setup IPC handlers for AI file operations",
+          "calls": [
+            "getAIFilesStatus",
+            "getBacklinkConfig",
+            "handleCreateNativeFile",
+            "handleInjectBacklink",
+            "handleMigrateSymlink",
+            "handleRemoveBacklink",
+            "handleUpdateAllBacklinks",
+            "saveBacklinkConfig",
+            "verifyBacklinks"
+          ]
         }
       },
       "loc": 265,
@@ -216,7 +265,7 @@
     },
     "main/aiToolManager": {
       "file": "src\\main\\aiToolManager.ts",
-      "description": "AI Tool Manager",
+      "description": "AI Tool Manager Manages switching between different AI coding tools (Claude Code, Codex CLI, etc.)",
       "exports": [
         "init",
         "getAvailableTools",
@@ -243,7 +292,11 @@
             "window",
             "app"
           ],
-          "purpose": "Initialize the AI Tool Manager"
+          "purpose": "Initialize the AI Tool Manager",
+          "calls": [
+            "loadConfig",
+            "setupIPC"
+          ]
         },
         "loadConfig": {
           "line": 107,
@@ -259,18 +312,30 @@
         },
         "getActiveTool": {
           "line": 142,
-          "purpose": "Get the currently active tool"
+          "purpose": "Get the currently active tool",
+          "calls": [
+            "getAvailableTools"
+          ]
         },
         "setActiveTool": {
           "line": 150,
           "params": [
             "toolId"
           ],
-          "purpose": "Set the active AI tool"
+          "purpose": "Set the active AI tool",
+          "calls": [
+            "getActiveTool",
+            "getAvailableTools",
+            "saveConfig"
+          ]
         },
         "getConfig": {
           "line": 169,
-          "purpose": "Get full configuration for renderer"
+          "purpose": "Get full configuration for renderer",
+          "calls": [
+            "getActiveTool",
+            "getAvailableTools"
+          ]
         },
         "addCustomTool": {
           "line": 179,
@@ -284,18 +349,31 @@
           "params": [
             "toolId"
           ],
-          "purpose": "Remove a custom AI tool"
+          "purpose": "Remove a custom AI tool",
+          "calls": [
+            "saveConfig"
+          ]
         },
         "setupIPC": {
           "line": 212,
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "addCustomTool",
+            "getActiveTool",
+            "getConfig",
+            "removeCustomTool",
+            "setActiveTool"
+          ]
         },
         "getCommand": {
           "line": 241,
           "params": [
             "action"
           ],
-          "purpose": "Get command for specific action"
+          "purpose": "Get command for specific action",
+          "calls": [
+            "getActiveTool"
+          ]
         },
         "getCustomCommand": {
           "line": 249,
@@ -306,7 +384,11 @@
         },
         "getStartCommand": {
           "line": 263,
-          "purpose": "Get the start command for active tool"
+          "purpose": "Get the start command for active tool",
+          "calls": [
+            "getActiveTool",
+            "getCustomCommand"
+          ]
         }
       },
       "loc": 274,
@@ -326,7 +408,7 @@
     },
     "main/claudeSessionsManager": {
       "file": "src\\main\\claudeSessionsManager.ts",
-      "description": "Claude Sessions Manager Module",
+      "description": "Claude Sessions Manager Module Reads Claude Code session history from ~/.claude/projects/ Scans individual .jsonl session files and extracts metadata",
       "exports": [
         "init",
         "setupIPC",
@@ -365,7 +447,10 @@
           "params": [
             "filePath"
           ],
-          "purpose": "Parse a single .jsonl session file and extract metadata"
+          "purpose": "Parse a single .jsonl session file and extract metadata",
+          "calls": [
+            "extractMessageText"
+          ]
         },
         "groupSessionsBySlug": {
           "line": 174,
@@ -379,18 +464,30 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Get sessions for a given project path"
+          "purpose": "Get sessions for a given project path",
+          "calls": [
+            "applyFriendlyNames",
+            "encodeProjectPath",
+            "groupSessionsBySlug",
+            "parseSessionFile"
+          ]
         },
         "getMetaPath": {
           "line": 289,
           "params": [
             "projectPath"
+          ],
+          "calls": [
+            "encodeProjectPath"
           ]
         },
         "loadMeta": {
           "line": 294,
           "params": [
             "projectPath"
+          ],
+          "calls": [
+            "getMetaPath"
           ]
         },
         "saveMeta": {
@@ -398,6 +495,9 @@
           "params": [
             "projectPath",
             "meta"
+          ],
+          "calls": [
+            "getMetaPath"
           ]
         },
         "applyFriendlyNames": {
@@ -406,7 +506,10 @@
             "sessions",
             "projectPath"
           ],
-          "purpose": "Apply friendly names from SubFrame metadata to grouped sessions"
+          "purpose": "Apply friendly names from SubFrame metadata to grouped sessions",
+          "calls": [
+            "loadMeta"
+          ]
         },
         "renameSession": {
           "line": 332,
@@ -415,7 +518,11 @@
             "sessionId",
             "name"
           ],
-          "purpose": "Set a friendly name for a session"
+          "purpose": "Set a friendly name for a session",
+          "calls": [
+            "loadMeta",
+            "saveMeta"
+          ]
         },
         "deleteSession": {
           "line": 351,
@@ -424,7 +531,12 @@
             "sessionId",
             "slug"
           ],
-          "purpose": "Delete a session and all its JSONL segments (by slug or sessionId)"
+          "purpose": "Delete a session and all its JSONL segments (by slug or sessionId)",
+          "calls": [
+            "encodeProjectPath",
+            "loadMeta",
+            "saveMeta"
+          ]
         },
         "deleteAllSessions": {
           "line": 402,
@@ -438,14 +550,24 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Lightweight check: does the project have any active Claude session?"
+          "purpose": "Lightweight check: does the project have any active Claude session?",
+          "calls": [
+            "encodeProjectPath"
+          ]
         },
         "setupIPC": {
           "line": 467,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "deleteAllSessions",
+            "deleteSession",
+            "getSessionsForProject",
+            "hasActiveSession",
+            "renameSession"
+          ]
         }
       },
       "loc": 494,
@@ -463,7 +585,7 @@
     },
     "main/claudeUsageManager": {
       "file": "src\\main\\claudeUsageManager.ts",
-      "description": "Claude Usage Manager Module",
+      "description": "Claude Usage Manager Module Fetches Claude Code usage data from OAuth API and provides periodic updates",
       "exports": [
         "init",
         "setupIPC",
@@ -486,7 +608,10 @@
           "params": [
             "window"
           ],
-          "purpose": "Initialize the module with window reference"
+          "purpose": "Initialize the module with window reference",
+          "calls": [
+            "startPolling"
+          ]
         },
         "extractToken": {
           "line": 47,
@@ -497,30 +622,50 @@
         },
         "getTokenFromCredentialsFile": {
           "line": 60,
-          "purpose": "Read OAuth token from the Claude credentials file (~/.claude/.credentials.json)"
+          "purpose": "Read OAuth token from the Claude credentials file (~/.claude/.credentials.json)",
+          "calls": [
+            "extractToken"
+          ]
         },
         "getTokenFromKeychain": {
           "line": 77,
-          "purpose": "Read OAuth token from macOS Keychain"
+          "purpose": "Read OAuth token from macOS Keychain",
+          "calls": [
+            "extractToken"
+          ]
         },
         "getOAuthToken": {
           "line": 97,
-          "purpose": "Get OAuth token using platform-appropriate method"
+          "purpose": "Get OAuth token using platform-appropriate method",
+          "calls": [
+            "getTokenFromCredentialsFile",
+            "getTokenFromKeychain"
+          ]
         },
         "fetchUsage": {
           "line": 126,
-          "purpose": "Fetch usage data from Claude OAuth API"
+          "purpose": "Fetch usage data from Claude OAuth API",
+          "calls": [
+            "getOAuthToken"
+          ]
         },
         "sendUsageToRenderer": {
           "line": 232,
-          "purpose": "Send usage data to renderer"
+          "purpose": "Send usage data to renderer",
+          "calls": [
+            "fetchUsage"
+          ]
         },
         "startPolling": {
           "line": 242,
           "params": [
             "interval"
           ],
-          "purpose": "Start periodic polling for usage updates"
+          "purpose": "Start periodic polling for usage updates",
+          "calls": [
+            "sendUsageToRenderer",
+            "stopPolling"
+          ]
         },
         "stopPolling": {
           "line": 260,
@@ -531,11 +676,17 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "fetchUsage"
+          ]
         },
         "cleanup": {
           "line": 287,
-          "purpose": "Cleanup on app quit"
+          "purpose": "Cleanup on app quit",
+          "calls": [
+            "stopPolling"
+          ]
         }
       },
       "loc": 293,
@@ -551,7 +702,7 @@
     },
     "main/dialogs": {
       "file": "src\\main\\dialogs.ts",
-      "description": "Dialogs Module",
+      "description": "Dialogs Module Handles system dialogs - folder picker, file dialogs",
       "exports": [
         "init",
         "showFolderPicker",
@@ -594,7 +745,12 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "showDefaultProjectDirPicker",
+            "showFolderPicker",
+            "showNewProjectDialog"
+          ]
         }
       },
       "loc": 101,
@@ -611,7 +767,7 @@
     },
     "main/fileEditor": {
       "file": "src\\main\\fileEditor.ts",
-      "description": "File Editor Module",
+      "description": "File Editor Module Handles file reading and writing for the editor overlay",
       "exports": [
         "init",
         "readFile",
@@ -637,21 +793,30 @@
           "params": [
             "filePath"
           ],
-          "purpose": "Check if a file extension indicates a binary file"
+          "purpose": "Check if a file extension indicates a binary file",
+          "calls": [
+            "getFileExtension"
+          ]
         },
         "isImageFile": {
           "line": 85,
           "params": [
             "filePath"
           ],
-          "purpose": "Check if a file is an image that can be previewed"
+          "purpose": "Check if a file is an image that can be previewed",
+          "calls": [
+            "getFileExtension"
+          ]
         },
         "readImageFile": {
           "line": 92,
           "params": [
             "filePath"
           ],
-          "purpose": "Read an image file and return it as a base64 data URI"
+          "purpose": "Read an image file and return it as a base64 data URI",
+          "calls": [
+            "getFileExtension"
+          ]
         },
         "isWritable": {
           "line": 123,
@@ -665,7 +830,12 @@
           "params": [
             "filePath"
           ],
-          "purpose": "Read file contents"
+          "purpose": "Read file contents",
+          "calls": [
+            "isBinaryFile",
+            "isImageFile",
+            "isWritable"
+          ]
         },
         "writeFile": {
           "line": 158,
@@ -687,7 +857,13 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "getFileExtension",
+            "readFile",
+            "readImageFile",
+            "writeFile"
+          ]
         }
       },
       "loc": 197,
@@ -706,7 +882,7 @@
     },
     "main/fileTree": {
       "file": "src\\main\\fileTree.ts",
-      "description": "File Tree Module",
+      "description": "File Tree Module Generates directory tree structure",
       "exports": [
         "getFileTree",
         "setupIPC"
@@ -732,7 +908,10 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "getFileTree"
+          ]
         }
       },
       "loc": 71,
@@ -747,7 +926,7 @@
     },
     "main/frameProject": {
       "file": "src\\main\\frameProject.ts",
-      "description": "SubFrame Project Module",
+      "description": "SubFrame Project Module Handles SubFrame project initialization and detection",
       "exports": [
         "init",
         "isFrameProject",
@@ -796,7 +975,12 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Show confirmation dialog before initializing SubFrame project"
+          "purpose": "Show confirmation dialog before initializing SubFrame project",
+          "calls": [
+            "checkExistingFiles",
+            "getClaudeNativeStatus",
+            "getNativeFileStatus"
+          ]
         },
         "initializeFrameProject": {
           "line": 118,
@@ -804,25 +988,46 @@
             "projectPath",
             "projectName"
           ],
-          "purpose": "Initialize a project as SubFrame project"
+          "purpose": "Initialize a project as SubFrame project",
+          "calls": [
+            "initializeProject"
+          ]
         },
         "setupIPC": {
           "line": 130,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "getComponentRegistry",
+            "getFrameConfig",
+            "getSubFrameHealth",
+            "initializeFrameProject",
+            "isFrameProject",
+            "mergeSubFrameHooks",
+            "readClaudeSettings",
+            "showInitializeConfirmation",
+            "uninstallSubFrame",
+            "writeClaudeSettings"
+          ]
         },
         "uninstallSubFrame": {
-          "line": 261,
+          "line": 292,
           "params": [
             "projectPath",
             "options"
           ],
-          "purpose": "Safe uninstall of SubFrame from a project. Supports dry-run mode."
+          "purpose": "Safe uninstall of SubFrame from a project. Supports dry-run mode.",
+          "calls": [
+            "readClaudeSettings",
+            "removeBacklink",
+            "removeSubFrameHooks",
+            "writeClaudeSettings"
+          ]
         }
       },
-      "loc": 404,
+      "loc": 435,
       "ipc": {
         "listens": [
           "CHECK_IS_FRAME_PROJECT",
@@ -845,7 +1050,7 @@
     },
     "main/gitBranchesManager": {
       "file": "src\\main\\gitBranchesManager.ts",
-      "description": "Git Branches Manager Module",
+      "description": "Git Branches Manager Module Handles git branch and worktree operations",
       "exports": [
         "init",
         "loadBranches",
@@ -856,6 +1061,7 @@
         "addWorktree",
         "removeWorktree",
         "isWorkingTreeClean",
+        "getGitStatus",
         "setupIPC"
       ],
       "depends": [
@@ -885,75 +1091,117 @@
           ],
           "purpose": "Check if working tree is clean"
         },
-        "loadBranches": {
-          "line": 96,
+        "getGitStatus": {
+          "line": 113,
           "params": [
             "projectPath"
           ],
-          "purpose": "Load all branches"
+          "purpose": "Get structured git status for a project",
+          "calls": [
+            "execGit"
+          ]
+        },
+        "loadBranches": {
+          "line": 168,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Load all branches",
+          "calls": [
+            "execGit"
+          ]
         },
         "switchBranch": {
-          "line": 141,
+          "line": 213,
           "params": [
             "projectPath",
             "branchName"
           ],
-          "purpose": "Switch to a branch"
+          "purpose": "Switch to a branch",
+          "calls": [
+            "execGit",
+            "isWorkingTreeClean"
+          ]
         },
         "createBranch": {
-          "line": 173,
+          "line": 245,
           "params": [
             "projectPath",
             "branchName",
             "checkout",
             "baseBranch"
           ],
-          "purpose": "Create a new branch"
+          "purpose": "Create a new branch",
+          "calls": [
+            "execGit"
+          ]
         },
         "deleteBranch": {
-          "line": 199,
+          "line": 271,
           "params": [
             "projectPath",
             "branchName",
             "force"
           ],
-          "purpose": "Delete a branch"
+          "purpose": "Delete a branch",
+          "calls": [
+            "execGit"
+          ]
         },
         "loadWorktrees": {
-          "line": 216,
+          "line": 288,
           "params": [
             "projectPath"
           ],
-          "purpose": "Load worktrees"
+          "purpose": "Load worktrees",
+          "calls": [
+            "execGit"
+          ]
         },
         "addWorktree": {
-          "line": 258,
+          "line": 330,
           "params": [
             "projectPath",
             "worktreePath",
             "branchName",
             "createBranchFlag"
           ],
-          "purpose": "Add a worktree"
+          "purpose": "Add a worktree",
+          "calls": [
+            "execGit"
+          ]
         },
         "removeWorktree": {
-          "line": 277,
+          "line": 349,
           "params": [
             "projectPath",
             "worktreePath",
             "force"
           ],
-          "purpose": "Remove a worktree"
+          "purpose": "Remove a worktree",
+          "calls": [
+            "execGit"
+          ]
         },
         "setupIPC": {
-          "line": 296,
+          "line": 368,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "addWorktree",
+            "createBranch",
+            "deleteBranch",
+            "getGitStatus",
+            "loadBranches",
+            "loadWorktrees",
+            "removeWorktree",
+            "switchBranch"
+          ]
         }
       },
-      "loc": 337,
+      "loc": 413,
       "ipc": {
         "listens": [
           "LOAD_GIT_BRANCHES",
@@ -963,6 +1211,7 @@
           "LOAD_GIT_WORKTREES",
           "ADD_GIT_WORKTREE",
           "REMOVE_GIT_WORKTREE",
+          "LOAD_GIT_STATUS",
           "TOGGLE_GIT_BRANCHES_PANEL"
         ],
         "emits": [
@@ -972,7 +1221,7 @@
     },
     "main/githubManager": {
       "file": "src\\main\\githubManager.ts",
-      "description": "GitHub Manager Module",
+      "description": "GitHub Manager Module Handles GitHub integration using gh CLI",
       "exports": [
         "init",
         "setProjectPath",
@@ -1017,7 +1266,11 @@
             "projectPath",
             "state"
           ],
-          "purpose": "Load GitHub issues for current project"
+          "purpose": "Load GitHub issues for current project",
+          "calls": [
+            "checkGhCli",
+            "checkGitHubRepo"
+          ]
         },
         "openIssue": {
           "line": 110,
@@ -1031,7 +1284,11 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "loadIssues",
+            "openIssue"
+          ]
         }
       },
       "loc": 136,
@@ -1045,11 +1302,12 @@
     },
     "main/index": {
       "file": "src\\main\\index.ts",
-      "description": "Main Process Entry Point",
+      "description": "Main Process Entry Point Initializes Electron app, creates window, loads modules",
       "exports": [
         "createWindow"
       ],
       "depends": [
+        "../package.json",
         "electron",
         "path",
         "fs",
@@ -1075,52 +1333,73 @@
         "aiFilesManager",
         "agentStateManager",
         "skillsManager",
+        "promptsManager",
+        "updaterManager",
         "shared/logoSVG"
       ],
       "functions": {
         "getWindowStatePath": {
-          "line": 54,
+          "line": 56,
           "purpose": "Get path for persisted window state"
         },
         "loadWindowState": {
-          "line": 61,
-          "purpose": "Load saved window state (bounds + maximized)"
+          "line": 63,
+          "purpose": "Load saved window state (bounds + maximized)",
+          "calls": [
+            "getWindowStatePath"
+          ]
         },
         "saveWindowState": {
-          "line": 73,
-          "purpose": "Save current window state"
+          "line": 75,
+          "purpose": "Save current window state",
+          "calls": [
+            "getWindowStatePath"
+          ]
         },
         "createSplash": {
-          "line": 86,
+          "line": 88,
           "params": [
             "bounds",
             "isMaximized"
           ],
-          "purpose": "Create a lightweight splash window that appears instantly."
+          "purpose": "Create a lightweight splash window that appears instantly.",
+          "calls": [
+            "getLogoSVG"
+          ]
         },
         "createWindow": {
-          "line": 133,
-          "purpose": "Create main application window"
+          "line": 135,
+          "purpose": "Create main application window",
+          "calls": [
+            "createSplash",
+            "initModulesWithWindow",
+            "loadWindowState",
+            "saveWindowState"
+          ]
         },
         "setupAllIPC": {
-          "line": 266,
+          "line": 268,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 297,
-          "purpose": "Initialize application"
+          "line": 315,
+          "purpose": "Initialize application",
+          "calls": [
+            "setupAllIPC"
+          ]
         },
         "initModulesWithWindow": {
-          "line": 308,
+          "line": 326,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 344,
+      "loc": 363,
       "ipc": {
         "listens": [
+          "GET_RELEASE_NOTES",
           "TERMINAL_INPUT"
         ],
         "emits": []
@@ -1128,7 +1407,7 @@
     },
     "main/menu": {
       "file": "src\\main\\menu.ts",
-      "description": "Application Menu Module",
+      "description": "Application Menu Module Defines menu structure and handlers Supports dynamic menu based on active AI tool",
       "exports": [
         "init",
         "createMenu",
@@ -1152,18 +1431,30 @@
         },
         "getMenuTemplate": {
           "line": 48,
-          "purpose": "Get menu template based on active AI tool"
+          "purpose": "Get menu template based on active AI tool",
+          "calls": [
+            "buildAICommandsSubmenu"
+          ]
         },
         "buildAICommandsSubmenu": {
           "line": 116,
           "params": [
             "tool"
           ],
-          "purpose": "Build AI commands submenu based on active tool"
+          "purpose": "Build AI commands submenu based on active tool",
+          "calls": [
+            "buildToolSwitcherSubmenu",
+            "openHistoryFile",
+            "sendCommand",
+            "toggleHistoryPanel"
+          ]
         },
         "buildToolSwitcherSubmenu": {
           "line": 224,
-          "purpose": "Build tool switcher submenu"
+          "purpose": "Build tool switcher submenu",
+          "calls": [
+            "createMenu"
+          ]
         },
         "sendCommand": {
           "line": 245,
@@ -1182,7 +1473,10 @@
         },
         "createMenu": {
           "line": 278,
-          "purpose": "Create and set application menu"
+          "purpose": "Create and set application menu",
+          "calls": [
+            "getMenuTemplate"
+          ]
         }
       },
       "loc": 288,
@@ -1194,9 +1488,180 @@
         ]
       }
     },
+    "main/onboardingManager": {
+      "file": "src\\main\\onboardingManager.ts",
+      "description": "Onboarding Manager Detects existing project intelligence files, runs AI analysis through a terminal tab, parses the JSON response, and imports results into SubFrame's spec files.",
+      "exports": [
+        "init",
+        "setupIPC",
+        "detectProjectIntelligence",
+        "runAnalysisInTerminal",
+        "checkAIToolAvailable"
+      ],
+      "depends": [
+        "settingsManager",
+        "fs",
+        "path",
+        "os",
+        "shared/ipcChannels",
+        "shared/frameConstants",
+        "child_process",
+        "ptyManager",
+        "aiToolManager"
+      ],
+      "functions": {
+        "countSourceFiles": {
+          "line": 52,
+          "params": [
+            "dir",
+            "maxDepth",
+            "currentDepth"
+          ],
+          "purpose": "Returns { count, extensionCounts } for primary language detection."
+        },
+        "extensionToLanguage": {
+          "line": 91,
+          "params": [
+            "ext"
+          ],
+          "purpose": "Map file extension to a human-readable language name."
+        },
+        "sendProgress": {
+          "line": 111,
+          "params": [
+            "projectPath",
+            "phase",
+            "message",
+            "progress"
+          ],
+          "purpose": "Send a progress event to the renderer."
+        },
+        "detectProjectIntelligence": {
+          "line": 132,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Scan the project for known intelligence files and count source files.",
+          "calls": [
+            "countSourceFiles",
+            "extensionToLanguage"
+          ]
+        },
+        "gatherContext": {
+          "line": 197,
+          "params": [
+            "projectPath",
+            "detected"
+          ],
+          "purpose": "Read detected files into a concatenated context string, respecting budgets."
+        },
+        "buildAnalysisPrompt": {
+          "line": 240,
+          "params": [
+            "context",
+            "projectName"
+          ],
+          "purpose": "Build the analysis prompt that instructs the AI to output structured JSON."
+        },
+        "findBashShell": {
+          "line": 303,
+          "purpose": "Throws if on Windows and no bash-compatible shell is found."
+        },
+        "checkAIToolAvailable": {
+          "line": 338,
+          "purpose": "Uses `where` on Windows, `which` on Unix."
+        },
+        "getAnalysisTimeout": {
+          "line": 367,
+          "purpose": "Get the configured analysis timeout, falling back to the default."
+        },
+        "runAnalysisInTerminal": {
+          "line": 383,
+          "params": [
+            "projectPath",
+            "prompt"
+          ],
+          "purpose": "pipes it through the active AI tool, captures output, and returns the raw result.",
+          "calls": [
+            "cleanup",
+            "findBashShell",
+            "getAnalysisTimeout"
+          ]
+        },
+        "parseAnalysisResponse": {
+          "line": 510,
+          "params": [
+            "raw"
+          ],
+          "purpose": "Looks for the first ```json ... ``` block."
+        },
+        "generateTaskId": {
+          "line": 557,
+          "purpose": "Generate a short unique-ish task ID."
+        },
+        "getExistingTaskTitles": {
+          "line": 566,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Get existing task titles from .subframe/tasks/ to avoid duplicates."
+        },
+        "importResults": {
+          "line": 593,
+          "params": [
+            "projectPath",
+            "results",
+            "selections"
+          ],
+          "purpose": "Non-destructive: only fills in missing/empty fields, never overwrites existing content.",
+          "calls": [
+            "generateTaskId",
+            "getExistingTaskTitles"
+          ]
+        },
+        "init": {
+          "line": 797,
+          "params": [
+            "window"
+          ],
+          "purpose": "Initialize the onboarding manager with a window reference."
+        },
+        "setupIPC": {
+          "line": 804,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Register IPC handlers for onboarding.",
+          "calls": [
+            "buildAnalysisPrompt",
+            "checkAIToolAvailable",
+            "cleanup",
+            "detectProjectIntelligence",
+            "findBashShell",
+            "gatherContext",
+            "importResults",
+            "parseAnalysisResponse",
+            "runAnalysisInTerminal",
+            "sendProgress"
+          ]
+        }
+      },
+      "loc": 974,
+      "ipc": {
+        "listens": [
+          "DETECT_PROJECT_INTELLIGENCE",
+          "RUN_ONBOARDING_ANALYSIS",
+          "IMPORT_ONBOARDING_RESULTS",
+          "CANCEL_ONBOARDING_ANALYSIS"
+        ],
+        "emits": [
+          "ONBOARDING_PROGRESS"
+        ]
+      }
+    },
     "main/overviewManager": {
       "file": "src\\main\\overviewManager.ts",
-      "description": "Overview Manager Module",
+      "description": "Overview Manager Module Gathers project data for overview dashboard",
       "exports": [
         "init",
         "loadOverview",
@@ -1223,7 +1688,14 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Load overview data for a project"
+          "purpose": "Load overview data for a project",
+          "calls": [
+            "getRecentFiles",
+            "loadDecisions",
+            "loadStats",
+            "loadStructure",
+            "loadTasks"
+          ]
         },
         "loadStructure": {
           "line": 152,
@@ -1251,7 +1723,12 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Load project stats (lines of code, files, git info)"
+          "purpose": "Load project stats (lines of code, files, git info)",
+          "calls": [
+            "countFiles",
+            "countLinesOfCode",
+            "getGitInfo"
+          ]
         },
         "findFilesRecursive": {
           "line": 306,
@@ -1266,7 +1743,10 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Count lines of code in src directory (cross-platform)"
+          "purpose": "Count lines of code in src directory (cross-platform)",
+          "calls": [
+            "findFilesRecursive"
+          ]
         },
         "countFiles": {
           "line": 357,
@@ -1280,7 +1760,10 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Get git information"
+          "purpose": "Get git information",
+          "calls": [
+            "getGitActivity"
+          ]
         },
         "getGitActivity": {
           "line": 411,
@@ -1325,7 +1808,11 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "getFileGitHistory",
+            "loadOverview"
+          ]
         }
       },
       "loc": 581,
@@ -1339,7 +1826,7 @@
     },
     "main/pluginsManager": {
       "file": "src\\main\\pluginsManager.ts",
-      "description": "Plugins Manager Module",
+      "description": "Plugins Manager Module Handles Claude Code plugins - reading marketplace, installed, and enabled status",
       "exports": [
         "init",
         "setupIPC",
@@ -1379,26 +1866,45 @@
         },
         "getEnabledPlugins": {
           "line": 87,
-          "purpose": "Get enabled plugins from settings"
+          "purpose": "Get enabled plugins from settings",
+          "calls": [
+            "readJsonFile"
+          ]
         },
         "getInstalledPlugins": {
           "line": 95,
-          "purpose": "Get installed plugins"
+          "purpose": "Get installed plugins",
+          "calls": [
+            "readJsonFile"
+          ]
         },
         "getMarketplacePlugins": {
           "line": 103,
-          "purpose": "Get all available plugins from marketplace"
+          "purpose": "Get all available plugins from marketplace",
+          "calls": [
+            "ensureOfficialMarketplace",
+            "readJsonFile"
+          ]
         },
         "getAllPlugins": {
           "line": 147,
-          "purpose": "Get all plugins with their status"
+          "purpose": "Get all plugins with their status",
+          "calls": [
+            "getEnabledPlugins",
+            "getInstalledPlugins",
+            "getMarketplacePlugins"
+          ]
         },
         "togglePlugin": {
           "line": 169,
           "params": [
             "pluginId"
           ],
-          "purpose": "Toggle plugin enabled/disabled status"
+          "purpose": "Toggle plugin enabled/disabled status",
+          "calls": [
+            "readJsonFile",
+            "writeJsonFile"
+          ]
         },
         "ensureOfficialMarketplace": {
           "line": 193,
@@ -1406,14 +1912,22 @@
         },
         "refreshMarketplace": {
           "line": 222,
-          "purpose": "Refresh marketplace plugins (git pull or clone)"
+          "purpose": "Refresh marketplace plugins (git pull or clone)",
+          "calls": [
+            "ensureOfficialMarketplace"
+          ]
         },
         "setupIPC": {
           "line": 250,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "getAllPlugins",
+            "refreshMarketplace",
+            "togglePlugin"
+          ]
         }
       },
       "loc": 279,
@@ -1430,7 +1944,7 @@
     },
     "main/promptLogger": {
       "file": "src\\main\\promptLogger.ts",
-      "description": "Prompt Logger Module",
+      "description": "Prompt Logger Module Logs terminal input to history file",
       "exports": [
         "init",
         "logInput",
@@ -1445,36 +1959,40 @@
       ],
       "functions": {
         "init": {
-          "line": 17,
+          "line": 18,
           "params": [
             "app"
           ],
           "purpose": "Initialize prompt logger"
         },
         "getLogFilePath": {
-          "line": 24,
+          "line": 25,
           "purpose": "Get log file path"
         },
         "logInput": {
-          "line": 31,
+          "line": 33,
           "params": [
+            "terminalId",
             "data"
           ],
-          "purpose": "Process and log input data"
+          "purpose": "Only called when Claude Code is active in that terminal."
         },
         "getHistory": {
-          "line": 56,
+          "line": 66,
           "purpose": "Get prompt history"
         },
         "setupIPC": {
-          "line": 70,
+          "line": 80,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "getHistory"
+          ]
         }
       },
-      "loc": 78,
+      "loc": 88,
       "ipc": {
         "listens": [
           "LOAD_PROMPT_HISTORY"
@@ -1484,9 +2002,83 @@
         ]
       }
     },
+    "main/promptsManager": {
+      "file": "src\\main\\promptsManager.ts",
+      "description": "Prompts Manager Module Handles CRUD operations for saved prompts (prompt library). Prompts are stored in .subframe/prompts.json per project.",
+      "exports": [
+        "setupIPC"
+      ],
+      "depends": [
+        "fs",
+        "path",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "loadPrompts": {
+          "line": 18,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Load prompts from a project's .subframe/prompts.json"
+        },
+        "writePrompts": {
+          "line": 40,
+          "params": [
+            "projectPath",
+            "prompts"
+          ],
+          "purpose": "Save prompts array to .subframe/prompts.json"
+        },
+        "savePrompt": {
+          "line": 60,
+          "params": [
+            "projectPath",
+            "prompt"
+          ],
+          "purpose": "Save (create or update) a prompt",
+          "calls": [
+            "loadPrompts",
+            "writePrompts"
+          ]
+        },
+        "deletePrompt": {
+          "line": 88,
+          "params": [
+            "projectPath",
+            "promptId"
+          ],
+          "purpose": "Delete a prompt by ID",
+          "calls": [
+            "loadPrompts",
+            "writePrompts"
+          ]
+        },
+        "setupIPC": {
+          "line": 107,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "deletePrompt",
+            "loadPrompts",
+            "savePrompt"
+          ]
+        }
+      },
+      "loc": 122,
+      "ipc": {
+        "listens": [
+          "LOAD_PROMPTS",
+          "SAVE_PROMPT",
+          "DELETE_PROMPT"
+        ],
+        "emits": []
+      }
+    },
     "main/pty": {
       "file": "src\\main\\pty.ts",
-      "description": "PTY Management Module",
+      "description": "PTY Management Module Handles shell spawning, input/output, and resize (single legacy terminal)",
       "exports": [
         "init",
         "startPTY",
@@ -1531,7 +2123,10 @@
           "params": [
             "workingDir"
           ],
-          "purpose": "Start PTY process"
+          "purpose": "Start PTY process",
+          "calls": [
+            "getShell"
+          ]
         },
         "writeToPTY": {
           "line": 101,
@@ -1561,7 +2156,11 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "resizePTY",
+            "startPTY"
+          ]
         }
       },
       "loc": 152,
@@ -1578,7 +2177,7 @@
     },
     "main/ptyManager": {
       "file": "src\\main\\ptyManager.ts",
-      "description": "PTY Manager Module",
+      "description": "PTY Manager Module Manages multiple PTY instances for multi-terminal support",
       "exports": [
         "init",
         "createTerminal",
@@ -1589,6 +2188,7 @@
         "getTerminalCount",
         "getTerminalIds",
         "hasTerminal",
+        "isClaudeActive",
         "getTerminalsByProject",
         "getTerminalInfo",
         "getAvailableShells",
@@ -1602,46 +2202,60 @@
         "promptLogger"
       ],
       "functions": {
+        "detectClaudeOutput": {
+          "line": 60,
+          "params": [
+            "terminalId",
+            "data"
+          ]
+        },
         "init": {
-          "line": 36,
+          "line": 111,
           "params": [
             "window"
           ],
           "purpose": "Initialize PTY manager with window reference"
         },
         "getDefaultShell": {
-          "line": 43,
+          "line": 118,
           "purpose": "Get default shell based on platform"
         },
         "getAvailableShells": {
-          "line": 59,
-          "purpose": "Get available shells on the system"
+          "line": 134,
+          "purpose": "Get available shells on the system",
+          "calls": [
+            "getDefaultShell"
+          ]
         },
         "createTerminal": {
-          "line": 139,
+          "line": 214,
           "params": [
             "workingDir",
             "projectPath",
             "shellPath"
           ],
-          "purpose": "Create a new terminal instance"
+          "purpose": "Create a new terminal instance",
+          "calls": [
+            "detectClaudeOutput",
+            "getDefaultShell"
+          ]
         },
         "getTerminalsByProject": {
-          "line": 198,
+          "line": 278,
           "params": [
             "projectPath"
           ],
           "purpose": "Get terminals for a specific project"
         },
         "getTerminalInfo": {
-          "line": 211,
+          "line": 291,
           "params": [
             "terminalId"
           ],
           "purpose": "Get terminal info"
         },
         "writeToTerminal": {
-          "line": 222,
+          "line": 302,
           "params": [
             "terminalId",
             "data"
@@ -1649,7 +2263,7 @@
           "purpose": "Write data to specific terminal"
         },
         "resizeTerminal": {
-          "line": 232,
+          "line": 312,
           "params": [
             "terminalId",
             "cols",
@@ -1658,40 +2272,55 @@
           "purpose": "Resize specific terminal"
         },
         "destroyTerminal": {
-          "line": 242,
+          "line": 322,
           "params": [
             "terminalId"
           ],
           "purpose": "Destroy specific terminal"
         },
         "destroyAll": {
-          "line": 254,
+          "line": 338,
           "purpose": "Destroy all terminals"
         },
         "getTerminalCount": {
-          "line": 265,
+          "line": 353,
           "purpose": "Get terminal count"
         },
         "getTerminalIds": {
-          "line": 272,
+          "line": 360,
           "purpose": "Get all terminal IDs"
         },
         "hasTerminal": {
-          "line": 279,
+          "line": 367,
           "params": [
             "terminalId"
           ],
           "purpose": "Check if terminal exists"
         },
+        "isClaudeActive": {
+          "line": 374,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "Check if Claude Code is currently active in a terminal"
+        },
         "setupIPC": {
-          "line": 286,
+          "line": 382,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers for multi-terminal"
+          "purpose": "Setup IPC handlers for multi-terminal",
+          "calls": [
+            "createTerminal",
+            "destroyTerminal",
+            "getAvailableShells",
+            "isClaudeActive",
+            "resizeTerminal",
+            "writeToTerminal"
+          ]
         }
       },
-      "loc": 342,
+      "loc": 440,
       "ipc": {
         "listens": [
           "GET_AVAILABLE_SHELLS",
@@ -1708,7 +2337,7 @@
     },
     "main/settingsManager": {
       "file": "src\\main\\settingsManager.ts",
-      "description": "Settings Manager",
+      "description": "Settings Manager Manages application settings stored in frame-settings.json",
       "exports": [
         "init",
         "loadSettings",
@@ -1724,38 +2353,48 @@
       ],
       "functions": {
         "init": {
-          "line": 61,
+          "line": 67,
           "params": [
             "window",
             "app"
           ],
-          "purpose": "Initialize the settings manager"
+          "purpose": "Initialize the settings manager",
+          "calls": [
+            "loadSettings",
+            "setupIPC"
+          ]
         },
         "loadSettings": {
-          "line": 71,
-          "purpose": "Load settings from file"
+          "line": 77,
+          "purpose": "Load settings from file",
+          "calls": [
+            "deepMerge"
+          ]
         },
         "saveSettings": {
-          "line": 90,
+          "line": 96,
           "purpose": "Save settings to file"
         },
         "updateSetting": {
-          "line": 103,
+          "line": 109,
           "params": [
             "keyPath",
             "value"
           ],
-          "purpose": "Update a setting by key path (e.g. 'aiTools.claude.customCommand')"
+          "purpose": "Update a setting by key path (e.g. 'aiTools.claude.customCommand')",
+          "calls": [
+            "saveSettings"
+          ]
         },
         "getSetting": {
-          "line": 128,
+          "line": 134,
           "params": [
             "keyPath"
           ],
           "purpose": "Get a setting by key path"
         },
         "deepMerge": {
-          "line": 143,
+          "line": 149,
           "params": [
             "target",
             "unknown>",
@@ -1765,11 +2404,14 @@
           "purpose": "Deep merge two objects"
         },
         "setupIPC": {
-          "line": 164,
-          "purpose": "Setup IPC handlers"
+          "line": 170,
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "updateSetting"
+          ]
         }
       },
-      "loc": 175,
+      "loc": 181,
       "ipc": {
         "listens": [
           "LOAD_SETTINGS",
@@ -1782,7 +2424,7 @@
     },
     "main/skillsManager": {
       "file": "src\\main\\skillsManager.ts",
-      "description": "Skills Manager Module",
+      "description": "Skills Manager Module Scans .claude/skills/ for SKILL.md files and returns skill metadata. Managed skills (sub-tasks, sub-docs, sub-audit) are compared against frameTemplates to determine health status.",
       "exports": [
         "setupIPC"
       ],
@@ -1805,14 +2447,20 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Load all skills from a project's .claude/skills/ directory."
+          "purpose": "Load all skills from a project's .claude/skills/ directory.",
+          "calls": [
+            "parseFrontmatter"
+          ]
         },
         "setupIPC": {
           "line": 117,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "loadSkills"
+          ]
         }
       },
       "loc": 124,
@@ -1825,7 +2473,7 @@
     },
     "main/taskMarkdownParser": {
       "file": "src\\main\\taskMarkdownParser.ts",
-      "description": "Task Markdown Parser",
+      "description": "Task Markdown Parser Parses and serializes tasks between markdown files (with YAML frontmatter) and Task objects. Uses gray-matter for frontmatter extraction.",
       "exports": [
         "parseTaskMarkdown",
         "serializeTaskMarkdown"
@@ -1862,7 +2510,12 @@
             "content",
             "filePath"
           ],
-          "purpose": "Parse a task markdown file into a Task object."
+          "purpose": "Parse a task markdown file into a Task object.",
+          "calls": [
+            "parseSections",
+            "parseSteps",
+            "stripBlockquotes"
+          ]
         },
         "serializeTaskMarkdown": {
           "line": 145,
@@ -1876,7 +2529,7 @@
     },
     "main/tasksManager": {
       "file": "src\\main\\tasksManager.ts",
-      "description": "Tasks Manager Module",
+      "description": "Tasks Manager Module Handles task CRUD operations for SubFrame projects.",
       "exports": [
         "init",
         "setProjectPath",
@@ -1937,7 +2590,10 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Ensure the .subframe/tasks/ directory exists"
+          "purpose": "Ensure the .subframe/tasks/ directory exists",
+          "calls": [
+            "getTasksDir"
+          ]
         },
         "statusToGroupKey": {
           "line": 94,
@@ -1977,14 +2633,24 @@
             "projectPath",
             "allTasks"
           ],
-          "purpose": "Build the TasksData structure from an array of tasks"
+          "purpose": "Build the TasksData structure from an array of tasks",
+          "calls": [
+            "getProjectName",
+            "statusToGroupKey"
+          ]
         },
         "loadTasks": {
           "line": 205,
           "params": [
             "projectPath"
           ],
-          "purpose": "Falls back to tasks.json if the directory doesn't exist (backward compat)."
+          "purpose": "Falls back to tasks.json if the directory doesn't exist (backward compat).",
+          "calls": [
+            "buildTasksData",
+            "getTasksDir",
+            "getTasksJsonPath",
+            "parseTaskMarkdown"
+          ]
         },
         "regenerateIndex": {
           "line": 276,
@@ -1992,7 +2658,12 @@
             "projectPath",
             "tasksData"
           ],
-          "purpose": "Regenerate the tasks.json index file from the current in-memory data."
+          "purpose": "Regenerate the tasks.json index file from the current in-memory data.",
+          "calls": [
+            "getProjectName",
+            "getTasksJsonPath",
+            "stripInternalFields"
+          ]
         },
         "addTask": {
           "line": 323,
@@ -2000,7 +2671,15 @@
             "projectPath",
             "task"
           ],
-          "purpose": "Add a new task — writes a .md file, then regenerates the index."
+          "purpose": "Add a new task — writes a .md file, then regenerates the index.",
+          "calls": [
+            "ensureTasksDir",
+            "generateTaskId",
+            "getTaskFilePath",
+            "loadTasks",
+            "regenerateIndex",
+            "serializeTaskMarkdown"
+          ]
         },
         "updateTask": {
           "line": 367,
@@ -2009,7 +2688,14 @@
             "taskId",
             "updates: Partial<Task>"
           ],
-          "purpose": "then regenerates the index."
+          "purpose": "then regenerates the index.",
+          "calls": [
+            "getTaskFilePath",
+            "loadTasks",
+            "parseTaskMarkdown",
+            "regenerateIndex",
+            "serializeTaskMarkdown"
+          ]
         },
         "deleteTask": {
           "line": 420,
@@ -2017,14 +2703,25 @@
             "projectPath",
             "taskId"
           ],
-          "purpose": "Delete a task — removes the .md file, then regenerates the index."
+          "purpose": "Delete a task — removes the .md file, then regenerates the index.",
+          "calls": [
+            "getTaskFilePath",
+            "loadTasks",
+            "regenerateIndex"
+          ]
         },
         "watchTasksFile": {
           "line": 445,
           "params": [
             "projectPath"
           ],
-          "purpose": "Keeps the exported name `watchTasksFile` for IPC compat."
+          "purpose": "Keeps the exported name `watchTasksFile` for IPC compat.",
+          "calls": [
+            "computeTasksFingerprint",
+            "getTasksDir",
+            "loadTasks",
+            "unwatchTasksFile"
+          ]
         },
         "unwatchTasksFile": {
           "line": 485,
@@ -2035,7 +2732,15 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "addTask",
+            "deleteTask",
+            "loadTasks",
+            "unwatchTasksFile",
+            "updateTask",
+            "watchTasksFile"
+          ]
         }
       },
       "loc": 588,
@@ -2054,9 +2759,75 @@
         ]
       }
     },
+    "main/updaterManager": {
+      "file": "src\\main\\updaterManager.ts",
+      "description": "Updater Manager Handles automatic update checks, downloads, and installation via electron-updater. In dev mode (app.isPackaged === false), all operations are no-ops.",
+      "exports": [
+        "init",
+        "setupIPC",
+        "destroy"
+      ],
+      "depends": [
+        "electron-updater",
+        "electron",
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "sendStatus": {
+          "line": 20,
+          "params": [
+            "status"
+          ],
+          "purpose": "Send updater status to the renderer process"
+        },
+        "sendProgress": {
+          "line": 29,
+          "params": [
+            "progress"
+          ],
+          "purpose": "Send download progress to the renderer process"
+        },
+        "init": {
+          "line": 39,
+          "params": [
+            "window",
+            "app"
+          ],
+          "purpose": "Must be called after the main window is created.",
+          "calls": [
+            "sendProgress",
+            "sendStatus",
+            "setupIPC"
+          ]
+        },
+        "setupIPC": {
+          "line": 104,
+          "purpose": "Setup IPC handlers for updater actions."
+        },
+        "destroy": {
+          "line": 153,
+          "purpose": "Cleanup on shutdown"
+        }
+      },
+      "loc": 161,
+      "ipc": {
+        "listens": [
+          "UPDATER_CHECK",
+          "UPDATER_DOWNLOAD",
+          "UPDATER_INSTALL",
+          "UPDATER_CHECK",
+          "UPDATER_DOWNLOAD",
+          "UPDATER_INSTALL"
+        ],
+        "emits": [
+          "UPDATER_STATUS",
+          "UPDATER_PROGRESS"
+        ]
+      }
+    },
     "main/workspace": {
       "file": "src\\main\\workspace.ts",
-      "description": "Workspace Module",
+      "description": "Workspace Module Manages workspace configuration in ~/.subframe/workspaces.json",
       "exports": [
         "init",
         "loadWorkspace",
@@ -2090,11 +2861,18 @@
             "_window",
             "settings"
           ],
-          "purpose": "Initialize workspace module"
+          "purpose": "Initialize workspace module",
+          "calls": [
+            "ensureWorkspaceDir"
+          ]
         },
         "ensureWorkspaceDir": {
           "line": 71,
-          "purpose": "Ensure workspace directory and file exist"
+          "purpose": "Ensure workspace directory and file exist",
+          "calls": [
+            "createDefaultWorkspace",
+            "saveWorkspace"
+          ]
         },
         "createDefaultWorkspace": {
           "line": 85,
@@ -2102,7 +2880,11 @@
         },
         "loadWorkspace": {
           "line": 102,
-          "purpose": "Load workspace from file"
+          "purpose": "Load workspace from file",
+          "calls": [
+            "createDefaultWorkspace",
+            "saveWorkspace"
+          ]
         },
         "saveWorkspace": {
           "line": 132,
@@ -2113,7 +2895,10 @@
         },
         "getProjects": {
           "line": 145,
-          "purpose": "Get projects from active workspace"
+          "purpose": "Get projects from active workspace",
+          "calls": [
+            "loadWorkspace"
+          ]
         },
         "addProject": {
           "line": 154,
@@ -2122,21 +2907,33 @@
             "name",
             "isFrameProject"
           ],
-          "purpose": "Add project to workspace"
+          "purpose": "Add project to workspace",
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "removeProject": {
           "line": 179,
           "params": [
             "projectPath"
           ],
-          "purpose": "Remove project from workspace"
+          "purpose": "Remove project from workspace",
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "updateProjectLastOpened": {
           "line": 192,
           "params": [
             "projectPath"
           ],
-          "purpose": "Update project's last opened timestamp"
+          "purpose": "Update project's last opened timestamp",
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "renameProject": {
           "line": 208,
@@ -2144,7 +2941,11 @@
             "projectPath",
             "newName"
           ],
-          "purpose": "Rename a project in the workspace"
+          "purpose": "Rename a project in the workspace",
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "scanProjectDir": {
           "line": 228,
@@ -2162,7 +2963,13 @@
         },
         "getProjectsWithScanned": {
           "line": 273,
-          "purpose": "Get projects merged with scanned results from default project dir"
+          "purpose": "Get projects merged with scanned results from default project dir",
+          "calls": [
+            "getProjects",
+            "loadWorkspace",
+            "recheckFrameStatus",
+            "scanProjectDir"
+          ]
         },
         "updateProjectFrameStatus": {
           "line": 301,
@@ -2170,7 +2977,11 @@
             "projectPath",
             "isFrame"
           ],
-          "purpose": "Update project's SubFrame status"
+          "purpose": "Update project's SubFrame status",
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "slugify": {
           "line": 317,
@@ -2181,21 +2992,35 @@
         },
         "getWorkspaceList": {
           "line": 330,
-          "purpose": "Get workspace list for the renderer selector"
+          "purpose": "Get workspace list for the renderer selector",
+          "calls": [
+            "loadWorkspace"
+          ]
         },
         "switchWorkspace": {
           "line": 346,
           "params": [
             "key"
           ],
-          "purpose": "Switch to a different workspace"
+          "purpose": "Switch to a different workspace",
+          "calls": [
+            "getProjectsWithScanned",
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "createWorkspace": {
           "line": 358,
           "params": [
             "name"
           ],
-          "purpose": "Create a new workspace"
+          "purpose": "Create a new workspace",
+          "calls": [
+            "getWorkspaceList",
+            "loadWorkspace",
+            "saveWorkspace",
+            "slugify"
+          ]
         },
         "renameWorkspace": {
           "line": 387,
@@ -2203,7 +3028,11 @@
             "key",
             "newName"
           ],
-          "purpose": "Rename a workspace (cannot change the slug key)"
+          "purpose": "Rename a workspace (cannot change the slug key)",
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "deleteWorkspace": {
           "line": 401,
@@ -2217,7 +3046,19 @@
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers"
+          "purpose": "Setup IPC handlers",
+          "calls": [
+            "addProject",
+            "createWorkspace",
+            "deleteWorkspace",
+            "getProjectsWithScanned",
+            "getWorkspaceList",
+            "removeProject",
+            "renameProject",
+            "renameWorkspace",
+            "scanProjectDir",
+            "switchWorkspace"
+          ]
         }
       },
       "loc": 472,
@@ -2242,7 +3083,7 @@
     },
     "renderer/components/AgentStateView": {
       "file": "src\\renderer\\components\\AgentStateView.tsx",
-      "description": "AgentStateView — Main agent state visualization component.",
+      "description": "AgentStateView — Main agent state visualization component. Panel mode: compact active session view. Full-view mode: session list + selected session timeline.",
       "exports": [
         "AgentStateView"
       ],
@@ -2286,7 +3127,7 @@
     },
     "renderer/components/AgentTimeline": {
       "file": "src\\renderer\\components\\AgentTimeline.tsx",
-      "description": "AgentTimeline — Vertical stepper/timeline showing agent execution steps.",
+      "description": "AgentTimeline — Vertical stepper/timeline showing agent execution steps. Renders step status with animated entries and auto-scroll to latest.",
       "exports": [
         "AgentTimeline"
       ],
@@ -2297,20 +3138,20 @@
         "lib/utils"
       ],
       "functions": {
-        "formatRelativeTime": {
-          "line": 18,
+        "formatShortTime": {
+          "line": 19,
           "params": [
             "dateString"
           ]
         },
         "StepIcon": {
-          "line": 34,
+          "line": 41,
           "params": [
             "{ status }"
           ]
         },
         "AgentTimeline": {
-          "line": 48,
+          "line": 55,
           "params": [
             "{ steps",
             "compact",
@@ -2318,11 +3159,11 @@
           ]
         }
       },
-      "loc": 144
+      "loc": 161
     },
     "renderer/components/AIFilesPanel": {
       "file": "src\\renderer\\components\\AIFilesPanel.tsx",
-      "description": "AIFilesPanel — AI instruction file status and management.",
+      "description": "AIFilesPanel — AI instruction file status and management. Shows CLAUDE.md, GEMINI.md, AGENTS.md, Codex wrapper status with action buttons. Includes backlink verification, config customization, update-all, .claude/ directory info section, and auto-verify on frame status change.",
       "exports": [
         "AIFilesPanel"
       ],
@@ -2360,14 +3201,20 @@
           ]
         },
         "AIFilesPanel": {
-          "line": 109
+          "line": 109,
+          "calls": [
+            "cn",
+            "getStatusInfo",
+            "useAIFiles",
+            "verifyBacklinks"
+          ]
         }
       },
-      "loc": 450
+      "loc": 457
     },
     "renderer/components/AIToolSelector": {
       "file": "src\\renderer\\components\\AIToolSelector.tsx",
-      "description": "AI Tool Selector component.",
+      "description": "AI Tool Selector component. Dropdown for switching between AI coding tools (Claude Code, Codex CLI, etc.) with support for presets and custom commands.",
       "exports": [
         "AIToolSelector"
       ],
@@ -2403,6 +3250,10 @@
         "RightPanel",
         "SettingsPanel",
         "KeyboardShortcuts",
+        "CommandPalette",
+        "PromptLibrary",
+        "WhatsNew",
+        "UpdateNotification",
         "Editor",
         "ErrorBoundary",
         "stores/useUIStore",
@@ -2410,17 +3261,44 @@
       ],
       "functions": {
         "App": {
-          "line": 18,
-          "purpose": "Keyboard shortcuts are wired here to match the original app."
+          "line": 22,
+          "purpose": "Keyboard shortcuts are wired here to match the original app.",
+          "calls": [
+            "logoSvg"
+          ]
         },
         "logoSvg": {
-          "line": 197,
+          "line": 220,
           "params": [
             "size"
           ]
         }
       },
-      "loc": 209
+      "loc": 232
+    },
+    "renderer/components/CommandPalette": {
+      "file": "src\\renderer\\components\\CommandPalette.tsx",
+      "description": "CommandPalette — Floating command palette triggered by Ctrl+/. Provides quick access to actions, panel toggles, terminal commands, project switching, and settings.",
+      "exports": [
+        "CommandPalette"
+      ],
+      "depends": [
+        "react",
+        "stores/useUIStore",
+        "stores/useTerminalStore",
+        "stores/useProjectStore",
+        "lib/ipc",
+        "../shared/ipcChannels"
+      ],
+      "functions": {
+        "CommandPalette": {
+          "line": 48,
+          "calls": [
+            "typedSend"
+          ]
+        }
+      },
+      "loc": 281
     },
     "renderer/components/DecisionsDetailView": {
       "file": "src\\renderer\\components\\DecisionsDetailView.tsx",
@@ -2435,14 +3313,17 @@
       ],
       "functions": {
         "DecisionsDetailView": {
-          "line": 5
+          "line": 5,
+          "calls": [
+            "useOverview"
+          ]
         }
       },
-      "loc": 53
+      "loc": 54
     },
     "renderer/components/Editor": {
       "file": "src\\renderer\\components\\Editor.tsx",
-      "description": "File Editor component.",
+      "description": "File Editor component. Opens as a Dialog overlay for viewing and editing files with CodeMirror 6, save (Ctrl+S), dirty tracking, syntax highlighting, minimap toggle, word wrap, font size, theme switching, fullscreen, and a status bar showing cursor position.",
       "exports": [
         "Editor"
       ],
@@ -2476,7 +3357,7 @@
           ]
         }
       },
-      "loc": 679,
+      "loc": 682,
       "ipc": {
         "listens": [
           "FILE_CONTENT",
@@ -2488,7 +3369,7 @@
     },
     "renderer/components/ErrorBoundary": {
       "file": "src\\renderer\\components\\ErrorBoundary.tsx",
-      "description": "ErrorBoundary — Catches React render errors and displays them",
+      "description": "ErrorBoundary — Catches React render errors and displays them instead of silently unmounting the entire component tree.",
       "exports": [],
       "depends": [
         "react"
@@ -2498,7 +3379,7 @@
     },
     "renderer/components/FileTree": {
       "file": "src\\renderer\\components\\FileTree.tsx",
-      "description": "Recursive file tree component.",
+      "description": "Recursive file tree component. Renders a collapsible tree of files and directories with keyboard navigation, context menus, and file-type icons.",
       "exports": [
         "FileTree"
       ],
@@ -2507,29 +3388,51 @@
         "react",
         "@/components/ui/scroll-area",
         "hooks/useFileTree",
+        "hooks/useGithub",
         "stores/useProjectStore"
       ],
       "functions": {
         "getFileIcon": {
-          "line": 37,
+          "line": 38,
           "params": [
             "name"
           ]
         },
         "sortNodes": {
-          "line": 60,
+          "line": 61,
           "params": [
             "nodes"
           ]
         },
+        "getGitIndicator": {
+          "line": 70,
+          "params": [
+            "file"
+          ]
+        },
+        "buildGitStatusMap": {
+          "line": 93,
+          "params": [
+            "files"
+          ]
+        },
+        "dirHasChanges": {
+          "line": 100,
+          "params": [
+            "dirPath",
+            "projectPath",
+            "gitMap",
+            "GitFileStatus>"
+          ]
+        },
         "FileTree": {
-          "line": 68,
+          "line": 109,
           "params": [
             "{ onFileOpen }"
           ]
         },
         "TreeNode": {
-          "line": 253,
+          "line": 300,
           "params": [
             "{\r\n  node",
             "depth",
@@ -2541,11 +3444,13 @@
             "onCopyPath",
             "onRevealInExplorer",
             "onFileOpen",
+            "gitStatusMap",
+            "projectPath",
             "}"
           ]
         }
       },
-      "loc": 358
+      "loc": 424
     },
     "renderer/components/GithubPanel": {
       "file": "src\\renderer\\components\\GithubPanel.tsx",
@@ -2610,13 +3515,21 @@
           ]
         },
         "BranchesTab": {
-          "line": 177
+          "line": 192,
+          "calls": [
+            "cn",
+            "useGitBranches"
+          ]
         },
         "WorktreesTab": {
-          "line": 371
+          "line": 386,
+          "calls": [
+            "cn",
+            "useGitWorktrees"
+          ]
         }
       },
-      "loc": 447,
+      "loc": 462,
       "ipc": {
         "listens": [],
         "emits": [
@@ -2626,7 +3539,7 @@
     },
     "renderer/components/HistoryPanel": {
       "file": "src\\renderer\\components\\HistoryPanel.tsx",
-      "description": "HistoryPanel — Prompt history list.",
+      "description": "HistoryPanel — Prompt history list. Loads via LOAD_PROMPT_HISTORY send/on pattern.",
       "exports": [
         "HistoryPanel"
       ],
@@ -2645,16 +3558,21 @@
           ]
         },
         "HistoryPanel": {
-          "line": 35
+          "line": 35,
+          "calls": [
+            "formatTimestamp",
+            "parseHistory",
+            "typedSend"
+          ]
         },
         "formatTimestamp": {
-          "line": 89,
+          "line": 90,
           "params": [
             "ts"
           ]
         }
       },
-      "loc": 96,
+      "loc": 97,
       "ipc": {
         "listens": [
           "PROMPT_HISTORY_DATA"
@@ -2664,7 +3582,7 @@
     },
     "renderer/components/KeyboardShortcuts": {
       "file": "src\\renderer\\components\\KeyboardShortcuts.tsx",
-      "description": "KeyboardShortcuts — Modal overlay showing all available keyboard shortcuts.",
+      "description": "KeyboardShortcuts — Modal overlay showing all available keyboard shortcuts. Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen.",
       "exports": [
         "KeyboardShortcuts"
       ],
@@ -2677,20 +3595,77 @@
       ],
       "functions": {
         "Kbd": {
-          "line": 69,
+          "line": 75,
           "params": [
             "{ children }"
           ]
         },
         "KeyboardShortcuts": {
-          "line": 86
+          "line": 92
         }
       },
-      "loc": 165
+      "loc": 171
+    },
+    "renderer/components/OnboardingDialog": {
+      "file": "src\\renderer\\components\\OnboardingDialog.tsx",
+      "description": "OnboardingDialog — Multi-step dialog for project intelligence onboarding.",
+      "exports": [
+        "OnboardingDialog"
+      ],
+      "depends": [
+        "react",
+        "ui/button",
+        "ui/checkbox",
+        "ui/scroll-area",
+        "ui/badge",
+        "lib/utils"
+      ],
+      "functions": {
+        "OnboardingDialog": {
+          "line": 79,
+          "params": [
+            "{\r\n  open",
+            "onOpenChange",
+            "detection",
+            "analysisResult",
+            "progress",
+            "terminalId",
+            "isAnalyzing",
+            "error",
+            "aiToolName",
+            "onAnalyze",
+            "onImport",
+            "onCancel",
+            "onViewTerminal",
+            "}"
+          ],
+          "purpose": "── Component ────────────────────────────────────────────────────────────────"
+        },
+        "ReviewSection": {
+          "line": 493,
+          "params": [
+            "{\r\n  checked",
+            "onCheckedChange",
+            "label",
+            "icon",
+            "children",
+            "}: {\r\n  checked: boolean;\r\n  onCheckedChange"
+          ],
+          "purpose": "── ReviewSection helper ─────────────────────────────────────────────────────"
+        },
+        "PriorityBadge": {
+          "line": 530,
+          "params": [
+            "{ priority }"
+          ],
+          "purpose": "── PriorityBadge helper ─────────────────────────────────────────────────────"
+        }
+      },
+      "loc": 548
     },
     "renderer/components/OverviewPanel": {
       "file": "src\\renderer\\components\\OverviewPanel.tsx",
-      "description": "OverviewPanel — Dashboard view with project stats cards.",
+      "description": "OverviewPanel — Dashboard view with project stats cards. Uses Framer Motion stagger animation on mount.",
       "exports": [
         "OverviewPanel"
       ],
@@ -2721,31 +3696,31 @@
           ]
         },
         "CardLoader": {
-          "line": 162
+          "line": 163
         },
         "StructureCard": {
-          "line": 170,
+          "line": 171,
           "params": [
             "{ data",
             "onClick }"
           ]
         },
         "ProgressCard": {
-          "line": 205,
+          "line": 206,
           "params": [
             "{ data",
             "onClick }"
           ]
         },
         "DecisionsCard": {
-          "line": 246,
+          "line": 247,
           "params": [
             "{ data",
             "onClick }"
           ]
         },
         "StatsHero": {
-          "line": 277,
+          "line": 278,
           "params": [
             "{\r\n  data",
             "onRefresh",
@@ -2755,7 +3730,7 @@
           ]
         },
         "TasksCard": {
-          "line": 357,
+          "line": 358,
           "params": [
             "{\r\n  grouped",
             "totalCount",
@@ -2766,7 +3741,7 @@
           ]
         },
         "AIFilesCard": {
-          "line": 430,
+          "line": 431,
           "params": [
             "{ status",
             "isLoading",
@@ -2774,7 +3749,7 @@
           ]
         },
         "HealthCard": {
-          "line": 484,
+          "line": 485,
           "params": [
             "{ health",
             "isLoading",
@@ -2782,7 +3757,7 @@
           ]
         },
         "RecentFilesCard": {
-          "line": 536,
+          "line": 537,
           "params": [
             "{ files",
             "isLoading",
@@ -2790,17 +3765,17 @@
           ]
         },
         "getRelativeTime": {
-          "line": 575,
+          "line": 576,
           "params": [
             "isoDate"
           ]
         }
       },
-      "loc": 588
+      "loc": 589
     },
     "renderer/components/PluginsPanel": {
       "file": "src\\renderer\\components\\PluginsPanel.tsx",
-      "description": "PluginsPanel — Plugin management with toggle controls, filter buttons,",
+      "description": "PluginsPanel — Plugin management with toggle controls, filter buttons, category icons, and install support.",
       "exports": [
         "PluginsPanel"
       ],
@@ -2822,10 +3797,15 @@
           ]
         },
         "PluginsPanel": {
-          "line": 42
+          "line": 42,
+          "calls": [
+            "cn",
+            "getCategoryIcon",
+            "usePlugins"
+          ]
         }
       },
-      "loc": 218
+      "loc": 219
     },
     "renderer/components/previews/HtmlPreview": {
       "file": "src\\renderer\\components\\previews\\HtmlPreview.tsx",
@@ -2894,6 +3874,7 @@
         "react",
         "react-markdown",
         "remark-gfm",
+        "ui/scroll-area",
         "highlight.js/lib/core",
         "highlight.js/lib/languages/javascript",
         "highlight.js/lib/languages/typescript",
@@ -2911,13 +3892,13 @@
       ],
       "functions": {
         "MarkdownPreview": {
-          "line": 165,
+          "line": 166,
           "params": [
             "{ content }"
           ]
         }
       },
-      "loc": 177
+      "loc": 178
     },
     "renderer/components/ProjectList": {
       "file": "src\\renderer\\components\\ProjectList.tsx",
@@ -2936,7 +3917,11 @@
       "functions": {
         "ProjectList": {
           "line": 41,
-          "purpose": "Supports keyboard navigation (Arrow Up/Down, Enter, F2, Escape) and inline rename."
+          "purpose": "Supports keyboard navigation (Arrow Up/Down, Enter, F2, Escape) and inline rename.",
+          "calls": [
+            "sortProjects",
+            "typedSend"
+          ]
         },
         "ProjectCard": {
           "line": 276,
@@ -2973,9 +3958,43 @@
         ]
       }
     },
+    "renderer/components/PromptLibrary": {
+      "file": "src\\renderer\\components\\PromptLibrary.tsx",
+      "description": "PromptLibrary — Command-palette-style overlay for saved prompts. Triggered by Ctrl+Shift+L. Fuzzy searches across title + content + tags, inserts selected prompt into the active terminal via PTY write.",
+      "exports": [
+        "PromptLibrary"
+      ],
+      "depends": [
+        "react",
+        "lucide-react",
+        "ui/input",
+        "ui/textarea",
+        "sonner",
+        "hooks/usePrompts",
+        "stores/useTerminalStore",
+        "stores/useProjectStore",
+        "stores/useUIStore",
+        "lib/ipc",
+        "../shared/ipcChannels"
+      ],
+      "functions": {
+        "generateId": {
+          "line": 35
+        },
+        "PromptLibrary": {
+          "line": 39,
+          "calls": [
+            "generateId",
+            "typedSend",
+            "usePrompts"
+          ]
+        }
+      },
+      "loc": 314
+    },
     "renderer/components/RightPanel": {
       "file": "src\\renderer\\components\\RightPanel.tsx",
-      "description": "RightPanel — Container for all right-side panels.",
+      "description": "RightPanel — Container for all right-side panels. Panels are grouped: solo panels show a title header, grouped panels show only their group's tabs. Terminal bar buttons map to groups: - Sub-Tasks → solo - Agent → activity, sessions, history, plugins, skills (tabbed) - GitHub → issues, PRs, branches, worktrees (tabbed) - Overview → full-view (handled by TerminalArea, not here)",
       "exports": [
         "RightPanel"
       ],
@@ -3003,10 +4022,14 @@
           ]
         },
         "RightPanel": {
-          "line": 105
+          "line": 105,
+          "calls": [
+            "cn",
+            "getGroup"
+          ]
         }
       },
-      "loc": 263
+      "loc": 276
     },
     "renderer/components/SessionsPanel": {
       "file": "src\\renderer\\components\\SessionsPanel.tsx",
@@ -3054,14 +4077,24 @@
           ]
         },
         "SessionsPanel": {
-          "line": 189
+          "line": 189,
+          "calls": [
+            "cn",
+            "deleteAllSessions",
+            "deleteSession",
+            "formatRelativeTime",
+            "renameSession",
+            "useAIToolConfig",
+            "useSessions",
+            "useSettings"
+          ]
         }
       },
       "loc": 537
     },
     "renderer/components/SettingsPanel": {
       "file": "src\\renderer\\components\\SettingsPanel.tsx",
-      "description": "SettingsPanel — Settings dialog/modal with tabs.",
+      "description": "SettingsPanel — Settings dialog/modal with tabs. Opens via useUIStore.settingsOpen.",
       "exports": [
         "SettingsPanel"
       ],
@@ -3081,10 +4114,15 @@
       ],
       "functions": {
         "SettingsPanel": {
-          "line": 21
+          "line": 21,
+          "calls": [
+            "typedInvoke",
+            "useAIToolConfig",
+            "useSettings"
+          ]
         }
       },
-      "loc": 375
+      "loc": 401
     },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
@@ -3107,15 +4145,41 @@
         "FileTree",
         "../shared/ipcChannels",
         "../shared/logoSVG",
-        "SidebarAgentStatus"
+        "SidebarAgentStatus",
+        "hooks/useGithub"
       ],
       "functions": {
         "Sidebar": {
-          "line": 61,
-          "purpose": "at top, tab icons with active accent, settings at bottom."
+          "line": 63,
+          "purpose": "at top, tab icons with active accent, settings at bottom.",
+          "calls": [
+            "cn",
+            "getLogoSVG",
+            "useAIToolConfig",
+            "useSettings"
+          ]
+        },
+        "GitStatusBar": {
+          "line": 513,
+          "calls": [
+            "useGitStatus"
+          ]
+        },
+        "CollapsedGitStatus": {
+          "line": 538,
+          "calls": [
+            "cn",
+            "useGitStatus"
+          ]
+        },
+        "GitBranchIcon": {
+          "line": 579,
+          "params": [
+            "{ className }"
+          ]
         }
       },
-      "loc": 464,
+      "loc": 587,
       "ipc": {
         "listens": [
           "IS_FRAME_PROJECT_RESULT",
@@ -3131,7 +4195,7 @@
     },
     "renderer/components/SidebarAgentStatus": {
       "file": "src\\renderer\\components\\SidebarAgentStatus.tsx",
-      "description": "SidebarAgentStatus — Tiny status widget for the sidebar footer area.",
+      "description": "SidebarAgentStatus — Tiny status widget for the sidebar footer area. Shows a pulsing dot + current tool name when an agent session is active.",
       "exports": [
         "SidebarAgentStatus"
       ],
@@ -3141,14 +4205,17 @@
       ],
       "functions": {
         "SidebarAgentStatus": {
-          "line": 9
+          "line": 9,
+          "calls": [
+            "useAgentState"
+          ]
         }
       },
       "loc": 30
     },
     "renderer/components/SkillsPanel": {
       "file": "src\\renderer\\components\\SkillsPanel.tsx",
-      "description": "SkillsPanel — Shows all .claude/skills found in the project.",
+      "description": "SkillsPanel — Shows all .claude/skills found in the project. Each skill renders as an expandable card with command, description, allowed tools, health status, and full SKILL.md content on expand.",
       "exports": [
         "SkillsPanel"
       ],
@@ -3177,7 +4244,10 @@
           ]
         },
         "SkillsPanel": {
-          "line": 127
+          "line": 127,
+          "calls": [
+            "useSkills"
+          ]
         }
       },
       "loc": 175
@@ -3206,7 +4276,13 @@
           ]
         },
         "StatsDetailView": {
-          "line": 15
+          "line": 15,
+          "calls": [
+            "cn",
+            "formatNumber",
+            "useGitBranches",
+            "useOverview"
+          ]
         },
         "GitActivityGrid": {
           "line": 151,
@@ -3242,7 +4318,7 @@
     },
     "renderer/components/StructureMap": {
       "file": "src\\renderer\\components\\StructureMap.tsx",
-      "description": "Structure Map component.",
+      "description": "Structure Map component. D3.js force-directed graph visualization of project modules. React owns the container div; D3 owns everything inside it.",
       "exports": [
         "StructureMap"
       ],
@@ -3294,6 +4370,11 @@
             "structureData",
             "simulationRef",
             "onSelect"
+          ],
+          "calls": [
+            "getD3",
+            "nodeRadius",
+            "structureToGraph"
           ]
         },
         "renderTreeView": {
@@ -3302,6 +4383,10 @@
             "container",
             "structureData",
             "onSelect"
+          ],
+          "calls": [
+            "buildHierarchy",
+            "getD3"
           ]
         },
         "buildHierarchy": {
@@ -3315,7 +4400,7 @@
     },
     "renderer/components/SubFrameHealthPanel": {
       "file": "src\\renderer\\components\\SubFrameHealthPanel.tsx",
-      "description": "SubFrameHealthPanel — Health status and management for SubFrame project components.",
+      "description": "SubFrameHealthPanel — Health status and management for SubFrame project components. Shows per-component status grouped by category, update actions, and uninstall options.",
       "exports": [
         "SubFrameHealthPanel"
       ],
@@ -3360,14 +4445,21 @@
           "purpose": "── Simple checkbox (no shadcn Checkbox available) ──"
         },
         "SubFrameHealthPanel": {
-          "line": 112
+          "line": 112,
+          "calls": [
+            "cn",
+            "getStatusBadge",
+            "getStatusIcon",
+            "groupByCategory",
+            "useSubFrameHealth"
+          ]
         }
       },
       "loc": 434
     },
     "renderer/components/TaskGraph": {
       "file": "src\\renderer\\components\\TaskGraph.tsx",
-      "description": "TaskGraph — React Flow dependency graph with dagre auto-layout.",
+      "description": "TaskGraph — React Flow dependency graph with dagre auto-layout. Shows tasks as card nodes with directed edges for blocker relationships. Replaces the previous D3 force-directed implementation with proper hierarchical layout and styled card nodes.",
       "exports": [
         "TaskGraph"
       ],
@@ -3416,7 +4508,7 @@
     },
     "renderer/components/TaskKanban": {
       "file": "src\\renderer\\components\\TaskKanban.tsx",
-      "description": "TaskKanban — Kanban board view for tasks.",
+      "description": "TaskKanban — Kanban board view for tasks. Full view: horizontal columns side by side. Compact/sidebar: vertical stacked sections.",
       "exports": [
         "TaskKanban"
       ],
@@ -3466,7 +4558,7 @@
     },
     "renderer/components/TasksPanel": {
       "file": "src\\renderer\\components\\TasksPanel.tsx",
-      "description": "TasksPanel — Sub-task management with TanStack Table.",
+      "description": "TasksPanel — Sub-task management with TanStack Table. Supports filtering, sorting, inline expand, add/edit/delete.",
       "exports": [
         "TasksPanel"
       ],
@@ -3487,24 +4579,41 @@
         "stores/useTerminalStore",
         "stores/useUIStore",
         "../shared/ipcChannels",
-        "sonner"
+        "sonner",
+        "react-markdown",
+        "remark-gfm"
       ],
       "functions": {
+        "formToMarkdown": {
+          "line": 93,
+          "params": [
+            "description",
+            "steps",
+            "acceptanceCriteria",
+            "notes"
+          ]
+        },
+        "markdownToForm": {
+          "line": 124,
+          "params": [
+            "md"
+          ]
+        },
         "formatDate": {
-          "line": 76,
+          "line": 183,
           "params": [
             "iso"
           ]
         },
         "SortHeader": {
-          "line": 104,
+          "line": 211,
           "params": [
             "{ column",
             "label }"
           ]
         },
         "TaskActions": {
-          "line": 126,
+          "line": 233,
           "params": [
             "{\r\n  task",
             "onUpdateStatus",
@@ -3517,20 +4626,20 @@
           ]
         },
         "TasksPanel": {
-          "line": 223,
+          "line": 330,
           "params": [
             "{ isFullView"
           ]
         },
         "TaskDetail": {
-          "line": 763,
+          "line": 1135,
           "params": [
             "{ task",
             "updateTask }"
           ]
         }
       },
-      "loc": 825,
+      "loc": 1203,
       "ipc": {
         "listens": [],
         "emits": [
@@ -3540,7 +4649,7 @@
     },
     "renderer/components/TaskTimeline": {
       "file": "src\\renderer\\components\\TaskTimeline.tsx",
-      "description": "TaskTimeline — Horizontal stepper showing task step progress.",
+      "description": "TaskTimeline — Horizontal stepper showing task step progress. Compact mode (or >7 steps) shows a progress bar with count. Full mode shows circles with connectors and labels.",
       "exports": [
         "TaskTimeline"
       ],
@@ -3563,28 +4672,35 @@
     },
     "renderer/components/Terminal": {
       "file": "src\\renderer\\components\\Terminal.tsx",
-      "description": "Single terminal component.",
+      "description": "Single terminal component. Wraps xterm.js via useTerminal hook. Connects IPC for I/O, provides context menu, scroll-to-bottom button with animation, live output overlay, and inline search.",
       "exports": [
         "Terminal"
       ],
       "depends": [
         "electron",
         "react",
+        "framer-motion",
         "lucide-react",
         "hooks/useTerminal",
         "lib/ipc",
         "../shared/ipcChannels"
       ],
       "functions": {
+        "stripAnsi": {
+          "line": 24,
+          "params": [
+            "str"
+          ]
+        },
         "Terminal": {
-          "line": 28,
+          "line": 42,
           "params": [
             "{ terminalId",
             "className }"
           ]
         }
       },
-      "loc": 222,
+      "loc": 424,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -3594,7 +4710,7 @@
     },
     "renderer/components/TerminalArea": {
       "file": "src\\renderer\\components\\TerminalArea.tsx",
-      "description": "Terminal area orchestrator.",
+      "description": "Terminal area orchestrator. Renders the tab bar and either a single terminal (tabs mode) or the terminal grid (grid mode). Manages terminal creation/destruction via IPC and keyboard shortcuts. Scopes terminals per-project with hot-swap.",
       "exports": [
         "TerminalArea"
       ],
@@ -3633,10 +4749,18 @@
           ]
         },
         "TerminalArea": {
-          "line": 71
+          "line": 71,
+          "calls": [
+            "createTerminal",
+            "getLogoSVG",
+            "loadSession",
+            "saveSession",
+            "typedInvoke",
+            "typedSend"
+          ]
         }
       },
-      "loc": 463,
+      "loc": 497,
       "ipc": {
         "listens": [
           "TERMINAL_CREATED",
@@ -3648,7 +4772,7 @@
     },
     "renderer/components/TerminalGrid": {
       "file": "src\\renderer\\components\\TerminalGrid.tsx",
-      "description": "Terminal grid layout component.",
+      "description": "Terminal grid layout component. Renders terminals in a CSS Grid with resize handles between cells.",
       "exports": [
         "TerminalGrid"
       ],
@@ -3660,40 +4784,44 @@
       ],
       "functions": {
         "TerminalGrid": {
-          "line": 26,
+          "line": 28,
           "params": [
-            "{ onCloseTerminal }"
+            "{ onCloseTerminal",
+            "onCreateTerminal",
+            "projectTerminals }"
           ]
         }
       },
-      "loc": 197
+      "loc": 279
     },
     "renderer/components/TerminalTabBar": {
       "file": "src\\renderer\\components\\TerminalTabBar.tsx",
-      "description": "Terminal tab bar component.",
+      "description": "Terminal tab bar component. Renders animated tabs with drag-to-reorder (Framer Motion), shell selector dropdown, view mode toggle, and panel toggle buttons.",
       "exports": [
         "TerminalTabBar"
       ],
       "depends": [
         "electron",
         "react",
+        "framer-motion",
         "stores/useTerminalStore",
         "stores/useUIStore",
         "../shared/ipcChannels"
       ],
       "functions": {
         "TerminalTabBar": {
-          "line": 58,
+          "line": 60,
           "params": [
             "{\r\n  onCreateTerminal",
             "onCloseTerminal",
             "onOverviewToggle",
             "onTogglePanel",
+            "projectTerminals",
             "}"
           ]
         },
         "UsageItem": {
-          "line": 483,
+          "line": 545,
           "params": [
             "{ label",
             "utilization",
@@ -3701,13 +4829,13 @@
           ]
         },
         "ResetTime": {
-          "line": 506,
+          "line": 568,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 525,
+      "loc": 587,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -3720,6 +4848,54 @@
           "REFRESH_CLAUDE_USAGE"
         ]
       }
+    },
+    "renderer/components/UpdateNotification": {
+      "file": "src\\renderer\\components\\UpdateNotification.tsx",
+      "description": "UpdateNotification — side-effect component that listens for auto-updater events and shows non-intrusive sonner toasts. Renders null.",
+      "exports": [
+        "UpdateNotification"
+      ],
+      "depends": [
+        "react",
+        "sonner",
+        "hooks/useUpdater"
+      ],
+      "functions": {
+        "UpdateNotification": {
+          "line": 10,
+          "calls": [
+            "useUpdater"
+          ]
+        }
+      },
+      "loc": 75
+    },
+    "renderer/components/WhatsNew": {
+      "file": "src\\renderer\\components\\WhatsNew.tsx",
+      "description": "WhatsNew — Dialog that surfaces release notes after updates. Auto-shows when the app version is newer than the last-seen version. Also accessible via command palette.",
+      "exports": [
+        "WhatsNew"
+      ],
+      "depends": [
+        "electron",
+        "react",
+        "lucide-react",
+        "ui/scroll-area",
+        "previews/MarkdownPreview",
+        "hooks/useIpc",
+        "hooks/useSettings",
+        "../shared/ipcChannels"
+      ],
+      "functions": {
+        "WhatsNew": {
+          "line": 23,
+          "calls": [
+            "useIpcQuery",
+            "useSettings"
+          ]
+        }
+      },
+      "loc": 101
     },
     "renderer/components/WorkspaceSelector": {
       "file": "src\\renderer\\components\\WorkspaceSelector.tsx",
@@ -3738,17 +4914,25 @@
       "functions": {
         "WorkspaceSelector": {
           "line": 38,
-          "purpose": "Shows current workspace name, allows switching, creating, renaming, and deleting workspaces."
+          "purpose": "Shows current workspace name, allows switching, creating, renaming, and deleting workspaces.",
+          "calls": [
+            "typedInvoke",
+            "typedSend",
+            "useIpcQuery"
+          ]
         },
         "AddProjectButton": {
-          "line": 275
+          "line": 275,
+          "calls": [
+            "typedSend"
+          ]
         }
       },
       "loc": 357
     },
     "renderer/hooks/useAgentState": {
       "file": "src\\renderer\\hooks\\useAgentState.ts",
-      "description": "TanStack Query hook for real-time agent state visualization.",
+      "description": "TanStack Query hook for real-time agent state visualization. Wraps LOAD_AGENT_STATE (send/on) + WATCH/UNWATCH lifecycle.",
       "exports": [
         "useAgentState"
       ],
@@ -3779,7 +4963,7 @@
     },
     "renderer/hooks/useAIFiles": {
       "file": "src\\renderer\\hooks\\useAIFiles.ts",
-      "description": "TanStack Query hook for AI files status (CLAUDE.md, GEMINI.md, AGENTS.md).",
+      "description": "TanStack Query hook for AI files status (CLAUDE.md, GEMINI.md, AGENTS.md). Uses the send/on pattern since GET_AI_FILES_STATUS is a send channel. Also provides backlink verification, config loading/saving, and update-all.",
       "exports": [
         "useAIFiles"
       ],
@@ -3793,7 +4977,11 @@
       ],
       "functions": {
         "useAIFiles": {
-          "line": 21
+          "line": 21,
+          "calls": [
+            "typedSend",
+            "useIPCEvent"
+          ]
         }
       },
       "loc": 204,
@@ -3810,7 +4998,7 @@
     },
     "renderer/hooks/useFileTree": {
       "file": "src\\renderer\\hooks\\useFileTree.ts",
-      "description": "TanStack Query hook for file tree data.",
+      "description": "TanStack Query hook for file tree data. Sends LOAD_FILE_TREE and listens for FILE_TREE_DATA events.",
       "exports": [
         "useFileTree"
       ],
@@ -3828,7 +5016,11 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "auto-refreshes when showDotfiles setting changes."
+          "purpose": "auto-refreshes when showDotfiles setting changes.",
+          "calls": [
+            "typedSend",
+            "useIpcQuery"
+          ]
         }
       },
       "loc": 77,
@@ -3846,6 +5038,7 @@
       "exports": [
         "useGithubIssues",
         "useGitBranches",
+        "useGitStatus",
         "useGitWorktrees"
       ],
       "depends": [
@@ -3858,20 +5051,37 @@
           "line": 9,
           "params": [
             "state"
+          ],
+          "calls": [
+            "useIpcQuery"
           ]
         },
         "useGitBranches": {
-          "line": 27
+          "line": 27,
+          "calls": [
+            "useIpcMutation",
+            "useIpcQuery"
+          ]
+        },
+        "useGitStatus": {
+          "line": 59,
+          "calls": [
+            "useIpcQuery"
+          ]
         },
         "useGitWorktrees": {
-          "line": 59
+          "line": 83,
+          "calls": [
+            "useIpcMutation",
+            "useIpcQuery"
+          ]
         }
       },
-      "loc": 84
+      "loc": 108
     },
     "renderer/hooks/useIpc": {
       "file": "src\\renderer\\hooks\\useIpc.ts",
-      "description": "React Query hook for typed IPC invoke calls.",
+      "description": "React Query hook for typed IPC invoke calls. Wraps ipcRenderer.invoke with TanStack React Query for caching and refetching.",
       "exports": [
         "useIpcQuery",
         "useIpcMutation"
@@ -3890,7 +5100,10 @@
             "Error>",
             "'queryKey' | 'queryFn'>"
           ],
-          "purpose": "Automatically creates a queryKey from the channel + args."
+          "purpose": "Automatically creates a queryKey from the channel + args.",
+          "calls": [
+            "typedInvoke"
+          ]
         },
         "useIpcMutation": {
           "line": 30,
@@ -3901,14 +5114,17 @@
             "IPCHandleMap[K]['args']>",
             "'mutationFn'>"
           ],
-          "purpose": "Useful for write operations like UPDATE_SETTING, SET_AI_TOOL, etc."
+          "purpose": "Useful for write operations like UPDATE_SETTING, SET_AI_TOOL, etc.",
+          "calls": [
+            "typedInvoke"
+          ]
         }
       },
       "loc": 39
     },
     "renderer/hooks/useIPCListener": {
       "file": "src\\renderer\\hooks\\useIPCListener.ts",
-      "description": "React hook that listens for main->renderer IPC events",
+      "description": "React hook that listens for main->renderer IPC events and optionally invalidates React Query caches.",
       "exports": [
         "useIPCListener",
         "useIPCEvent"
@@ -3945,6 +5161,30 @@
         "emits": []
       }
     },
+    "renderer/hooks/useOnboarding": {
+      "file": "src\\renderer\\hooks\\useOnboarding.ts",
+      "description": "React hook for onboarding IPC calls. Wraps project intelligence detection, AI analysis, and import using TanStack Query mutations and IPC event listeners.",
+      "exports": [
+        "useOnboarding"
+      ],
+      "depends": [
+        "react",
+        "useIpc",
+        "useIPCListener",
+        "../shared/ipcChannels",
+        "lib/ipc"
+      ],
+      "functions": {
+        "useOnboarding": {
+          "line": 20,
+          "calls": [
+            "typedSend",
+            "useIpcMutation"
+          ]
+        }
+      },
+      "loc": 129
+    },
     "renderer/hooks/useOverview": {
       "file": "src\\renderer\\hooks\\useOverview.ts",
       "description": "TanStack Query hook for project overview data.",
@@ -3958,7 +5198,10 @@
       ],
       "functions": {
         "useOverview": {
-          "line": 9
+          "line": 9,
+          "calls": [
+            "useIpcQuery"
+          ]
         }
       },
       "loc": 24
@@ -3976,10 +5219,37 @@
       ],
       "functions": {
         "usePlugins": {
-          "line": 9
+          "line": 9,
+          "calls": [
+            "useIPCListener",
+            "useIpcMutation",
+            "useIpcQuery"
+          ]
         }
       },
       "loc": 25
+    },
+    "renderer/hooks/usePrompts": {
+      "file": "src\\renderer\\hooks\\usePrompts.ts",
+      "description": "TanStack Query hooks for the prompt library.",
+      "exports": [
+        "usePrompts"
+      ],
+      "depends": [
+        "useIpc",
+        "stores/useProjectStore",
+        "../shared/ipcChannels"
+      ],
+      "functions": {
+        "usePrompts": {
+          "line": 9,
+          "calls": [
+            "useIpcMutation",
+            "useIpcQuery"
+          ]
+        }
+      },
+      "loc": 35
     },
     "renderer/hooks/useSessions": {
       "file": "src\\renderer\\hooks\\useSessions.ts",
@@ -3995,7 +5265,11 @@
       ],
       "functions": {
         "useSessions": {
-          "line": 10
+          "line": 10,
+          "calls": [
+            "useIpcMutation",
+            "useIpcQuery"
+          ]
         }
       },
       "loc": 59
@@ -4014,10 +5288,20 @@
       ],
       "functions": {
         "useSettings": {
-          "line": 9
+          "line": 9,
+          "calls": [
+            "useIPCListener",
+            "useIpcMutation",
+            "useIpcQuery"
+          ]
         },
         "useAIToolConfig": {
-          "line": 26
+          "line": 26,
+          "calls": [
+            "useIPCListener",
+            "useIpcMutation",
+            "useIpcQuery"
+          ]
         }
       },
       "loc": 52
@@ -4035,14 +5319,17 @@
       ],
       "functions": {
         "useSkills": {
-          "line": 9
+          "line": 9,
+          "calls": [
+            "useIpcQuery"
+          ]
         }
       },
       "loc": 22
     },
     "renderer/hooks/useSubFrameHealth": {
       "file": "src\\renderer\\hooks\\useSubFrameHealth.ts",
-      "description": "TanStack Query hook for SubFrame health status.",
+      "description": "TanStack Query hook for SubFrame health status. Uses the send/on pattern since GET_SUBFRAME_HEALTH is a send channel. Provides health status, component updates, and uninstall mutations.",
       "exports": [
         "useSubFrameHealth"
       ],
@@ -4055,7 +5342,10 @@
       ],
       "functions": {
         "useSubFrameHealth": {
-          "line": 20
+          "line": 20,
+          "calls": [
+            "typedSend"
+          ]
         }
       },
       "loc": 108,
@@ -4070,7 +5360,7 @@
     },
     "renderer/hooks/useTasks": {
       "file": "src\\renderer\\hooks\\useTasks.ts",
-      "description": "TanStack Query hooks for sub-task management.",
+      "description": "TanStack Query hooks for sub-task management. Wraps LOAD_TASKS (send/on) + ADD_TASK, UPDATE_TASK, DELETE_TASK mutations.",
       "exports": [
         "useTasks"
       ],
@@ -4094,11 +5384,20 @@
           "line": 31,
           "params": [
             "payload"
+          ],
+          "calls": [
+            "extractGrouped"
           ]
         },
         "useTasks": {
           "line": 39,
-          "purpose": "Query hook that loads tasks via send/on pattern and keeps cache fresh via IPC events."
+          "purpose": "Query hook that loads tasks via send/on pattern and keeps cache fresh via IPC events.",
+          "calls": [
+            "extractGrouped",
+            "flattenTasks",
+            "typedSend",
+            "useIPCEvent"
+          ]
         }
       },
       "loc": 151,
@@ -4111,26 +5410,51 @@
     },
     "renderer/hooks/useTerminal": {
       "file": "src\\renderer\\hooks\\useTerminal.ts",
-      "description": "Custom hook for xterm.js terminal lifecycle.",
+      "description": "Custom hook for xterm.js terminal lifecycle. Manages Terminal + FitAddon + renderer addons (WebGL/Canvas) + SearchAddon. Auto-fits via ResizeObserver. Safe under React StrictMode (guards double-mount).",
       "exports": [
         "useTerminal"
       ],
       "depends": [
         "xterm",
         "xterm-addon-fit",
+        "xterm-addon-search",
+        "xterm-addon-webgl",
+        "xterm-addon-canvas",
         "react"
       ],
       "functions": {
         "useTerminal": {
-          "line": 56,
+          "line": 66,
           "params": [
             "containerRef",
             "options?: UseTerminalOptions"
           ],
-          "purpose": "on container resize. Returns refs to the Terminal and FitAddon for external use."
+          "purpose": "and auto-fits on container resize."
         }
       },
-      "loc": 122
+      "loc": 166
+    },
+    "renderer/hooks/useUpdater": {
+      "file": "src\\renderer\\hooks\\useUpdater.ts",
+      "description": "TanStack Query hook for auto-updater state management. Listens for status/progress events from the main process and exposes mutations for check, download, and install actions.",
+      "exports": [
+        "useUpdater"
+      ],
+      "depends": [
+        "react",
+        "useIpc",
+        "useIPCListener",
+        "../shared/ipcChannels"
+      ],
+      "functions": {
+        "useUpdater": {
+          "line": 20,
+          "calls": [
+            "useIpcMutation"
+          ]
+        }
+      },
+      "loc": 53
     },
     "renderer/index": {
       "file": "src\\renderer\\index.tsx",
@@ -4193,7 +5517,10 @@
           "params": [
             "filename"
           ],
-          "purpose": "or null if the file type is not recognized. Results are cached per extension."
+          "purpose": "or null if the file type is not recognized. Results are cached per extension.",
+          "calls": [
+            "resolveLanguage"
+          ]
         },
         "resolveLanguage": {
           "line": 81,
@@ -4217,6 +5544,9 @@
           "params": [
             "view",
             "enabled"
+          ],
+          "calls": [
+            "getMinimapExtension"
           ]
         },
         "getWordWrapExtension": {
@@ -4230,6 +5560,9 @@
           "params": [
             "view",
             "enabled"
+          ],
+          "calls": [
+            "getWordWrapExtension"
           ]
         },
         "getFontSizeExtension": {
@@ -4243,6 +5576,9 @@
           "params": [
             "view",
             "size"
+          ],
+          "calls": [
+            "getFontSizeExtension"
           ]
         },
         "getJsonLinter": {
@@ -4289,6 +5625,9 @@
           "params": [
             "view",
             "id"
+          ],
+          "calls": [
+            "getThemeExtension"
           ]
         }
       },
@@ -4296,7 +5635,7 @@
     },
     "renderer/lib/ipc": {
       "file": "src\\renderer\\lib\\ipc.ts",
-      "description": "Typed IPC helpers for the renderer process.",
+      "description": "Typed IPC helpers for the renderer process. Wraps Electron's ipcRenderer with type-safe invoke/send functions.",
       "exports": [
         "typedInvoke",
         "typedSend",
@@ -4400,7 +5739,7 @@
           "line": 8
         }
       },
-      "loc": 73
+      "loc": 148
     },
     "renderer/stores/useUIStore": {
       "file": "src\\renderer\\stores\\useUIStore.ts",
@@ -4412,7 +5751,7 @@
         "zustand"
       ],
       "functions": {},
-      "loc": 133
+      "loc": 148
     },
     "shared/agentStateTypes": {
       "file": "src\\shared\\agentStateTypes.ts",
@@ -4424,7 +5763,7 @@
     },
     "shared/backlinkUtils": {
       "file": "src\\shared\\backlinkUtils.ts",
-      "description": "Backlink Utilities",
+      "description": "Backlink Utilities Manages backlink blocks in native AI instruction files (CLAUDE.md, GEMINI.md) Backlinks reference AGENTS.md without replacing user content",
       "exports": [
         "getBacklinkBlock",
         "hasBacklink",
@@ -4465,7 +5804,10 @@
             "filePath",
             "options"
           ],
-          "purpose": "Inject backlink block at the top of a file (idempotent)"
+          "purpose": "Inject backlink block at the top of a file (idempotent)",
+          "calls": [
+            "getBacklinkBlock"
+          ]
         },
         "updateBacklink": {
           "line": 113,
@@ -4473,7 +5815,11 @@
             "filePath",
             "options"
           ],
-          "purpose": "Update an existing backlink block in a file (replace in-place)"
+          "purpose": "Update an existing backlink block in a file (replace in-place)",
+          "calls": [
+            "getBacklinkBlock",
+            "injectBacklink"
+          ]
         },
         "removeBacklink": {
           "line": 144,
@@ -4495,7 +5841,10 @@
             "projectPath",
             "filename"
           ],
-          "purpose": "Get the status of a native AI file (CLAUDE.md, GEMINI.md)"
+          "purpose": "Get the status of a native AI file (CLAUDE.md, GEMINI.md)",
+          "calls": [
+            "isSymlinkFile"
+          ]
         },
         "getClaudeNativeStatus": {
           "line": 228,
@@ -4517,7 +5866,11 @@
             "projectPath",
             "filename"
           ],
-          "purpose": "Verify a single native AI file's backlink status"
+          "purpose": "Verify a single native AI file's backlink status",
+          "calls": [
+            "getBacklinkTarget",
+            "isSymlinkFile"
+          ]
         },
         "collectNativeFileIssues": {
           "line": 316,
@@ -4533,14 +5886,18 @@
           "params": [
             "projectPath"
           ],
-          "purpose": "Verify backlink health for all AI files in a project"
+          "purpose": "Verify backlink health for all AI files in a project",
+          "calls": [
+            "collectNativeFileIssues",
+            "verifyNativeFile"
+          ]
         }
       },
       "loc": 385
     },
     "shared/claudeSettingsUtils": {
       "file": "src\\shared\\claudeSettingsUtils.ts",
-      "description": "Claude Settings Utilities",
+      "description": "Claude Settings Utilities Safe read/write/merge of .claude/settings.json for SubFrame hook deployment. SubFrame hooks are identified by the \".subframe/hooks/\" prefix in the command field.",
       "exports": [
         "readClaudeSettings",
         "writeClaudeSettings",
@@ -4580,7 +5937,10 @@
           "params": [
             "settings"
           ],
-          "purpose": "Check if the given settings already contain SubFrame hooks."
+          "purpose": "Check if the given settings already contain SubFrame hooks.",
+          "calls": [
+            "isSubFrameHook"
+          ]
         },
         "mergeSubFrameHooks": {
           "line": 92,
@@ -4595,14 +5955,17 @@
           "params": [
             "settings"
           ],
-          "purpose": "Returns a new settings object with SubFrame hooks stripped."
+          "purpose": "Returns a new settings object with SubFrame hooks stripped.",
+          "calls": [
+            "isSubFrameHook"
+          ]
         }
       },
       "loc": 158
     },
     "shared/frameConstants": {
       "file": "src\\shared\\frameConstants.ts",
-      "description": "SubFrame Constants",
+      "description": "SubFrame Constants Configuration constants for SubFrame project management",
       "exports": [
         "FRAME_DIR",
         "FRAME_CONFIG_FILE",
@@ -4613,18 +5976,19 @@
         "FRAME_BIN_DIR",
         "GITHOOKS_DIR",
         "FRAME_TASKS_DIR",
-        "FRAME_VERSION"
+        "FRAME_VERSION",
+        "INTELLIGENCE_FILES"
       ],
       "depends": [
         "../package.json",
         "path"
       ],
       "functions": {},
-      "loc": 55
+      "loc": 89
     },
     "shared/frameTemplates": {
       "file": "src\\shared\\frameTemplates.ts",
-      "description": "SubFrame Templates",
+      "description": "SubFrame Templates Templates for auto-generated SubFrame project files Each template includes instructions header for Claude Code",
       "exports": [
         "getAgentsTemplate",
         "getStructureTemplate",
@@ -4647,7 +6011,9 @@
         "getClaudeSettingsHooksTemplate",
         "getSubTasksSkillTemplate",
         "getSubDocsSkillTemplate",
-        "getSubAuditSkillTemplate"
+        "getSubAuditSkillTemplate",
+        "getOnboardSkillTemplate",
+        "AGENTS_TEMPLATE_VERSION"
       ],
       "depends": [
         "backlinkUtils",
@@ -4658,75 +6024,94 @@
       ],
       "functions": {
         "getDateString": {
-          "line": 70,
+          "line": 77,
           "purpose": "Get current date in YYYY-MM-DD format"
         },
         "getISOTimestamp": {
-          "line": 77,
+          "line": 84,
           "purpose": "Get current ISO timestamp"
         },
         "getAgentsTemplate": {
-          "line": 84,
+          "line": 91,
           "params": [
             "projectName"
           ],
-          "purpose": "AGENTS.md template - Main instructions file for AI assistants"
+          "purpose": "AGENTS.md template - Main instructions file for AI assistants",
+          "calls": [
+            "getDateString"
+          ]
         },
         "getStructureTemplate": {
-          "line": 303,
+          "line": 483,
           "params": [
             "projectName"
           ],
-          "purpose": "STRUCTURE.json template"
+          "purpose": "STRUCTURE.json template",
+          "calls": [
+            "getDateString"
+          ]
         },
         "getNotesTemplate": {
-          "line": 327,
+          "line": 507,
           "params": [
             "projectName"
           ],
-          "purpose": "PROJECT_NOTES.md template"
+          "purpose": "PROJECT_NOTES.md template",
+          "calls": [
+            "getDateString"
+          ]
         },
         "getTasksTemplate": {
-          "line": 347,
+          "line": 527,
           "params": [
             "projectName"
           ],
-          "purpose": "tasks.json template"
+          "purpose": "tasks.json template",
+          "calls": [
+            "getDateString",
+            "getISOTimestamp"
+          ]
         },
         "getTaskMarkdownTemplate": {
-          "line": 400,
+          "line": 580,
           "params": [
             "task"
           ],
           "purpose": "Generate a blank task markdown template for a new task."
         },
         "getQuickstartTemplate": {
-          "line": 434,
+          "line": 614,
           "params": [
             "projectName"
           ],
-          "purpose": "QUICKSTART.md template"
+          "purpose": "QUICKSTART.md template",
+          "calls": [
+            "getDateString"
+          ]
         },
         "getDocsInternalReadme": {
-          "line": 512,
+          "line": 692,
           "params": [
             "projectName"
           ],
           "purpose": "docs-internal/README.md template"
         },
         "getFrameConfigTemplate": {
-          "line": 554,
+          "line": 734,
           "params": [
             "projectName"
           ],
-          "purpose": ".subframe/config.json template"
+          "purpose": ".subframe/config.json template",
+          "calls": [
+            "getISOTimestamp"
+          ]
         },
         "getCodexWrapperTemplate": {
-          "line": 586,
+          "line": 766,
           "purpose": "Codex CLI wrapper script"
         },
         "getGenericWrapperTemplate": {
-          "line": 620,
+          "line": 800,
           "params": [
             "toolCommand",
             "promptFlag"
@@ -4734,123 +6119,172 @@
           "purpose": "Generic AI tool wrapper template"
         },
         "getNativeFileTemplate": {
-          "line": 656,
-          "purpose": "Returns just the backlink block that references AGENTS.md"
+          "line": 836,
+          "purpose": "Returns just the backlink block that references AGENTS.md",
+          "calls": [
+            "getBacklinkBlock"
+          ]
         },
         "getPreCommitHookTemplate": {
-          "line": 665,
+          "line": 845,
           "purpose": "Pre-commit hook template for user projects"
         },
         "getHookUpdaterScript": {
-          "line": 710,
-          "purpose": "Pre-commit hook updater script (Node.js)"
+          "line": 890,
+          "purpose": "Pre-commit hook updater script (Node.js)",
+          "calls": [
+            "stripExt"
+          ]
         },
         "stripExt": {
-          "line": 726,
+          "line": 906,
           "params": [
             "p"
           ],
           "purpose": "Strip any JS/TS extension for module key"
         },
         "getSessionStartHookTemplate": {
-          "line": 843,
-          "purpose": "Injects pending/in-progress sub-tasks into Claude's context at session start."
+          "line": 1023,
+          "purpose": "Injects pending/in-progress sub-tasks into Claude's context at session start.",
+          "calls": [
+            "findTasksFile",
+            "main"
+          ]
         },
         "findTasksFile": {
-          "line": 1041,
+          "line": 1221,
           "params": [
             "startDir"
+          ],
+          "calls": [
+            "findProjectRoot"
           ]
         },
         "main": {
-          "line": 1433,
-          "purpose": "── Main ────────────────────────────────────────────────────────────────────"
+          "line": 1613,
+          "purpose": "── Main ────────────────────────────────────────────────────────────────────",
+          "calls": [
+            "cleanStaleSessions",
+            "findProjectRoot",
+            "loadState",
+            "writeState"
+          ]
         },
         "getPromptSubmitHookTemplate": {
-          "line": 929,
-          "purpose": "Fuzzy-matches user prompts against pending sub-task titles."
+          "line": 1109,
+          "purpose": "Fuzzy-matches user prompts against pending sub-task titles.",
+          "calls": [
+            "findTasksFile",
+            "main",
+            "matchScore"
+          ]
         },
         "matchScore": {
-          "line": 954,
+          "line": 1134,
           "params": [
             "prompt",
             "title"
           ]
         },
         "getStopHookTemplate": {
-          "line": 1016,
-          "purpose": "Reminds about in-progress sub-tasks and detects untracked work."
+          "line": 1196,
+          "purpose": "Reminds about in-progress sub-tasks and detects untracked work.",
+          "calls": [
+            "findProjectRoot",
+            "findTasksFile",
+            "getModifiedSourceFiles",
+            "main"
+          ]
         },
         "findProjectRoot": {
-          "line": 1380,
+          "line": 1560,
           "params": [
             "startDir"
           ],
           "purpose": "── Helpers ─────────────────────────────────────────────────────────────────"
         },
         "getModifiedSourceFiles": {
-          "line": 1048,
+          "line": 1228,
           "params": [
             "projectRoot"
           ]
         },
         "getPreToolUseHookTemplate": {
-          "line": 1120,
-          "purpose": "Writes a \"running\" step to agent-state.json for real-time agent visualization."
+          "line": 1300,
+          "purpose": "Writes a \"running\" step to agent-state.json for real-time agent visualization.",
+          "calls": [
+            "buildLabel",
+            "cleanStaleSessions",
+            "findProjectRoot",
+            "loadState",
+            "main",
+            "writeState"
+          ]
         },
         "buildLabel": {
-          "line": 1168,
+          "line": 1348,
           "params": [
             "toolName",
             "toolInput"
           ]
         },
         "loadState": {
-          "line": 1389,
+          "line": 1569,
           "params": [
             "statePath"
           ]
         },
         "writeState": {
-          "line": 1398,
+          "line": 1578,
           "params": [
             "statePath",
             "state"
           ]
         },
         "cleanStaleSessions": {
-          "line": 1415,
+          "line": 1595,
           "params": [
             "state",
             "now"
           ]
         },
         "getPostToolUseHookTemplate": {
-          "line": 1360,
-          "purpose": "Marks matching running step as \"completed\" in agent-state.json."
+          "line": 1540,
+          "purpose": "Marks matching running step as \"completed\" in agent-state.json.",
+          "calls": [
+            "cleanStaleSessions",
+            "findProjectRoot",
+            "loadState",
+            "main",
+            "writeState"
+          ]
         },
         "getClaudeSettingsHooksTemplate": {
-          "line": 1524,
+          "line": 1704,
           "purpose": "Returns the hooks portion of .claude/settings.json pointing to .subframe/hooks/"
         },
         "getSubTasksSkillTemplate": {
-          "line": 1565,
+          "line": 1745,
           "purpose": "instead of the SubFrame-app-specific scripts/task.js CLI"
         },
         "getSubDocsSkillTemplate": {
-          "line": 1676,
+          "line": 1856,
           "purpose": "/sub-docs skill template — generalized for any SubFrame-managed project"
         },
         "getSubAuditSkillTemplate": {
-          "line": 1772,
+          "line": 1952,
           "purpose": "/sub-audit skill template — generalized for any SubFrame-managed project"
+        },
+        "getOnboardSkillTemplate": {
+          "line": 2040,
+          "purpose": "/onboard skill template — analyze project intelligence and bootstrap SubFrame files"
         }
       },
-      "loc": 1856
+      "loc": 2254
     },
     "shared/ipcChannels": {
       "file": "src\\shared\\ipcChannels.ts",
-      "description": "IPC Channel Constants — TypeScript Edition",
+      "description": "IPC Channel Constants — TypeScript Edition Single source of truth for all IPC channel names and their type signatures.",
       "exports": [
         "IPC"
       ],
@@ -4858,7 +6292,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 768
+      "loc": 949
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -4881,7 +6315,7 @@
     },
     "shared/projectInit": {
       "file": "src\\shared\\projectInit.ts",
-      "description": "SubFrame Project Initialization (Pure Node.js)",
+      "description": "SubFrame Project Initialization (Pure Node.js) Core init logic shared between the Electron app and the CLI. No Electron dependencies — safe to require from plain Node.js.",
       "exports": [
         "createFileIfNotExists",
         "createOrMigrateNativeFile",
@@ -4912,7 +6346,11 @@
           "params": [
             "filePath"
           ],
-          "purpose": "Create or migrate a native AI file with backlink injection"
+          "purpose": "Create or migrate a native AI file with backlink injection",
+          "calls": [
+            "injectBacklink",
+            "isSymlinkFile"
+          ]
         },
         "checkExistingFiles": {
           "line": 60,
@@ -4922,14 +6360,14 @@
           "purpose": "Check which SubFrame files already exist in the project"
         },
         "migrateRootFiles": {
-          "line": 90,
+          "line": 91,
           "params": [
             "projectPath"
           ],
           "purpose": "Migrate legacy root-level files into .subframe/ directory"
         },
         "initializeProject": {
-          "line": 118,
+          "line": 119,
           "params": [
             "projectPath",
             "options"
@@ -4937,11 +6375,11 @@
           "purpose": "Initialize a project as a SubFrame project."
         }
       },
-      "loc": 324
+      "loc": 326
     },
     "shared/subframeHealth": {
       "file": "src\\shared\\subframeHealth.ts",
-      "description": "SubFrame Health Checking",
+      "description": "SubFrame Health Checking Evaluates the deployment status of all SubFrame components in a project. Used by the health panel to show what's installed, outdated, or missing.",
       "exports": [
         "getSubFrameHealth",
         "getComponentRegistry",
@@ -4956,30 +6394,39 @@
       ],
       "functions": {
         "checkComponent": {
-          "line": 181,
+          "line": 190,
           "params": [
             "projectPath",
             "entry: ComponentRegistryEntry"
           ],
-          "purpose": "Check if a single component is current (content matches template)."
+          "purpose": "Check if a single component is current (content matches template).",
+          "calls": [
+            "hasSubFrameHooks",
+            "readClaudeSettings"
+          ]
         },
         "getSubFrameHealth": {
-          "line": 271,
+          "line": 309,
           "params": [
             "projectPath"
           ],
-          "purpose": "Get the full SubFrame health status for a project."
+          "purpose": "Get the full SubFrame health status for a project.",
+          "calls": [
+            "checkComponent",
+            "hasSubFrameHooks",
+            "readClaudeSettings"
+          ]
         },
         "getComponentRegistry": {
-          "line": 305,
+          "line": 343,
           "purpose": "Get the component registry (for use by update handlers)."
         },
         "getHooksDir": {
-          "line": 312,
+          "line": 350,
           "purpose": "Get the hooks directory path constant."
         }
       },
-      "loc": 315
+      "loc": 353
     }
   },
   "ipcChannels": {
@@ -5370,7 +6817,7 @@
       {
         "module": "main/agentStateManager",
         "file": "src\\main\\agentStateManager.ts",
-        "description": "Agent State Manager Module"
+        "description": "Agent State Manager Module Watches .subframe/agent-state.json for changes and broadcasts real-time agent state updates to the renderer via IPC."
       }
     ],
     "agent-state-types": [
@@ -5384,42 +6831,42 @@
       {
         "module": "renderer/components/AgentStateView",
         "file": "src\\renderer\\components\\AgentStateView.tsx",
-        "description": "AgentStateView — Main agent state visualization component."
+        "description": "AgentStateView — Main agent state visualization component. Panel mode: compact active session view. Full-view mode: session list + selected session timeline."
       }
     ],
     "agent-timeline": [
       {
         "module": "renderer/components/AgentTimeline",
         "file": "src\\renderer\\components\\AgentTimeline.tsx",
-        "description": "AgentTimeline — Vertical stepper/timeline showing agent execution steps."
+        "description": "AgentTimeline — Vertical stepper/timeline showing agent execution steps. Renders step status with animated entries and auto-scroll to latest."
       }
     ],
     "ai-files": [
       {
         "module": "main/aiFilesManager",
         "file": "src\\main\\aiFilesManager.ts",
-        "description": "AI Files Manager Module"
+        "description": "AI Files Manager Module Handles native AI instruction file operations (CLAUDE.md, GEMINI.md) Manages backlink injection, removal, symlink migration, and status checks"
       }
     ],
     "ai-tool": [
       {
         "module": "main/aiToolManager",
         "file": "src\\main\\aiToolManager.ts",
-        "description": "AI Tool Manager"
+        "description": "AI Tool Manager Manages switching between different AI coding tools (Claude Code, Codex CLI, etc.)"
       }
     ],
     "aifiles": [
       {
         "module": "renderer/components/AIFilesPanel",
         "file": "src\\renderer\\components\\AIFilesPanel.tsx",
-        "description": "AIFilesPanel — AI instruction file status and management."
+        "description": "AIFilesPanel — AI instruction file status and management. Shows CLAUDE.md, GEMINI.md, AGENTS.md, Codex wrapper status with action buttons. Includes backlink verification, config customization, update-all, .claude/ directory info section, and auto-verify on frame status change."
       }
     ],
     "aitool": [
       {
         "module": "renderer/components/AIToolSelector",
         "file": "src\\renderer\\components\\AIToolSelector.tsx",
-        "description": "AI Tool Selector component."
+        "description": "AI Tool Selector component. Dropdown for switching between AI coding tools (Claude Code, Codex CLI, etc.) with support for presets and custom commands."
       }
     ],
     "app": [
@@ -5433,28 +6880,28 @@
       {
         "module": "shared/backlinkUtils",
         "file": "src\\shared\\backlinkUtils.ts",
-        "description": "Backlink Utilities"
+        "description": "Backlink Utilities Manages backlink blocks in native AI instruction files (CLAUDE.md, GEMINI.md) Backlinks reference AGENTS.md without replacing user content"
       }
     ],
     "claude-sessions": [
       {
         "module": "main/claudeSessionsManager",
         "file": "src\\main\\claudeSessionsManager.ts",
-        "description": "Claude Sessions Manager Module"
+        "description": "Claude Sessions Manager Module Reads Claude Code session history from ~/.claude/projects/ Scans individual .jsonl session files and extracts metadata"
       }
     ],
     "claude-settings-utils": [
       {
         "module": "shared/claudeSettingsUtils",
         "file": "src\\shared\\claudeSettingsUtils.ts",
-        "description": "Claude Settings Utilities"
+        "description": "Claude Settings Utilities Safe read/write/merge of .claude/settings.json for SubFrame hook deployment. SubFrame hooks are identified by the \".subframe/hooks/\" prefix in the command field."
       }
     ],
     "claude-usage": [
       {
         "module": "main/claudeUsageManager",
         "file": "src\\main\\claudeUsageManager.ts",
-        "description": "Claude Usage Manager Module"
+        "description": "Claude Usage Manager Module Fetches Claude Code usage data from OAuth API and provides periodic updates"
       }
     ],
     "codemirror-extensions": [
@@ -5471,6 +6918,13 @@
         "description": ""
       }
     ],
+    "command-palette": [
+      {
+        "module": "renderer/components/CommandPalette",
+        "file": "src\\renderer\\components\\CommandPalette.tsx",
+        "description": "CommandPalette — Floating command palette triggered by Ctrl+/. Provides quick access to actions, panel toggles, terminal commands, project switching, and settings."
+      }
+    ],
     "decisions-detail-view": [
       {
         "module": "renderer/components/DecisionsDetailView",
@@ -5482,71 +6936,71 @@
       {
         "module": "main/dialogs",
         "file": "src\\main\\dialogs.ts",
-        "description": "Dialogs Module"
+        "description": "Dialogs Module Handles system dialogs - folder picker, file dialogs"
       }
     ],
     "editor": [
       {
         "module": "renderer/components/Editor",
         "file": "src\\renderer\\components\\Editor.tsx",
-        "description": "File Editor component."
+        "description": "File Editor component. Opens as a Dialog overlay for viewing and editing files with CodeMirror 6, save (Ctrl+S), dirty tracking, syntax highlighting, minimap toggle, word wrap, font size, theme switching, fullscreen, and a status bar showing cursor position."
       }
     ],
     "error-boundary": [
       {
         "module": "renderer/components/ErrorBoundary",
         "file": "src\\renderer\\components\\ErrorBoundary.tsx",
-        "description": "ErrorBoundary — Catches React render errors and displays them"
+        "description": "ErrorBoundary — Catches React render errors and displays them instead of silently unmounting the entire component tree."
       }
     ],
     "file-editor": [
       {
         "module": "main/fileEditor",
         "file": "src\\main\\fileEditor.ts",
-        "description": "File Editor Module"
+        "description": "File Editor Module Handles file reading and writing for the editor overlay"
       }
     ],
     "file-tree": [
       {
         "module": "main/fileTree",
         "file": "src\\main\\fileTree.ts",
-        "description": "File Tree Module"
+        "description": "File Tree Module Generates directory tree structure"
       },
       {
         "module": "renderer/components/FileTree",
         "file": "src\\renderer\\components\\FileTree.tsx",
-        "description": "Recursive file tree component."
+        "description": "Recursive file tree component. Renders a collapsible tree of files and directories with keyboard navigation, context menus, and file-type icons."
       }
     ],
     "frame-config": [
       {
         "module": "main/frameProject",
         "file": "src\\main\\frameProject.ts",
-        "description": "SubFrame Project Module"
+        "description": "SubFrame Project Module Handles SubFrame project initialization and detection"
       },
       {
         "module": "shared/frameConstants",
         "file": "src\\shared\\frameConstants.ts",
-        "description": "SubFrame Constants"
+        "description": "SubFrame Constants Configuration constants for SubFrame project management"
       },
       {
         "module": "shared/frameTemplates",
         "file": "src\\shared\\frameTemplates.ts",
-        "description": "SubFrame Templates"
+        "description": "SubFrame Templates Templates for auto-generated SubFrame project files Each template includes instructions header for Claude Code"
       }
     ],
     "git-branches": [
       {
         "module": "main/gitBranchesManager",
         "file": "src\\main\\gitBranchesManager.ts",
-        "description": "Git Branches Manager Module"
+        "description": "Git Branches Manager Module Handles git branch and worktree operations"
       }
     ],
     "github": [
       {
         "module": "main/githubManager",
         "file": "src\\main\\githubManager.ts",
-        "description": "GitHub Manager Module"
+        "description": "GitHub Manager Module Handles GitHub integration using gh CLI"
       },
       {
         "module": "renderer/components/GithubPanel",
@@ -5558,12 +7012,12 @@
       {
         "module": "main/promptLogger",
         "file": "src\\main\\promptLogger.ts",
-        "description": "Prompt Logger Module"
+        "description": "Prompt Logger Module Logs terminal input to history file"
       },
       {
         "module": "renderer/components/HistoryPanel",
         "file": "src\\renderer\\components\\HistoryPanel.tsx",
-        "description": "HistoryPanel — Prompt history list."
+        "description": "HistoryPanel — Prompt history list. Loads via LOAD_PROMPT_HISTORY send/on pattern."
       }
     ],
     "html-preview": [
@@ -5584,7 +7038,7 @@
       {
         "module": "main/index",
         "file": "src\\main\\index.ts",
-        "description": "Main Process Entry Point"
+        "description": "Main Process Entry Point Initializes Electron app, creates window, loads modules"
       },
       {
         "module": "renderer/index",
@@ -5596,19 +7050,19 @@
       {
         "module": "renderer/lib/ipc",
         "file": "src\\renderer\\lib\\ipc.ts",
-        "description": "Typed IPC helpers for the renderer process."
+        "description": "Typed IPC helpers for the renderer process. Wraps Electron's ipcRenderer with type-safe invoke/send functions."
       },
       {
         "module": "shared/ipcChannels",
         "file": "src\\shared\\ipcChannels.ts",
-        "description": "IPC Channel Constants — TypeScript Edition"
+        "description": "IPC Channel Constants — TypeScript Edition Single source of truth for all IPC channel names and their type signatures."
       }
     ],
     "keyboard-shortcuts": [
       {
         "module": "renderer/components/KeyboardShortcuts",
         "file": "src\\renderer\\components\\KeyboardShortcuts.tsx",
-        "description": "KeyboardShortcuts — Modal overlay showing all available keyboard shortcuts."
+        "description": "KeyboardShortcuts — Modal overlay showing all available keyboard shortcuts. Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen."
       }
     ],
     "logo-svg": [
@@ -5629,38 +7083,52 @@
       {
         "module": "main/menu",
         "file": "src\\main\\menu.ts",
-        "description": "Application Menu Module"
+        "description": "Application Menu Module Defines menu structure and handlers Supports dynamic menu based on active AI tool"
+      }
+    ],
+    "onboarding": [
+      {
+        "module": "main/onboardingManager",
+        "file": "src\\main\\onboardingManager.ts",
+        "description": "Onboarding Manager Detects existing project intelligence files, runs AI analysis through a terminal tab, parses the JSON response, and imports results into SubFrame's spec files."
+      }
+    ],
+    "onboarding-dialog": [
+      {
+        "module": "renderer/components/OnboardingDialog",
+        "file": "src\\renderer\\components\\OnboardingDialog.tsx",
+        "description": "OnboardingDialog — Multi-step dialog for project intelligence onboarding."
       }
     ],
     "overview": [
       {
         "module": "main/overviewManager",
         "file": "src\\main\\overviewManager.ts",
-        "description": "Overview Manager Module"
+        "description": "Overview Manager Module Gathers project data for overview dashboard"
       },
       {
         "module": "renderer/components/OverviewPanel",
         "file": "src\\renderer\\components\\OverviewPanel.tsx",
-        "description": "OverviewPanel — Dashboard view with project stats cards."
+        "description": "OverviewPanel — Dashboard view with project stats cards. Uses Framer Motion stagger animation on mount."
       }
     ],
     "plugins": [
       {
         "module": "main/pluginsManager",
         "file": "src\\main\\pluginsManager.ts",
-        "description": "Plugins Manager Module"
+        "description": "Plugins Manager Module Handles Claude Code plugins - reading marketplace, installed, and enabled status"
       },
       {
         "module": "renderer/components/PluginsPanel",
         "file": "src\\renderer\\components\\PluginsPanel.tsx",
-        "description": "PluginsPanel — Plugin management with toggle controls, filter buttons,"
+        "description": "PluginsPanel — Plugin management with toggle controls, filter buttons, category icons, and install support."
       }
     ],
     "project-init": [
       {
         "module": "shared/projectInit",
         "file": "src\\shared\\projectInit.ts",
-        "description": "SubFrame Project Initialization (Pure Node.js)"
+        "description": "SubFrame Project Initialization (Pure Node.js) Core init logic shared between the Electron app and the CLI. No Electron dependencies — safe to require from plain Node.js."
       }
     ],
     "project-list": [
@@ -5670,11 +7138,25 @@
         "description": ""
       }
     ],
+    "prompt-library": [
+      {
+        "module": "renderer/components/PromptLibrary",
+        "file": "src\\renderer\\components\\PromptLibrary.tsx",
+        "description": "PromptLibrary — Command-palette-style overlay for saved prompts. Triggered by Ctrl+Shift+L. Fuzzy searches across title + content + tags, inserts selected prompt into the active terminal via PTY write."
+      }
+    ],
+    "prompts": [
+      {
+        "module": "main/promptsManager",
+        "file": "src\\main\\promptsManager.ts",
+        "description": "Prompts Manager Module Handles CRUD operations for saved prompts (prompt library). Prompts are stored in .subframe/prompts.json per project."
+      }
+    ],
     "right": [
       {
         "module": "renderer/components/RightPanel",
         "file": "src\\renderer\\components\\RightPanel.tsx",
-        "description": "RightPanel — Container for all right-side panels."
+        "description": "RightPanel — Container for all right-side panels. Panels are grouped: solo panels show a title header, grouped panels show only their group's tabs. Terminal bar buttons map to groups: - Sub-Tasks → solo - Agent → activity, sessions, history, plugins, skills (tabbed) - GitHub → issues, PRs, branches, worktrees (tabbed) - Overview → full-view (handled by TerminalArea, not here)"
       }
     ],
     "sessions": [
@@ -5688,12 +7170,12 @@
       {
         "module": "main/settingsManager",
         "file": "src\\main\\settingsManager.ts",
-        "description": "Settings Manager"
+        "description": "Settings Manager Manages application settings stored in frame-settings.json"
       },
       {
         "module": "renderer/components/SettingsPanel",
         "file": "src\\renderer\\components\\SettingsPanel.tsx",
-        "description": "SettingsPanel — Settings dialog/modal with tabs."
+        "description": "SettingsPanel — Settings dialog/modal with tabs. Opens via useUIStore.settingsOpen."
       }
     ],
     "sidebar": [
@@ -5707,19 +7189,19 @@
       {
         "module": "renderer/components/SidebarAgentStatus",
         "file": "src\\renderer\\components\\SidebarAgentStatus.tsx",
-        "description": "SidebarAgentStatus — Tiny status widget for the sidebar footer area."
+        "description": "SidebarAgentStatus — Tiny status widget for the sidebar footer area. Shows a pulsing dot + current tool name when an agent session is active."
       }
     ],
     "skills": [
       {
         "module": "main/skillsManager",
         "file": "src\\main\\skillsManager.ts",
-        "description": "Skills Manager Module"
+        "description": "Skills Manager Module Scans .claude/skills/ for SKILL.md files and returns skill metadata. Managed skills (sub-tasks, sub-docs, sub-audit) are compared against frameTemplates to determine health status."
       },
       {
         "module": "renderer/components/SkillsPanel",
         "file": "src\\renderer\\components\\SkillsPanel.tsx",
-        "description": "SkillsPanel — Shows all .claude/skills found in the project."
+        "description": "SkillsPanel — Shows all .claude/skills found in the project. Each skill renders as an expandable card with command, description, allowed tools, health status, and full SKILL.md content on expand."
       }
     ],
     "stats-detail-view": [
@@ -5733,116 +7215,130 @@
       {
         "module": "renderer/components/StructureMap",
         "file": "src\\renderer\\components\\StructureMap.tsx",
-        "description": "Structure Map component."
+        "description": "Structure Map component. D3.js force-directed graph visualization of project modules. React owns the container div; D3 owns everything inside it."
       }
     ],
     "sub-frame-health": [
       {
         "module": "renderer/components/SubFrameHealthPanel",
         "file": "src\\renderer\\components\\SubFrameHealthPanel.tsx",
-        "description": "SubFrameHealthPanel — Health status and management for SubFrame project components."
+        "description": "SubFrameHealthPanel — Health status and management for SubFrame project components. Shows per-component status grouped by category, update actions, and uninstall options."
       }
     ],
     "subframe-health": [
       {
         "module": "shared/subframeHealth",
         "file": "src\\shared\\subframeHealth.ts",
-        "description": "SubFrame Health Checking"
+        "description": "SubFrame Health Checking Evaluates the deployment status of all SubFrame components in a project. Used by the health panel to show what's installed, outdated, or missing."
       }
     ],
     "task-graph": [
       {
         "module": "renderer/components/TaskGraph",
         "file": "src\\renderer\\components\\TaskGraph.tsx",
-        "description": "TaskGraph — React Flow dependency graph with dagre auto-layout."
+        "description": "TaskGraph — React Flow dependency graph with dagre auto-layout. Shows tasks as card nodes with directed edges for blocker relationships. Replaces the previous D3 force-directed implementation with proper hierarchical layout and styled card nodes."
       }
     ],
     "task-kanban": [
       {
         "module": "renderer/components/TaskKanban",
         "file": "src\\renderer\\components\\TaskKanban.tsx",
-        "description": "TaskKanban — Kanban board view for tasks."
+        "description": "TaskKanban — Kanban board view for tasks. Full view: horizontal columns side by side. Compact/sidebar: vertical stacked sections."
       }
     ],
     "task-markdown-parser": [
       {
         "module": "main/taskMarkdownParser",
         "file": "src\\main\\taskMarkdownParser.ts",
-        "description": "Task Markdown Parser"
+        "description": "Task Markdown Parser Parses and serializes tasks between markdown files (with YAML frontmatter) and Task objects. Uses gray-matter for frontmatter extraction."
       }
     ],
     "task-timeline": [
       {
         "module": "renderer/components/TaskTimeline",
         "file": "src\\renderer\\components\\TaskTimeline.tsx",
-        "description": "TaskTimeline — Horizontal stepper showing task step progress."
+        "description": "TaskTimeline — Horizontal stepper showing task step progress. Compact mode (or >7 steps) shows a progress bar with count. Full mode shows circles with connectors and labels."
       }
     ],
     "tasks": [
       {
         "module": "main/tasksManager",
         "file": "src\\main\\tasksManager.ts",
-        "description": "Tasks Manager Module"
+        "description": "Tasks Manager Module Handles task CRUD operations for SubFrame projects."
       },
       {
         "module": "renderer/components/TasksPanel",
         "file": "src\\renderer\\components\\TasksPanel.tsx",
-        "description": "TasksPanel — Sub-task management with TanStack Table."
+        "description": "TasksPanel — Sub-task management with TanStack Table. Supports filtering, sorting, inline expand, add/edit/delete."
       }
     ],
     "terminal": [
       {
         "module": "main/pty",
         "file": "src\\main\\pty.ts",
-        "description": "PTY Management Module"
+        "description": "PTY Management Module Handles shell spawning, input/output, and resize (single legacy terminal)"
       },
       {
         "module": "main/ptyManager",
         "file": "src\\main\\ptyManager.ts",
-        "description": "PTY Manager Module"
+        "description": "PTY Manager Module Manages multiple PTY instances for multi-terminal support"
       },
       {
         "module": "renderer/components/Terminal",
         "file": "src\\renderer\\components\\Terminal.tsx",
-        "description": "Single terminal component."
+        "description": "Single terminal component. Wraps xterm.js via useTerminal hook. Connects IPC for I/O, provides context menu, scroll-to-bottom button with animation, live output overlay, and inline search."
       },
       {
         "module": "renderer/components/TerminalGrid",
         "file": "src\\renderer\\components\\TerminalGrid.tsx",
-        "description": "Terminal grid layout component."
+        "description": "Terminal grid layout component. Renders terminals in a CSS Grid with resize handles between cells."
       },
       {
         "module": "renderer/components/TerminalTabBar",
         "file": "src\\renderer\\components\\TerminalTabBar.tsx",
-        "description": "Terminal tab bar component."
+        "description": "Terminal tab bar component. Renders animated tabs with drag-to-reorder (Framer Motion), shell selector dropdown, view mode toggle, and panel toggle buttons."
       }
     ],
     "terminal-area": [
       {
         "module": "renderer/components/TerminalArea",
         "file": "src\\renderer\\components\\TerminalArea.tsx",
-        "description": "Terminal area orchestrator."
+        "description": "Terminal area orchestrator. Renders the tab bar and either a single terminal (tabs mode) or the terminal grid (grid mode). Manages terminal creation/destruction via IPC and keyboard shortcuts. Scopes terminals per-project with hot-swap."
+      }
+    ],
+    "update-notification": [
+      {
+        "module": "renderer/components/UpdateNotification",
+        "file": "src\\renderer\\components\\UpdateNotification.tsx",
+        "description": "UpdateNotification — side-effect component that listens for auto-updater events and shows non-intrusive sonner toasts. Renders null."
+      }
+    ],
+    "updater": [
+      {
+        "module": "main/updaterManager",
+        "file": "src\\main\\updaterManager.ts",
+        "description": "Updater Manager Handles automatic update checks, downloads, and installation via electron-updater. In dev mode (app.isPackaged === false), all operations are no-ops."
       }
     ],
     "use-agent-state": [
       {
         "module": "renderer/hooks/useAgentState",
         "file": "src\\renderer\\hooks\\useAgentState.ts",
-        "description": "TanStack Query hook for real-time agent state visualization."
+        "description": "TanStack Query hook for real-time agent state visualization. Wraps LOAD_AGENT_STATE (send/on) + WATCH/UNWATCH lifecycle."
       }
     ],
     "use-aifiles": [
       {
         "module": "renderer/hooks/useAIFiles",
         "file": "src\\renderer\\hooks\\useAIFiles.ts",
-        "description": "TanStack Query hook for AI files status (CLAUDE.md, GEMINI.md, AGENTS.md)."
+        "description": "TanStack Query hook for AI files status (CLAUDE.md, GEMINI.md, AGENTS.md). Uses the send/on pattern since GET_AI_FILES_STATUS is a send channel. Also provides backlink verification, config loading/saving, and update-all."
       }
     ],
     "use-file-tree": [
       {
         "module": "renderer/hooks/useFileTree",
         "file": "src\\renderer\\hooks\\useFileTree.ts",
-        "description": "TanStack Query hook for file tree data."
+        "description": "TanStack Query hook for file tree data. Sends LOAD_FILE_TREE and listens for FILE_TREE_DATA events."
       }
     ],
     "use-github": [
@@ -5856,14 +7352,21 @@
       {
         "module": "renderer/hooks/useIpc",
         "file": "src\\renderer\\hooks\\useIpc.ts",
-        "description": "React Query hook for typed IPC invoke calls."
+        "description": "React Query hook for typed IPC invoke calls. Wraps ipcRenderer.invoke with TanStack React Query for caching and refetching."
       }
     ],
     "use-ipclistener": [
       {
         "module": "renderer/hooks/useIPCListener",
         "file": "src\\renderer\\hooks\\useIPCListener.ts",
-        "description": "React hook that listens for main->renderer IPC events"
+        "description": "React hook that listens for main->renderer IPC events and optionally invalidates React Query caches."
+      }
+    ],
+    "use-onboarding": [
+      {
+        "module": "renderer/hooks/useOnboarding",
+        "file": "src\\renderer\\hooks\\useOnboarding.ts",
+        "description": "React hook for onboarding IPC calls. Wraps project intelligence detection, AI analysis, and import using TanStack Query mutations and IPC event listeners."
       }
     ],
     "use-overview": [
@@ -5885,6 +7388,13 @@
         "module": "renderer/stores/useProjectStore",
         "file": "src\\renderer\\stores\\useProjectStore.ts",
         "description": ""
+      }
+    ],
+    "use-prompts": [
+      {
+        "module": "renderer/hooks/usePrompts",
+        "file": "src\\renderer\\hooks\\usePrompts.ts",
+        "description": "TanStack Query hooks for the prompt library."
       }
     ],
     "use-sessions": [
@@ -5912,21 +7422,21 @@
       {
         "module": "renderer/hooks/useSubFrameHealth",
         "file": "src\\renderer\\hooks\\useSubFrameHealth.ts",
-        "description": "TanStack Query hook for SubFrame health status."
+        "description": "TanStack Query hook for SubFrame health status. Uses the send/on pattern since GET_SUBFRAME_HEALTH is a send channel. Provides health status, component updates, and uninstall mutations."
       }
     ],
     "use-tasks": [
       {
         "module": "renderer/hooks/useTasks",
         "file": "src\\renderer\\hooks\\useTasks.ts",
-        "description": "TanStack Query hooks for sub-task management."
+        "description": "TanStack Query hooks for sub-task management. Wraps LOAD_TASKS (send/on) + ADD_TASK, UPDATE_TASK, DELETE_TASK mutations."
       }
     ],
     "use-terminal": [
       {
         "module": "renderer/hooks/useTerminal",
         "file": "src\\renderer\\hooks\\useTerminal.ts",
-        "description": "Custom hook for xterm.js terminal lifecycle."
+        "description": "Custom hook for xterm.js terminal lifecycle. Manages Terminal + FitAddon + renderer addons (WebGL/Canvas) + SearchAddon. Auto-fits via ResizeObserver. Safe under React StrictMode (guards double-mount)."
       }
     ],
     "use-terminal-store": [
@@ -5943,6 +7453,13 @@
         "description": ""
       }
     ],
+    "use-updater": [
+      {
+        "module": "renderer/hooks/useUpdater",
+        "file": "src\\renderer\\hooks\\useUpdater.ts",
+        "description": "TanStack Query hook for auto-updater state management. Listens for status/progress events from the main process and exposes mutations for check, download, and install actions."
+      }
+    ],
     "utils": [
       {
         "module": "renderer/lib/utils",
@@ -5950,11 +7467,18 @@
         "description": ""
       }
     ],
+    "whats-new": [
+      {
+        "module": "renderer/components/WhatsNew",
+        "file": "src\\renderer\\components\\WhatsNew.tsx",
+        "description": "WhatsNew — Dialog that surfaces release notes after updates. Auto-shows when the app version is newer than the last-seen version. Also accessible via command palette."
+      }
+    ],
     "workspace": [
       {
         "module": "main/workspace",
         "file": "src\\main\\workspace.ts",
-        "description": "Workspace Module"
+        "description": "Workspace Module Manages workspace configuration in ~/.subframe/workspaces.json"
       },
       {
         "module": "renderer/components/WorkspaceSelector",

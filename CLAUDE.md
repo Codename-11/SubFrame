@@ -1,5 +1,5 @@
 <!-- SUBFRAME:BEGIN -->
-> **[SubFrame Project]** — See [AGENTS.md](./AGENTS.md) for full Sub-Task management rules, context preservation guidelines, and documentation update procedures.
+> **[SubFrame Project]** — Read [AGENTS.md](./AGENTS.md) for project instructions, task management rules, and context preservation guidelines.
 <!-- SUBFRAME:END -->
 
 # SubFrame

@@ -7,6 +7,102 @@ Notable changes grouped by date and domain.
 ## [Unreleased]
 
 ### Added
+- **Terminal grid UX improvements** — Keyboard shortcuts, resize persistence, improved handles, maximize-in-place
+  - `Ctrl+G` shortcut to toggle grid/tab view (also shown in command palette + keyboard shortcuts help)
+  - Command palette: "Next Grid Layout" / "Previous Grid Layout" cycle through all 8 layouts
+  - Grid resize persistence: custom column/row sizes saved per layout to localStorage, restored on layout switch
+  - Wider resize handles (4px hit area) with visible hover indicator line (accent-colored)
+  - Maximize-in-place: Focus button and double-click header expand a single cell to fill the grid area
+  - `Esc` un-maximizes before navigating full-view overlays (priority chain)
+  - `Minimize2` icon + "Restore grid" button in maximized cell header
+  - Maximize state auto-clears on layout change
+- **Template version detection for AGENTS.md** — Version-based upgrade detection without requiring exact content match
+  - `AGENTS_TEMPLATE_VERSION` constant + `<!-- subframe-template-version: N -->` marker in template output
+  - New `templateVersion` field in health registry (fourth check mode alongside existenceOnly, getTemplate, specialCheck)
+  - Version extraction via regex; missing marker = version 0 (old file); `>=` comparison for forward compatibility
+  - Update handler creates `.bak` backup, reads project name from config.json, regenerates from current template
+  - 4 new tests: no marker → outdated, current → healthy, old → outdated, future → healthy
+- **Terminal scroll-to-bottom button** — Floating animated button when scrolled up in terminal
+  - DOM viewport scroll detection via `.xterm-viewport` element (reliable across WebGL/Canvas/DOM renderers)
+  - Theme pulse animation on first appear (accent-colored ring radiates outward via Framer Motion boxShadow keyframes)
+  - Live output overlay showing last 3 lines when scrolled up + new output arriving
+  - Dynamic positioning: `bottom-20` when overlay visible, `bottom-4` otherwise
+- **Grid view empty cell placeholders** — Unfilled grid slots show "New Terminal" action instead of blank space
+  - Dashed circle + icon with hover accent highlight, shortcut hint (Ctrl+Shift+T)
+- **Universal scrollbar theming** — Consistent thin scrollbars across entire app
+  - Global CSS `*` selector rules for webkit and Firefox scrollbars (rgba white 8%/18% hover)
+  - Radix ScrollArea thumb themed to match (`bg-white/[0.08]`)
+  - Removed fragmented `.scrollbar-thin` utility class from 7 components
+  - Converted raw `overflow-y-auto` divs to `<ScrollArea>` in SessionsPanel, MarkdownPreview
+- **Command palette shortcut** in empty terminal state (`Ctrl+/`)
+- **Start AI button** dims when no project selected (disabled + muted styling)
+- **Contextual empty state message** — "Select a project to get started" vs "No terminals for this project"
+- **Right panel scroll fixes** — Collapsed icon strip scrollable (`overflow-y-auto`), expanded tab groups scrollable (`overflow-x-auto`)
+- **Ctrl+G** keyboard shortcut to toggle grid/tab view
+- **Terminal maximize** in grid view — Escape to un-maximize
+
+### Fixed
+- **6 lint errors** — `no-control-regex` in ptyManager + Terminal ANSI regexes (eslint-disable), ternary side-effect → if/else
+- **Scroll-to-bottom detection** — Replaced unreliable xterm buffer API (`buf.baseY`) with DOM viewport `scrollTop`/`scrollHeight`/`clientHeight`
+
+- **Rich task editing** — Enhanced TasksPanel create/edit dialog with structured content
+  - Steps/Checklist editor: add, reorder (up/down), delete, toggle completion directly in dialog
+  - Form/Markdown toggle: switch between structured form and raw markdown editing modes
+  - Bidirectional conversion between form fields and markdown body (mirrors `taskMarkdownParser.ts` format)
+  - "From Template" quick-fill button pre-populates description, steps, acceptance criteria, notes
+  - Collapsible "Advanced" section exposes Acceptance Criteria and Notes fields
+  - Rich markdown rendering in TaskDetail expanded rows (description, criteria, notes rendered via `react-markdown` + `remark-gfm`)
+  - Dialog auto-sizes: `sm:max-w-lg` in form mode, `sm:max-w-2xl` in markdown mode
+- **Git status integration** — Real-time file tree indicators and sidebar status bar
+  - `getGitStatus()` in `gitBranchesManager.ts`: parses `git status --porcelain`, branch, ahead/behind
+  - `useGitStatus` hook with 5-second polling interval
+  - `FileTree.tsx`: per-file status letters (M/A/D/U/R/!) with color-coding (green=staged, yellow=modified, red=deleted/conflict, gray=untracked), directory change dot indicators
+  - `Sidebar.tsx`: `GitStatusBar` component showing branch name, ahead/behind arrows, staged/modified/untracked counts
+  - Merge conflict detection (`UU`, `AA`, `DD`) shows red `!` indicator
+  - New IPC channel: `LOAD_GIT_STATUS`
+- **Command palette** (`Ctrl+/`) — Quick access to all actions, panels, views, and settings
+  - `CommandPalette.tsx`: cmdk-based dialog with fuzzy search
+  - Groups: Panels (9), Views (5), Terminal (2), Sidebar (3), Settings (3 incl. What's New)
+  - All actions wired to existing store methods with keyboard shortcut display
+- **Prompt library** (`Ctrl+Shift+L`) — Saved prompts with fuzzy search and terminal insert
+  - `promptsManager.ts` (main process): CRUD for `.subframe/prompts.json`
+  - `usePrompts` hook (TanStack Query): wraps LOAD_PROMPTS, SAVE_PROMPT, DELETE_PROMPT channels
+  - `PromptLibrary.tsx`: command palette overlay with category grouping, inline edit/delete, copy to clipboard
+  - Template variables: `{{project}}`, `{{projectPath}}` resolved on insert
+  - Usage frequency tracking for smart sorting
+  - 3 new IPC channels: `LOAD_PROMPTS`, `SAVE_PROMPT`, `DELETE_PROMPT`
+- **What's New dialog** — Auto-shows after version updates, accessible via command palette
+  - `WhatsNew.tsx`: reads bundled `RELEASE_NOTES.md`, renders via `MarkdownPreview`
+  - Tracks `lastSeenWhatsNew` in settings to auto-show once per version
+  - New IPC channel: `GET_RELEASE_NOTES`
+- **Auto-updater** — Electron auto-update with status notifications
+  - `updaterManager.ts` (main process): electron-updater integration
+  - `UpdateNotification.tsx`: renders update status notifications
+  - 5 new IPC channels: `UPDATER_CHECK`, `UPDATER_STATUS`, `UPDATER_DOWNLOAD`, `UPDATER_INSTALL`, `UPDATER_PROGRESS`
+- **Claude Code detection** — Detects when Claude Code is active in a terminal
+  - Rolling output buffer per terminal with 7 regex patterns (ANSI title, spinner, cost display, etc.)
+  - 8-second inactivity timeout for active→inactive transitions
+  - Green pulsing dot on terminal tabs when Claude is detected
+  - New IPC channel: `CLAUDE_ACTIVE_STATUS`
+- **Session-based prompt logging** — Only logs prompts when Claude Code is active
+  - Per-terminal input buffers in `promptLogger.ts`
+  - Logging gated by `isClaudeActive()` in PTY input handler
+- **TasksPanel smart sorting** — Multi-sort, smart default filter, persisted sort state
+  - Smart default filter: auto-selects "In Progress" or "Pending" based on current tasks
+  - Custom sort functions for Priority (high-first) and Status (in-progress-first)
+  - Shift+click for multi-column sort (TanStack Table v8)
+  - Sort/filter state persisted in Zustand store across panel switches
+- **AI Tool Start tooltip** — Hover "Start Claude Code" button shows effective command
+  - Displays custom command override when configured in Settings
+- **STRUCTURE.json improvements** — Better description extraction and call graph
+  - `extractDescription()` handles JSDoc, CRLF, multi-line descriptions
+  - `buildCallGraph()` finds 448 call edges across 98 modules
+
+### Fixed
+- **Merge conflict status** in FileTree — `UU`/`AA`/`DD` git statuses now correctly show red `!` conflict indicator (was falling through to green "Staged")
+
+---
+
 - **Code editor enhancements** — CM6 compartment-based runtime settings
   - Minimap toggle (default off), word wrap, font size +/- (8–24px), fullscreen mode (F11)
   - Theme switcher: SubFrame Dark (default), SubFrame Light, High Contrast — via dropdown
@@ -99,6 +195,19 @@ Notable changes grouped by date and domain.
   - New components: `MarkdownPreview.tsx`, `HtmlPreview.tsx`, `ImagePreview.tsx`
   - Binary file detection: blocks opening of archives, executables, fonts, etc.
   - Read-only mode: detects unwritable files, disables editing
+- **Project onboarding & AI analysis pipeline** — Detects existing project intelligence files, runs AI analysis through a visible terminal tab, parses results, and imports into SubFrame spec files
+  - `onboardingManager.ts` (main process): detection, context gathering, prompt building, terminal-based analysis pipeline, JSON parsing, non-destructive imports
+  - `OnboardingDialog.tsx` (renderer): three-step dialog — detection summary → analysis in progress → results review with selective import
+  - `useOnboarding` hook (TanStack Query): wraps detect/analyze/import IPC with progress event streaming
+  - 5 new IPC channels: `DETECT_PROJECT_INTELLIGENCE`, `RUN_ONBOARDING_ANALYSIS`, `IMPORT_ONBOARDING_RESULTS`, `CANCEL_ONBOARDING_ANALYSIS`, `ONBOARDING_PROGRESS`
+  - `/onboard` Claude Code skill deployed to `.claude/skills/onboard/` — standalone CLI onboarding
+  - `INTELLIGENCE_FILES` constant: 20+ detection targets across 4 categories (ai-config, project-metadata, documentation, dev-config)
+  - Reusable `runAnalysisInTerminal()` pipeline core — visible terminal, temp file prompting, sentinel-based completion, ANSI stripping
+  - Windows compatibility: Git Bash detection (`findBashShell`), Unix path conversion, graceful error when no bash found
+  - AI tool pre-flight check: verifies tool is installed before starting analysis
+  - Configurable analysis timeout via `onboarding.analysisTimeout` setting (default 120s)
+  - Health panel registration: `/onboard` skill tracked with content-comparison health checks
+  - Sidebar integration: auto-detect after SubFrame init, "Re-analyze Project" button for existing projects
 
 ### Fixed
 - **`filePath` leaked into `tasks.json` index** — `regenerateIndex()` now strips `filePath` and `_unknownSections` before writing, matching CLI behavior

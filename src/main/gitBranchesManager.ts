@@ -90,6 +90,78 @@ async function isWorkingTreeClean(projectPath: string): Promise<{ clean: boolean
   }
 }
 
+interface GitFileStatus {
+  path: string;
+  index: string;
+  working: string;
+}
+
+interface GitStatusResult {
+  error: string | null;
+  branch: string;
+  ahead: number;
+  behind: number;
+  files: GitFileStatus[];
+  staged: number;
+  modified: number;
+  untracked: number;
+}
+
+/**
+ * Get structured git status for a project
+ */
+async function getGitStatus(projectPath: string): Promise<GitStatusResult> {
+  const empty: GitStatusResult = { error: null, branch: '', ahead: 0, behind: 0, files: [], staged: 0, modified: 0, untracked: 0 };
+  if (!projectPath) return { ...empty, error: 'No project selected' };
+
+  try {
+    await execGit('git rev-parse --is-inside-work-tree', projectPath);
+
+    let branch = '';
+    let ahead = 0;
+    let behind = 0;
+    try {
+      const { stdout: branchOut } = await execGit('git branch --show-current', projectPath);
+      branch = branchOut;
+    } catch { /* detached HEAD */ }
+
+    try {
+      const { stdout: trackingOut } = await execGit('git rev-list --left-right --count HEAD...@{upstream}', projectPath);
+      const parts = trackingOut.split(/\s+/);
+      if (parts.length >= 2) {
+        ahead = parseInt(parts[0], 10) || 0;
+        behind = parseInt(parts[1], 10) || 0;
+      }
+    } catch { /* no upstream */ }
+
+    const { stdout: statusOut } = await execGit('git status --porcelain', projectPath);
+    const files: GitFileStatus[] = [];
+    let staged = 0;
+    let modified = 0;
+    let untracked = 0;
+
+    for (const line of statusOut.split('\n').filter(Boolean)) {
+      const indexChar = line[0];
+      const workingChar = line[1];
+      const filePath = line.substring(3).trim();
+      const displayPath = filePath.includes(' -> ') ? filePath.split(' -> ')[1] : filePath;
+
+      files.push({ path: displayPath, index: indexChar, working: workingChar });
+
+      if (indexChar === '?' && workingChar === '?') {
+        untracked++;
+      } else {
+        if (indexChar !== ' ' && indexChar !== '?') staged++;
+        if (workingChar !== ' ' && workingChar !== '?') modified++;
+      }
+    }
+
+    return { error: null, branch, ahead, behind, files, staged, modified, untracked };
+  } catch (err) {
+    return { ...empty, error: (err as GitError).error || 'Not a git repository' };
+  }
+}
+
 /**
  * Load all branches
  */
@@ -322,6 +394,10 @@ function setupIPC(ipcMain: IpcMain): void {
     return await removeWorktree(projectPath, worktreePath, force);
   });
 
+  ipcMain.handle(IPC.LOAD_GIT_STATUS, async (_event, projectPath: string) => {
+    return await getGitStatus(projectPath);
+  });
+
   // Toggle panel from menu
   ipcMain.on(IPC.TOGGLE_GIT_BRANCHES_PANEL, () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -332,5 +408,5 @@ function setupIPC(ipcMain: IpcMain): void {
 
 export {
   init, loadBranches, switchBranch, createBranch, deleteBranch,
-  loadWorktrees, addWorktree, removeWorktree, isWorkingTreeClean, setupIPC
+  loadWorktrees, addWorktree, removeWorktree, isWorkingTreeClean, getGitStatus, setupIPC
 };

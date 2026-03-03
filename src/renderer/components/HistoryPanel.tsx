@@ -63,6 +63,7 @@ export function HistoryPanel() {
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-1">
             <span>No history yet</span>
+            <span className="text-xs opacity-60">Run commands in the terminal to build prompt history</span>
           </div>
         ) : (
           <div className="flex flex-col">

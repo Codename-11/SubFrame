@@ -29,6 +29,9 @@ interface DefaultSettings {
     wordWrap: boolean;
     fontSize: number;
   };
+  onboarding: {
+    analysisTimeout: number;
+  };
   [key: string]: unknown;
 }
 
@@ -50,6 +53,9 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     theme: 'subframe-dark',
     wordWrap: false,
     fontSize: 12,
+  },
+  onboarding: {
+    analysisTimeout: 120000,
   }
 };
 

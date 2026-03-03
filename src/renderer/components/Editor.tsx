@@ -401,6 +401,7 @@ export function Editor({ filePath, onClose }: EditorProps) {
                 : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
             }`}
             title={title}
+            aria-label={title}
           >
             {children}
           </button>
@@ -419,7 +420,7 @@ export function Editor({ filePath, onClose }: EditorProps) {
         className={dialogContentClass}
         showCloseButton={false}
       >
-        <TooltipProvider delayDuration={300}>
+        <TooltipProvider delayDuration={400}>
           {/* Header */}
           <DialogHeader className="px-4 py-3 border-b border-border-subtle flex-shrink-0">
             <div className="flex items-center justify-between">
@@ -500,6 +501,7 @@ export function Editor({ filePath, onClose }: EditorProps) {
                         <button
                           className="p-1 rounded transition-colors cursor-pointer text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
                           title="Editor Theme"
+                          aria-label="Editor theme"
                         >
                           <Palette className="w-3.5 h-3.5" />
                         </button>
@@ -571,6 +573,7 @@ export function Editor({ filePath, onClose }: EditorProps) {
                   onClick={handleClose}
                   className="px-2.5 py-1 text-xs rounded-md text-text-secondary
                              hover:bg-bg-hover transition-colors cursor-pointer"
+                  aria-label="Close editor"
                 >
                   Close
                 </button>

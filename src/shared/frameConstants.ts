@@ -39,6 +39,7 @@ export const FRAME_FILES = {
   SKILLS_SUB_TASKS: path.join('.claude', 'skills', 'sub-tasks', 'SKILL.md'),
   SKILLS_SUB_DOCS: path.join('.claude', 'skills', 'sub-docs', 'SKILL.md'),
   SKILLS_SUB_AUDIT: path.join('.claude', 'skills', 'sub-audit', 'SKILL.md'),
+  SKILLS_ONBOARD: path.join('.claude', 'skills', 'onboard', 'SKILL.md'),
 } as const;
 
 /** SubFrame bin directory for AI tool wrappers */
@@ -52,3 +53,36 @@ export const FRAME_TASKS_DIR: string = path.join('.subframe', 'tasks');
 
 /** SubFrame version — single source of truth is package.json */
 export const FRAME_VERSION: string = require('../../package.json').version;
+
+/**
+ * Intelligence files to detect during project onboarding.
+ * Categorized by type for display in the onboarding dialog.
+ */
+export const INTELLIGENCE_FILES: Record<string, { category: 'ai-config' | 'project-metadata' | 'documentation' | 'dev-config'; label: string; paths: string[] }> = {
+  // AI config files
+  claudeMd: { category: 'ai-config', label: 'CLAUDE.md', paths: ['CLAUDE.md', '.claude/CLAUDE.md'] },
+  geminiMd: { category: 'ai-config', label: 'GEMINI.md', paths: ['GEMINI.md'] },
+  cursorRules: { category: 'ai-config', label: 'Cursor Rules', paths: ['.cursorrules', '.cursor/rules'] },
+  copilotInstructions: { category: 'ai-config', label: 'Copilot Instructions', paths: ['.github/copilot-instructions.md'] },
+
+  // Project metadata
+  packageJson: { category: 'project-metadata', label: 'package.json', paths: ['package.json'] },
+  pyprojectToml: { category: 'project-metadata', label: 'pyproject.toml', paths: ['pyproject.toml'] },
+  cargoToml: { category: 'project-metadata', label: 'Cargo.toml', paths: ['Cargo.toml'] },
+  goMod: { category: 'project-metadata', label: 'go.mod', paths: ['go.mod'] },
+  pomXml: { category: 'project-metadata', label: 'pom.xml', paths: ['pom.xml'] },
+  composerJson: { category: 'project-metadata', label: 'composer.json', paths: ['composer.json'] },
+  gemfile: { category: 'project-metadata', label: 'Gemfile', paths: ['Gemfile'] },
+
+  // Documentation
+  readme: { category: 'documentation', label: 'README.md', paths: ['README.md', 'readme.md', 'README'] },
+  contributing: { category: 'documentation', label: 'CONTRIBUTING.md', paths: ['CONTRIBUTING.md'] },
+  architecture: { category: 'documentation', label: 'Architecture docs', paths: ['ARCHITECTURE.md', 'docs/architecture.md'] },
+
+  // Dev config
+  tsconfig: { category: 'dev-config', label: 'tsconfig.json', paths: ['tsconfig.json'] },
+  eslintConfig: { category: 'dev-config', label: 'ESLint config', paths: ['eslint.config.mjs', 'eslint.config.js', '.eslintrc.json', '.eslintrc.js'] },
+  makefile: { category: 'dev-config', label: 'Makefile', paths: ['Makefile'] },
+  dockerCompose: { category: 'dev-config', label: 'Docker Compose', paths: ['docker-compose.yml', 'docker-compose.yaml', 'compose.yml'] },
+  gitDir: { category: 'dev-config', label: 'Git repository', paths: ['.git'] },
+};

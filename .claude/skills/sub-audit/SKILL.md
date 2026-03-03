@@ -1,7 +1,7 @@
 ---
 name: sub-audit
 description: Run a code review and documentation audit on recent changes. Finds bugs, edge cases, missing docs, and type safety issues.
-argument-hint: [scope - e.g., "agent state feature", "last 5 commits"]
+argument-hint: [scope - e.g., "auth feature", "last 5 commits"]
 disable-model-invocation: false
 allowed-tools: Bash, Read, Grep, Glob, Agent
 ---
@@ -13,7 +13,7 @@ Run a thorough audit on recent changes, combining code review and documentation 
 ## Dynamic Context
 
 Recent commits (last 15):
-!`git log --oneline --no-decorate -15`
+!`git log --oneline --no-decorate -15 2>/dev/null || echo "No git history"`
 
 Files changed vs main:
 !`git diff --name-only main...HEAD 2>/dev/null | head -40`
@@ -29,29 +29,26 @@ The argument should describe the scope to audit. If empty, audit all changes sin
 Determine which files to audit:
 - If argument specifies a feature/scope, identify the relevant files
 - If empty, use `git diff --name-only main...HEAD` to find all changed files
-- Group files by layer: main process, renderer, shared, hooks, scripts
+- Group files by layer (e.g., backend, frontend, shared, config, tests)
 
 ### Phase 2: Code Review (spawn agent)
 
 Spawn a code review agent (`feature-dev:code-reviewer` subagent type) to review the changed files. The agent should check for:
 
 1. **Critical bugs** — null/undefined access, race conditions, unhandled errors, infinite loops
-2. **Type safety** — `as any` casts, `Record<string, ...>` where union keys exist, missing type imports
-3. **Platform issues** — Windows path handling, `fs.watch` reliability, atomic file writes
-4. **React issues** — stale closures in effects, missing deps, memory leaks from uncleared listeners
-5. **IPC issues** — mismatched channel names, missing handlers, untyped payloads
-6. **Security** — command injection in Bash inputs, XSS in rendered content, path traversal
+2. **Type safety** — `as any` casts, missing type imports, loose typing where strict types exist
+3. **Platform issues** — Windows path handling, file system edge cases
+4. **Security** — command injection, XSS in rendered content, path traversal
+5. **Logic errors** — off-by-one, incorrect conditions, missing edge cases
 
 ### Phase 3: Documentation Audit (spawn agent)
 
 Spawn an explore agent (`Explore` subagent type) to check documentation completeness:
 
-1. **CLAUDE.md** — Are all modules/components/hooks/stores listed?
-2. **KeyboardShortcuts.tsx** — Are all keyboard shortcuts registered?
-3. **changelog.md** — Does [Unreleased] reflect all new features?
-4. **PROJECT_NOTES.md** — Are architecture decisions documented?
-5. **ipc-channels.md** — Are all IPC channels listed? (compare count with `ipcChannels.ts`)
-6. **STRUCTURE.json** — Is it up to date? (compare module count with actual files)
+1. **CLAUDE.md** — Are all modules/components listed?
+2. **changelog.md** — Does [Unreleased] reflect all new features?
+3. **PROJECT_NOTES.md** — Are architecture decisions documented?
+4. **STRUCTURE.json** — Is it up to date? (compare module count with actual files)
 
 ### Phase 4: Report
 

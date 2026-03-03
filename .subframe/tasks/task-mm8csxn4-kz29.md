@@ -1,14 +1,14 @@
 ---
 id: task-mm8csxn4-kz29
 title: Prompt library overlay with smart search and terminal insert
-status: pending
+status: completed
 priority: medium
 category: feature
 blockedBy: []
 blocks: []
 createdAt: '2026-03-01T23:00:56.271Z'
-updatedAt: '2026-03-01T23:00:56.271Z'
-completedAt: null
+updatedAt: '2026-03-02T23:43:05.054Z'
+completedAt: '2026-03-02T23:43:05.054Z'
 context: Session 2026-03-01
 ---
 Command-palette-style overlay for saved/common prompts. Triggered by keyboard shortcut, fuzzy searches across title + content + tags, and pastes selected prompt into the active terminal via PTY write.

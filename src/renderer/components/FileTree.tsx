@@ -26,8 +26,9 @@ import {
 } from '@/components/ui/context-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFileTree } from '../hooks/useFileTree';
+import { useGitStatus } from '../hooks/useGithub';
 import { useProjectStore } from '../stores/useProjectStore';
-import type { FileTreeNode } from '../../shared/ipcChannels';
+import type { FileTreeNode, GitFileStatus } from '../../shared/ipcChannels';
 
 interface FileTreeProps {
   onFileOpen?: (filePath: string) => void;
@@ -65,9 +66,51 @@ function sortNodes(nodes: FileTreeNode[]): FileTreeNode[] {
   });
 }
 
+/** Get display info for a git file status */
+function getGitIndicator(file: GitFileStatus): { label: string; color: string; title: string } | null {
+  const idx = file.index;
+  const wt = file.working;
+  // Untracked
+  if (idx === '?' && wt === '?') return { label: 'U', color: 'text-text-tertiary', title: 'Untracked' };
+  // Merge conflicts (UU, AA, DD, etc.)
+  if (idx === 'U' || wt === 'U' || (idx === 'A' && wt === 'A') || (idx === 'D' && wt === 'D')) {
+    return { label: '!', color: 'text-error', title: 'Conflict' };
+  }
+  // Fully staged (index changed, working tree clean)
+  if (idx !== ' ' && idx !== '?' && wt === ' ') {
+    const labels: Record<string, string> = { A: 'Added', M: 'Staged', D: 'Deleted', R: 'Renamed', C: 'Copied' };
+    return { label: idx, color: 'text-success', title: labels[idx] || 'Staged' };
+  }
+  // Working tree modifications
+  if (wt === 'M') return { label: 'M', color: 'text-warning', title: 'Modified' };
+  if (wt === 'D') return { label: 'D', color: 'text-error', title: 'Deleted' };
+  // Partially staged (both index and working tree have changes)
+  if (idx !== ' ' && idx !== '?') return { label: idx, color: 'text-success', title: 'Staged' };
+  return null;
+}
+
+/** Build a map of relative path → GitFileStatus for O(1) lookup */
+function buildGitStatusMap(files: GitFileStatus[]): Map<string, GitFileStatus> {
+  const map = new Map<string, GitFileStatus>();
+  for (const f of files) map.set(f.path, f);
+  return map;
+}
+
+/** Check if a directory path contains any changed files */
+function dirHasChanges(dirPath: string, projectPath: string, gitMap: Map<string, GitFileStatus>): boolean {
+  const rel = dirPath.replace(projectPath, '').replace(/^[\\/]+/, '').replace(/\\/g, '/');
+  const prefix = rel ? rel + '/' : '';
+  for (const key of gitMap.keys()) {
+    if (key.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
 export function FileTree({ onFileOpen }: FileTreeProps) {
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
   const { data: treeData, isLoading } = useFileTree(currentProjectPath);
+  const { files: gitFiles } = useGitStatus();
+  const gitStatusMap = useMemo(() => buildGitStatusMap(gitFiles), [gitFiles]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
@@ -230,6 +273,8 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
             onCopyPath={handleCopyPath}
             onRevealInExplorer={handleRevealInExplorer}
             onFileOpen={onFileOpen}
+            gitStatusMap={gitStatusMap}
+            projectPath={currentProjectPath ?? ''}
           />
         ))}
       </div>
@@ -248,6 +293,8 @@ interface TreeNodeProps {
   onCopyPath: (path: string) => void;
   onRevealInExplorer: (path: string) => void;
   onFileOpen?: (filePath: string) => void;
+  gitStatusMap: Map<string, GitFileStatus>;
+  projectPath: string;
 }
 
 function TreeNode({
@@ -261,6 +308,8 @@ function TreeNode({
   onCopyPath,
   onRevealInExplorer,
   onFileOpen,
+  gitStatusMap,
+  projectPath,
 }: TreeNodeProps) {
   const isExpanded = expandedPaths.has(node.path);
   const isActive = activeFilePath === node.path;
@@ -272,6 +321,12 @@ function TreeNode({
     : getFileIcon(node.name);
 
   const paddingLeft = 8 + depth * 16;
+
+  // Git status for this node
+  const relPath = node.path.replace(projectPath, '').replace(/^[\\/]+/, '').replace(/\\/g, '/');
+  const gitFile = gitStatusMap.get(relPath);
+  const gitIndicator = gitFile ? getGitIndicator(gitFile) : null;
+  const showDirDot = node.isDirectory && dirHasChanges(node.path, projectPath, gitStatusMap);
 
   return (
     <>
@@ -292,6 +347,7 @@ function TreeNode({
                 className={`w-3.5 h-3.5 flex-shrink-0 text-text-tertiary transition-transform duration-150
                   ${isExpanded ? 'rotate-90' : ''}
                 `}
+                aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
               />
             ) : (
               <span className="w-3.5 flex-shrink-0" />
@@ -302,6 +358,14 @@ function TreeNode({
               }`}
             />
             <span className="truncate">{node.name}</span>
+            {gitIndicator && (
+              <span className={`ml-auto flex-shrink-0 text-[10px] font-mono font-bold ${gitIndicator.color}`} title={gitIndicator.title} aria-label={`File status: ${gitIndicator.title}`}>
+                {gitIndicator.label}
+              </span>
+            )}
+            {showDirDot && !gitIndicator && (
+              <span className="ml-auto flex-shrink-0 w-1.5 h-1.5 rounded-full bg-warning/60" title="Contains changes" aria-label="Contains changes" />
+            )}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="bg-bg-elevated border-border-subtle">
@@ -348,6 +412,8 @@ function TreeNode({
               onCopyPath={onCopyPath}
               onRevealInExplorer={onRevealInExplorer}
               onFileOpen={onFileOpen}
+              gitStatusMap={gitStatusMap}
+              projectPath={projectPath}
             />
           ))}
         </>

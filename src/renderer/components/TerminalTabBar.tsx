@@ -181,6 +181,7 @@ export function TerminalTabBar({
               exit={{ opacity: 0 }}
               onClick={() => tabScrollRef.current?.scrollBy({ left: -150, behavior: 'smooth' })}
               className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gradient-to-r from-bg-secondary to-transparent z-10 cursor-pointer text-text-secondary hover:text-text-primary"
+              aria-label="Scroll tabs left"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </motion.button>
@@ -194,6 +195,7 @@ export function TerminalTabBar({
               exit={{ opacity: 0 }}
               onClick={() => tabScrollRef.current?.scrollBy({ left: 150, behavior: 'smooth' })}
               className="absolute right-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gradient-to-l from-bg-secondary to-transparent z-10 cursor-pointer text-text-secondary hover:text-text-primary"
+              aria-label="Scroll tabs right"
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </motion.button>
@@ -264,11 +266,13 @@ export function TerminalTabBar({
                       )}
 
                       <span
+                        role="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onCloseTerminal(t.id);
                         }}
                         className="opacity-40 hover:opacity-100 hover:text-error transition-opacity ml-0.5 cursor-pointer"
+                        aria-label={`Close terminal ${t.name}`}
                       >
                         <X className="h-3 w-3" />
                       </span>
@@ -323,6 +327,7 @@ export function TerminalTabBar({
                   <button
                     className="flex items-center gap-0.5 h-7 px-1.5 rounded-md text-text-secondary
                                hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                    aria-label="New terminal"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <ChevronDown className="h-2.5 w-2.5 opacity-50" />
@@ -370,6 +375,7 @@ export function TerminalTabBar({
                                ? 'text-accent bg-accent-subtle'
                                : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
                            }`}
+                aria-label={viewMode === 'tabs' ? 'Grid view' : 'Tab view'}
               >
                 {viewMode === 'tabs' ? (
                   <Grid2x2 className="h-3.5 w-3.5" />
@@ -392,6 +398,7 @@ export function TerminalTabBar({
                 className="flex items-center gap-0.5 h-7 px-1.5 rounded-md text-xs text-text-secondary
                            hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer
                            border border-border-subtle bg-bg-tertiary"
+                aria-label={`Grid layout ${gridLayout}`}
               >
                 <span className="tabular-nums">{gridLayout.replace('x', '\u00d7')}</span>
                 <ChevronDown className="h-2.5 w-2.5 opacity-50" />
@@ -432,6 +439,7 @@ export function TerminalTabBar({
                         className="flex items-center gap-1.5 h-7 px-2 rounded-md text-text-secondary
                                    hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer
                                    border border-transparent hover:border-border-subtle whitespace-nowrap"
+                        aria-label={`${panel.label}${panel.shortcut ? ` (${panel.shortcut})` : ''}`}
                       >
                         <Icon className="h-3.5 w-3.5 flex-shrink-0" />
                         {panelLabelsExpanded && <span className="text-xs">{panel.label}</span>}
@@ -455,6 +463,7 @@ export function TerminalTabBar({
                         ? 'text-accent bg-accent-subtle border-accent/20'
                         : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover border-transparent hover:border-border-subtle'
                       }`}
+                    aria-label="Overview (Ctrl+Shift+O)"
                   >
                     <LayoutDashboard className="h-3.5 w-3.5 flex-shrink-0" />
                     {panelLabelsExpanded && <span className="text-xs">Overview</span>}
@@ -475,6 +484,7 @@ export function TerminalTabBar({
                   onClick={onOverviewToggle}
                   className="flex items-center h-7 px-1.5 rounded-md text-text-secondary
                              hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                  aria-label="Project overview"
                 >
                   <Eye className="h-3.5 w-3.5" />
                 </button>
@@ -499,6 +509,7 @@ export function TerminalTabBar({
                   }}
                   className="flex items-center h-7 px-0.5 rounded-md text-text-tertiary
                              hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                  aria-label={panelLabelsExpanded ? 'Collapse labels' : 'Show labels'}
                 >
                   {panelLabelsExpanded
                     ? <ChevronsRight className="h-3 w-3" />

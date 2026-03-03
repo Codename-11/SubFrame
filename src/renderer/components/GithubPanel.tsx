@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { RefreshCw, GitBranch, ExternalLink, Plus, Trash2, ArrowRight, FolderGit2 } from 'lucide-react';
+import { RefreshCw, GitBranch, ExternalLink, Plus, Trash2, ArrowRight, FolderGit2, AlertCircle } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -83,7 +83,7 @@ export function GithubWorktreesPanel() {
 
 function IssuesTab({ state: initialState = 'open', isPR = false }: { state?: string; isPR?: boolean }) {
   const [filter, setFilter] = useState(initialState);
-  const { issues: items, isLoading, refetch } = useGithubIssues(filter);
+  const { issues: items, error, isLoading, refetch } = useGithubIssues(filter);
 
   const FILTERS = [
     { label: 'Open', value: 'open' },
@@ -114,7 +114,22 @@ function IssuesTab({ state: initialState = 'open', isPR = false }: { state?: str
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        {isLoading && items.length === 0 ? (
+        {error ? (
+          <div className="flex flex-col items-center justify-center gap-2 text-text-tertiary p-6">
+            <AlertCircle className="w-5 h-5 text-error/60" />
+            <p className="text-xs text-center">
+              {error.includes('not a git repository') || error.includes('No remote')
+                ? 'This project is not a git repository or has no remote configured'
+                : `Failed to load ${isPR ? 'pull requests' : 'issues'}`}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="text-xs text-accent hover:underline cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        ) : isLoading && items.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-text-tertiary text-sm">Loading...</div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-1">

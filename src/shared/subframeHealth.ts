@@ -24,6 +24,8 @@ interface ComponentRegistryEntry {
   existenceOnly?: boolean;
   /** Special check type for non-file components */
   specialCheck?: 'claude-settings';
+  /** If set, check for embedded version marker instead of exact content match */
+  templateVersion?: number;
 }
 
 /**
@@ -44,7 +46,7 @@ const COMPONENT_REGISTRY: ComponentRegistryEntry[] = [
     label: 'AGENTS.md',
     category: 'core',
     path: FRAME_FILES.AGENTS,
-    existenceOnly: true,
+    templateVersion: templates.AGENTS_TEMPLATE_VERSION,
   },
   {
     id: 'structure',
@@ -148,6 +150,13 @@ const COMPONENT_REGISTRY: ComponentRegistryEntry[] = [
     path: FRAME_FILES.SKILLS_SUB_AUDIT,
     getTemplate: () => templates.getSubAuditSkillTemplate(),
   },
+  {
+    id: 'skill-onboard',
+    label: '/onboard skill',
+    category: 'skills',
+    path: FRAME_FILES.SKILLS_ONBOARD,
+    getTemplate: () => templates.getOnboardSkillTemplate(),
+  },
 
   // ── Claude integration ──
   {
@@ -224,6 +233,35 @@ function checkComponent(
       needsUpdate: false,
       path: entry.path,
     };
+  }
+
+  // Template version check (embedded version marker)
+  if (entry.templateVersion !== undefined) {
+    try {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const match = content.match(/<!-- subframe-template-version:\s*(\d+)\s*-->/);
+      const fileVersion = match ? parseInt(match[1], 10) : 0;
+      const isCurrent = fileVersion >= entry.templateVersion;
+      return {
+        id: entry.id,
+        label: entry.label,
+        category: entry.category,
+        exists: true,
+        current: isCurrent,
+        needsUpdate: !isCurrent,
+        path: entry.path,
+      };
+    } catch {
+      return {
+        id: entry.id,
+        label: entry.label,
+        category: entry.category,
+        exists: true,
+        current: false,
+        needsUpdate: true,
+        path: entry.path,
+      };
+    }
   }
 
   // Content comparison check

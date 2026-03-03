@@ -317,7 +317,7 @@ function AddProjectButton() {
           <Plus className="w-3.5 h-3.5" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[200px] max-h-[400px] overflow-y-auto scrollbar-thin">
+      <DropdownMenuContent align="end" className="min-w-[200px] max-h-[400px] overflow-y-auto">
         <DropdownMenuItem onClick={() => typedSend(IPC.SELECT_PROJECT_FOLDER)} className="cursor-pointer text-xs py-1">
           <FolderOpen className="w-3 h-3 mr-2 text-text-tertiary" />
           Select Folder...

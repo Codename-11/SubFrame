@@ -54,8 +54,8 @@ export function App() {
         togglePanel('tasks');
       }
 
-      // Ctrl/Cmd+Shift+P — Toggle plugins panel
-      if (modKey && e.shiftKey && key === 'p') {
+      // Ctrl/Cmd+Shift+X — Toggle plugins panel
+      if (modKey && e.shiftKey && key === 'x') {
         e.preventDefault();
         togglePanel('plugins');
       }
@@ -112,6 +112,12 @@ export function App() {
       if (modKey && e.shiftKey && (key === '?' || key === '/')) {
         e.preventDefault();
         setShortcutsHelpOpen(true);
+      }
+
+      // Ctrl/Cmd+Shift+Enter — Start AI tool
+      if (modKey && e.shiftKey && key === 'enter') {
+        e.preventDefault();
+        window.dispatchEvent(new Event('start-ai-tool'));
       }
     },
     [toggleSidebar, togglePanel, setSettingsOpen, setShortcutsHelpOpen, selectAdjacentProject, requestSidebarFocus]

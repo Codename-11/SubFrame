@@ -1,6 +1,7 @@
 import React from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ScrollArea } from '../ui/scroll-area';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -151,7 +152,7 @@ const components: Record<string, React.ComponentType<any>> = {
         html = hljs.highlightAuto(code).value;
       }
       return (
-        <pre className="bg-bg-secondary rounded-lg p-4 overflow-x-auto mb-4 scrollbar-thin">
+        <pre className="bg-bg-secondary rounded-lg p-4 overflow-x-auto mb-4">
           <code className="text-xs font-mono leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
         </pre>
       );
@@ -164,13 +165,13 @@ const components: Record<string, React.ComponentType<any>> = {
 
 export function MarkdownPreview({ content }: MarkdownPreviewProps) {
   return (
-    <div className="h-full overflow-y-auto scrollbar-thin">
+    <ScrollArea className="h-full">
       <style>{hljsStyles}</style>
       <div className="p-6 max-w-4xl">
         <Markdown remarkPlugins={[remarkGfm]} components={components}>
           {content}
         </Markdown>
       </div>
-    </div>
+    </ScrollArea>
   );
 }

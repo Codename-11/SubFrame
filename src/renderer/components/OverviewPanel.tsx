@@ -84,6 +84,7 @@ export function OverviewPanel({ isFullView = false }: OverviewPanelProps) {
         ) : !data ? (
           <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-1">
             <span>No overview data available</span>
+            <span className="text-xs opacity-60">Ensure the project has a recognized structure</span>
           </div>
         ) : (
           <div className="flex flex-col gap-2 p-3">

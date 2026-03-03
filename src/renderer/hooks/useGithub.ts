@@ -56,6 +56,30 @@ export function useGitBranches() {
   };
 }
 
+export function useGitStatus() {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+
+  const query = useIpcQuery(
+    IPC.LOAD_GIT_STATUS,
+    [projectPath ?? ''],
+    { enabled: !!projectPath, refetchInterval: 5000 }
+  );
+
+  return {
+    status: query.data ?? null,
+    branch: query.data?.branch ?? '',
+    ahead: query.data?.ahead ?? 0,
+    behind: query.data?.behind ?? 0,
+    files: query.data?.files ?? [],
+    staged: query.data?.staged ?? 0,
+    modified: query.data?.modified ?? 0,
+    untracked: query.data?.untracked ?? 0,
+    error: query.data?.error ?? null,
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
+}
+
 export function useGitWorktrees() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
 

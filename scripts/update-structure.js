@@ -67,16 +67,59 @@ function parseJSFile(filePath) {
  * Extract file description from top comment
  */
 function extractDescription(content) {
-  // Match JSDoc style comment at top
-  const match = content.match(/^\/\*\*\s*\n\s*\*\s*([^\n]+)/);
-  if (match) {
-    return match[1].trim();
+  // Strip optional UTF-8 BOM
+  const src = content.replace(/^\uFEFF/, '');
+  const lines = src.split(/\r?\n/);
+
+  // --- JSDoc block comment at top: /** ... */ ---
+  if (/^\s*\/\*\*/.test(lines[0])) {
+    // Single-line JSDoc: /** Description text here */
+    const inlineMatch = lines[0].match(/\/\*\*\s+(.+?)\s*\*\/\s*$/);
+    if (inlineMatch) {
+      return inlineMatch[1].trim();
+    }
+
+    // Multi-line JSDoc: collect first paragraph (stop at blank * line, @tag, or */)
+    const descLines = [];
+
+    // Check if first line has text after /** (e.g. "/** Some text")
+    const firstLineText = lines[0].replace(/^\s*\/\*\*\s*/, '').trim();
+    if (firstLineText) {
+      descLines.push(firstLineText);
+    }
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line === '*/') break;
+      if (line.startsWith('* @') || line.startsWith('*@')) break;
+      // Strip leading "* " prefix
+      const text = line.replace(/^\*\s?/, '').trim();
+      // Blank line inside the block means end of first paragraph
+      if (text === '' && descLines.length > 0) break;
+      if (text) {
+        descLines.push(text);
+      }
+    }
+
+    if (descLines.length > 0) {
+      return descLines.join(' ').trim();
+    }
   }
 
-  // Match single line comment
-  const singleMatch = content.match(/^\/\/\s*(.+)/);
-  if (singleMatch) {
-    return singleMatch[1].trim();
+  // --- Single-line // comments at top ---
+  if (/^\s*\/\//.test(lines[0])) {
+    const descLines = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line.startsWith('//')) break;
+      const text = line.replace(/^\/\/\s?/, '').trim();
+      if (text) {
+        descLines.push(text);
+      }
+    }
+    if (descLines.length > 0) {
+      return descLines.join(' ').trim();
+    }
   }
 
   return '';
@@ -270,6 +313,107 @@ function extractFunctionPurpose(lines, lineIndex) {
   }
 
   return null;
+}
+
+/**
+ * Extract the body of a function starting at a given line.
+ * Uses brace counting to find the matching closing brace.
+ * Returns the text between the opening { and closing }.
+ */
+function extractFunctionBody(lines, startLineIndex) {
+  let depth = 0;
+  let started = false;
+  const bodyLines = [];
+
+  for (let i = startLineIndex; i < lines.length; i++) {
+    const line = lines[i];
+    for (let j = 0; j < line.length; j++) {
+      const ch = line[j];
+      if (ch === '{') {
+        if (!started) started = true;
+        depth++;
+      } else if (ch === '}') {
+        depth--;
+        if (started && depth === 0) {
+          bodyLines.push(line.substring(0, j));
+          return bodyLines.join('\n');
+        }
+      }
+    }
+    if (started) {
+      bodyLines.push(line);
+    }
+  }
+
+  return bodyLines.join('\n');
+}
+
+/**
+ * Build call graph: for each function in each module, find calls to other
+ * project-defined functions. Runs as a second pass after all modules are parsed.
+ */
+function buildCallGraph(structure) {
+  // 1. Collect all known function names across all modules
+  const knownFunctions = new Set();
+  for (const mod of Object.values(structure.modules)) {
+    if (mod.functions) {
+      for (const fname of Object.keys(mod.functions)) {
+        knownFunctions.add(fname);
+      }
+    }
+  }
+
+  if (knownFunctions.size === 0) return;
+
+  // Build a regex that matches calls to any known function: functionName(
+  // Negative lookbehind for word chars and dot prevents matching method calls
+  // like obj.loadAgentState() or substring matches like myloadAgentState().
+  const fnNames = [...knownFunctions].sort((a, b) => b.length - a.length); // longest first
+  const callPattern = new RegExp(
+    '(?<![.\\w])(' + fnNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\s*\\(',
+    'g'
+  );
+
+  // 2. For each module, scan function bodies
+  let totalCalls = 0;
+  for (const mod of Object.values(structure.modules)) {
+    if (!mod.functions || Object.keys(mod.functions).length === 0) continue;
+
+    const filePath = path.join(ROOT_DIR, mod.file);
+    let content;
+    try {
+      content = fs.readFileSync(filePath, 'utf-8');
+    } catch {
+      continue;
+    }
+
+    const lines = content.split('\n');
+
+    for (const [funcName, funcInfo] of Object.entries(mod.functions)) {
+      // funcInfo.line is 1-based
+      const startIdx = funcInfo.line - 1;
+      const body = extractFunctionBody(lines, startIdx);
+      if (!body) continue;
+
+      const calls = new Set();
+      let match;
+      callPattern.lastIndex = 0;
+      while ((match = callPattern.exec(body)) !== null) {
+        const calledName = match[1];
+        // Skip self-recursion
+        if (calledName !== funcName) {
+          calls.add(calledName);
+        }
+      }
+
+      if (calls.size > 0) {
+        funcInfo.calls = [...calls].sort();
+        totalCalls += calls.size;
+      }
+    }
+  }
+
+  console.log(`  Call graph: ${totalCalls} call edges found`);
 }
 
 /**
@@ -495,6 +639,9 @@ function main() {
       console.error(`  ✗ ${file}: ${e.message}`);
     }
   }
+
+  // Build function call graph (second pass — needs all modules parsed)
+  buildCallGraph(structure);
 
   // Auto-detect architecture entry points
   updateArchitectureEntryPoints(structure);

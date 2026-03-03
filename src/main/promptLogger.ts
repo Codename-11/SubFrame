@@ -9,7 +9,8 @@ import type { App, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 
 let logFilePath: string | null = null;
-let inputBuffer: string = '';
+/** Per-terminal input buffers keyed by terminalId */
+const inputBuffers = new Map<string, string>();
 
 /**
  * Initialize prompt logger
@@ -26,27 +27,36 @@ function getLogFilePath(): string | null {
 }
 
 /**
- * Process and log input data
+ * Process and log input data for a specific terminal.
+ * Only called when Claude Code is active in that terminal.
  */
-function logInput(data: string): void {
+function logInput(terminalId: string, data: string): void {
   if (!logFilePath) return;
+
+  let buffer = inputBuffers.get(terminalId) || '';
 
   for (const char of data) {
     if (char === '\r' || char === '\n') {
       // Enter pressed - save the line
-      if (inputBuffer.trim().length > 0) {
+      if (buffer.trim().length > 0) {
         const timestamp = new Date().toISOString();
-        const logEntry = `[${timestamp}] ${inputBuffer}\n`;
+        const logEntry = `[${timestamp}] ${buffer}\n`;
         fs.appendFileSync(logFilePath, logEntry, 'utf8');
       }
-      inputBuffer = '';
+      buffer = '';
     } else if (char === '\x7f' || char === '\b') {
       // Backspace - remove last char
-      inputBuffer = inputBuffer.slice(0, -1);
+      buffer = buffer.slice(0, -1);
     } else if (char.charCodeAt(0) >= 32 && char !== '\x7f') {
       // Printable character (including Unicode)
-      inputBuffer += char;
+      buffer += char;
     }
+  }
+
+  if (buffer.length > 0) {
+    inputBuffers.set(terminalId, buffer);
+  } else {
+    inputBuffers.delete(terminalId);
   }
 }
 

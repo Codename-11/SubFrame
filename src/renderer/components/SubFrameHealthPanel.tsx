@@ -52,12 +52,12 @@ function groupByCategory(components: SubFrameComponentStatus[]): Record<string, 
 
 function getStatusBadge(comp: SubFrameComponentStatus) {
   if (!comp.exists) {
-    return { label: 'Missing', className: 'bg-red-900/60 text-red-300' };
+    return { label: 'Missing', className: 'bg-red-900/60 text-red-300', title: 'Component file not found — click update to install' };
   }
   if (comp.needsUpdate) {
-    return { label: 'Outdated', className: 'bg-amber-900/60 text-amber-300' };
+    return { label: 'Outdated', className: 'bg-amber-900/60 text-amber-300', title: 'Component exists but differs from the latest version — click update to sync' };
   }
-  return { label: 'Healthy', className: 'bg-emerald-900/60 text-emerald-300' };
+  return { label: 'Healthy', className: 'bg-emerald-900/60 text-emerald-300', title: 'Component is up to date' };
 }
 
 function getStatusIcon(comp: SubFrameComponentStatus) {
@@ -383,7 +383,7 @@ export function SubFrameHealthPanel() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-medium text-text-primary truncate">{comp.label}</span>
-                              <Badge variant="secondary" className={cn('text-[9px] px-1.5 py-0', badge.className)}>
+                              <Badge variant="secondary" className={cn('text-[9px] px-1.5 py-0', badge.className)} title={badge.title}>
                                 {badge.label}
                               </Badge>
                             </div>

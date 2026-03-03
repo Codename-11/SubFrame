@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   RefreshCw, Link, Unlink, Plus, ArrowRightLeft, FileEdit,
   CheckCircle, XCircle, AlertTriangle, Shield, ChevronDown,
-  ChevronRight, Save, Loader2, Info, FolderOpen,
+  ChevronRight, Save, Loader2, Info, FolderOpen, AlertCircle,
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -207,8 +207,15 @@ export function AIFilesPanel() {
             Loading...
           </div>
         ) : !status ? (
-          <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-1">
-            <span>No status available</span>
+          <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-2 px-4">
+            <AlertCircle className="w-5 h-5 text-error/60" />
+            <p className="text-xs text-center">Failed to load AI file status</p>
+            <button
+              onClick={() => refetch()}
+              className="text-xs text-accent hover:underline cursor-pointer"
+            >
+              Retry
+            </button>
           </div>
         ) : (
           <div className="flex flex-col gap-1 p-3">

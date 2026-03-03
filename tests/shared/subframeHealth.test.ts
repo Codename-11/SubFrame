@@ -9,6 +9,7 @@ import * as os from 'os';
 import { getSubFrameHealth, getComponentRegistry, getHooksDir } from '../../src/shared/subframeHealth';
 import { writeClaudeSettings, mergeSubFrameHooks } from '../../src/shared/claudeSettingsUtils';
 import { FRAME_DIR, FRAME_FILES, FRAME_TASKS_DIR, GITHOOKS_DIR } from '../../src/shared/frameConstants';
+import { AGENTS_TEMPLATE_VERSION } from '../../src/shared/frameTemplates';
 
 let tmpDir: string;
 
@@ -63,7 +64,10 @@ function deployFullProject(): void {
 
   // Core files (existence-only)
   fs.writeFileSync(path.join(frameDirPath, 'config.json'), '{}');
-  fs.writeFileSync(path.join(tmpDir, FRAME_FILES.AGENTS), '# Agents');
+  fs.writeFileSync(
+    path.join(tmpDir, FRAME_FILES.AGENTS),
+    `# Agents\n\n<!-- subframe-template-version: ${AGENTS_TEMPLATE_VERSION} -->\n`,
+  );
   fs.writeFileSync(path.join(tmpDir, FRAME_FILES.STRUCTURE), '{}');
   fs.writeFileSync(path.join(tmpDir, FRAME_FILES.NOTES), '# Notes');
   fs.mkdirSync(path.join(tmpDir, FRAME_TASKS_DIR), { recursive: true }); // tasks/ directory
@@ -108,6 +112,7 @@ function deployFullProject(): void {
   fs.mkdirSync(path.join(tmpDir, path.dirname(FRAME_FILES.SKILLS_SUB_TASKS)), { recursive: true });
   fs.mkdirSync(path.join(tmpDir, path.dirname(FRAME_FILES.SKILLS_SUB_DOCS)), { recursive: true });
   fs.mkdirSync(path.join(tmpDir, path.dirname(FRAME_FILES.SKILLS_SUB_AUDIT)), { recursive: true });
+  fs.mkdirSync(path.join(tmpDir, path.dirname(FRAME_FILES.SKILLS_ONBOARD)), { recursive: true });
   fs.writeFileSync(
     path.join(tmpDir, FRAME_FILES.SKILLS_SUB_TASKS),
     getTemplateById('skill-sub-tasks'),
@@ -119,6 +124,10 @@ function deployFullProject(): void {
   fs.writeFileSync(
     path.join(tmpDir, FRAME_FILES.SKILLS_SUB_AUDIT),
     getTemplateById('skill-sub-audit'),
+  );
+  fs.writeFileSync(
+    path.join(tmpDir, FRAME_FILES.SKILLS_ONBOARD),
+    getTemplateById('skill-onboard'),
   );
 
   // Git hooks (content-compared — use registry templates)
@@ -292,7 +301,10 @@ describe('getSubFrameHealth — partial project', () => {
     const frameDirPath = path.join(tmpDir, FRAME_DIR);
     fs.mkdirSync(frameDirPath, { recursive: true });
     fs.writeFileSync(path.join(frameDirPath, 'config.json'), '{}');
-    fs.writeFileSync(path.join(tmpDir, FRAME_FILES.AGENTS), '# Agents');
+    fs.writeFileSync(
+      path.join(tmpDir, FRAME_FILES.AGENTS),
+      `# Agents\n\n<!-- subframe-template-version: ${AGENTS_TEMPLATE_VERSION} -->\n`,
+    );
     fs.writeFileSync(path.join(tmpDir, FRAME_FILES.STRUCTURE), '{}');
     fs.writeFileSync(path.join(tmpDir, FRAME_FILES.NOTES), '# Notes');
     fs.writeFileSync(path.join(tmpDir, FRAME_FILES.TASKS), '{}');
@@ -314,5 +326,66 @@ describe('getSubFrameHealth — partial project', () => {
     expect(health.claudeSettingsMerged).toBe(false);
     const claudeComp = health.components.find((c) => c.id === 'claude-settings');
     expect(claudeComp!.exists).toBe(false);
+  });
+});
+
+// ── getSubFrameHealth — template version detection ───────────────────────────
+
+describe('getSubFrameHealth — template version detection', () => {
+  beforeEach(() => {
+    // Create minimal project structure (only what's needed for AGENTS.md checks)
+    const frameDirPath = path.join(tmpDir, FRAME_DIR);
+    fs.mkdirSync(frameDirPath, { recursive: true });
+    fs.writeFileSync(path.join(frameDirPath, 'config.json'), '{}');
+  });
+
+  it('detects old AGENTS.md without version marker as outdated', () => {
+    fs.writeFileSync(path.join(tmpDir, FRAME_FILES.AGENTS), '# Old Agents file\nNo version marker here.');
+
+    const health = getSubFrameHealth(tmpDir);
+    const agents = health.components.find((c) => c.id === 'agents');
+    expect(agents).toBeDefined();
+    expect(agents!.exists).toBe(true);
+    expect(agents!.current).toBe(false);
+    expect(agents!.needsUpdate).toBe(true);
+  });
+
+  it('detects AGENTS.md with current version marker as healthy', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, FRAME_FILES.AGENTS),
+      `# Agents\n\n<!-- subframe-template-version: ${AGENTS_TEMPLATE_VERSION} -->\n`,
+    );
+
+    const health = getSubFrameHealth(tmpDir);
+    const agents = health.components.find((c) => c.id === 'agents');
+    expect(agents!.exists).toBe(true);
+    expect(agents!.current).toBe(true);
+    expect(agents!.needsUpdate).toBe(false);
+  });
+
+  it('detects AGENTS.md with old version (0) as outdated', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, FRAME_FILES.AGENTS),
+      '# Agents\n\n<!-- subframe-template-version: 0 -->\n',
+    );
+
+    const health = getSubFrameHealth(tmpDir);
+    const agents = health.components.find((c) => c.id === 'agents');
+    expect(agents!.exists).toBe(true);
+    expect(agents!.current).toBe(false);
+    expect(agents!.needsUpdate).toBe(true);
+  });
+
+  it('treats AGENTS.md with future version (999) as healthy (forward compatible)', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, FRAME_FILES.AGENTS),
+      '# Agents\n\n<!-- subframe-template-version: 999 -->\n',
+    );
+
+    const health = getSubFrameHealth(tmpDir);
+    const agents = health.components.find((c) => c.id === 'agents');
+    expect(agents!.exists).toBe(true);
+    expect(agents!.current).toBe(true);
+    expect(agents!.needsUpdate).toBe(false);
   });
 });

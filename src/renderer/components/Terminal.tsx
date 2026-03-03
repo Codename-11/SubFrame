@@ -23,8 +23,11 @@ const { ipcRenderer, clipboard } = require('electron');
 /** Strip ANSI escape sequences for overlay display */
 function stripAnsi(str: string): string {
   return str
+    // eslint-disable-next-line no-control-regex
     .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')  // CSI sequences
+    // eslint-disable-next-line no-control-regex
     .replace(/\x1b\][^\x07]*\x07/g, '')       // OSC sequences
+    // eslint-disable-next-line no-control-regex
     .replace(/\x1b[()][AB012]/g, '')           // Character set sequences
     .replace(/\r/g, '');
 }
@@ -109,30 +112,57 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     };
   }, [terminalId, terminalRef, fitAddonRef]);
 
-  // Scroll-to-bottom tracking
+  // Scroll-to-bottom tracking via xterm viewport DOM element
   useEffect(() => {
-    const terminal = terminalRef.current;
-    if (!terminal) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    // xterm renders a .xterm-viewport element that handles scrolling
+    // Poll briefly for it since the terminal mounts asynchronously
+    let viewport: HTMLElement | null = null;
+    let pollTimer: ReturnType<typeof setTimeout>;
 
     const updateScroll = () => {
-      const buf = terminal.buffer.active;
-      const atBottom = buf.baseY + terminal.rows >= buf.length;
+      if (!viewport) return;
+      const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2;
       setShowScrollBtn(!atBottom);
-      // Clear overlay when scrolled to bottom
       if (atBottom) {
         setRecentOutput([]);
         outputBufferRef.current = '';
       }
     };
 
-    const scrollDisposable = terminal.onScroll(updateScroll);
-    const renderDisposable = terminal.onRender(updateScroll);
+    const attach = () => {
+      viewport = container.querySelector('.xterm-viewport');
+      if (viewport) {
+        viewport.addEventListener('scroll', updateScroll, { passive: true });
+        // Also track when new content pushes scroll position
+        const terminal = terminalRef.current;
+        if (terminal) {
+          const renderDisposable = terminal.onRender(updateScroll);
+          // Store for cleanup
+          (container as any).__sfRenderDisposable = renderDisposable;
+        }
+      } else {
+        // Terminal not mounted yet, retry
+        pollTimer = setTimeout(attach, 50);
+      }
+    };
+
+    attach();
 
     return () => {
-      scrollDisposable.dispose();
-      renderDisposable.dispose();
+      clearTimeout(pollTimer);
+      if (viewport) {
+        viewport.removeEventListener('scroll', updateScroll);
+      }
+      const disposable = (container as any).__sfRenderDisposable;
+      if (disposable) {
+        disposable.dispose();
+        delete (container as any).__sfRenderDisposable;
+      }
     };
-  }, [terminalRef]);
+  }, [containerRef, terminalRef]);
 
   // Custom key handler: Ctrl+C copy, Ctrl+V paste, Shift+Enter newline, Ctrl+F search
   useEffect(() => {
@@ -178,6 +208,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       if (modKey && key === 'h') return false;
       if (modKey && key === 'b') return false;
       if (modKey && key === 'e') return false;
+      if (modKey && !event.shiftKey && key === 'g') return false;
       if (modKey && !event.shiftKey && key === 't') return false;
       if (modKey && (event.key === '[' || event.key === ']')) return false;
       if (modKey && event.key === 'Tab') return false;
@@ -288,7 +319,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      e.shiftKey ? handleSearchPrev() : handleSearchNext();
+                      if (e.shiftKey) { handleSearchPrev(); } else { handleSearchNext(); }
                     }
                     if (e.key === 'Escape') {
                       handleCloseSearch();
@@ -335,22 +366,30 @@ export function Terminal({ terminalId, className }: TerminalProps) {
             )}
           </AnimatePresence>
 
-          {/* Scroll-to-bottom floating button — shown when no overlay */}
+          {/* Scroll-to-bottom floating button — always visible when scrolled up */}
           <AnimatePresence>
-            {showScrollBtn && recentOutput.length === 0 && (
+            {showScrollBtn && (
               <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, scale: 0.8, boxShadow: '0 0 0 0 rgba(212,165,116,0)' }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  boxShadow: ['0 0 0 0 rgba(212,165,116,0.5)', '0 0 0 8px rgba(212,165,116,0)', '0 0 0 0 rgba(212,165,116,0)'],
+                }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                transition={{
+                  type: 'spring', stiffness: 500, damping: 30,
+                  boxShadow: { duration: 0.8, delay: 0.15, ease: 'easeOut' },
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleScrollToBottom();
                 }}
-                className="absolute bottom-4 right-4 z-10 flex h-8 w-8 items-center justify-center
+                className={`absolute right-4 z-20 flex h-8 w-8 items-center justify-center
                            rounded-full bg-bg-elevated border border-border-subtle
-                           text-text-secondary hover:text-accent hover:border-accent
-                           transition-all shadow-md cursor-pointer"
+                           text-text-secondary hover:text-accent hover:border-accent/60
+                           transition-all shadow-lg cursor-pointer
+                           ${recentOutput.length > 0 ? 'bottom-20' : 'bottom-4'}`}
                 title="Scroll to bottom"
               >
                 <ArrowDown className="h-4 w-4" />

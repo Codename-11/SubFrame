@@ -15,6 +15,81 @@ interface PTYInstance {
   pty: IPty;
   cwd: string;
   projectPath: string | null;
+  claudeActive: boolean;
+}
+
+// ── Claude Code Detection ────────────────────────────────────────────────────
+
+/**
+ * Lightweight detector for Claude Code TUI activity in a PTY.
+ * Watches recent output for known patterns that indicate Claude Code is running.
+ *
+ * Detection uses a rolling buffer of recent output (last ~2KB) per terminal.
+ * A terminal is marked active when patterns match and inactive after a
+ * configurable timeout with no further matches.
+ */
+
+const CLAUDE_OUTPUT_BUFFERS = new Map<string, string>();
+const CLAUDE_TIMEOUT_HANDLES = new Map<string, ReturnType<typeof setTimeout>>();
+const CLAUDE_BUFFER_MAX = 2048;
+/** How long (ms) after the last Claude pattern match before marking inactive */
+const CLAUDE_INACTIVE_DELAY = 8000;
+
+/**
+ * Patterns that strongly indicate Claude Code TUI is active.
+ * Tested against a rolling buffer of recent raw terminal output (includes ANSI).
+ */
+const CLAUDE_PATTERNS: RegExp[] = [
+  // ANSI terminal title set to something containing "claude"
+  // eslint-disable-next-line no-control-regex
+  /\x1b\]0;[^\x07]*claude/i,
+  // eslint-disable-next-line no-control-regex
+  /\x1b\]2;[^\x07]*claude/i,
+  // Claude's TUI prompt line (bold ">" character used by Claude Code)
+  /❯/,
+  // Claude banner / status lines
+  /\bclaude[\s-]?code\b/i,
+  // Tool-use indicators unique to Claude Code TUI (Braille spinner characters)
+  /⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏/,
+  // Cost display pattern from Claude Code
+  /\$\d+\.\d{2}\s+[│|]/,
+  // Claude's "Thinking" indicator
+  /\bThinking\.\.\./,
+];
+
+function detectClaudeOutput(terminalId: string, data: string): void {
+  // Append to rolling buffer
+  let buf = (CLAUDE_OUTPUT_BUFFERS.get(terminalId) || '') + data;
+  if (buf.length > CLAUDE_BUFFER_MAX) {
+    buf = buf.slice(buf.length - CLAUDE_BUFFER_MAX);
+  }
+  CLAUDE_OUTPUT_BUFFERS.set(terminalId, buf);
+
+  // Check patterns against the buffer
+  const matched = CLAUDE_PATTERNS.some((re) => re.test(buf));
+  if (!matched) return;
+
+  const instance = ptyInstances.get(terminalId);
+  if (!instance) return;
+
+  // Clear any pending inactive timeout
+  const existing = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+  if (existing) clearTimeout(existing);
+
+  // Mark active
+  instance.claudeActive = true;
+
+  // Schedule inactive transition
+  CLAUDE_TIMEOUT_HANDLES.set(
+    terminalId,
+    setTimeout(() => {
+      const inst = ptyInstances.get(terminalId);
+      if (inst) {
+        inst.claudeActive = false;
+      }
+      CLAUDE_TIMEOUT_HANDLES.delete(terminalId);
+    }, CLAUDE_INACTIVE_DELAY)
+  );
 }
 
 interface ShellInfo {
@@ -170,23 +245,28 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     } as Record<string, string>
   });
 
-  // Handle PTY output - send with terminal ID
+  // Handle PTY output - send with terminal ID + detect Claude activity
   ptyProcess.onData((data: string) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
     }
+    detectClaudeOutput(terminalId, data);
   });
 
   // Handle PTY exit
   ptyProcess.onExit(({ exitCode }) => {
     console.log(`Terminal ${terminalId} exited:`, exitCode);
     ptyInstances.delete(terminalId);
+    // Clean up Claude detection state
+    CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+    const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+    if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
     }
   });
 
-  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath });
+  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false });
   console.log(`Created terminal ${terminalId} in ${cwd} (project: ${projectPath || 'global'})`);
 
   return terminalId;
@@ -244,6 +324,10 @@ function destroyTerminal(terminalId: string): void {
   if (instance) {
     instance.pty.kill();
     ptyInstances.delete(terminalId);
+    // Clean up Claude detection state
+    CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+    const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+    if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     console.log(`Destroyed terminal ${terminalId}`);
   }
 }
@@ -257,6 +341,10 @@ function destroyAll(): void {
     console.log(`Destroyed terminal ${terminalId}`);
   }
   ptyInstances.clear();
+  // Clean up all Claude detection state
+  CLAUDE_OUTPUT_BUFFERS.clear();
+  for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
+  CLAUDE_TIMEOUT_HANDLES.clear();
 }
 
 /**
@@ -278,6 +366,14 @@ function getTerminalIds(): string[] {
  */
 function hasTerminal(terminalId: string): boolean {
   return ptyInstances.has(terminalId);
+}
+
+/**
+ * Check if Claude Code is currently active in a terminal
+ */
+function isClaudeActive(terminalId: string): boolean {
+  const instance = ptyInstances.get(terminalId);
+  return instance?.claudeActive ?? false;
 }
 
 /**
@@ -321,10 +417,12 @@ function setupIPC(ipcMain: IpcMain): void {
     destroyTerminal(terminalId);
   });
 
-  // Input to specific terminal
+  // Input to specific terminal — only log prompts when Claude is active
   ipcMain.on(IPC.TERMINAL_INPUT_ID, (_event, { terminalId, data }: { terminalId: string; data: string }) => {
     writeToTerminal(terminalId, data);
-    promptLogger.logInput(data);
+    if (isClaudeActive(terminalId)) {
+      promptLogger.logInput(terminalId, data);
+    }
   });
 
   // Resize specific terminal
@@ -336,6 +434,6 @@ function setupIPC(ipcMain: IpcMain): void {
 export {
   init, createTerminal, writeToTerminal, resizeTerminal,
   destroyTerminal, destroyAll, getTerminalCount, getTerminalIds,
-  hasTerminal, getTerminalsByProject, getTerminalInfo,
+  hasTerminal, isClaudeActive, getTerminalsByProject, getTerminalInfo,
   getAvailableShells, setupIPC
 };

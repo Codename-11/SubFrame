@@ -31,6 +31,7 @@ interface TerminalState {
   activeByProject: Map<string, string>;
   viewMode: ViewMode;
   gridLayout: GridLayout;
+  maximizedTerminalId: string | null;
   setActiveTerminal: (id: string) => void;
   addTerminal: (info: TerminalInfo) => void;
   removeTerminal: (id: string, currentProjectPath?: string) => void;
@@ -39,6 +40,7 @@ interface TerminalState {
   switchToProject: (projectPath: string) => void;
   setViewMode: (mode: ViewMode) => void;
   setGridLayout: (layout: GridLayout) => void;
+  setMaximizedTerminal: (id: string | null) => void;
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -47,6 +49,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   activeByProject: new Map(),
   viewMode: 'tabs',
   gridLayout: loadGridLayout(),
+  maximizedTerminalId: null,
 
   setActiveTerminal: (id) => {
     const info = get().terminals.get(id);
@@ -140,4 +143,5 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     try { localStorage.setItem(GRID_LAYOUT_KEY, layout); } catch { /* ignore */ }
     set({ gridLayout: layout });
   },
+  setMaximizedTerminal: (id) => set({ maximizedTerminalId: id }),
 }));

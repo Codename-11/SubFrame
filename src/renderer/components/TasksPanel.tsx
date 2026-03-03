@@ -14,7 +14,7 @@ import {
   type SortingState,
   type SortingFn,
 } from '@tanstack/react-table';
-import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3 } from 'lucide-react';
+import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X } from 'lucide-react';
 import { TaskTimeline } from './TaskTimeline';
 import { TaskGraph } from './TaskGraph';
 import { TaskKanban } from './TaskKanban';
@@ -38,8 +38,10 @@ import { useTasks } from '../hooks/useTasks';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useUIStore, type StatusFilter } from '../stores/useUIStore';
 import { IPC } from '../../shared/ipcChannels';
-import type { Task } from '../../shared/ipcChannels';
+import type { Task, TaskStep } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const { ipcRenderer } = require('electron');
 
@@ -71,6 +73,111 @@ const CATEGORY_SHORT: Record<string, string> = {
   docs: 'Docs',
   test: 'Test',
   chore: 'Chore',
+};
+
+// ─── Task body ↔ markdown conversion (no frontmatter — metadata stays in form fields) ───
+
+const TASK_TEMPLATE = `Describe what this task accomplishes.
+
+## Steps
+- [ ] First step
+- [ ] Second step
+- [ ] Third step
+
+## Acceptance Criteria
+Define what "done" looks like.
+
+## Notes
+Any additional context or references.`;
+
+function formToMarkdown(
+  description: string,
+  steps: TaskStep[],
+  acceptanceCriteria: string,
+  notes: string,
+): string {
+  const parts: string[] = [];
+  if (description) {
+    parts.push(description);
+    parts.push('');
+  }
+  if (steps.length > 0) {
+    parts.push('## Steps');
+    for (const step of steps) {
+      parts.push(`- [${step.completed ? 'x' : ' '}] ${step.label}`);
+    }
+    parts.push('');
+  }
+  if (acceptanceCriteria) {
+    parts.push('## Acceptance Criteria');
+    parts.push(acceptanceCriteria);
+    parts.push('');
+  }
+  if (notes) {
+    parts.push('## Notes');
+    parts.push(notes);
+    parts.push('');
+  }
+  return parts.join('\n').trimEnd();
+}
+
+function markdownToForm(md: string): {
+  description: string;
+  steps: TaskStep[];
+  acceptanceCriteria: string;
+  notes: string;
+} {
+  const lines = md.split('\n');
+  let currentSection: string | null = null;
+  let currentLines: string[] = [];
+  const descriptionLines: string[] = [];
+  const sections = new Map<string, string>();
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (currentSection) {
+        sections.set(currentSection, currentLines.join('\n').trim());
+      }
+      currentSection = line;
+      currentLines = [];
+    } else if (currentSection) {
+      currentLines.push(line);
+    } else {
+      descriptionLines.push(line);
+    }
+  }
+  if (currentSection) {
+    sections.set(currentSection, currentLines.join('\n').trim());
+  }
+
+  const stepsText = sections.get('## Steps') ?? '';
+  const steps: TaskStep[] = [];
+  const re = /^- \[(x| )\] (.+)$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(stepsText)) !== null) {
+    steps.push({ completed: m[1] === 'x', label: m[2].trim() });
+  }
+
+  return {
+    description: descriptionLines.join('\n').trim(),
+    steps,
+    acceptanceCriteria: sections.get('## Acceptance Criteria') ?? '',
+    notes: sections.get('## Notes') ?? '',
+  };
+}
+
+/** Compact markdown components for inline rendering in task detail rows */
+const taskMdComponents: Record<string, React.ComponentType<any>> = {
+  p: ({ children, ...props }: any) => <p className="text-text-secondary text-xs mb-1.5 leading-relaxed" {...props}>{children}</p>,
+  ul: ({ children, ...props }: any) => <ul className="list-disc pl-4 mb-1.5 text-text-secondary text-xs" {...props}>{children}</ul>,
+  ol: ({ children, ...props }: any) => <ol className="list-decimal pl-4 mb-1.5 text-text-secondary text-xs" {...props}>{children}</ol>,
+  li: ({ children, ...props }: any) => <li className="mb-0.5" {...props}>{children}</li>,
+  strong: ({ children, ...props }: any) => <strong className="text-text-primary font-semibold" {...props}>{children}</strong>,
+  em: ({ children, ...props }: any) => <em className="italic" {...props}>{children}</em>,
+  code: ({ children, ...props }: any) => <code className="bg-bg-tertiary text-accent px-1 py-0.5 rounded text-[11px] font-mono" {...props}>{children}</code>,
+  a: ({ children, href, ...props }: any) => (
+    <a href={href} className="text-info hover:underline" onClick={(e: React.MouseEvent) => { e.preventDefault(); if (href) require('electron').shell.openExternal(href); }} {...props}>{children}</a>
+  ),
 };
 
 function formatDate(iso: string | null | undefined): string {
@@ -278,6 +385,12 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const [formPriority, setFormPriority] = useState<'high' | 'medium' | 'low'>('medium');
   const [formCategory, setFormCategory] = useState('feature');
   const [formStatus, setFormStatus] = useState<'pending' | 'in_progress' | 'completed'>('pending');
+  const [formSteps, setFormSteps] = useState<TaskStep[]>([]);
+  const [formAcceptanceCriteria, setFormAcceptanceCriteria] = useState('');
+  const [formNotes, setFormNotes] = useState('');
+  const [dialogMode, setDialogMode] = useState<'form' | 'markdown'>('form');
+  const [markdownContent, setMarkdownContent] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Stable callbacks — mutation refs are stable from useTasks, so no deps needed
   const handleUpdateStatus = useCallback(
@@ -474,6 +587,12 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormPriority('medium');
     setFormCategory('feature');
     setFormStatus('pending');
+    setFormSteps([]);
+    setFormAcceptanceCriteria('');
+    setFormNotes('');
+    setDialogMode('form');
+    setMarkdownContent('');
+    setShowAdvanced(false);
     setDialogOpen(true);
   }
 
@@ -485,17 +604,41 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormPriority(task.priority);
     setFormCategory(task.category || 'feature');
     setFormStatus(task.status);
+    setFormSteps(task.steps?.map((s) => ({ ...s })) || []);
+    setFormAcceptanceCriteria(task.acceptanceCriteria || '');
+    setFormNotes(task.notes || '');
+    setDialogMode('form');
+    setMarkdownContent('');
+    setShowAdvanced(!!(task.acceptanceCriteria || task.notes));
     setDialogOpen(true);
   }, []);
 
   function handleSubmit() {
     if (!formTitle.trim()) return;
-    const data = {
+
+    // If in markdown mode, parse content back to structured fields
+    let description = formDescription.trim();
+    let steps = formSteps;
+    let acceptanceCriteria = formAcceptanceCriteria.trim();
+    let notes = formNotes.trim();
+
+    if (dialogMode === 'markdown') {
+      const parsed = markdownToForm(markdownContent);
+      description = parsed.description;
+      steps = parsed.steps;
+      acceptanceCriteria = parsed.acceptanceCriteria;
+      notes = parsed.notes;
+    }
+
+    const data: Record<string, unknown> = {
       title: formTitle.trim(),
-      description: formDescription.trim(),
+      description,
       priority: formPriority,
       category: formCategory,
       status: formStatus,
+      steps: steps.filter((s) => s.label.trim()), // Drop empty-label steps
+      acceptanceCriteria: acceptanceCriteria || undefined,
+      notes: notes || undefined,
     };
 
     if (editingTask) {
@@ -506,6 +649,32 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       toast.success('Sub-task created');
     }
     setDialogOpen(false);
+  }
+
+  function handleModeSwitch(mode: 'form' | 'markdown') {
+    if (mode === dialogMode) return;
+    if (mode === 'markdown') {
+      setMarkdownContent(formToMarkdown(formDescription, formSteps, formAcceptanceCriteria, formNotes));
+    } else {
+      const parsed = markdownToForm(markdownContent);
+      setFormDescription(parsed.description);
+      setFormSteps(parsed.steps);
+      setFormAcceptanceCriteria(parsed.acceptanceCriteria);
+      setFormNotes(parsed.notes);
+    }
+    setDialogMode(mode);
+  }
+
+  function handleApplyTemplate() {
+    if (dialogMode === 'markdown') {
+      setMarkdownContent(TASK_TEMPLATE);
+    } else {
+      const parsed = markdownToForm(TASK_TEMPLATE);
+      setFormDescription(parsed.description);
+      setFormSteps(parsed.steps);
+      setFormAcceptanceCriteria(parsed.acceptanceCriteria);
+      setFormNotes(parsed.notes);
+    }
   }
 
   return (
@@ -711,11 +880,53 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-md" aria-describedby={undefined}>
+        <DialogContent
+          className={cn(
+            'bg-bg-primary border-border-subtle text-text-primary',
+            dialogMode === 'markdown' ? 'sm:max-w-2xl' : 'sm:max-w-lg',
+          )}
+          aria-describedby={undefined}
+        >
           <DialogHeader>
-            <DialogTitle>{editingTask ? 'Edit Sub-Task' : 'Add Sub-Task'}</DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle>{editingTask ? 'Edit Sub-Task' : 'Add Sub-Task'}</DialogTitle>
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Template quick-fill (only for new / empty tasks) */}
+                {!editingTask && !formDescription && formSteps.length === 0 && (
+                  <button
+                    onClick={handleApplyTemplate}
+                    className="px-2 py-0.5 text-[11px] text-text-tertiary hover:text-accent border border-border-subtle rounded transition-colors cursor-pointer"
+                  >
+                    From Template
+                  </button>
+                )}
+                {/* Form / Markdown toggle */}
+                <div className="flex bg-bg-deep rounded-md p-0.5 text-[11px]">
+                  <button
+                    onClick={() => handleModeSwitch('form')}
+                    className={cn(
+                      'px-2 py-0.5 rounded transition-colors cursor-pointer',
+                      dialogMode === 'form' ? 'bg-accent/20 text-accent' : 'text-text-tertiary hover:text-text-primary',
+                    )}
+                  >
+                    Form
+                  </button>
+                  <button
+                    onClick={() => handleModeSwitch('markdown')}
+                    className={cn(
+                      'px-2 py-0.5 rounded transition-colors cursor-pointer',
+                      dialogMode === 'markdown' ? 'bg-accent/20 text-accent' : 'text-text-tertiary hover:text-text-primary',
+                    )}
+                  >
+                    Markdown
+                  </button>
+                </div>
+              </div>
+            </div>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+
+          <div className="flex flex-col gap-3 py-2 max-h-[70vh] overflow-y-auto pr-1">
+            {/* Title — always shown */}
             <div>
               <label className="text-xs text-text-secondary mb-1 block">Title</label>
               <Input
@@ -726,16 +937,142 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                 autoFocus
               />
             </div>
-            <div>
-              <label className="text-xs text-text-secondary mb-1 block">Description</label>
-              <textarea
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="Task description"
-                rows={3}
-                className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-2 text-sm text-text-primary resize-none focus:outline-none focus:ring-1 focus:ring-accent"
-              />
-            </div>
+
+            {dialogMode === 'form' ? (
+              <>
+                {/* Description */}
+                <div>
+                  <label className="text-xs text-text-secondary mb-1 block">Description</label>
+                  <textarea
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    placeholder="Task description (supports markdown)"
+                    rows={3}
+                    className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-2 text-sm text-text-primary resize-y focus:outline-none focus:ring-1 focus:ring-accent"
+                  />
+                </div>
+
+                {/* Steps / Checklist editor */}
+                <div>
+                  <label className="text-xs text-text-secondary mb-1 block">Steps / Checklist</label>
+                  {formSteps.length > 0 && (
+                    <div className="flex flex-col gap-1.5 mb-2">
+                      {formSteps.map((step, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={step.completed}
+                            onChange={() => {
+                              const next = formSteps.map((s, idx) => idx === i ? { ...s, completed: !s.completed } : s);
+                              setFormSteps(next);
+                            }}
+                            className="shrink-0 accent-accent cursor-pointer"
+                          />
+                          <Input
+                            value={step.label}
+                            onChange={(e) => {
+                              const next = formSteps.map((s, idx) => idx === i ? { ...s, label: e.target.value } : s);
+                              setFormSteps(next);
+                            }}
+                            placeholder="Step description"
+                            className="bg-bg-deep border-border-subtle text-xs h-7 flex-1"
+                          />
+                          <button
+                            onClick={() => {
+                              if (i === 0) return;
+                              const next = [...formSteps];
+                              [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                              setFormSteps(next);
+                            }}
+                            disabled={i === 0}
+                            className="p-0.5 text-text-tertiary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-default transition-colors"
+                            title="Move up"
+                          >
+                            <ArrowUp size={12} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (i === formSteps.length - 1) return;
+                              const next = [...formSteps];
+                              [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                              setFormSteps(next);
+                            }}
+                            disabled={i === formSteps.length - 1}
+                            className="p-0.5 text-text-tertiary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-default transition-colors"
+                            title="Move down"
+                          >
+                            <ArrowDown size={12} />
+                          </button>
+                          <button
+                            onClick={() => setFormSteps(formSteps.filter((_, idx) => idx !== i))}
+                            className="p-0.5 text-text-tertiary hover:text-red-400 cursor-pointer transition-colors"
+                            title="Remove step"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setFormSteps([...formSteps, { label: '', completed: false }])}
+                    className="flex items-center gap-1 text-xs text-text-tertiary hover:text-accent transition-colors cursor-pointer"
+                  >
+                    <Plus size={12} /> Add step
+                  </button>
+                </div>
+
+                {/* Advanced section — collapsible */}
+                <div>
+                  <button
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
+                  >
+                    {showAdvanced ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    Advanced
+                  </button>
+                  {showAdvanced && (
+                    <div className="flex flex-col gap-3 mt-2 pl-3 border-l border-border-subtle">
+                      <div>
+                        <label className="text-xs text-text-secondary mb-1 block">Acceptance Criteria</label>
+                        <textarea
+                          value={formAcceptanceCriteria}
+                          onChange={(e) => setFormAcceptanceCriteria(e.target.value)}
+                          placeholder="Define what 'done' looks like"
+                          rows={2}
+                          className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-2 text-sm text-text-primary resize-y focus:outline-none focus:ring-1 focus:ring-accent"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-text-secondary mb-1 block">Notes</label>
+                        <textarea
+                          value={formNotes}
+                          onChange={(e) => setFormNotes(e.target.value)}
+                          placeholder="Additional context or references"
+                          rows={2}
+                          className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-2 text-sm text-text-primary resize-y focus:outline-none focus:ring-1 focus:ring-accent"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* Markdown editor mode */
+              <div>
+                <label className="text-xs text-text-secondary mb-1 block">Body (Markdown)</label>
+                <textarea
+                  value={markdownContent}
+                  onChange={(e) => setMarkdownContent(e.target.value)}
+                  placeholder="## Steps\n- [ ] Step one\n\n## Acceptance Criteria\n..."
+                  rows={16}
+                  className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-2 text-xs text-text-primary font-mono resize-y focus:outline-none focus:ring-1 focus:ring-accent leading-relaxed"
+                  spellCheck={false}
+                />
+              </div>
+            )}
+
+            {/* Priority / Category — always shown */}
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="text-xs text-text-secondary mb-1 block">Priority</label>
@@ -780,6 +1117,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
               </div>
             )}
           </div>
+
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDialogOpen(false)} className="cursor-pointer">
               Cancel
@@ -799,20 +1137,26 @@ function TaskDetail({ task, updateTask }: { task: Task; updateTask: { mutate: (v
     <div className="flex flex-col gap-2 text-xs">
       {task.description && (
         <div className="break-words">
-          <span className="text-text-tertiary font-medium">Description: </span>
-          <span className="text-text-secondary">{task.description}</span>
+          <span className="text-text-tertiary font-medium block mb-0.5">Description</span>
+          <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
+            {task.description}
+          </Markdown>
         </div>
       )}
       {task.acceptanceCriteria && (
         <div className="break-words">
-          <span className="text-text-tertiary font-medium">Acceptance Criteria: </span>
-          <span className="text-text-secondary">{task.acceptanceCriteria}</span>
+          <span className="text-text-tertiary font-medium block mb-0.5">Acceptance Criteria</span>
+          <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
+            {task.acceptanceCriteria}
+          </Markdown>
         </div>
       )}
       {task.notes && (
         <div className="break-words">
-          <span className="text-text-tertiary font-medium">Notes: </span>
-          <span className="text-text-secondary">{task.notes}</span>
+          <span className="text-text-tertiary font-medium block mb-0.5">Notes</span>
+          <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
+            {task.notes}
+          </Markdown>
         </div>
       )}
       {task.category && (

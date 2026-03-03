@@ -125,14 +125,15 @@ export function PluginsPanel() {
           </div>
         ) : filteredPlugins.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-1 px-4 text-center">
+            <Puzzle size={24} className="opacity-40" />
             <span>
               {activeFilter === 'all'
-                ? 'No marketplace plugins found'
+                ? 'No plugins found'
                 : `No ${activeFilter} plugins`}
             </span>
             {activeFilter === 'all' && (
               <span className="text-xs opacity-60">
-                MCP servers and global settings are managed in your Claude Code config (~/.claude/)
+                Place plugins in .claude/plugins/ to get started
               </span>
             )}
           </div>

@@ -1,14 +1,14 @@
 ---
 id: task-subtask-enhancements
 title: Sub-Task system enhancements (schema + UI)
-status: pending
+status: completed
 priority: medium
 category: feature
 blockedBy: []
 blocks: []
-createdAt: '2026-03-01T00:00:00Z'
-updatedAt: '2026-03-01T22:56:20.875Z'
-completedAt: null
+createdAt: '2026-03-01T00:00:00.000Z'
+updatedAt: '2026-03-02T23:38:15.612Z'
+completedAt: '2026-03-02T23:38:15.612Z'
 context: Session 2026-02-28 - Sub-Task system discussion and CLAUDE.md improvements
 ---
 Multiple improvements to the Sub-Task system. (1) Schema: Add `blockedBy` / `dependsOn` array fields to the task schema, allowing sub-tasks to reference other sub-task IDs they depend on. Update taskSchema in tasks.json, AGENTS.md, CLAUDE.md, and frameTemplates.js. (2) UI - In-Progress visual distinction: The Sub-Tasks panel should visually distinguish `in_progress` sub-tasks from `pending` — e.g., highlighted border, accent color indicator, or a pulsing dot similar to active sessions. (3) UI - Sort by priority: Sub-tasks should sort by priority (high → medium → low) within each status group, so high-priority items surface first. (4) UI - Blocked indicator: If `blockedBy` is populated and those sub-tasks aren't completed, show a blocked badge/icon on the sub-task card. (5) Schema update in templates: Update frameTemplates.js getTasksTemplate() to include the new fields in taskSchema.

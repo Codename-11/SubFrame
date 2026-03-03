@@ -83,20 +83,28 @@
   --color-ring: rgba(212, 165, 116, 0.3);
 }
 
-/* Subtle scrollbar for dropdowns/panels */
-.scrollbar-thin {
+/* ── Global themed scrollbars ────────────────────────────────────────── */
+/* Thin, warm-neutral scrollbars everywhere. Overridden by scrollbar-none. */
+* {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
 }
-.scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-.scrollbar-thin::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
   background: transparent;
 }
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Green pulse animation for active project dots */

@@ -34,9 +34,9 @@ const STATUS_DOT: Record<AgentSessionStatus, string> = {
 
 function SessionCard({ session }: { session: AgentSession }) {
   return (
-    <div className="bg-bg-secondary rounded-lg border border-border-subtle p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-text-primary truncate">
+    <div className="bg-bg-secondary rounded-lg border border-border-subtle p-3 min-w-0">
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="text-xs font-medium text-text-primary truncate min-w-0">
           {session.agentName || 'Claude'}
         </span>
         <Badge
@@ -47,16 +47,16 @@ function SessionCard({ session }: { session: AgentSession }) {
         </Badge>
       </div>
       {session.currentTool && (
-        <div className="mt-1.5">
-          <span className="bg-accent-subtle text-accent text-[10px] px-1.5 py-0.5 rounded">
+        <div className="mt-1.5 min-w-0">
+          <span className="bg-accent-subtle text-accent text-[10px] px-1.5 py-0.5 rounded truncate inline-block max-w-full">
             {session.currentTool}
           </span>
         </div>
       )}
-      <div className="mt-1.5 text-[10px] text-text-tertiary">
-        {session.steps.length} step{session.steps.length !== 1 ? 's' : ''}
+      <div className="mt-1.5 text-[10px] text-text-tertiary flex items-center min-w-0">
+        <span className="shrink-0">{session.steps.length} step{session.steps.length !== 1 ? 's' : ''}</span>
         {session.currentTask && (
-          <span className="ml-2 text-text-muted truncate">{session.currentTask}</span>
+          <span className="ml-2 text-text-muted truncate min-w-0">{session.currentTask}</span>
         )}
       </div>
     </div>
@@ -80,9 +80,9 @@ function SessionListItem({
         isSelected ? 'bg-bg-hover/50 border-l-2 border-accent' : 'hover:bg-bg-hover/30 border-l-2 border-transparent',
       )}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         <div className={cn('w-2 h-2 rounded-full shrink-0', STATUS_DOT[session.status])} />
-        <span className="text-xs font-medium text-text-primary truncate">
+        <span className="text-xs font-medium text-text-primary truncate min-w-0 flex-1">
           {session.agentName || 'Claude'}
         </span>
         <span className="text-[10px] text-text-muted ml-auto shrink-0">
@@ -90,7 +90,7 @@ function SessionListItem({
         </span>
       </div>
       {session.currentTool && (
-        <div className="mt-0.5 ml-4 text-[10px] text-text-tertiary truncate">
+        <div className="mt-0.5 ml-4 text-[10px] text-text-tertiary truncate min-w-0">
           {session.currentTool}
         </div>
       )}
@@ -103,7 +103,7 @@ function EmptyState() {
     <div className="flex flex-col items-center justify-center h-full gap-2 text-text-tertiary">
       <Activity size={24} className="opacity-40" />
       <span className="text-xs">No active agent sessions</span>
-      <span className="text-[10px] opacity-60">Activity will appear here when an agent is running</span>
+      <span className="text-[10px] opacity-60">Start an AI tool to see agent activity here</span>
     </div>
   );
 }

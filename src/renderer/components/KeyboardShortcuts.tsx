@@ -33,19 +33,22 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     shortcuts: [
       { keys: 'Ctrl+Shift+S', description: 'Sub-Tasks' },
       { keys: 'Ctrl+Shift+A', description: 'Agent Activity' },
-      { keys: 'Ctrl+Shift+P', description: 'Plugins' },
+      { keys: 'Ctrl+Shift+G', description: 'GitHub Issues' },
+      { keys: 'Ctrl+Shift+X', description: 'Plugins' },
       { keys: 'Ctrl+Shift+H', description: 'History' },
     ],
   },
   {
     title: 'Terminal',
     shortcuts: [
+      { keys: 'Ctrl+Shift+Enter', description: 'Start AI tool' },
       { keys: 'Ctrl+Shift+T', description: 'New terminal' },
       { keys: 'Ctrl+Shift+W', description: 'Close terminal' },
       { keys: 'Ctrl+Tab', description: 'Next terminal' },
       { keys: 'Ctrl+Shift+Tab', description: 'Previous terminal' },
       { keys: 'Ctrl+1-9', description: 'Jump to terminal' },
-      { keys: 'Ctrl+Shift+G', description: 'Toggle grid view' },
+      { keys: 'Ctrl+G', description: 'Toggle grid view' },
+      { keys: 'Ctrl+F', description: 'Search in terminal' },
       { keys: 'Ctrl+Shift+O', description: 'Toggle overview' },
       { keys: 'Ctrl+Shift+K', description: 'Toggle tasks full-view' },
     ],
@@ -60,8 +63,12 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
   {
     title: 'Other',
     shortcuts: [
+      { keys: 'Ctrl+/', description: 'Command palette' },
+      { keys: 'Ctrl+Shift+P', description: 'Command palette (alt)' },
+      { keys: 'Ctrl+Shift+L', description: 'Prompt library' },
       { keys: 'Ctrl+,', description: 'Settings' },
-      { keys: 'Ctrl+?', description: 'This help' },
+      { keys: 'Ctrl+Shift+/', description: 'This help' },
+      { keys: 'F11', description: 'Toggle editor fullscreen' },
     ],
   },
 ];

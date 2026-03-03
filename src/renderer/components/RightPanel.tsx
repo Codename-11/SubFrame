@@ -54,7 +54,7 @@ interface PanelDef {
 const ALL_PANELS: Record<PanelId, PanelDef> = {
   tasks:           { id: 'tasks',           label: 'Sub-Tasks',  icon: ListTodo,       shortcut: 'Ctrl+Shift+S' },
   sessions:        { id: 'sessions',        label: 'Sessions',   icon: MessageSquare },
-  plugins:         { id: 'plugins',         label: 'Plugins',    icon: Puzzle,         shortcut: 'Ctrl+Shift+P' },
+  plugins:         { id: 'plugins',         label: 'Plugins',    icon: Puzzle,         shortcut: 'Ctrl+Shift+X' },
   githubIssues:    { id: 'githubIssues',    label: 'Issues',     icon: CircleDot,      shortcut: 'Ctrl+Shift+G' },
   githubPRs:       { id: 'githubPRs',       label: 'PRs',        icon: GitPullRequest },
   githubBranches:  { id: 'githubBranches',  label: 'Branches',   icon: GitBranch },
@@ -120,38 +120,44 @@ export function RightPanel() {
   // ── Collapsed: vertical icon strip showing only current group's icons ───
   if (rightPanelCollapsed) {
     return (
-      <div className="flex flex-col items-center py-2 gap-1 bg-bg-primary h-full w-full border-l border-border-subtle">
-        <button
-          onClick={() => setRightPanelCollapsed(false)}
-          className="p-1.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer mb-1"
-          title="Expand panel"
-        >
-          <ChevronLeft size={14} />
-        </button>
+      <div className="flex flex-col items-center bg-bg-primary h-full w-full border-l border-border-subtle">
+        <div className="flex-shrink-0 py-2 pb-1">
+          <button
+            onClick={() => setRightPanelCollapsed(false)}
+            className="p-1.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+            title="Expand panel"
+            aria-label="Expand panel"
+          >
+            <ChevronLeft size={14} />
+          </button>
+        </div>
 
-        {group.map((panelId) => {
-          const def = ALL_PANELS[panelId];
-          const Icon = def.icon;
-          const isActive = activePanel === panelId;
-          return (
-            <button
-              key={panelId}
-              onClick={() => {
-                setActivePanel(panelId);
-                setRightPanelCollapsed(false);
-              }}
-              className={cn(
-                'p-2 rounded transition-colors cursor-pointer',
-                isActive
-                  ? 'text-accent bg-accent-subtle'
-                  : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
-              )}
-              title={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
-            >
-              <Icon size={16} />
-            </button>
-          );
-        })}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none flex flex-col items-center gap-1 py-1">
+          {group.map((panelId) => {
+            const def = ALL_PANELS[panelId];
+            const Icon = def.icon;
+            const isActive = activePanel === panelId;
+            return (
+              <button
+                key={panelId}
+                onClick={() => {
+                  setActivePanel(panelId);
+                  setRightPanelCollapsed(false);
+                }}
+                className={cn(
+                  'p-2 rounded transition-colors cursor-pointer flex-shrink-0',
+                  isActive
+                    ? 'text-accent bg-accent-subtle'
+                    : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
+                )}
+                title={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+                aria-label={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+              >
+                <Icon size={16} />
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -194,6 +200,7 @@ export function RightPanel() {
             onClick={() => setRightPanelCollapsed(true)}
             className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
             title="Collapse panel"
+            aria-label="Collapse panel"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -201,6 +208,7 @@ export function RightPanel() {
             onClick={closeRightPanel}
             className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
             title="Close panel"
+            aria-label="Close panel"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -213,29 +221,32 @@ export function RightPanel() {
             <span className="text-xs font-semibold text-text-primary">{activeDef.label}</span>
           </div>
         ) : (
-          /* Grouped panel — show group's tab buttons */
-          <div className="flex items-center gap-0.5 flex-1">
-            {group.map((panelId) => {
-              const def = ALL_PANELS[panelId];
-              const Icon = def.icon;
-              const isActive = activePanel === panelId;
-              return (
-                <button
-                  key={panelId}
-                  onClick={() => setActivePanel(panelId)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap cursor-pointer',
-                    isActive
-                      ? 'bg-bg-hover text-accent'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/50'
-                  )}
-                  title={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
-                >
-                  <Icon size={14} />
-                  <span>{def.label}</span>
-                </button>
-              );
-            })}
+          /* Grouped panel — show group's tab buttons (scrollable for large groups) */
+          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-0.5">
+              {group.map((panelId) => {
+                const def = ALL_PANELS[panelId];
+                const Icon = def.icon;
+                const isActive = activePanel === panelId;
+                return (
+                  <button
+                    key={panelId}
+                    onClick={() => setActivePanel(panelId)}
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap cursor-pointer flex-shrink-0',
+                      isActive
+                        ? 'bg-bg-hover text-accent'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/50'
+                    )}
+                    title={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+                    aria-label={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+                  >
+                    <Icon size={13} />
+                    <span>{def.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
