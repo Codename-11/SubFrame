@@ -19,6 +19,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
+import { useAIToolConfig } from '../hooks/useSettings';
 import { typedSend } from '../lib/ipc';
 import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
@@ -86,6 +87,8 @@ export function TerminalArea() {
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
   const toggleFullView = useUIStore((s) => s.toggleFullView);
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
+  const { config: aiToolConfig } = useAIToolConfig();
+  const aiToolName = aiToolConfig?.activeTool.name || 'AI Tool';
   const prevProjectRef = useRef<string | null>(null);
   const hasRestoredInitialRef = useRef(false);
   const terminalCounterRef = useRef(0);
@@ -432,7 +435,7 @@ export function TerminalArea() {
                       : 'bg-bg-elevated text-text-muted border border-border-subtle cursor-not-allowed'
                   }`}
                 >
-                  Start AI
+                  Start {aiToolName}
                 </button>
                 <button
                   onClick={() => createTerminal()}
@@ -449,7 +452,7 @@ export function TerminalArea() {
                   <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
                     Ctrl+Shift+Enter
                   </kbd>
-                  <span className="text-text-tertiary text-left">Start AI Tool</span>
+                  <span className="text-text-tertiary text-left">Start {aiToolName}</span>
 
                   <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
                     Ctrl+Shift+T
