@@ -28,12 +28,15 @@ export interface TerminalInfo {
 interface TerminalState {
   terminals: Map<string, TerminalInfo>;
   activeTerminalId: string | null;
+  activeByProject: Map<string, string>;
   viewMode: ViewMode;
   gridLayout: GridLayout;
   setActiveTerminal: (id: string) => void;
   addTerminal: (info: TerminalInfo) => void;
-  removeTerminal: (id: string) => void;
+  removeTerminal: (id: string, currentProjectPath?: string) => void;
   renameTerminal: (id: string, name: string) => void;
+  reorderTerminals: (orderedIds: string[]) => void;
+  switchToProject: (projectPath: string) => void;
   setViewMode: (mode: ViewMode) => void;
   setGridLayout: (layout: GridLayout) => void;
 }
@@ -41,29 +44,97 @@ interface TerminalState {
 export const useTerminalStore = create<TerminalState>((set, get) => ({
   terminals: new Map(),
   activeTerminalId: null,
+  activeByProject: new Map(),
   viewMode: 'tabs',
   gridLayout: loadGridLayout(),
-  setActiveTerminal: (id) => set({ activeTerminalId: id }),
+
+  setActiveTerminal: (id) => {
+    const info = get().terminals.get(id);
+    const activeByProject = new Map(get().activeByProject);
+    if (info) {
+      activeByProject.set(info.projectPath || '', id);
+    }
+    set({ activeTerminalId: id, activeByProject });
+  },
+
   addTerminal: (info) => {
     const terminals = new Map(get().terminals);
     terminals.set(info.id, { ...info, createdAt: info.createdAt ?? Date.now() });
-    set({ terminals, activeTerminalId: info.id });
+    const activeByProject = new Map(get().activeByProject);
+    activeByProject.set(info.projectPath || '', info.id);
+    set({ terminals, activeTerminalId: info.id, activeByProject });
   },
-  removeTerminal: (id) => {
+
+  removeTerminal: (id, currentProjectPath) => {
     const terminals = new Map(get().terminals);
+    const removed = terminals.get(id);
     terminals.delete(id);
-    const remaining = Array.from(terminals.keys());
-    set({
-      terminals,
-      activeTerminalId: remaining.length > 0 ? remaining[remaining.length - 1] : null,
-    });
+
+    // Scope fallback to same project
+    const projectPath = currentProjectPath ?? removed?.projectPath ?? '';
+    const projectTerminals = Array.from(terminals.values())
+      .filter((t) => (t.projectPath || '') === projectPath)
+      .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
+
+    const newActive = projectTerminals.length > 0
+      ? projectTerminals[projectTerminals.length - 1].id
+      : null;
+
+    const activeByProject = new Map(get().activeByProject);
+    if (newActive) {
+      activeByProject.set(projectPath, newActive);
+    } else {
+      activeByProject.delete(projectPath);
+    }
+
+    set({ terminals, activeTerminalId: newActive, activeByProject });
   },
+
   renameTerminal: (id, name) => {
     const terminals = new Map(get().terminals);
     const info = terminals.get(id);
     if (info) terminals.set(id, { ...info, name });
     set({ terminals });
   },
+
+  reorderTerminals: (orderedIds) => {
+    const terminals = new Map(get().terminals);
+    let timestamp = 1;
+    for (const id of orderedIds) {
+      const info = terminals.get(id);
+      if (info) {
+        terminals.set(id, { ...info, createdAt: timestamp++ });
+      }
+    }
+    set({ terminals });
+  },
+
+  switchToProject: (projectPath) => {
+    const activeByProject = get().activeByProject;
+    const savedId = activeByProject.get(projectPath);
+
+    if (savedId && get().terminals.has(savedId)) {
+      set({ activeTerminalId: savedId });
+    } else {
+      // Fallback: pick the most recent terminal for this project
+      const projectTerminals = Array.from(get().terminals.values())
+        .filter((t) => (t.projectPath || '') === projectPath)
+        .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
+
+      const fallback = projectTerminals.length > 0
+        ? projectTerminals[projectTerminals.length - 1].id
+        : null;
+
+      if (fallback) {
+        const newMap = new Map(activeByProject);
+        newMap.set(projectPath, fallback);
+        set({ activeTerminalId: fallback, activeByProject: newMap });
+      } else {
+        set({ activeTerminalId: null });
+      }
+    }
+  },
+
   setViewMode: (mode) => set({ viewMode: mode }),
   setGridLayout: (layout) => {
     try { localStorage.setItem(GRID_LAYOUT_KEY, layout); } catch { /* ignore */ }

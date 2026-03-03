@@ -2,7 +2,7 @@
  * Terminal area orchestrator.
  * Renders the tab bar and either a single terminal (tabs mode)
  * or the terminal grid (grid mode). Manages terminal creation/destruction
- * via IPC and keyboard shortcuts.
+ * via IPC and keyboard shortcuts. Scopes terminals per-project with hot-swap.
  */
 
 import { useEffect, useCallback, useRef } from 'react';
@@ -77,6 +77,7 @@ export function TerminalArea() {
   const setActiveTerminal = useTerminalStore((s) => s.setActiveTerminal);
   const setViewMode = useTerminalStore((s) => s.setViewMode);
   const renameTerminal = useTerminalStore((s) => s.renameTerminal);
+  const switchToProject = useTerminalStore((s) => s.switchToProject);
 
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
   const togglePanel = useUIStore((s) => s.togglePanel);
@@ -109,13 +110,13 @@ export function TerminalArea() {
     [currentProjectPath]
   );
 
-  // Close terminal helper
+  // Close terminal helper — scoped to current project
   const closeTerminal = useCallback(
     (id: string) => {
-      removeTerminal(id);
+      removeTerminal(id, normalizedPath);
       typedSend(IPC.TERMINAL_DESTROY, id);
     },
-    [removeTerminal]
+    [removeTerminal, normalizedPath]
   );
 
   // Listen for TERMINAL_CREATED from main process
@@ -145,14 +146,14 @@ export function TerminalArea() {
   useEffect(() => {
     const handler = (_event: unknown, data: { terminalId: string }) => {
       if (terminals.has(data.terminalId)) {
-        removeTerminal(data.terminalId);
+        removeTerminal(data.terminalId, normalizedPath);
       }
     };
     ipcRenderer.on(IPC.TERMINAL_DESTROYED, handler);
     return () => {
       ipcRenderer.removeListener(IPC.TERMINAL_DESTROYED, handler);
     };
-  }, [terminals, removeTerminal]);
+  }, [terminals, removeTerminal, normalizedPath]);
 
   // Per-project session save/restore on project switch and initial mount
   useEffect(() => {
@@ -173,15 +174,15 @@ export function TerminalArea() {
         for (const [id, name] of Object.entries(session.terminalNames)) {
           if (terminals.has(id)) renameTerminal(id, name);
         }
-        if (session.activeTerminalId && terminals.has(session.activeTerminalId)) {
-          setActiveTerminal(session.activeTerminalId);
-        }
       }
+
+      // Use switchToProject for O(1) active terminal restoration
+      switchToProject(normalizedPath);
 
       prevProjectRef.current = currentProjectPath;
       hasRestoredInitialRef.current = true;
     }
-  }, [currentProjectPath, terminals, setViewMode, renameTerminal, setActiveTerminal]);
+  }, [currentProjectPath, terminals, setViewMode, renameTerminal, switchToProject, normalizedPath]);
 
   // Auto-create first terminal when project is selected and none exist
   useEffect(() => {
@@ -345,6 +346,7 @@ export function TerminalArea() {
         onCloseTerminal={closeTerminal}
         onOverviewToggle={() => togglePanel('overview')}
         onTogglePanel={(panel) => togglePanel(panel)}
+        projectTerminals={projectTerminals}
       />
 
       <div className="flex-1 min-h-0">
@@ -454,7 +456,7 @@ export function TerminalArea() {
           ) : null
         ) : (
           /* Grid view */
-          <TerminalGrid onCloseTerminal={closeTerminal} />
+          <TerminalGrid onCloseTerminal={closeTerminal} projectTerminals={projectTerminals} />
         )}
       </div>
     </div>

@@ -1,16 +1,24 @@
 /**
  * Custom hook for xterm.js terminal lifecycle.
- * Manages Terminal + FitAddon creation, mounting, auto-fitting via ResizeObserver,
- * and cleanup. Safe under React StrictMode (guards double-mount).
+ * Manages Terminal + FitAddon + renderer addons (WebGL/Canvas) + SearchAddon.
+ * Auto-fits via ResizeObserver. Safe under React StrictMode (guards double-mount).
  */
 
 import { useEffect, useRef } from 'react';
 import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
+import type { SearchAddon } from 'xterm-addon-search';
 
 // CommonJS imports — xterm ships CJS in Electron renderer
 const { Terminal: XTerminal } = require('xterm') as { Terminal: typeof Terminal };
 const { FitAddon: XFitAddon } = require('xterm-addon-fit') as { FitAddon: typeof FitAddon };
+const { SearchAddon: XSearchAddon } = require('xterm-addon-search') as { SearchAddon: typeof SearchAddon };
+
+// Renderer addons — loaded dynamically with fallback chain
+let XWebglAddon: any = null;
+let XCanvasAddon: any = null;
+try { XWebglAddon = require('xterm-addon-webgl').WebglAddon; } catch { /* not available */ }
+try { XCanvasAddon = require('xterm-addon-canvas').CanvasAddon; } catch { /* not available */ }
 
 const TERMINAL_THEME = {
   background: '#0f0f10',
@@ -47,11 +55,13 @@ export interface UseTerminalOptions {
 export interface UseTerminalResult {
   terminalRef: React.MutableRefObject<Terminal | null>;
   fitAddonRef: React.MutableRefObject<FitAddon | null>;
+  searchAddonRef: React.MutableRefObject<SearchAddon | null>;
 }
 
 /**
- * Hook that creates an xterm.js Terminal, opens it in `containerRef`, and auto-fits
- * on container resize. Returns refs to the Terminal and FitAddon for external use.
+ * Hook that creates an xterm.js Terminal, opens it in `containerRef`, loads
+ * GPU-accelerated renderer (WebGL → Canvas → DOM fallback), search addon,
+ * and auto-fits on container resize.
  */
 export function useTerminal(
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -59,6 +69,7 @@ export function useTerminal(
 ): UseTerminalResult {
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const searchAddonRef = useRef<SearchAddon | null>(null);
   const mountedRef = useRef(false);
 
   useEffect(() => {
@@ -66,7 +77,7 @@ export function useTerminal(
     if (!container || mountedRef.current) return;
     mountedRef.current = true;
 
-    // Create terminal + addon
+    // Create terminal + fit addon
     const fitAddon = new XFitAddon();
     const terminal = new XTerminal({
       cursorBlink: true,
@@ -81,6 +92,33 @@ export function useTerminal(
 
     terminal.loadAddon(fitAddon);
     terminal.open(container);
+
+    // Load search addon
+    const searchAddon = new XSearchAddon();
+    terminal.loadAddon(searchAddon);
+    searchAddonRef.current = searchAddon;
+
+    // Load GPU-accelerated renderer: WebGL → Canvas → DOM (default)
+    if (XWebglAddon) {
+      try {
+        const webglAddon = new XWebglAddon();
+        webglAddon.onContextLoss(() => {
+          webglAddon.dispose();
+          // Fallback to Canvas on context loss
+          if (XCanvasAddon) {
+            try { terminal.loadAddon(new XCanvasAddon()); } catch { /* DOM fallback */ }
+          }
+        });
+        terminal.loadAddon(webglAddon);
+      } catch {
+        // WebGL failed, try Canvas
+        if (XCanvasAddon) {
+          try { terminal.loadAddon(new XCanvasAddon()); } catch { /* DOM fallback */ }
+        }
+      }
+    } else if (XCanvasAddon) {
+      try { terminal.loadAddon(new XCanvasAddon()); } catch { /* DOM fallback */ }
+    }
 
     // Initial fit (deferred so container has layout dimensions)
     requestAnimationFrame(() => {
@@ -112,10 +150,11 @@ export function useTerminal(
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
+      searchAddonRef.current = null;
     };
     // Intentionally only run once on mount — options are read once
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { terminalRef, fitAddonRef };
+  return { terminalRef, fitAddonRef, searchAddonRef };
 }

@@ -1,10 +1,11 @@
 /**
  * Terminal tab bar component.
- * Renders tabs for each terminal, shell selector dropdown, view mode toggle,
- * and panel toggle buttons.
+ * Renders animated tabs with drag-to-reorder (Framer Motion), shell selector dropdown,
+ * view mode toggle, and panel toggle buttons.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import {
   Plus,
   X,
@@ -41,7 +42,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
-import { useTerminalStore } from '../stores/useTerminalStore';
+import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore';
 import { useUIStore } from '../stores/useUIStore';
 import { IPC } from '../../shared/ipcChannels';
 import type { ShellInfo } from '../../shared/ipcChannels';
@@ -53,6 +54,7 @@ interface TerminalTabBarProps {
   onCloseTerminal: (id: string) => void;
   onOverviewToggle?: () => void;
   onTogglePanel?: (panel: 'tasks' | 'githubIssues' | 'agentState' | 'overview') => void;
+  projectTerminals: TerminalInfo[];
 }
 
 export function TerminalTabBar({
@@ -60,13 +62,14 @@ export function TerminalTabBar({
   onCloseTerminal,
   onOverviewToggle,
   onTogglePanel,
+  projectTerminals,
 }: TerminalTabBarProps) {
-  const terminals = useTerminalStore((s) => s.terminals);
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const viewMode = useTerminalStore((s) => s.viewMode);
   const setActiveTerminal = useTerminalStore((s) => s.setActiveTerminal);
   const setViewMode = useTerminalStore((s) => s.setViewMode);
   const renameTerminal = useTerminalStore((s) => s.renameTerminal);
+  const reorderTerminals = useTerminalStore((s) => s.reorderTerminals);
   const gridLayout = useTerminalStore((s) => s.gridLayout);
   const setGridLayout = useTerminalStore((s) => s.setGridLayout);
   const toggleFullView = useUIStore((s) => s.toggleFullView);
@@ -133,7 +136,7 @@ export function TerminalTabBar({
 
   useEffect(() => {
     updateScrollState();
-  }, [terminals, updateScrollState]);
+  }, [projectTerminals, updateScrollState]);
 
   useEffect(() => {
     const el = tabScrollRef.current;
@@ -142,9 +145,8 @@ export function TerminalTabBar({
     return () => el.removeEventListener('scroll', updateScrollState);
   }, [updateScrollState]);
 
-  const terminalList = Array.from(terminals.values()).sort(
-    (a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id)
-  );
+  // Use projectTerminals prop directly (already sorted by parent)
+  const terminalList = projectTerminals;
 
   const startRename = useCallback((id: string, currentName: string) => {
     setRenamingId(id);
@@ -160,84 +162,133 @@ export function TerminalTabBar({
     }
   }, [renamingId, renameValue, renameTerminal]);
 
+  const handleReorder = useCallback(
+    (newOrder: TerminalInfo[]) => {
+      reorderTerminals(newOrder.map((t) => t.id));
+    },
+    [reorderTerminals]
+  );
+
   return (
     <div className="flex items-center h-9 bg-bg-secondary border-b border-border-subtle px-1 gap-0.5 flex-shrink-0">
       {/* Tabs */}
       <div className="relative flex-1 min-w-0">
-        {canScrollLeft && (
-          <button
-            onClick={() => tabScrollRef.current?.scrollBy({ left: -150, behavior: 'smooth' })}
-            className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gradient-to-r from-bg-secondary to-transparent z-10 cursor-pointer text-text-secondary hover:text-text-primary"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {canScrollRight && (
-          <button
-            onClick={() => tabScrollRef.current?.scrollBy({ left: 150, behavior: 'smooth' })}
-            className="absolute right-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gradient-to-l from-bg-secondary to-transparent z-10 cursor-pointer text-text-secondary hover:text-text-primary"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-        )}
-      <div ref={tabScrollRef} className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
-        {terminalList.map((t) => (
-          <ContextMenu key={t.id}>
-            <ContextMenuTrigger asChild>
-              <button
-                className={`group flex items-center gap-1.5 px-3 h-7 rounded-md text-xs
-                           whitespace-nowrap transition-colors cursor-pointer select-none
-                           ${
-                             t.id === activeTerminalId
-                               ? 'bg-bg-tertiary text-accent border border-accent/20'
-                               : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover border border-transparent'
-                           }`}
-                onClick={() => setActiveTerminal(t.id)}
-                onDoubleClick={() => startRename(t.id, t.name)}
-              >
-                {renamingId === t.id ? (
-                  <input
-                    ref={renameInputRef}
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onBlur={finishRename}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') finishRename();
-                      if (e.key === 'Escape') {
-                        setRenamingId(null);
-                        setRenameValue('');
-                      }
-                    }}
-                    className="bg-transparent border-none text-xs w-20 text-text-primary focus:ring-1 focus:ring-accent focus:outline-none rounded-sm"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <span className="truncate max-w-[120px]">{t.name}</span>
-                )}
+        <AnimatePresence>
+          {canScrollLeft && (
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => tabScrollRef.current?.scrollBy({ left: -150, behavior: 'smooth' })}
+              className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gradient-to-r from-bg-secondary to-transparent z-10 cursor-pointer text-text-secondary hover:text-text-primary"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {canScrollRight && (
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => tabScrollRef.current?.scrollBy({ left: 150, behavior: 'smooth' })}
+              className="absolute right-0 top-0 bottom-0 w-6 flex items-center justify-center bg-gradient-to-l from-bg-secondary to-transparent z-10 cursor-pointer text-text-secondary hover:text-text-primary"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </motion.button>
+          )}
+        </AnimatePresence>
 
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCloseTerminal(t.id);
-                  }}
-                  className="opacity-40 hover:opacity-100 hover:text-error transition-opacity ml-0.5 cursor-pointer"
-                >
-                  <X className="h-3 w-3" />
-                </span>
-              </button>
-            </ContextMenuTrigger>
+      <Reorder.Group
+        ref={tabScrollRef}
+        axis="x"
+        values={terminalList}
+        onReorder={handleReorder}
+        className="flex items-center gap-0.5 overflow-x-auto scrollbar-none"
+        as="div"
+      >
+        <AnimatePresence initial={false}>
+          {terminalList.map((t) => (
+            <Reorder.Item
+              key={t.id}
+              value={t}
+              as="div"
+              whileDrag={{ scale: 1.03, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 50 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: 'auto' }}
+              exit={{ opacity: 0, width: 0 }}
+            >
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <button
+                    className={`group relative flex items-center gap-1.5 px-3 h-7 rounded-md text-xs
+                               whitespace-nowrap transition-colors cursor-pointer select-none
+                               ${
+                                 t.id === activeTerminalId
+                                   ? 'text-accent'
+                                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+                               }`}
+                    onClick={() => setActiveTerminal(t.id)}
+                    onDoubleClick={() => startRename(t.id, t.name)}
+                  >
+                    {/* Sliding active indicator */}
+                    {t.id === activeTerminalId && (
+                      <motion.div
+                        layoutId="active-tab-indicator"
+                        className="absolute inset-0 bg-bg-tertiary border border-accent/20 rounded-md"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
 
-            <ContextMenuContent className="w-40">
-              <ContextMenuItem onClick={() => startRename(t.id, t.name)}>
-                Rename
-              </ContextMenuItem>
-              <ContextMenuItem onClick={() => onCloseTerminal(t.id)}>
-                Close
-              </ContextMenuItem>
-            </ContextMenuContent>
-          </ContextMenu>
-        ))}
-      </div>
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      {renamingId === t.id ? (
+                        <input
+                          ref={renameInputRef}
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={finishRename}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') finishRename();
+                            if (e.key === 'Escape') {
+                              setRenamingId(null);
+                              setRenameValue('');
+                            }
+                          }}
+                          className="bg-transparent border-none text-xs w-20 text-text-primary focus:ring-1 focus:ring-accent focus:outline-none rounded-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className="truncate max-w-[120px]">{t.name}</span>
+                      )}
+
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCloseTerminal(t.id);
+                        }}
+                        className="opacity-40 hover:opacity-100 hover:text-error transition-opacity ml-0.5 cursor-pointer"
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    </span>
+                  </button>
+                </ContextMenuTrigger>
+
+                <ContextMenuContent className="w-40">
+                  <ContextMenuItem onClick={() => startRename(t.id, t.name)}>
+                    Rename
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => onCloseTerminal(t.id)}>
+                    Close
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
+            </Reorder.Item>
+          ))}
+        </AnimatePresence>
+      </Reorder.Group>
       </div>
 
       {/* Context usage bars — collapsed by default, weekly expands on hover */}
@@ -342,7 +393,7 @@ export function TerminalTabBar({
                            hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer
                            border border-border-subtle bg-bg-tertiary"
               >
-                <span className="tabular-nums">{gridLayout.replace('x', '×')}</span>
+                <span className="tabular-nums">{gridLayout.replace('x', '\u00d7')}</span>
                 <ChevronDown className="h-2.5 w-2.5 opacity-50" />
               </button>
             </DropdownMenuTrigger>
@@ -353,7 +404,7 @@ export function TerminalTabBar({
                   onClick={() => setGridLayout(layout)}
                   className={`text-xs justify-center tabular-nums ${gridLayout === layout ? 'text-accent font-medium' : ''}`}
                 >
-                  {layout.replace('x', '×')}
+                  {layout.replace('x', '\u00d7')}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

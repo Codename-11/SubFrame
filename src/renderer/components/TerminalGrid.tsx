@@ -6,7 +6,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { X, Maximize2 } from 'lucide-react';
 import { Terminal } from './Terminal';
-import { useTerminalStore } from '../stores/useTerminalStore';
+import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore';
 
 const GRID_LAYOUTS: Record<string, { rows: number; cols: number }> = {
   '1x2': { rows: 1, cols: 2 },
@@ -21,10 +21,10 @@ const GRID_LAYOUTS: Record<string, { rows: number; cols: number }> = {
 
 interface TerminalGridProps {
   onCloseTerminal: (id: string) => void;
+  projectTerminals: TerminalInfo[];
 }
 
-export function TerminalGrid({ onCloseTerminal }: TerminalGridProps) {
-  const terminals = useTerminalStore((s) => s.terminals);
+export function TerminalGrid({ onCloseTerminal, projectTerminals }: TerminalGridProps) {
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const gridLayout = useTerminalStore((s) => s.gridLayout);
   const setActiveTerminal = useTerminalStore((s) => s.setActiveTerminal);
@@ -33,10 +33,7 @@ export function TerminalGrid({ onCloseTerminal }: TerminalGridProps) {
   const config = GRID_LAYOUTS[gridLayout] ?? GRID_LAYOUTS['2x2'];
   const maxCells = config.rows * config.cols;
 
-  const terminalList = Array.from(terminals.values()).sort(
-    (a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id)
-  );
-  const visibleTerminals = terminalList.slice(0, maxCells);
+  const visibleTerminals = projectTerminals.slice(0, maxCells);
 
   // Resize handle state — imperative for performance
   const gridRef = useRef<HTMLDivElement>(null);
