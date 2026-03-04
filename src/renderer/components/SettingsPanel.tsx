@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw } from 'lucide-react';
+import { FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink, Github, FileText, Sparkles, Scale, Info } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke } from '../lib/ipc';
@@ -172,6 +172,9 @@ export function SettingsPanel() {
             </TabsTrigger>
             <TabsTrigger value="updates" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
               Updates
+            </TabsTrigger>
+            <TabsTrigger value="about" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
+              About
             </TabsTrigger>
           </TabsList>
 
@@ -768,6 +771,82 @@ export function SettingsPanel() {
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                   Check Now
                 </Button>
+              </div>
+            </TabsContent>
+
+            {/* About tab */}
+            <TabsContent value="about" className="mt-0 space-y-4 px-4 pb-4">
+              {/* App identity */}
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="text-lg font-bold text-text-primary">SubFrame</div>
+                <div className="text-xs text-text-tertiary mt-0.5">Terminal-first IDE for AI coding tools</div>
+                <div className="flex items-center gap-2 mt-2.5">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-bg-tertiary text-accent px-2 py-0.5 rounded-full">
+                    v{APP_VERSION}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-bg-tertiary text-text-secondary px-2 py-0.5 rounded-full">
+                    <Scale className="w-2.5 h-2.5" />
+                    BUSL-1.1
+                  </span>
+                </div>
+              </div>
+
+              {/* Links group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Links</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-0.5">
+                <button
+                  className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
+                  onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame')}
+                >
+                  <Github className="w-4 h-4 text-text-tertiary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-text-primary">GitHub</div>
+                    <div className="text-xs text-text-tertiary">View source code and documentation</div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                </button>
+
+                <button
+                  className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
+                  onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/issues')}
+                >
+                  <Info className="w-4 h-4 text-text-tertiary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-text-primary">Report Issue</div>
+                    <div className="text-xs text-text-tertiary">File a bug report or feature request</div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                </button>
+
+                <button
+                  className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
+                  onClick={() => {
+                    setSettingsOpen(false);
+                    setTimeout(() => window.dispatchEvent(new Event('open-whats-new')), 200);
+                  }}
+                >
+                  <Sparkles className="w-4 h-4 text-text-tertiary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-text-primary">What&apos;s New</div>
+                    <div className="text-xs text-text-tertiary">View release notes for the current version</div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Changelog */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Changelog</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3">
+                <button
+                  className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
+                  onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/blob/main/.subframe/docs-internal/changelog.md')}
+                >
+                  <FileText className="w-4 h-4 text-text-tertiary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-text-primary">View Changelog</div>
+                    <div className="text-xs text-text-tertiary">Full history of changes and releases</div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                </button>
               </div>
             </TabsContent>
           </ScrollArea>

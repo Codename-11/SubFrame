@@ -25,15 +25,19 @@ const { ipcRenderer, clipboard } = require('electron');
 function stripAnsi(str: string): string {
   return str
     // eslint-disable-next-line no-control-regex
-    .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')  // CSI sequences
+    .replace(/\x1b\[[?=!>]?[0-9;]*[a-zA-Z~]/g, '')  // CSI sequences (including DEC private mode)
     // eslint-disable-next-line no-control-regex
-    .replace(/\x1b\][^\x07]*\x07/g, '')       // OSC sequences
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '') // OSC sequences (BEL or ST terminated)
     // eslint-disable-next-line no-control-regex
     .replace(/\x1b[()][AB012]/g, '')           // Character set sequences
+    // eslint-disable-next-line no-control-regex
+    .replace(/\x1b[78DEHM]/g, '')              // Single-char escape sequences (save/restore cursor, etc.)
+    // eslint-disable-next-line no-control-regex
+    .replace(/\x1b\[[\d;]*[ -/]*[@-~]/g, '')  // Catch-all CSI (handles any remaining)
     .replace(/\r/g, '');
 }
 
-const OUTPUT_BUFFER_MAX = 2048;
+const OUTPUT_BUFFER_MAX = 4096;
 
 interface TerminalProps {
   terminalId: string;
@@ -77,10 +81,10 @@ export function Terminal({ terminalId, className }: TerminalProps) {
           outputBufferRef.current = outputBufferRef.current.slice(-OUTPUT_BUFFER_MAX);
         }
 
-        // Extract last 3 non-empty lines
+        // Extract last 5 non-empty lines
         const clean = stripAnsi(outputBufferRef.current);
         const lines = clean.split('\n').filter((l) => l.trim().length > 0);
-        setRecentOutput(lines.slice(-3));
+        setRecentOutput(lines.slice(-5));
       }
     };
     ipcRenderer.on(IPC.TERMINAL_OUTPUT_ID, handler);
@@ -399,7 +403,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
                            rounded-full bg-bg-elevated border border-border-subtle
                            text-text-secondary hover:text-accent hover:border-accent/60
                            transition-all shadow-lg cursor-pointer
-                           ${recentOutput.length > 0 ? 'bottom-20' : 'bottom-4'}`}
+                           ${recentOutput.length > 0 ? 'bottom-24' : 'bottom-4'}`}
                 title="Scroll to bottom"
               >
                 <ArrowDown className="h-4 w-4" />
