@@ -31,6 +31,7 @@ import * as aiFilesManager from './aiFilesManager';
 import * as agentStateManager from './agentStateManager';
 import * as skillsManager from './skillsManager';
 import * as promptsManager from './promptsManager';
+import * as onboardingManager from './onboardingManager';
 import * as updaterManager from './updaterManager';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
@@ -286,6 +287,7 @@ function setupAllIPC(): void {
   agentStateManager.setupIPC(ipcMain);
   skillsManager.setupIPC(ipcMain);
   promptsManager.setupIPC(ipcMain);
+  onboardingManager.setupIPC(ipcMain);
   // Note: updaterManager.setupIPC() is called inside updaterManager.init()
   // because it needs app.isPackaged to be set first
 
@@ -336,6 +338,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   claudeSessionsManager.init(window);
   aiFilesManager.init(window);
   agentStateManager.init(window);
+  onboardingManager.init(window);
   updaterManager.init(window, app);
 }
 

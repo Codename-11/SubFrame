@@ -3,7 +3,7 @@
  * Panels are grouped: solo panels show a title header, grouped panels show
  * only their group's tabs. Terminal bar buttons map to groups:
  *   - Sub-Tasks → solo
- *   - Agent → activity, sessions, history, plugins, skills (tabbed)
+ *   - Agent → activity, sessions, history, prompts, skills, plugins (tabbed)
  *   - GitHub → issues, PRs, branches, worktrees (tabbed)
  *   - Overview → full-view (handled by TerminalArea, not here)
  */
@@ -23,6 +23,7 @@ import {
   Heart,
   Activity,
   Zap,
+  BookMarked,
   X,
   ChevronLeft,
   ChevronRight,
@@ -40,8 +41,9 @@ import { AIFilesPanel } from './AIFilesPanel';
 import { SubFrameHealthPanel } from './SubFrameHealthPanel';
 import { AgentStateView } from './AgentStateView';
 import { SkillsPanel } from './SkillsPanel';
+import { PromptsPanel } from './PromptsPanel';
 
-type PanelId = 'tasks' | 'sessions' | 'plugins' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills';
+type PanelId = 'tasks' | 'sessions' | 'plugins' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts';
 
 interface PanelDef {
   id: PanelId;
@@ -65,6 +67,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   history:         { id: 'history',         label: 'History',    icon: Clock,          shortcut: 'Ctrl+Shift+H' },
   agentState:      { id: 'agentState',      label: 'Activity',   icon: Activity,       shortcut: 'Ctrl+Shift+A' },
   skills:          { id: 'skills',          label: 'Skills',     icon: Zap },
+  prompts:         { id: 'prompts',         label: 'Prompts',    icon: BookMarked,     shortcut: 'Ctrl+Shift+L' },
 };
 
 /**
@@ -74,7 +77,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
  */
 const PANEL_GROUPS: PanelId[][] = [
   ['tasks'],                                                              // Solo — Sub-Tasks
-  ['agentState', 'sessions', 'history', 'plugins', 'skills'],              // Group — Agent hub
+  ['agentState', 'sessions', 'history', 'prompts', 'skills', 'plugins'],    // Group — Agent hub
   ['githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees'],    // Group — GitHub hub
   ['overview'],                                                           // Solo — Overview
   ['aiFiles'],                                                            // Solo — AI Files
@@ -100,6 +103,7 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   subframeHealth: SubFrameHealthPanel,
   agentState: AgentStateView,
   skills: SkillsPanel,
+  prompts: PromptsPanel,
 };
 
 export function RightPanel() {

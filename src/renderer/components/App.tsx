@@ -9,10 +9,13 @@ import { CommandPalette } from './CommandPalette';
 import { PromptLibrary } from './PromptLibrary';
 import { WhatsNew } from './WhatsNew';
 import { UpdateNotification } from './UpdateNotification';
+import { OnboardingDialog } from './OnboardingDialog';
 import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useOnboarding } from '../hooks/useOnboarding';
+import { useAIToolConfig } from '../hooks/useSettings';
 
 /**
  * Root application layout.
@@ -34,7 +37,10 @@ export function App() {
   const editorFilePath = useUIStore((s) => s.editorFilePath);
   const setEditorFilePath = useUIStore((s) => s.setEditorFilePath);
   const requestSidebarFocus = useUIStore((s) => s.requestSidebarFocus);
+  const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
   const selectAdjacentProject = useProjectStore((s) => s.selectAdjacentProject);
+  const onboarding = useOnboarding();
+  const { config: aiToolConfig } = useAIToolConfig();
 
   // Keyboard shortcuts — matching original src/renderer/index.js
   const handleKeyDown = useCallback(
@@ -212,6 +218,31 @@ export function App() {
 
       {/* Auto-updater notification (side-effect only, renders null) */}
       <UpdateNotification />
+
+      {/* Onboarding dialog for project intelligence */}
+      <OnboardingDialog
+        open={onboarding.detection !== null}
+        onOpenChange={(open) => { if (!open) onboarding.reset(); }}
+        detection={onboarding.detection}
+        analysisResult={onboarding.analysisResult}
+        progress={onboarding.progress}
+        terminalId={onboarding.terminalId}
+        isAnalyzing={onboarding.isAnalyzing}
+        error={onboarding.error}
+        aiToolName={aiToolConfig?.activeTool.name || 'Claude Code'}
+        onAnalyze={() => { if (currentProjectPath) onboarding.analyze(currentProjectPath); }}
+        onImport={(selections) => {
+          if (currentProjectPath && onboarding.analysisResult) {
+            onboarding.importResults(currentProjectPath, onboarding.analysisResult, selections);
+          }
+        }}
+        onCancel={() => { if (currentProjectPath) onboarding.cancel(currentProjectPath); }}
+        onViewTerminal={() => {
+          if (onboarding.terminalId) {
+            useUIStore.getState().setActivePanel(null);
+          }
+        }}
+      />
     </div>
   );
 }
