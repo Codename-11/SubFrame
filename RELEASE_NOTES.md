@@ -1,54 +1,59 @@
-# SubFrame v0.1.0-beta.2
+# SubFrame v0.1.0-beta.3
 
 ## Highlights
 
-- **Terminal Grid UX** — Keyboard shortcuts, resize persistence, and maximize-in-place
-- **Command Palette** — Quick access to all actions via `Ctrl+/` or `Ctrl+Shift+P`
-- **Onboarding & Prompt Library** — First-run experience and reusable prompt management
-- **Auto-Updater** — Electron auto-update with toast notifications
-- **Keyboard Shortcut Audit** — VS Code-aligned shortcuts throughout
+- **Expanded Settings** — Terminal, Editor, and Updates tabs with live runtime application
+- **Git Changes Tab** — See staged/modified/untracked files at a glance in the GitHub hub
+- **Enhanced Prompts** — Inline editing, tag filtering, sort modes, keyboard navigation
+- **File & View Menus** — Standard Electron menu bar with keyboard shortcuts
+- **Terminal Persistence** — Workspace-scoped terminal layout saved per-project
 
 ## New Features
 
-### Terminal Grid Improvements
-- `Ctrl+G` to toggle between grid and tab view
-- Grid resize persistence — custom column/row sizes saved per layout, restored on switch
-- Maximize-in-place — click Focus button or double-click header to expand a cell full-size; `Esc` to restore
-- Wider resize handles (4px) with visible hover indicator lines
-- "Next Grid Layout" / "Previous Grid Layout" commands in command palette
+### Expanded Settings Panel
+- **Terminal tab**: Font family, line height, cursor blink/style, default shell, bell sound, copy-on-select
+- **Editor tab**: Font size/family, tab size, theme selector, word wrap, minimap, line numbers, bracket matching
+- **Updates tab**: Auto-check toggle, pre-release channel (auto/always/never), check interval, manual check
 
-### Command Palette (`Ctrl+/` or `Ctrl+Shift+P`)
-- Searchable command list for panels, views, terminal actions, sidebar, navigation, and settings
-- Keyboard shortcut hints shown inline
+### Git Changes Tab
+- New "Changes" tab (first in GitHub hub) shows working tree status
+- Files grouped by Staged (green), Modified (amber), Untracked (gray)
+- Collapsible sections with file counts and colored status badges
+- Summary bar: `+N staged ~N modified ?N untracked`
 
-### Prompt Library (`Ctrl+Shift+L`)
-- Save, organize, and reuse prompts across sessions
-- Quick-insert into active terminal
+### Enhanced Prompts Panel
+- Inline expand-in-place editing (replaces modal dialog)
+- Tag-click filtering with filter bar and sort modes (usage/updated/alpha)
+- Collapsible categories with batch rename
+- Template variable highlighting and insert buttons
+- Keyboard navigation (arrow keys, Enter to insert, `e` to edit)
 
-### Onboarding Dialog
-- First-run setup wizard for new users
-- Project initialization guidance
+### File & View Menus
+- File: New/Close Terminal, Open Project, Settings (`Ctrl+,`), Exit
+- View: Toggle Sidebar (`Ctrl+B`), Toggle Right Panel, Reset Layout, zoom, fullscreen
 
-### What's New Panel
-- In-app changelog viewer for tracking new features
+### Workspace-Scoped Terminal State
+- Layout (grid, tab order, maximized state) persists per-project
+- Claude session names auto-detected for terminal tabs
+- Right-click "Refresh Name" / "Reset Name" context menu items
 
-### Auto-Updater
-- Electron auto-update integration with non-intrusive toast notifications
+### Enhanced Task CLI (`task.js get`)
+- ANSI colors, word-wrapped sections, progress bars, relative timestamps
+- Resolved dependency titles and contextual action hints
+- New flags: `--json`, `--changes` (timeline view), `--no-color`
 
-## Keyboard Shortcut Changes
+## Bug Fixes
 
-| Before | After | Action |
-|--------|-------|--------|
-| — | `Ctrl+G` | Toggle grid view |
-| — | `Ctrl+Shift+P` | Command palette (VS Code alias) |
-| `Ctrl+Shift+P` | `Ctrl+Shift+X` | Plugins panel (VS Code Extensions alignment) |
+- Fixed false-positive success toasts across 10+ components
+- Fixed `ipcRenderer.on` leak in Sidebar (now uses `.once`)
+- Fixed stale closures in terminal DESTROYED handler and closeTerminal callback
+- Added 5s safety timeout on terminal creation guard
+- Fixed `relativeTime` producing "NaNy ago" for invalid dates in task CLI
 
-## Improvements
+## Documentation
 
-- Warp-style terminal UX with GPU rendering and animated tabs
-- Enhanced project health checks and AGENTS.md template versioning
-- Improved hooks, skills, and task tracking system
-- Updated documentation site with guides and accessibility fixes
+- Pipeline system ADR (007) with architecture design
+- 5 pipeline implementation sub-tasks planned
 
 ## Quality
 
