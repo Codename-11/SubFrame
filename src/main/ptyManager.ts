@@ -10,6 +10,7 @@ import { execSync } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import * as promptLogger from './promptLogger';
+import { getSetting } from './settingsManager';
 
 interface PTYInstance {
   pty: IPty;
@@ -218,7 +219,8 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
 
   const terminalId = `term-${++terminalCounter}`;
   const cwd = workingDir || process.env.HOME || process.env.USERPROFILE || '';
-  const shell = shellPath || getDefaultShell();
+  const configuredShell = (getSetting('terminal.defaultShell') as string) || '';
+  const shell = shellPath || configuredShell || getDefaultShell();
 
   // Determine shell arguments based on shell type
   let shellArgs: string[] = [];
