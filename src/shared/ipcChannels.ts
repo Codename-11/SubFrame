@@ -78,6 +78,7 @@ export const IPC = {
   GET_AVAILABLE_SHELLS: 'get-available-shells',
   AVAILABLE_SHELLS_DATA: 'available-shells-data',
   CLAUDE_ACTIVE_STATUS: 'claude-active-status',
+  GET_TERMINAL_SESSION_NAME: 'get-terminal-session-name',
 
   // Tasks Panel
   LOAD_TASKS: 'load-tasks',
@@ -204,6 +205,14 @@ export const IPC = {
   UPDATER_DOWNLOAD: 'updater-download',
   UPDATER_INSTALL: 'updater-install',
   UPDATER_PROGRESS: 'updater-progress',
+
+  // Menu Actions (main → renderer)
+  MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
+  MENU_TOGGLE_RIGHT_PANEL: 'menu-toggle-right-panel',
+  MENU_RESET_LAYOUT: 'menu-reset-layout',
+  MENU_CLOSE_TERMINAL: 'menu-close-terminal',
+  MENU_OPEN_SETTINGS: 'menu-open-settings',
+  MENU_NEW_TERMINAL: 'menu-new-terminal',
 } as const;
 
 export type IPCChannel = (typeof IPC)[keyof typeof IPC];
@@ -776,6 +785,9 @@ export interface IPCHandleMap {
   [IPC.DELETE_CLAUDE_SESSION]: { args: [payload: { projectPath: string; sessionId: string; slug: string }]; return: boolean };
   [IPC.DELETE_ALL_CLAUDE_SESSIONS]: { args: [projectPath: string]; return: { deleted: number } };
 
+  // Terminal Session Name
+  [IPC.GET_TERMINAL_SESSION_NAME]: { args: [payload: { terminalId: string }]; return: { name: string | null } };
+
   // Skills
   [IPC.LOAD_SKILLS]: { args: [projectPath: string]; return: SkillInfo[] };
 
@@ -939,6 +951,14 @@ export interface IPCEventMap {
   // Auto-Updater
   [IPC.UPDATER_STATUS]: UpdaterStatus;
   [IPC.UPDATER_PROGRESS]: UpdaterProgress;
+
+  // Menu Actions
+  [IPC.MENU_TOGGLE_SIDEBAR]: void;
+  [IPC.MENU_TOGGLE_RIGHT_PANEL]: void;
+  [IPC.MENU_RESET_LAYOUT]: void;
+  [IPC.MENU_CLOSE_TERMINAL]: void;
+  [IPC.MENU_OPEN_SETTINGS]: void;
+  [IPC.MENU_NEW_TERMINAL]: void;
 }
 
 // ─── CommonJS compat (keep old require('...ipcChannels') working) ────────────

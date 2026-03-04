@@ -72,6 +72,10 @@ export interface TerminalOptions {
   fontFamily?: string;
   scrollback?: number;
   lineHeight?: number;
+  cursorBlink?: boolean;
+  cursorStyle?: 'block' | 'underline' | 'bar';
+  bellSound?: boolean;
+  copyOnSelect?: boolean;
 }
 
 interface RegistryEntry extends TerminalInstance {
@@ -138,7 +142,8 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
   const fitAddon = new XFitAddon();
   const searchAddon = new XSearchAddon();
   const terminal = new XTerminal({
-    cursorBlink: true,
+    cursorBlink: options?.cursorBlink ?? true,
+    cursorStyle: options?.cursorStyle ?? 'bar',
     fontSize: options?.fontSize ?? 14,
     fontFamily: options?.fontFamily ?? "'JetBrains Mono', 'SF Mono', Consolas, monospace",
     theme: TERMINAL_THEME,
@@ -149,6 +154,21 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
   });
 
   terminal.loadAddon(fitAddon);
+
+  // Bell sound — suppress by consuming the onBell event
+  if (options?.bellSound === false) {
+    terminal.onBell(() => { /* suppressed */ });
+  }
+
+  // Copy on select
+  if (options?.copyOnSelect) {
+    terminal.onSelectionChange(() => {
+      const selection = terminal.getSelection();
+      if (selection) {
+        navigator.clipboard.writeText(selection).catch(() => {});
+      }
+    });
+  }
 
   // Open into a persistent holder div (off-screen until attached)
   const holderDiv = document.createElement('div');

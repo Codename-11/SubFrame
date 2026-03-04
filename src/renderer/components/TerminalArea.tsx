@@ -25,6 +25,7 @@ import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import * as terminalRegistry from '../lib/terminalRegistry';
 import { getLogoSVG } from '../../shared/logoSVG';
+import { toast } from 'sonner';
 
 const { ipcRenderer } = require('electron');
 
@@ -36,19 +37,32 @@ interface SessionData {
   viewMode: 'tabs' | 'grid';
   activeTerminalId: string | null;
   terminalNames: Record<string, string>;
+  gridLayout?: string;
+  tabOrder?: string[];
+  maximizedTerminalId?: string | null;
 }
 
 function saveSession(projectPath: string | null, store: ReturnType<typeof useTerminalStore.getState>) {
   const key = projectPath ?? GLOBAL_PROJECT;
+  const normalizedPath = projectPath ?? '';
   const terminals = Array.from(store.terminals.values()).filter(
-    (t) => t.projectPath === projectPath
+    (t) => (t.projectPath || '') === normalizedPath
   );
-  if (terminals.length === 0) return;
+  // Capture tab order: terminal IDs sorted by current display order (createdAt)
+  const tabOrder = [...terminals]
+    .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id))
+    .map((t) => t.id);
 
+  // Save even when terminals.length === 0 so stale session data gets cleared
   const data: SessionData = {
     viewMode: store.viewMode,
-    activeTerminalId: store.activeTerminalId,
+    activeTerminalId: terminals.length > 0
+      ? (store.activeByProject.get(normalizedPath) ?? store.activeTerminalId)
+      : null,
     terminalNames: Object.fromEntries(terminals.map((t) => [t.id, t.name])),
+    gridLayout: store.gridLayout,
+    tabOrder,
+    maximizedTerminalId: terminals.length > 0 ? store.maximizedTerminalId : null,
   };
 
   try {
@@ -99,12 +113,22 @@ export function TerminalArea() {
     .filter((t) => (t.projectPath || '') === normalizedPath)
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
 
-  // Create terminal helper (ref guard prevents double-clicks)
+  // Create terminal helper (ref guard prevents double-clicks, with safety timeout)
   const creatingTerminal = useRef(false);
   const createTerminal = useCallback(
     (shell?: string) => {
       if (creatingTerminal.current) return;
       creatingTerminal.current = true;
+
+      // Safety timeout — if IPC reply is missed (e.g. listener removed during re-render),
+      // reset the guard so the user isn't permanently locked out.
+      const safetyTimeout = setTimeout(() => {
+        if (creatingTerminal.current) {
+          creatingTerminal.current = false;
+        }
+      }, 5000);
+      (creatingTerminal as any)._safetyTimeout = safetyTimeout;
+
       typedSend(IPC.TERMINAL_CREATE, {
         projectPath: currentProjectPath ?? undefined,
         shell: shell ?? undefined,
@@ -114,14 +138,15 @@ export function TerminalArea() {
     [currentProjectPath]
   );
 
-  // Close terminal helper — scoped to current project
+  // Close terminal helper — reads current project path from store to avoid stale closures
   const closeTerminal = useCallback(
     (id: string) => {
+      const currentPath = useProjectStore.getState().currentProjectPath ?? '';
       terminalRegistry.dispose(id);
-      removeTerminal(id, normalizedPath);
+      removeTerminal(id, currentPath);
       typedSend(IPC.TERMINAL_DESTROY, id);
     },
-    [removeTerminal, normalizedPath]
+    [removeTerminal]
   );
 
   // Listen for TERMINAL_CREATED from main process
@@ -130,7 +155,10 @@ export function TerminalArea() {
       _event: unknown,
       data: { terminalId?: string; success: boolean; error?: string }
     ) => {
+      // Clear safety timeout and guard
+      clearTimeout((creatingTerminal as any)._safetyTimeout);
       creatingTerminal.current = false;
+
       if (data.success && data.terminalId) {
         terminalCounterRef.current += 1;
         addTerminal({
@@ -139,6 +167,8 @@ export function TerminalArea() {
           projectPath: currentProjectPath ?? '',
           isActive: true,
         });
+      } else if (data.error) {
+        toast.error(`Failed to create terminal: ${data.error}`);
       }
     };
     ipcRenderer.on(IPC.TERMINAL_CREATED, handler);
@@ -150,16 +180,28 @@ export function TerminalArea() {
   // Listen for TERMINAL_DESTROYED from main process
   useEffect(() => {
     const handler = (_event: unknown, data: { terminalId: string }) => {
-      if (terminals.has(data.terminalId)) {
+      const store = useTerminalStore.getState();
+      if (store.terminals.has(data.terminalId)) {
+        const currentPath = useProjectStore.getState().currentProjectPath ?? '';
         terminalRegistry.dispose(data.terminalId);
-        removeTerminal(data.terminalId, normalizedPath);
+        removeTerminal(data.terminalId, currentPath);
       }
     };
     ipcRenderer.on(IPC.TERMINAL_DESTROYED, handler);
     return () => {
       ipcRenderer.removeListener(IPC.TERMINAL_DESTROYED, handler);
     };
-  }, [terminals, removeTerminal, normalizedPath]);
+  }, [removeTerminal]);
+
+  // Listen for menu-triggered close (dispatched from App.tsx menu handler)
+  useEffect(() => {
+    const handler = () => {
+      const { activeTerminalId } = useTerminalStore.getState();
+      if (activeTerminalId) closeTerminal(activeTerminalId);
+    };
+    window.addEventListener('menu-close-terminal', handler);
+    return () => window.removeEventListener('menu-close-terminal', handler);
+  }, [closeTerminal]);
 
   // Per-project session save/restore on project switch and initial mount
   useEffect(() => {
@@ -178,7 +220,33 @@ export function TerminalArea() {
         if (session.viewMode) setViewMode(session.viewMode);
         // Restore names for any terminals that already exist
         for (const [id, name] of Object.entries(session.terminalNames)) {
-          if (terminals.has(id)) renameTerminal(id, name);
+          if (terminals.has(id)) renameTerminal(id, name, 'session');
+        }
+        // Gap 2: Restore per-project grid layout
+        if (session.gridLayout) {
+          useTerminalStore.getState().setGridLayout(session.gridLayout as any);
+        }
+        // Gap 3: Restore tab order by updating createdAt timestamps
+        if (session.tabOrder && session.tabOrder.length > 0) {
+          const store = useTerminalStore.getState();
+          // Only reorder IDs that still exist
+          const validIds = session.tabOrder.filter((id) => store.terminals.has(id));
+          if (validIds.length > 0) {
+            store.reorderTerminals(validIds);
+          }
+        }
+        // Gap 4: Populate activeByProject from saved activeTerminalId
+        if (session.activeTerminalId && terminals.has(session.activeTerminalId)) {
+          const store = useTerminalStore.getState();
+          const abp = new Map(store.activeByProject);
+          abp.set(normalizedPath, session.activeTerminalId);
+          useTerminalStore.setState({ activeByProject: abp });
+        }
+        // Gap 5: Restore maximized terminal state
+        if (session.maximizedTerminalId && terminals.has(session.maximizedTerminalId)) {
+          useTerminalStore.getState().setMaximizedTerminal(session.maximizedTerminalId);
+        } else {
+          useTerminalStore.getState().setMaximizedTerminal(null);
         }
       }
 
@@ -256,7 +324,13 @@ export function TerminalArea() {
         let nextIdx = currentIdx + direction;
         if (nextIdx < 0) nextIdx = projectTerminals.length - 1;
         if (nextIdx >= projectTerminals.length) nextIdx = 0;
-        setActiveTerminal(projectTerminals[nextIdx].id);
+        const nextId = projectTerminals[nextIdx].id;
+        setActiveTerminal(nextId);
+        // Ensure focus reaches the new terminal after React re-renders and DOM reattaches
+        setTimeout(() => {
+          const instance = terminalRegistry.get(nextId);
+          if (instance) instance.terminal.focus();
+        }, 50);
         return;
       }
 
@@ -265,7 +339,13 @@ export function TerminalArea() {
         e.preventDefault();
         const idx = parseInt(e.key) - 1;
         if (idx < projectTerminals.length) {
-          setActiveTerminal(projectTerminals[idx].id);
+          const targetId = projectTerminals[idx].id;
+          setActiveTerminal(targetId);
+          // Ensure focus reaches the target terminal after React re-renders
+          setTimeout(() => {
+            const instance = terminalRegistry.get(targetId);
+            if (instance) instance.terminal.focus();
+          }, 50);
         }
         return;
       }

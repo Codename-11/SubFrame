@@ -17,6 +17,7 @@ import {
 import { useTerminal } from '../hooks/useTerminal';
 import { typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
+import { useSettings } from '../hooks/useSettings';
 
 const { ipcRenderer, clipboard } = require('electron');
 
@@ -41,7 +42,19 @@ interface TerminalProps {
 
 export function Terminal({ terminalId, className }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { terminalRef, fitAddonRef, searchAddonRef } = useTerminal(containerRef, terminalId);
+  const { settings } = useSettings();
+  const terminalSettings = (settings?.terminal as Record<string, unknown>) || {};
+
+  const { terminalRef, fitAddonRef, searchAddonRef } = useTerminal(containerRef, terminalId, {
+    fontSize: (terminalSettings.fontSize as number) || 14,
+    fontFamily: (terminalSettings.fontFamily as string) || undefined,
+    scrollback: (terminalSettings.scrollback as number) || 10000,
+    lineHeight: (terminalSettings.lineHeight as number) || undefined,
+    cursorBlink: terminalSettings.cursorBlink as boolean,
+    cursorStyle: terminalSettings.cursorStyle as 'block' | 'underline' | 'bar',
+    bellSound: terminalSettings.bellSound as boolean,
+    copyOnSelect: terminalSettings.copyOnSelect as boolean,
+  });
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   // Live output overlay state
