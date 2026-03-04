@@ -14,8 +14,12 @@ import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
+
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useAIToolConfig } from '../hooks/useSettings';
+import { IPC } from '../../shared/ipcChannels';
+
+const { ipcRenderer } = require('electron');
 
 /**
  * Root application layout.
@@ -26,7 +30,6 @@ export function App() {
   const sidebarState = useUIStore((s) => s.sidebarState);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const setSidebarState = useUIStore((s) => s.setSidebarState);
   const activePanel = useUIStore((s) => s.activePanel);
   const rightPanelCollapsed = useUIStore((s) => s.rightPanelCollapsed);
   const rightPanelWidth = useUIStore((s) => s.rightPanelWidth);
@@ -134,26 +137,57 @@ export function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // Listen for menu-triggered actions from main process
+  useEffect(() => {
+    const onToggleSidebar = () => useUIStore.getState().toggleSidebar();
+    const onToggleRightPanel = () => {
+      const { activePanel, togglePanel, setActivePanel } = useUIStore.getState();
+      if (activePanel) {
+        togglePanel(activePanel);
+      } else {
+        setActivePanel('tasks');
+      }
+    };
+    const onResetLayout = () => {
+      const store = useUIStore.getState();
+      store.setSidebarState('expanded');
+      store.setSidebarWidth(260);
+      store.setActivePanel(null);
+    };
+    const onCloseTerminal = () => {
+      window.dispatchEvent(new CustomEvent('menu-close-terminal'));
+    };
+    const onOpenSettings = () => useUIStore.getState().setSettingsOpen(true);
+    const onNewTerminal = () => {
+      const projectPath = useProjectStore.getState().currentProjectPath;
+      if (projectPath) {
+        ipcRenderer.send(IPC.TERMINAL_CREATE, { projectPath, cwd: projectPath });
+      }
+    };
+
+    ipcRenderer.on(IPC.MENU_TOGGLE_SIDEBAR, onToggleSidebar);
+    ipcRenderer.on(IPC.MENU_TOGGLE_RIGHT_PANEL, onToggleRightPanel);
+    ipcRenderer.on(IPC.MENU_RESET_LAYOUT, onResetLayout);
+    ipcRenderer.on(IPC.MENU_CLOSE_TERMINAL, onCloseTerminal);
+    ipcRenderer.on(IPC.MENU_OPEN_SETTINGS, onOpenSettings);
+    ipcRenderer.on(IPC.MENU_NEW_TERMINAL, onNewTerminal);
+
+    return () => {
+      ipcRenderer.removeListener(IPC.MENU_TOGGLE_SIDEBAR, onToggleSidebar);
+      ipcRenderer.removeListener(IPC.MENU_TOGGLE_RIGHT_PANEL, onToggleRightPanel);
+      ipcRenderer.removeListener(IPC.MENU_RESET_LAYOUT, onResetLayout);
+      ipcRenderer.removeListener(IPC.MENU_CLOSE_TERMINAL, onCloseTerminal);
+      ipcRenderer.removeListener(IPC.MENU_OPEN_SETTINGS, onOpenSettings);
+      ipcRenderer.removeListener(IPC.MENU_NEW_TERMINAL, onNewTerminal);
+    };
+  }, []);
+
   // Compute sidebar pixel width for CSS
   const resolvedSidebarWidth =
     sidebarState === 'hidden' ? 0 : sidebarState === 'collapsed' ? 54 : sidebarWidth;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg-deep text-text-primary font-sans">
-      {/* Floating logo — shown when sidebar is fully hidden */}
-      {sidebarState === 'hidden' && (
-        <button
-          onClick={() => setSidebarState('expanded')}
-          className="fixed top-3 left-3 z-50 flex h-9 w-9 items-center justify-center rounded-md
-                     bg-bg-secondary/80 backdrop-blur border border-border-subtle
-                     hover:bg-bg-hover transition-colors cursor-pointer"
-          title="Show sidebar (Ctrl+B)"
-          dangerouslySetInnerHTML={{
-            __html: logoSvg(28),
-          }}
-        />
-      )}
-
       {/* Sidebar */}
       <AnimatePresence initial={false}>
         {sidebarState !== 'hidden' && (
@@ -247,16 +281,3 @@ export function App() {
   );
 }
 
-/** Minimal inline atom logo SVG for the floating button */
-function logoSvg(size: number): string {
-  return `<svg width="${size}" height="${size}" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <radialGradient id="fl-ag"><stop offset="0%" stop-color="rgba(255,110,180,0.18)"/><stop offset="50%" stop-color="rgba(180,128,255,0.05)"/><stop offset="100%" stop-color="transparent"/></radialGradient>
-    </defs>
-    <circle cx="90" cy="90" r="40" fill="url(#fl-ag)"/>
-    <g transform="rotate(0,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.3)" stroke-width="1.5"/></g>
-    <g transform="rotate(60,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.25)" stroke-width="1.5" stroke-dasharray="5 3.5"/></g>
-    <g transform="rotate(120,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.22)" stroke-width="1.5"/></g>
-    <circle cx="90" cy="90" r="5.5" fill="#ff6eb4"/>
-  </svg>`;
-}
