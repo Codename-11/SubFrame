@@ -30,6 +30,18 @@ const SECTION_ACCEPTANCE = '## Acceptance Criteria';
 const SECTION_NOTES = '## Notes';
 const KNOWN_SECTIONS = [SECTION_STEPS, SECTION_USER_REQUEST, SECTION_ACCEPTANCE, SECTION_NOTES];
 
+// ── ANSI color helpers (zero-dependency) ──────────────────────────────────────
+const useColor = !process.argv.includes('--no-color') && !process.env.NO_COLOR;
+const c = {
+  bold: s => useColor ? `\x1b[1m${s}\x1b[22m` : s,
+  dim: s => useColor ? `\x1b[2m${s}\x1b[22m` : s,
+  green: s => useColor ? `\x1b[32m${s}\x1b[39m` : s,
+  yellow: s => useColor ? `\x1b[33m${s}\x1b[39m` : s,
+  cyan: s => useColor ? `\x1b[36m${s}\x1b[39m` : s,
+  red: s => useColor ? `\x1b[31m${s}\x1b[39m` : s,
+  reset: useColor ? '\x1b[0m' : '',
+};
+
 /**
  * Split markdown body into description (text before first ##) and named sections.
  */
@@ -392,6 +404,53 @@ function sortByPriority(tasks) {
   return [...tasks].sort((a, b) => (p[a.priority] || 1) - (p[b.priority] || 1));
 }
 
+function wrapText(text, width = 70, indent = '  ') {
+  if (!text) return '';
+  return text.split('\n').map(paragraph => {
+    if (paragraph.trim() === '') return '';
+    const words = paragraph.split(/\s+/);
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+      if (current && (current.length + 1 + word.length) > width) {
+        lines.push(indent + current);
+        current = word;
+      } else {
+        current = current ? current + ' ' + word : word;
+      }
+    }
+    if (current) lines.push(indent + current);
+    return lines.join('\n');
+  }).join('\n');
+}
+
+function relativeTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const diff = Date.now() - d.getTime();
+  if (diff < 0) return 'just now';
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
+
+function progressBar(done, total, width = 20) {
+  if (total === 0) return '';
+  const pct = Math.round((done / total) * 100);
+  const filled = Math.round((done / total) * width);
+  const empty = width - filled;
+  return `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${done}/${total} (${pct}%)`;
+}
+
 // ── Commands ─────────────────────────────────────────────────────────────────
 
 function cmdList(root, args) {
@@ -441,7 +500,8 @@ function cmdList(root, args) {
     ` \u2500 \u25B2 high  \u25C7 medium  \u25BD low`);
 }
 
-function cmdGet(root, taskId) {
+function cmdGet(root, taskId, args) {
+  args = args || [];
   const tasks = readTasks(root);
   const found = findTask(tasks, taskId);
 
@@ -451,34 +511,206 @@ function cmdGet(root, taskId) {
   }
 
   const t = found.task;
-  console.log(`\n\u25C6 SubFrame \u2500 ${statusIcon(t.status)} ${t.title}`);
-  console.log(`\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
-  console.log(`  ID:       ${t.id}`);
-  console.log(`  Status:   ${t.status}  ${priorityIcon(t.priority)} ${t.priority}`);
-  if (t.category) console.log(`  Category: ${t.category}`);
-  if (t.blockedBy && t.blockedBy.length > 0) console.log(`  Blocked:  ${t.blockedBy.join(', ')}`);
-  if (t.blocks && t.blocks.length > 0) console.log(`  Blocks:   ${t.blocks.join(', ')}`);
-  if (t.description) console.log(`  Desc:     ${t.description}`);
-  if (t.userRequest) console.log(`  Request:  ${t.userRequest}`);
-  if (t.acceptanceCriteria) console.log(`  Criteria: ${t.acceptanceCriteria}`);
-  if (t.notes) console.log(`  Notes:    ${t.notes}`);
 
-  // Show step progress
-  if (t.steps && t.steps.length > 0) {
-    const done = t.steps.filter(s => s.completed).length;
-    console.log(`  Steps:    ${done}/${t.steps.length}`);
-    for (let i = 0; i < t.steps.length; i++) {
-      const s = t.steps[i];
-      console.log(`    [${i}] ${s.completed ? '[x]' : '[ ]'} ${s.label}`);
+  // --json flag: output raw JSON and exit
+  if (args.includes('--json')) {
+    const output = { ...t };
+    delete output.filePath;
+    delete output._unknownSections;
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  // --changes flag: show chronological timeline
+  if (args.includes('--changes')) {
+    cmdGetChanges(t);
+    return;
+  }
+
+  // ── Header ──
+  const statusColor = t.status === 'completed' ? c.green
+    : t.status === 'in_progress' ? c.yellow : c.dim;
+  const priorityColor = t.priority === 'high' ? c.red
+    : t.priority === 'low' ? c.dim : s => s;
+
+  console.log('');
+  console.log(`\u25C6 SubFrame \u2500 ${statusIcon(t.status)} ${c.bold(t.title)}`);
+  console.log(c.dim(`  ${t.id}`));
+  console.log(c.dim('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500'));
+
+  // ── Status bar ──
+  const statusLabel = t.status.replace('_', ' ');
+  const parts = [
+    `Status: ${statusColor('\u25CF ' + statusLabel)}`,
+    `Priority: ${priorityColor(priorityIcon(t.priority) + ' ' + t.priority)}`,
+  ];
+  if (t.category) parts.push(`Category: ${t.category}`);
+  console.log(`  ${parts.join('  \u2502  ')}`);
+
+  // ── Context ──
+  if (t.context) {
+    console.log(`  ${c.dim(t.context)}`);
+  }
+
+  // ── Dependencies ──
+  if ((t.blockedBy && t.blockedBy.length > 0) || (t.blocks && t.blocks.length > 0)) {
+    console.log('');
+    if (t.blockedBy && t.blockedBy.length > 0) {
+      const resolved = t.blockedBy.map(id => {
+        const dep = findTask(tasks, id);
+        return dep ? `${c.red(id)} ${c.dim(dep.task.title)}` : c.red(id);
+      });
+      console.log(`  ${c.red('\u2298')} Blocked by: ${resolved.join(', ')}`);
+    }
+    if (t.blocks && t.blocks.length > 0) {
+      const resolved = t.blocks.map(id => {
+        const dep = findTask(tasks, id);
+        return dep ? `${c.cyan(id)} ${c.dim(dep.task.title)}` : c.cyan(id);
+      });
+      console.log(`  ${c.cyan('\u2192')} Blocks: ${resolved.join(', ')}`);
     }
   }
 
-  console.log(`\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
-  console.log(`  Created:  ${t.createdAt}`);
-  console.log(`  Updated:  ${t.updatedAt}`);
-  if (t.completedAt) console.log(`  Done:     ${t.completedAt}`);
+  // ── Description ──
+  if (t.description) {
+    console.log('');
+    console.log(c.dim('  \u2500\u2500 Description \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500'));
+    console.log(wrapText(t.description));
+  }
 
-  if (t.filePath) console.log(`  File:     ${t.filePath}`);
+  // ── User Request ──
+  if (t.userRequest) {
+    console.log('');
+    console.log(c.dim('  \u2500\u2500 User Request \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500'));
+    console.log(wrapText(t.userRequest));
+  }
+
+  // ── Acceptance Criteria ──
+  if (t.acceptanceCriteria) {
+    console.log('');
+    console.log(c.dim('  \u2500\u2500 Acceptance Criteria \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500'));
+    console.log(wrapText(t.acceptanceCriteria));
+  }
+
+  // ── Notes ──
+  if (t.notes) {
+    console.log('');
+    console.log(c.dim('  \u2500\u2500 Notes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500'));
+    // Split notes by date entries for readability
+    const noteBlocks = t.notes.split(/(?=\[\d{4}-\d{2}-\d{2}\])/);
+    for (const block of noteBlocks) {
+      const trimmed = block.trim();
+      if (!trimmed) continue;
+      const dateMatch = trimmed.match(/^\[(\d{4}-\d{2}-\d{2})\]\s*(.*)/s);
+      if (dateMatch) {
+        console.log(`  ${c.dim(dateMatch[1])}  ${wrapText(dateMatch[2]).trimStart()}`);
+      } else {
+        console.log(wrapText(trimmed));
+      }
+    }
+  }
+
+  // ── Steps ──
+  if (t.steps && t.steps.length > 0) {
+    const done = t.steps.filter(s => s.completed).length;
+    console.log('');
+    console.log(c.dim('  \u2500\u2500 Steps \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500'));
+    console.log(`  ${progressBar(done, t.steps.length)}`);
+    for (let i = 0; i < t.steps.length; i++) {
+      const s = t.steps[i];
+      if (s.completed) {
+        console.log(`  ${c.green('\u2713')} ${c.dim(s.label)}`);
+      } else if (i === done) {
+        // Current step (first uncompleted)
+        console.log(`  ${c.yellow('\u25CF')} ${s.label}`);
+      } else {
+        console.log(`  ${c.dim('\u25CB')} ${c.dim(s.label)}`);
+      }
+    }
+  }
+
+  // ── Timestamps ──
+  console.log('');
+  console.log(c.dim('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500'));
+  const timeParts = [`Created ${relativeTime(t.createdAt)} ${c.dim('(' + t.createdAt + ')')}`];
+  if (t.updatedAt !== t.createdAt) {
+    timeParts.push(`Updated ${relativeTime(t.updatedAt)} ${c.dim('(' + t.updatedAt + ')')}`);
+  }
+  if (t.completedAt) {
+    timeParts.push(`${c.green('Done')} ${relativeTime(t.completedAt)} ${c.dim('(' + t.completedAt + ')')}`);
+  }
+  console.log(`  ${timeParts.join('  \u00B7  ')}`);
+
+  // ── File path ──
+  if (t.filePath) {
+    console.log(`  ${c.dim(t.filePath)}`);
+  }
+
+  // ── Action hints ──
+  console.log('');
+  if (t.status === 'pending') {
+    console.log(c.dim(`  \u2192 start ${t.id}`));
+  } else if (t.status === 'in_progress') {
+    console.log(c.dim(`  \u2192 complete ${t.id}  \u2502  update ${t.id} --add-note "..."`));
+  } else if (t.status === 'completed') {
+    console.log(c.dim(`  \u2192 update ${t.id} --status pending  (reopen)`));
+  }
+}
+
+function cmdGetChanges(t) {
+  console.log('');
+  console.log(`\u25C6 SubFrame \u2500 ${c.bold(t.title)}`);
+  console.log(c.dim(`  ${t.id} \u2014 Change Timeline`));
+  console.log(c.dim('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500'));
+
+  const events = [];
+
+  // Created event
+  if (t.createdAt) {
+    events.push({ date: t.createdAt, icon: '\uD83D\uDCCB', label: 'Created', color: c.dim });
+  }
+
+  // Parse notes for dated entries
+  if (t.notes) {
+    const noteBlocks = t.notes.split(/(?=\[\d{4}-\d{2}-\d{2}\])/);
+    for (const block of noteBlocks) {
+      const match = block.trim().match(/^\[(\d{4}-\d{2}-\d{2})\]\s*(.*)/s);
+      if (match) {
+        const noteDate = new Date(match[1]).toISOString();
+        const preview = match[2].length > 80 ? match[2].substring(0, 77) + '...' : match[2];
+        events.push({ date: noteDate, icon: '\uD83D\uDCDD', label: `Note: "${preview}"`, color: s => s });
+      } else if (block.trim()) {
+        // Undated note — attach to updatedAt as best guess
+        const preview = block.trim().length > 80 ? block.trim().substring(0, 77) + '...' : block.trim();
+        events.push({ date: t.updatedAt || t.createdAt, icon: '\uD83D\uDCDD', label: `Note: "${preview}"`, color: c.dim });
+      }
+    }
+  }
+
+  // Completed event
+  if (t.completedAt) {
+    events.push({ date: t.completedAt, icon: '\u2705', label: 'Completed', color: c.green });
+  }
+
+  // If currently in progress and not completed, show started
+  if (t.status === 'in_progress' && !t.completedAt && t.updatedAt !== t.createdAt) {
+    events.push({ date: t.updatedAt, icon: '\uD83D\uDD04', label: 'Started', color: c.yellow });
+  }
+
+  // Sort by date
+  events.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  for (const evt of events) {
+    const dateStr = evt.date.split('T')[0];
+    const rel = relativeTime(evt.date);
+    console.log(`  ${c.dim(dateStr)}  ${evt.icon} ${evt.color(evt.label)}  ${c.dim(rel)}`);
+  }
+
+  if (events.length === 0) {
+    console.log(c.dim('  No timeline events found.'));
+  }
+
+  console.log('');
 }
 
 function cmdStart(root, taskId) {
@@ -856,7 +1088,7 @@ function main() {
     console.log(`\u25C6 SubFrame Sub-Task CLI
 
   list [--all] [--json]   Show active sub-tasks
-  get <id>                Full sub-task details
+  get <id> [--json|--changes]   Full sub-task details (or JSON/timeline view)
   start <id>              \uD83D\uDCCB \u2192 \uD83D\uDD04 pending \u2192 in_progress
   complete <id>           \uD83D\uDD04 \u2192 \u2705 \u2192 completed
   add --title "..."       Create a new sub-task
@@ -885,8 +1117,8 @@ Options (add/update):
       break;
     case 'get':
     case 'show':
-      if (!args[1]) { console.error('\u25C6 SubFrame \u2500 Usage: task.js get <id>'); process.exit(1); }
-      cmdGet(root, args[1]);
+      if (!args[1]) { console.error('\u25C6 SubFrame \u2500 Usage: task.js get <id> [--json] [--changes]'); process.exit(1); }
+      cmdGet(root, args[1], args.slice(2));
       break;
     case 'start':
       if (!args[1]) { console.error('\u25C6 SubFrame \u2500 Usage: task.js start <id>'); process.exit(1); }
