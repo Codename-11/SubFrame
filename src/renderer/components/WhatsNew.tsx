@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -76,7 +77,7 @@ export function WhatsNew() {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-xl max-h-[80vh] flex flex-col overflow-hidden">
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm">
             <Sparkles className="w-4 h-4 text-accent" />
@@ -102,7 +103,9 @@ export function WhatsNew() {
           )}
         </ScrollArea>
         <DialogFooter className="pt-2 border-t border-border-subtle">
-          <Button variant="ghost" onClick={() => handleClose(false)} className="cursor-pointer">Close</Button>
+          <DialogClose asChild>
+            <Button variant="ghost" className="cursor-pointer">Close</Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
