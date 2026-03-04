@@ -21,7 +21,7 @@ import { TaskKanban } from './TaskKanban';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { ScrollArea } from './ui/scroll-area';
 import {
   AlertDialog,
@@ -1121,9 +1121,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
           </ScrollArea>
 
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="cursor-pointer">
-              Cancel
-            </Button>
+            <DialogClose asChild>
+              <Button variant="ghost" className="cursor-pointer">Cancel</Button>
+            </DialogClose>
             <Button onClick={handleSubmit} disabled={!formTitle.trim()} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
               {editingTask ? 'Update' : 'Create'}
             </Button>

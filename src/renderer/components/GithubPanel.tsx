@@ -8,7 +8,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { cn } from '../lib/utils';
 import { useGithubIssues, useGitBranches, useGitWorktrees, useGitStatus } from '../hooks/useGithub';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -513,7 +513,7 @@ function BranchesTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setCreateDialogOpen(false)} className="cursor-pointer">Cancel</Button>
+            <DialogClose asChild><Button variant="ghost" className="cursor-pointer">Cancel</Button></DialogClose>
             <Button onClick={handleCreate} disabled={!newBranchName.trim()} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
               Create
             </Button>
