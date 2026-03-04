@@ -438,408 +438,409 @@
       "status": "active",
       "steps": [
         {
-          "id": "step-1772592900696-50",
-          "label": "TaskUpdate",
-          "toolName": "TaskUpdate",
+          "id": "step-1772595660083-50",
+          "label": "Searching files: src/main/menu.*",
+          "toolName": "Glob",
           "status": "completed",
-          "startedAt": "2026-03-04T02:55:00.696Z",
-          "completedAt": "2026-03-04T02:55:00.935Z"
+          "startedAt": "2026-03-04T03:41:00.083Z",
+          "completedAt": "2026-03-04T03:41:01.376Z"
         },
         {
-          "id": "step-1772592904366-50",
-          "label": "Reading GithubPanel.tsx",
+          "id": "step-1772595660794-50",
+          "label": "Reading changelog.md",
           "toolName": "Read",
           "status": "completed",
-          "startedAt": "2026-03-04T02:55:04.366Z",
-          "completedAt": "2026-03-04T02:55:04.859Z"
+          "startedAt": "2026-03-04T03:41:00.794Z",
+          "completedAt": "2026-03-04T03:41:00.955Z"
         },
         {
-          "id": "step-1772592904548-50",
-          "label": "Reading useGithub.ts",
+          "id": "step-1772595663953-50",
+          "label": "Reading menu.ts",
           "toolName": "Read",
           "status": "completed",
-          "startedAt": "2026-03-04T02:55:04.548Z",
-          "completedAt": "2026-03-04T02:55:04.698Z"
+          "startedAt": "2026-03-04T03:41:03.953Z",
+          "completedAt": "2026-03-04T03:41:04.103Z"
         },
         {
-          "id": "step-1772592910602-50",
-          "label": "Searching content: GitFileStatus|GitStatusResult",
+          "id": "step-1772595676518-50",
+          "label": "Searching content: WHATS_NEW|whatsNew|WhatsNew|MENU_",
           "toolName": "Grep",
           "status": "completed",
-          "startedAt": "2026-03-04T02:55:10.602Z",
-          "completedAt": "2026-03-04T02:55:11.250Z"
+          "startedAt": "2026-03-04T03:41:16.518Z",
+          "completedAt": "2026-03-04T03:41:17.112Z"
         },
         {
-          "id": "step-1772592912053-50",
-          "label": "Searching content: githubChanges|gitChanges|GithubChanges|G",
+          "id": "step-1772595677279-50",
+          "label": "Searching content: MENU_|whatsNew|showWhatsNew",
           "toolName": "Grep",
           "status": "completed",
-          "startedAt": "2026-03-04T02:55:12.053Z",
-          "completedAt": "2026-03-04T02:55:12.726Z"
+          "startedAt": "2026-03-04T03:41:17.279Z",
+          "completedAt": "2026-03-04T03:41:17.944Z"
         },
         {
-          "id": "step-1772592913401-50",
-          "label": "Searching content: GithubIssuesPanel|GithubPRsPanel|GithubB",
+          "id": "step-1772595681373-50",
+          "label": "Searching content: showWhatsNew|setShowWhatsNew|whatsNewOpe",
           "toolName": "Grep",
           "status": "completed",
-          "startedAt": "2026-03-04T02:55:13.401Z",
-          "completedAt": "2026-03-04T02:55:14.098Z"
+          "startedAt": "2026-03-04T03:41:21.373Z",
+          "completedAt": "2026-03-04T03:41:22.061Z"
         },
         {
-          "id": "step-1772592918479-50",
-          "label": "Searching content: githubIssues|githubPRs|githubBranches|gi",
+          "id": "step-1772595684756-50",
+          "label": "Searching content: WhatsNew",
           "toolName": "Grep",
           "status": "completed",
-          "startedAt": "2026-03-04T02:55:18.479Z",
-          "completedAt": "2026-03-04T02:55:19.062Z"
+          "startedAt": "2026-03-04T03:41:24.756Z",
+          "completedAt": "2026-03-04T03:41:25.325Z"
         },
         {
-          "id": "step-1772592922504-50",
-          "label": "Searching content: githubIssues|githubPRs|githubBranches|gi",
-          "toolName": "Grep",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:55:22.504Z",
-          "completedAt": "2026-03-04T02:55:23.194Z"
-        },
-        {
-          "id": "step-1772592926927-50",
-          "label": "Reading RightPanel.tsx",
+          "id": "step-1772595691630-50",
+          "label": "Reading SettingsPanel.tsx",
           "toolName": "Read",
           "status": "completed",
-          "startedAt": "2026-03-04T02:55:26.927Z",
-          "completedAt": "2026-03-04T02:55:27.152Z"
+          "startedAt": "2026-03-04T03:41:31.630Z",
+          "completedAt": "2026-03-04T03:41:31.951Z"
         },
         {
-          "id": "step-1772592983933-50",
+          "id": "step-1772595718400-50",
           "label": "Spawning agent",
           "toolName": "Agent",
           "status": "completed",
-          "startedAt": "2026-03-04T02:56:23.933Z",
-          "completedAt": "2026-03-04T02:56:24.364Z"
+          "startedAt": "2026-03-04T03:41:58.400Z",
+          "completedAt": "2026-03-04T03:41:58.620Z"
         },
         {
-          "id": "step-1772592986912-50",
-          "label": "TaskUpdate",
-          "toolName": "TaskUpdate",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:56:26.912Z",
-          "completedAt": "2026-03-04T02:56:27.065Z"
-        },
-        {
-          "id": "step-1772592990203-50",
-          "label": "Reading GithubPanel.tsx",
+          "id": "step-1772595722534-50",
+          "label": "Reading Terminal.tsx",
           "toolName": "Read",
           "status": "completed",
-          "startedAt": "2026-03-04T02:56:30.203Z",
-          "completedAt": "2026-03-04T02:56:30.361Z"
+          "startedAt": "2026-03-04T03:42:02.534Z",
+          "completedAt": "2026-03-04T03:42:02.720Z"
         },
         {
-          "id": "step-1772592990656-50",
-          "label": "Reading RightPanel.tsx",
+          "id": "step-1772595725333-50",
+          "label": "Reading Terminal.tsx",
           "toolName": "Read",
           "status": "completed",
-          "startedAt": "2026-03-04T02:56:30.656Z",
-          "completedAt": "2026-03-04T02:56:30.871Z"
+          "startedAt": "2026-03-04T03:42:05.333Z",
+          "completedAt": "2026-03-04T03:42:05.471Z"
         },
         {
-          "id": "step-1772592991152-50",
+          "id": "step-1772595729229-50",
+          "label": "Searching content: bottom-20",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:09.229Z",
+          "completedAt": "2026-03-04T03:42:09.785Z"
+        },
+        {
+          "id": "step-1772595736427-50",
+          "label": "Editing Terminal.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:16.427Z",
+          "completedAt": "2026-03-04T03:42:16.637Z"
+        },
+        {
+          "id": "step-1772595739418-50",
+          "label": "Editing Terminal.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:19.418Z",
+          "completedAt": "2026-03-04T03:42:19.560Z"
+        },
+        {
+          "id": "step-1772595744132-50",
+          "label": "Editing Terminal.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:24.132Z",
+          "completedAt": "2026-03-04T03:42:24.275Z"
+        },
+        {
+          "id": "step-1772595746646-50",
+          "label": "Spawning agent",
+          "toolName": "Agent",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:26.646Z",
+          "completedAt": "2026-03-04T03:42:26.843Z"
+        },
+        {
+          "id": "step-1772595747800-50",
+          "label": "Editing Terminal.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:27.800Z",
+          "completedAt": "2026-03-04T03:42:27.945Z"
+        },
+        {
+          "id": "step-1772595749930-50",
+          "label": "Reading SettingsPanel.tsx",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:29.930Z",
+          "completedAt": "2026-03-04T03:42:30.181Z"
+        },
+        {
+          "id": "step-1772595750322-50",
           "label": "Reading useUIStore.ts",
           "toolName": "Read",
           "status": "completed",
-          "startedAt": "2026-03-04T02:56:31.152Z",
-          "completedAt": "2026-03-04T02:56:31.323Z"
+          "startedAt": "2026-03-04T03:42:30.322Z",
+          "completedAt": "2026-03-04T03:42:30.760Z"
         },
         {
-          "id": "step-1772592991537-50",
-          "label": "Reading useGithub.ts",
+          "id": "step-1772595750510-50",
+          "label": "Reading ipcChannels.ts",
           "toolName": "Read",
           "status": "completed",
-          "startedAt": "2026-03-04T02:56:31.537Z",
-          "completedAt": "2026-03-04T02:56:31.684Z"
+          "startedAt": "2026-03-04T03:42:30.510Z",
+          "completedAt": "2026-03-04T03:42:30.540Z"
         },
         {
-          "id": "step-1772592996226-50",
-          "label": "Searching content: GitFileStatus",
-          "toolName": "Grep",
+          "id": "step-1772595751082-50",
+          "label": "Reading Terminal.tsx",
+          "toolName": "Read",
           "status": "completed",
-          "startedAt": "2026-03-04T02:56:36.226Z",
-          "completedAt": "2026-03-04T02:56:37.673Z"
+          "startedAt": "2026-03-04T03:42:31.082Z",
+          "completedAt": "2026-03-04T03:42:31.221Z"
         },
         {
-          "id": "step-1772592996903-50",
-          "label": "Searching content: FileDiff",
-          "toolName": "Grep",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:56:36.903Z",
-          "completedAt": "2026-03-04T02:56:36.906Z"
-        },
-        {
-          "id": "step-1772593002279-50",
-          "label": "Check which lucide-react icons are available",
-          "toolName": "Bash",
-          "status": "running",
-          "startedAt": "2026-03-04T02:56:42.279Z"
-        },
-        {
-          "id": "step-1772593012147-50",
-          "label": "Check available lucide-react icons",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:56:52.147Z",
-          "completedAt": "2026-03-04T02:56:58.418Z"
-        },
-        {
-          "id": "step-1772593025142-50",
-          "label": "Editing GithubPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:57:05.142Z",
-          "completedAt": "2026-03-04T02:57:05.335Z"
-        },
-        {
-          "id": "step-1772593028483-50",
-          "label": "Editing GithubPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:57:08.483Z",
-          "completedAt": "2026-03-04T02:57:08.688Z"
-        },
-        {
-          "id": "step-1772593031948-50",
-          "label": "Editing GithubPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:57:11.948Z",
-          "completedAt": "2026-03-04T02:57:12.117Z"
-        },
-        {
-          "id": "step-1772593059323-50",
-          "label": "Editing GithubPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:57:39.323Z",
-          "completedAt": "2026-03-04T02:57:39.506Z"
-        },
-        {
-          "id": "step-1772593065987-50",
-          "label": "Editing useUIStore.ts",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:57:45.987Z",
-          "completedAt": "2026-03-04T02:57:46.174Z"
-        },
-        {
-          "id": "step-1772593069542-50",
-          "label": "Editing RightPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:57:49.542Z",
-          "completedAt": "2026-03-04T02:57:49.714Z"
-        },
-        {
-          "id": "step-1772593074801-50",
-          "label": "Editing RightPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:57:54.801Z",
-          "completedAt": "2026-03-04T02:57:55.033Z"
-        },
-        {
-          "id": "step-1772593078746-50",
-          "label": "Editing RightPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:57:58.746Z",
-          "completedAt": "2026-03-04T02:57:58.912Z"
-        },
-        {
-          "id": "step-1772593083325-50",
-          "label": "Editing RightPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:58:03.325Z",
-          "completedAt": "2026-03-04T02:58:03.471Z"
-        },
-        {
-          "id": "step-1772593088480-50",
-          "label": "Editing RightPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:58:08.480Z",
-          "completedAt": "2026-03-04T02:58:08.724Z"
-        },
-        {
-          "id": "step-1772593091682-50",
-          "label": "Editing RightPanel.tsx",
-          "toolName": "Edit",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:58:11.682Z",
-          "completedAt": "2026-03-04T02:58:11.906Z"
-        },
-        {
-          "id": "step-1772593096041-50",
+          "id": "step-1772595754414-50",
           "label": "Run TypeScript type checking",
           "toolName": "Bash",
           "status": "completed",
-          "startedAt": "2026-03-04T02:58:16.041Z",
-          "completedAt": "2026-03-04T02:58:31.174Z"
+          "startedAt": "2026-03-04T03:42:34.414Z",
+          "completedAt": "2026-03-04T03:42:50.907Z"
         },
         {
-          "id": "step-1772593113851-50",
-          "label": "Run ESLint",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:58:33.851Z",
-          "completedAt": "2026-03-04T02:58:43.945Z"
-        },
-        {
-          "id": "step-1772593124084-50",
-          "label": "Run Vitest tests",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:58:44.084Z",
-          "completedAt": "2026-03-04T02:58:52.859Z"
-        },
-        {
-          "id": "step-1772593136199-50",
-          "label": "TaskUpdate",
-          "toolName": "TaskUpdate",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:58:56.199Z",
-          "completedAt": "2026-03-04T02:58:56.367Z"
-        },
-        {
-          "id": "step-1772593151048-50",
-          "label": "SendMessage",
-          "toolName": "SendMessage",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:59:11.048Z",
-          "completedAt": "2026-03-04T02:59:11.294Z"
-        },
-        {
-          "id": "step-1772593162372-50",
-          "label": "SendMessage",
-          "toolName": "SendMessage",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:59:22.372Z",
-          "completedAt": "2026-03-04T02:59:22.529Z"
-        },
-        {
-          "id": "step-1772593164575-50",
-          "label": "Verify typecheck passes",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:59:24.575Z",
-          "completedAt": "2026-03-04T02:59:40.364Z"
-        },
-        {
-          "id": "step-1772593180516-50",
-          "label": "Run tests",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:59:40.516Z",
-          "completedAt": "2026-03-04T02:59:49.290Z"
-        },
-        {
-          "id": "step-1772593193269-50",
-          "label": "Review Changes tab diff",
-          "toolName": "Bash",
-          "status": "completed",
-          "startedAt": "2026-03-04T02:59:53.269Z",
-          "completedAt": "2026-03-04T02:59:59.822Z"
-        },
-        {
-          "id": "step-1772593203435-50",
-          "label": "SendMessage",
-          "toolName": "SendMessage",
-          "status": "completed",
-          "startedAt": "2026-03-04T03:00:03.435Z",
-          "completedAt": "2026-03-04T03:00:03.577Z"
-        },
-        {
-          "id": "step-1772593209446-50",
-          "label": "SendMessage",
-          "toolName": "SendMessage",
-          "status": "completed",
-          "startedAt": "2026-03-04T03:00:09.446Z",
-          "completedAt": "2026-03-04T03:00:09.605Z"
-        },
-        {
-          "id": "step-1772593253351-50",
+          "id": "step-1772595755605-50",
           "label": "TeamDelete",
           "toolName": "TeamDelete",
           "status": "completed",
-          "startedAt": "2026-03-04T03:00:53.351Z",
-          "completedAt": "2026-03-04T03:00:53.568Z"
+          "startedAt": "2026-03-04T03:42:35.605Z",
+          "completedAt": "2026-03-04T03:42:35.837Z"
         },
         {
-          "id": "step-1772593263028-50",
-          "label": "Commit 1: settings expansion",
+          "id": "step-1772595757355-50",
+          "label": "Searching content: from 'lucide-react'",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:37.355Z",
+          "completedAt": "2026-03-04T03:42:38.074Z"
+        },
+        {
+          "id": "step-1772595757543-50",
+          "label": "Reading WhatsNew.tsx",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:37.543Z",
+          "completedAt": "2026-03-04T03:42:37.756Z"
+        },
+        {
+          "id": "step-1772595763629-50",
+          "label": "Searching content: shell\\.openExternal",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:43.629Z",
+          "completedAt": "2026-03-04T03:42:44.228Z"
+        },
+        {
+          "id": "step-1772595764519-50",
+          "label": "Searching content: require\\('electron'\\)",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:44.519Z",
+          "completedAt": "2026-03-04T03:42:45.101Z"
+        },
+        {
+          "id": "step-1772595769517-50",
+          "label": "Searching content: Github|ExternalLink|FileText|Sparkles|Sc",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:49.517Z",
+          "completedAt": "2026-03-04T03:42:50.069Z"
+        },
+        {
+          "id": "step-1772595774916-50",
+          "label": "Searching content: ExternalLink",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:42:54.916Z",
+          "completedAt": "2026-03-04T03:42:55.444Z"
+        },
+        {
+          "id": "step-1772595781813-50",
+          "label": "Editing SettingsPanel.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:43:01.813Z",
+          "completedAt": "2026-03-04T03:43:01.951Z"
+        },
+        {
+          "id": "step-1772595783869-50",
+          "label": "TaskOutput",
+          "toolName": "TaskOutput",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:43:03.869Z",
+          "completedAt": "2026-03-04T03:44:00.558Z"
+        },
+        {
+          "id": "step-1772595787255-50",
+          "label": "Editing SettingsPanel.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:43:07.255Z",
+          "completedAt": "2026-03-04T03:43:07.446Z"
+        },
+        {
+          "id": "step-1772595806553-50",
+          "label": "Editing SettingsPanel.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:43:26.553Z",
+          "completedAt": "2026-03-04T03:43:26.697Z"
+        },
+        {
+          "id": "step-1772595810010-50",
+          "label": "Run TypeScript typecheck to verify no type errors",
           "toolName": "Bash",
           "status": "completed",
-          "startedAt": "2026-03-04T03:01:03.028Z",
-          "completedAt": "2026-03-04T03:01:09.740Z"
+          "startedAt": "2026-03-04T03:43:30.010Z",
+          "completedAt": "2026-03-04T03:43:43.734Z"
         },
         {
-          "id": "step-1772593276128-50",
-          "label": "Commit 2: terminal features + fixes",
+          "id": "step-1772595827498-50",
+          "label": "Reading SettingsPanel.tsx",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:43:47.498Z",
+          "completedAt": "2026-03-04T03:43:47.684Z"
+        },
+        {
+          "id": "step-1772595827824-50",
+          "label": "Reading SettingsPanel.tsx",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:43:47.824Z",
+          "completedAt": "2026-03-04T03:43:48.019Z"
+        },
+        {
+          "id": "step-1772595844731-50",
+          "label": "Searching content: open-whats-new",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:44:04.731Z",
+          "completedAt": "2026-03-04T03:44:05.403Z"
+        },
+        {
+          "id": "step-1772595849614-50",
+          "label": "Run typecheck + lint + test",
           "toolName": "Bash",
           "status": "completed",
-          "startedAt": "2026-03-04T03:01:16.128Z",
-          "completedAt": "2026-03-04T03:01:22.756Z"
+          "startedAt": "2026-03-04T03:44:09.614Z",
+          "completedAt": "2026-03-04T03:44:28.929Z"
         },
         {
-          "id": "step-1772593288140-50",
-          "label": "Commit 3: menu system",
+          "id": "step-1772595873682-50",
+          "label": "Stage changed files",
           "toolName": "Bash",
           "status": "completed",
-          "startedAt": "2026-03-04T03:01:28.140Z",
-          "completedAt": "2026-03-04T03:01:34.678Z"
+          "startedAt": "2026-03-04T03:44:33.682Z",
+          "completedAt": "2026-03-04T03:44:39.311Z"
         },
         {
-          "id": "step-1772593300688-50",
-          "label": "Commit 4: prompts enhancement",
+          "id": "step-1772595886387-50",
+          "label": "Commit terminal overlay + about tab",
           "toolName": "Bash",
           "status": "completed",
-          "startedAt": "2026-03-04T03:01:40.688Z",
-          "completedAt": "2026-03-04T03:01:47.155Z"
+          "startedAt": "2026-03-04T03:44:46.387Z",
+          "completedAt": "2026-03-04T03:44:52.430Z"
         },
         {
-          "id": "step-1772593313086-50",
-          "label": "Commit 5: git Changes tab",
+          "id": "step-1772595895873-50",
+          "label": "Reading RELEASE_NOTES.md",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:44:55.873Z",
+          "completedAt": "2026-03-04T03:44:56.066Z"
+        },
+        {
+          "id": "step-1772595901161-50",
+          "label": "Editing RELEASE_NOTES.md",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:45:01.161Z",
+          "completedAt": "2026-03-04T03:45:01.302Z"
+        },
+        {
+          "id": "step-1772595911850-50",
+          "label": "Editing RELEASE_NOTES.md",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:45:11.850Z",
+          "completedAt": "2026-03-04T03:45:12.034Z"
+        },
+        {
+          "id": "step-1772595915765-50",
+          "label": "Commit updated release notes",
           "toolName": "Bash",
           "status": "completed",
-          "startedAt": "2026-03-04T03:01:53.086Z",
-          "completedAt": "2026-03-04T03:01:59.722Z"
+          "startedAt": "2026-03-04T03:45:15.765Z",
+          "completedAt": "2026-03-04T03:45:21.421Z"
         },
         {
-          "id": "step-1772593326986-50",
-          "label": "Commit 6: toast audit fixes",
+          "id": "step-1772595924821-50",
+          "label": "Delete old local tag",
           "toolName": "Bash",
           "status": "completed",
-          "startedAt": "2026-03-04T03:02:06.986Z",
-          "completedAt": "2026-03-04T03:02:13.471Z"
+          "startedAt": "2026-03-04T03:45:24.821Z",
+          "completedAt": "2026-03-04T03:45:31.283Z"
         },
         {
-          "id": "step-1772593341293-50",
-          "label": "Commit 7: pipeline docs + tasks",
+          "id": "step-1772595934400-50",
+          "label": "Create new tag at current HEAD",
           "toolName": "Bash",
           "status": "completed",
-          "startedAt": "2026-03-04T03:02:21.293Z",
-          "completedAt": "2026-03-04T03:02:27.889Z"
+          "startedAt": "2026-03-04T03:45:34.400Z",
+          "completedAt": "2026-03-04T03:45:39.737Z"
         },
         {
-          "id": "step-1772593353391-50",
-          "label": "Commit 8: metadata sync",
+          "id": "step-1772595944331-50",
+          "label": "Push commits and force-update remote tag",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:45:44.331Z",
+          "completedAt": "2026-03-04T03:45:52.052Z"
+        },
+        {
+          "id": "step-1772595955341-50",
+          "label": "Update GitHub release notes",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:45:55.341Z",
+          "completedAt": "2026-03-04T03:46:01.925Z"
+        },
+        {
+          "id": "step-1772595965697-50",
+          "label": "Sync STRUCTURE.json",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-04T03:46:05.697Z",
+          "completedAt": "2026-03-04T03:46:11.791Z"
+        },
+        {
+          "id": "step-1772595975803-50",
+          "label": "Commit and push metadata sync",
           "toolName": "Bash",
           "status": "running",
-          "startedAt": "2026-03-04T03:02:33.391Z"
+          "startedAt": "2026-03-04T03:46:15.803Z"
         }
       ],
       "startedAt": "2026-03-04T02:04:56.991Z",
-      "lastActivityAt": "2026-03-04T03:02:33.391Z",
+      "lastActivityAt": "2026-03-04T03:46:15.803Z",
       "currentTool": "Bash"
     }
   ],
-  "lastUpdated": "2026-03-04T03:02:33.391Z"
+  "lastUpdated": "2026-03-04T03:46:15.803Z"
 }

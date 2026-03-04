@@ -1508,7 +1508,7 @@
           ]
         }
       },
-      "loc": 342,
+      "loc": 340,
       "ipc": {
         "listens": [],
         "emits": [
@@ -3508,7 +3508,8 @@
         "GithubIssuesPanel",
         "GithubPRsPanel",
         "GithubBranchesPanel",
-        "GithubWorktreesPanel"
+        "GithubWorktreesPanel",
+        "GithubChangesPanel"
       ],
       "depends": [
         "electron",
@@ -3555,29 +3556,52 @@
         "GithubWorktreesPanel": {
           "line": 78
         },
+        "GithubChangesPanel": {
+          "line": 84
+        },
+        "FileGroup": {
+          "line": 90,
+          "params": [
+            "{ label",
+            "count",
+            "color",
+            "dotColor",
+            "files",
+            "statusField",
+            "open",
+            "onToggle }: {\r\n  label: string;\r\n  count: number;\r\n  color: string;\r\n  dotColor: string;\r\n  files: GitFileStatus[];\r\n  statusField: 'index' | 'working';\r\n  open: boolean;\r\n  onToggle"
+          ]
+        },
+        "ChangesTab": {
+          "line": 137,
+          "calls": [
+            "cn",
+            "useGitStatus"
+          ]
+        },
         "IssuesTab": {
-          "line": 84,
+          "line": 221,
           "params": [
             "{ state",
             "isPR"
           ]
         },
         "BranchesTab": {
-          "line": 192,
+          "line": 329,
           "calls": [
             "cn",
             "useGitBranches"
           ]
         },
         "WorktreesTab": {
-          "line": 390,
+          "line": 527,
           "calls": [
             "cn",
             "useGitWorktrees"
           ]
         }
       },
-      "loc": 472,
+      "loc": 609,
       "ipc": {
         "listens": [],
         "emits": [
@@ -3630,29 +3654,27 @@
     },
     "renderer/components/KeyboardShortcuts": {
       "file": "src\\renderer\\components\\KeyboardShortcuts.tsx",
-      "description": "KeyboardShortcuts — Modal overlay showing all available keyboard shortcuts. Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen.",
+      "description": "KeyboardShortcuts — Dialog showing all available keyboard shortcuts. Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen.",
       "exports": [
         "KeyboardShortcuts"
       ],
       "depends": [
-        "react",
-        "framer-motion",
         "lucide-react",
         "stores/useUIStore",
         "ui/scroll-area"
       ],
       "functions": {
         "Kbd": {
-          "line": 76,
+          "line": 80,
           "params": [
             "{ children }"
           ]
         },
         "KeyboardShortcuts": {
-          "line": 93
+          "line": 97
         }
       },
-      "loc": 172
+      "loc": 136
     },
     "renderer/components/OnboardingDialog": {
       "file": "src\\renderer\\components\\OnboardingDialog.tsx",
@@ -4119,20 +4141,20 @@
       ],
       "functions": {
         "getGroup": {
-          "line": 88,
+          "line": 90,
           "params": [
             "panelId"
           ]
         },
         "RightPanel": {
-          "line": 109,
+          "line": 112,
           "calls": [
             "cn",
             "getGroup"
           ]
         }
       },
-      "loc": 280
+      "loc": 283
     },
     "renderer/components/SessionsPanel": {
       "file": "src\\renderer\\components\\SessionsPanel.tsx",
@@ -4204,6 +4226,7 @@
       ],
       "depends": [
         "../../package.json",
+        "electron",
         "react",
         "ui/dialog",
         "ui/tabs",
@@ -4228,7 +4251,7 @@
           ]
         }
       },
-      "loc": 748
+      "loc": 858
     },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
@@ -4257,7 +4280,7 @@
       ],
       "functions": {
         "Sidebar": {
-          "line": 64,
+          "line": 63,
           "purpose": "at top, tab icons with active accent, settings at bottom.",
           "calls": [
             "cn",
@@ -4267,31 +4290,30 @@
           ]
         },
         "GitStatusBar": {
-          "line": 519,
+          "line": 517,
           "calls": [
             "useGitStatus"
           ]
         },
         "CollapsedGitStatus": {
-          "line": 544,
+          "line": 542,
           "calls": [
             "cn",
             "useGitStatus"
           ]
         },
         "GitBranchIcon": {
-          "line": 585,
+          "line": 583,
           "params": [
             "{ className }"
           ]
         }
       },
-      "loc": 593,
+      "loc": 591,
       "ipc": {
         "listens": [
           "IS_FRAME_PROJECT_RESULT",
-          "FRAME_PROJECT_INITIALIZED",
-          "TERMINAL_CREATED"
+          "FRAME_PROJECT_INITIALIZED"
         ],
         "emits": [
           "TERMINAL_INPUT_ID",
@@ -4740,14 +4762,14 @@
           ]
         },
         "TaskDetail": {
-          "line": 1135,
+          "line": 1137,
           "params": [
             "{ task",
             "updateTask }"
           ]
         }
       },
-      "loc": 1203,
+      "loc": 1205,
       "ipc": {
         "listens": [],
         "emits": [
@@ -4802,14 +4824,14 @@
           ]
         },
         "Terminal": {
-          "line": 43,
+          "line": 47,
           "params": [
             "{ terminalId",
             "className }"
           ]
         }
       },
-      "loc": 434,
+      "loc": 438,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -4873,7 +4895,7 @@
           ]
         }
       },
-      "loc": 580,
+      "loc": 583,
       "ipc": {
         "listens": [
           "TERMINAL_CREATED",
@@ -4996,22 +5018,24 @@
         "electron",
         "react",
         "lucide-react",
+        "ui/button",
         "ui/scroll-area",
-        "previews/MarkdownPreview",
+        "react-markdown",
+        "remark-gfm",
         "hooks/useIpc",
         "hooks/useSettings",
         "../shared/ipcChannels"
       ],
       "functions": {
         "WhatsNew": {
-          "line": 23,
+          "line": 26,
           "calls": [
             "useIpcQuery",
             "useSettings"
           ]
         }
       },
-      "loc": 101
+      "loc": 111
     },
     "renderer/components/WorkspaceSelector": {
       "file": "src\\renderer\\components\\WorkspaceSelector.tsx",
@@ -7358,7 +7382,7 @@
       {
         "module": "renderer/components/KeyboardShortcuts",
         "file": "src\\renderer\\components\\KeyboardShortcuts.tsx",
-        "description": "KeyboardShortcuts — Modal overlay showing all available keyboard shortcuts. Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen."
+        "description": "KeyboardShortcuts — Dialog showing all available keyboard shortcuts. Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen."
       }
     ],
     "logo-svg": [
