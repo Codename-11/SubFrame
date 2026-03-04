@@ -838,7 +838,7 @@ export function SettingsPanel() {
               <div className="bg-bg-secondary/50 rounded-lg p-3">
                 <button
                   className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                  onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/blob/main/.subframe/docs-internal/changelog.md')}
+                  onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/blob/main/CHANGELOG.md')}
                 >
                   <FileText className="w-4 h-4 text-text-tertiary shrink-0" />
                   <div className="flex-1 min-w-0">

@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-04T01:04:56.751Z",
+  "lastUpdated": "2026-03-04T03:50:59.828Z",
   "tasks": {
     "pending": [
       {
@@ -260,6 +260,21 @@
         "updatedAt": "2026-03-04T01:04:56.729Z",
         "completedAt": null,
         "description": "Enable custom stage support: 'run:' shell commands and 'uses:' script references in workflow YAML. Expose stage environment variables (PIPELINE_RUN_ID, PIPELINE_BRANCH, PIPELINE_BASE_SHA, PIPELINE_HEAD_SHA, PIPELINE_WORKTREE, PIPELINE_ARTIFACTS, PIPELINE_PROJECT_ROOT, PIPELINE_AI_TOOL). Implement file-based artifact output (custom stages write to PIPELINE_ARTIFACTS/content/*.md, comments/*.json, patches/*.json). Parallel job execution via DAG topological sort. See ADR-007 Sections 3.7-3.8.",
+        "steps": []
+      },
+      {
+        "id": "task-mmbi1nmn-v0jy",
+        "title": "Automated changelog generation from sub-task system",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-04",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-04T03:50:59.806Z",
+        "updatedAt": "2026-03-04T03:50:59.806Z",
+        "completedAt": null,
+        "description": "Integrate CHANGELOG.md (keepachangelog spec) with the SubFrame sub-task and release workflow. Goals: (1) Auto-generate changelog entries from completed sub-tasks on release — map task categories to keepachangelog sections (feature→Added, fix→Fixed, etc.). (2) Add a /changelog skill that previews unreleased changes from completed tasks since last tag. (3) Update /release skill to append to CHANGELOG.md during version bump. (4) Consider rendering CHANGELOG.md inline in the Settings About tab (currently opens GitHub). (5) Keep .subframe/docs-internal/changelog.md as the detailed internal log — CHANGELOG.md is the user-facing keepachangelog spec file.",
         "steps": []
       }
     ],
