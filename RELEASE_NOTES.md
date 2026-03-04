@@ -2,11 +2,12 @@
 
 ## Highlights
 
-- **Expanded Settings** — Terminal, Editor, and Updates tabs with live runtime application
+- **Expanded Settings** — Terminal, Editor, Updates, and About tabs with live runtime application
 - **Git Changes Tab** — See staged/modified/untracked files at a glance in the GitHub hub
 - **Enhanced Prompts** — Inline editing, tag filtering, sort modes, keyboard navigation
 - **File & View Menus** — Standard Electron menu bar with keyboard shortcuts
 - **Terminal Persistence** — Workspace-scoped terminal layout saved per-project
+- **UI Polish** — Consistent dialogs, improved terminal preview overlay
 
 ## New Features
 
@@ -42,6 +43,14 @@
 - Resolved dependency titles and contextual action hints
 - New flags: `--json`, `--changes` (timeline view), `--no-color`
 
+### Settings About Tab
+- App identity with version and license badges
+- Quick links to GitHub, issue tracker, What's New, and Changelog
+
+### Terminal Preview Overlay
+- Shows 5 lines (up from 3) for better visibility of scrolled-up output
+- Comprehensive ANSI escape stripping — fixes garbled DEC private mode sequences from Claude Code
+
 ## Bug Fixes
 
 - Fixed false-positive success toasts across 10+ components
@@ -49,6 +58,13 @@
 - Fixed stale closures in terminal DESTROYED handler and closeTerminal callback
 - Added 5s safety timeout on terminal creation guard
 - Fixed `relativeTime` producing "NaNy ago" for invalid dates in task CLI
+
+## UI Polish
+
+- **WhatsNew dialog**: Fixed content overflow (removed nested ScrollArea), added Close footer
+- **KeyboardShortcuts**: Migrated from custom Framer Motion overlay to shadcn Dialog
+- **TasksPanel dialog**: Replaced manual overflow with ScrollArea component
+- **SettingsPanel**: Theme-consistent toggle colors, visual grouping with card containers, styled selects, proper padding
 
 ## Documentation
 
