@@ -177,159 +177,190 @@ export function SettingsPanel() {
 
           <ScrollArea className="flex-1 min-h-0 mt-4">
             {/* General tab */}
-            <TabsContent value="general" className="mt-0 space-y-4">
-              {/* Auto terminal */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-text-primary">Open terminal on startup</div>
-                  <div className="text-xs text-text-tertiary">Automatically create a terminal when SubFrame launches</div>
-                </div>
-                <button
-                  onClick={() => saveToggle('general.autoCreateTerminal', !autoCreateTerminal)}
-                  className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${autoCreateTerminal ? 'bg-accent' : 'bg-zinc-600'}`}
-                >
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoCreateTerminal ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-
-              {/* Show dotfiles */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-text-primary">Show hidden files (.dotfiles)</div>
-                  <div className="text-xs text-text-tertiary">Show files starting with a dot in the file tree</div>
-                </div>
-                <button
-                  onClick={() => saveToggle('general.showDotfiles', !showDotfiles)}
-                  className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${showDotfiles ? 'bg-accent' : 'bg-zinc-600'}`}
-                >
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${showDotfiles ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-
-              {/* Confirm before close */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-text-primary">Confirm before closing</div>
-                  <div className="text-xs text-text-tertiary">Show a confirmation dialog before closing the window</div>
-                </div>
-                <button
-                  onClick={() => saveToggle('general.confirmBeforeClose', !confirmBeforeClose)}
-                  className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${confirmBeforeClose ? 'bg-accent' : 'bg-zinc-600'}`}
-                >
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${confirmBeforeClose ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-
-              {/* Default project directory */}
-              <div className="border-t border-border-subtle pt-4 mt-4">
-                <div className="text-sm text-text-primary mb-1">Default Project Directory</div>
-                <div className="text-xs text-text-tertiary mb-2">Subdirectories appear automatically in the project list</div>
-                <div className="flex gap-2">
-                  <Input
-                    value={defaultProjectDir}
-                    readOnly
-                    placeholder="No directory selected"
-                    className="bg-bg-deep border-border-subtle text-sm flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="cursor-pointer shrink-0"
-                    title="Browse for directory"
-                    onClick={async () => {
-                      const selected = await typedInvoke(IPC.SELECT_DEFAULT_PROJECT_DIR);
-                      if (selected) {
-                        updateSetting.mutate([{ key: 'general.defaultProjectDir', value: selected }]);
-                        toast.success('Default project directory set');
-                      }
-                    }}
+            <TabsContent value="general" className="mt-0 space-y-4 px-4 pb-4">
+              {/* Startup group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Startup</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                {/* Auto terminal */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-text-primary">Open terminal on startup</div>
+                    <div className="text-xs text-text-tertiary">Automatically create a terminal when SubFrame launches</div>
+                  </div>
+                  <button
+                    onClick={() => saveToggle('general.autoCreateTerminal', !autoCreateTerminal)}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${autoCreateTerminal ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
-                    <FolderOpen className="h-4 w-4" />
-                  </Button>
-                  {defaultProjectDir && (
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoCreateTerminal ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+
+                {/* Show dotfiles */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-text-primary">Show hidden files (.dotfiles)</div>
+                    <div className="text-xs text-text-tertiary">Show files starting with a dot in the file tree</div>
+                  </div>
+                  <button
+                    onClick={() => saveToggle('general.showDotfiles', !showDotfiles)}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${showDotfiles ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${showDotfiles ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Behavior group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Behavior</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                {/* Confirm before close */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-text-primary">Confirm before closing</div>
+                    <div className="text-xs text-text-tertiary">Show a confirmation dialog before closing the window</div>
+                  </div>
+                  <button
+                    onClick={() => saveToggle('general.confirmBeforeClose', !confirmBeforeClose)}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${confirmBeforeClose ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${confirmBeforeClose ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Paths group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Paths</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Default Project Directory</div>
+                  <div className="text-xs text-text-tertiary mb-2">Subdirectories appear automatically in the project list</div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={defaultProjectDir}
+                      readOnly
+                      placeholder="No directory selected"
+                      className="bg-bg-deep border-border-subtle text-sm flex-1"
+                    />
                     <Button
                       size="sm"
                       variant="outline"
                       className="cursor-pointer shrink-0"
-                      title="Clear directory"
-                      onClick={() => {
-                        updateSetting.mutate([{ key: 'general.defaultProjectDir', value: '' }]);
-                        toast.info('Default project directory cleared');
+                      title="Browse for directory"
+                      onClick={async () => {
+                        const selected = await typedInvoke(IPC.SELECT_DEFAULT_PROJECT_DIR);
+                        if (selected) {
+                          updateSetting.mutate([{ key: 'general.defaultProjectDir', value: selected }]);
+                          toast.success('Default project directory set');
+                        }
                       }}
                     >
-                      <XIcon className="h-4 w-4" />
+                      <FolderOpen className="h-4 w-4" />
+                    </Button>
+                    {defaultProjectDir && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="cursor-pointer shrink-0"
+                        title="Clear directory"
+                        onClick={() => {
+                          updateSetting.mutate([{ key: 'general.defaultProjectDir', value: '' }]);
+                          toast.info('Default project directory cleared');
+                        }}
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {defaultProjectDir && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="cursor-pointer mt-2 text-xs"
+                      onClick={async () => {
+                        toast.info('Scanning directory...');
+                        await typedInvoke(IPC.SCAN_PROJECT_DIR, defaultProjectDir);
+                        toast.success('Scan complete');
+                      }}
+                    >
+                      <FolderSearch className="h-3.5 w-3.5 mr-1.5" />
+                      Scan Now
                     </Button>
                   )}
                 </div>
-                {defaultProjectDir && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="cursor-pointer mt-2 text-xs"
-                    onClick={async () => {
-                      toast.info('Scanning directory...');
-                      await typedInvoke(IPC.SCAN_PROJECT_DIR, defaultProjectDir);
-                      toast.success('Scan complete');
-                    }}
-                  >
-                    <FolderSearch className="h-3.5 w-3.5 mr-1.5" />
-                    Scan Now
-                  </Button>
-                )}
               </div>
             </TabsContent>
 
             {/* Terminal tab */}
-            <TabsContent value="terminal" className="mt-0 space-y-4">
-              <div>
-                <div className="text-sm text-text-primary mb-1">Font Size</div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={10}
-                    max={24}
-                    step={1}
-                    value={fontSize}
-                    onChange={(e) => setFontSize(Number(e.target.value))}
-                    className="flex-1 accent-accent"
+            <TabsContent value="terminal" className="mt-0 space-y-4 px-4 pb-4">
+              {/* Font group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Font</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Font Size</div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={10}
+                      max={24}
+                      step={1}
+                      value={fontSize}
+                      onChange={(e) => setFontSize(Number(e.target.value))}
+                      className="flex-1 accent-accent"
+                    />
+                    <span className="text-xs text-text-secondary w-10">{fontSize}px</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Font Family</div>
+                  <Input
+                    value={fontFamily}
+                    onChange={(e) => setFontFamily(e.target.value)}
+                    className="bg-bg-deep border-border-subtle text-sm"
                   />
-                  <span className="text-xs text-text-secondary w-10">{fontSize}px</span>
                 </div>
               </div>
-              <div>
-                <div className="text-sm text-text-primary mb-1">Font Family</div>
-                <Input
-                  value={fontFamily}
-                  onChange={(e) => setFontFamily(e.target.value)}
-                  className="bg-bg-deep border-border-subtle text-sm"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-text-primary mb-1">Line Height</div>
-                <Input
-                  type="number"
-                  value={lineHeight}
-                  onChange={(e) => setLineHeight(Number(e.target.value))}
-                  min={1.0}
-                  max={2.0}
-                  step={0.1}
-                  className="bg-bg-deep border-border-subtle text-sm"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-text-primary mb-1">Scrollback Lines</div>
-                <Input
-                  type="number"
-                  value={scrollback}
-                  onChange={(e) => setScrollback(Number(e.target.value))}
-                  min={1000}
-                  max={100000}
-                  step={1000}
-                  className="bg-bg-deep border-border-subtle text-sm"
-                />
-              </div>
 
-              <div className="border-t border-border-subtle pt-4 mt-4">
+              {/* Display group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Display</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Line Height</div>
+                  <Input
+                    type="number"
+                    value={lineHeight}
+                    onChange={(e) => setLineHeight(Number(e.target.value))}
+                    min={1.0}
+                    max={2.0}
+                    step={0.1}
+                    className="bg-bg-deep border-border-subtle text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Scrollback Lines</div>
+                  <Input
+                    type="number"
+                    value={scrollback}
+                    onChange={(e) => setScrollback(Number(e.target.value))}
+                    min={1000}
+                    max={100000}
+                    step={1000}
+                    className="bg-bg-deep border-border-subtle text-sm"
+                  />
+                </div>
+
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Cursor Style</div>
+                  <select
+                    value={cursorStyle}
+                    onChange={(e) => setCursorStyle(e.target.value)}
+                    className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
+                  >
+                    <option value="block">Block</option>
+                    <option value="underline">Underline</option>
+                    <option value="bar">Bar</option>
+                  </select>
+                </div>
+
                 {/* Cursor blink */}
                 <div className="flex items-center justify-between">
                   <div>
@@ -338,27 +369,16 @@ export function SettingsPanel() {
                   </div>
                   <button
                     onClick={() => setCursorBlink(!cursorBlink)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${cursorBlink ? 'bg-accent' : 'bg-zinc-600'}`}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${cursorBlink ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${cursorBlink ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
                 </div>
-
-                <div className="mt-4">
-                  <div className="text-sm text-text-primary mb-1">Cursor Style</div>
-                  <select
-                    value={cursorStyle}
-                    onChange={(e) => setCursorStyle(e.target.value)}
-                    className="w-full bg-bg-deep border border-border-subtle rounded-md px-2 py-1.5 text-sm text-text-primary cursor-pointer"
-                  >
-                    <option value="block">Block</option>
-                    <option value="underline">Underline</option>
-                    <option value="bar">Bar</option>
-                  </select>
-                </div>
               </div>
 
-              <div className="border-t border-border-subtle pt-4 mt-4">
+              {/* Behavior group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Behavior</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
                 <div>
                   <div className="text-sm text-text-primary mb-1">Default Shell</div>
                   <Input
@@ -371,28 +391,28 @@ export function SettingsPanel() {
                 </div>
 
                 {/* Bell sound */}
-                <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm text-text-primary">Bell Sound</div>
                     <div className="text-xs text-text-tertiary">Play a sound on terminal bell</div>
                   </div>
                   <button
                     onClick={() => setBellSound(!bellSound)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${bellSound ? 'bg-accent' : 'bg-zinc-600'}`}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${bellSound ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${bellSound ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
                 </div>
 
                 {/* Copy on select */}
-                <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm text-text-primary">Copy on Select</div>
                     <div className="text-xs text-text-tertiary">Automatically copy selected text to clipboard</div>
                   </div>
                   <button
                     onClick={() => setCopyOnSelect(!copyOnSelect)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${copyOnSelect ? 'bg-accent' : 'bg-zinc-600'}`}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${copyOnSelect ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${copyOnSelect ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
@@ -405,55 +425,62 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* Editor tab */}
-            <TabsContent value="editor" className="mt-0 space-y-4">
-              <div>
-                <div className="text-sm text-text-primary mb-1">Font Size</div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={8}
-                    max={24}
-                    step={1}
-                    value={editorFontSize}
-                    onChange={(e) => setEditorFontSize(Number(e.target.value))}
-                    className="flex-1 accent-accent"
+            <TabsContent value="editor" className="mt-0 space-y-4 px-4 pb-4">
+              {/* Font group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Font</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Font Size</div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={8}
+                      max={24}
+                      step={1}
+                      value={editorFontSize}
+                      onChange={(e) => setEditorFontSize(Number(e.target.value))}
+                      className="flex-1 accent-accent"
+                    />
+                    <span className="text-xs text-text-secondary w-10">{editorFontSize}px</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Font Family</div>
+                  <Input
+                    value={editorFontFamily}
+                    onChange={(e) => setEditorFontFamily(e.target.value)}
+                    className="bg-bg-deep border-border-subtle text-sm"
                   />
-                  <span className="text-xs text-text-secondary w-10">{editorFontSize}px</span>
+                </div>
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Tab Size</div>
+                  <select
+                    value={editorTabSize}
+                    onChange={(e) => setEditorTabSize(Number(e.target.value))}
+                    className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
+                  >
+                    <option value={2}>2 spaces</option>
+                    <option value={4}>4 spaces</option>
+                  </select>
                 </div>
               </div>
-              <div>
-                <div className="text-sm text-text-primary mb-1">Font Family</div>
-                <Input
-                  value={editorFontFamily}
-                  onChange={(e) => setEditorFontFamily(e.target.value)}
-                  className="bg-bg-deep border-border-subtle text-sm"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-text-primary mb-1">Tab Size</div>
-                <select
-                  value={editorTabSize}
-                  onChange={(e) => setEditorTabSize(Number(e.target.value))}
-                  className="w-full bg-bg-deep border border-border-subtle rounded-md px-2 py-1.5 text-sm text-text-primary cursor-pointer"
-                >
-                  <option value={2}>2 spaces</option>
-                  <option value={4}>4 spaces</option>
-                </select>
-              </div>
-              <div>
-                <div className="text-sm text-text-primary mb-1">Theme</div>
-                <select
-                  value={editorTheme}
-                  onChange={(e) => setEditorTheme(e.target.value)}
-                  className="w-full bg-bg-deep border border-border-subtle rounded-md px-2 py-1.5 text-sm text-text-primary cursor-pointer"
-                >
-                  {Object.values(EDITOR_THEMES).map((theme) => (
-                    <option key={theme.id} value={theme.id}>{theme.label}</option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="border-t border-border-subtle pt-4 mt-4">
+              {/* Display group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Display</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Theme</div>
+                  <select
+                    value={editorTheme}
+                    onChange={(e) => setEditorTheme(e.target.value)}
+                    className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
+                  >
+                    {Object.values(EDITOR_THEMES).map((theme) => (
+                      <option key={theme.id} value={theme.id}>{theme.label}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Word wrap */}
                 <div className="flex items-center justify-between">
                   <div>
@@ -462,49 +489,49 @@ export function SettingsPanel() {
                   </div>
                   <button
                     onClick={() => setEditorWordWrap(!editorWordWrap)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorWordWrap ? 'bg-accent' : 'bg-zinc-600'}`}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorWordWrap ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editorWordWrap ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
                 </div>
 
                 {/* Minimap */}
-                <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm text-text-primary">Minimap</div>
                     <div className="text-xs text-text-tertiary">Show a minimap overview of the file</div>
                   </div>
                   <button
                     onClick={() => setEditorMinimap(!editorMinimap)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorMinimap ? 'bg-accent' : 'bg-zinc-600'}`}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorMinimap ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editorMinimap ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
                 </div>
 
                 {/* Line numbers */}
-                <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm text-text-primary">Line Numbers</div>
                     <div className="text-xs text-text-tertiary">Show line numbers in the gutter</div>
                   </div>
                   <button
                     onClick={() => setEditorLineNumbers(!editorLineNumbers)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorLineNumbers ? 'bg-accent' : 'bg-zinc-600'}`}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorLineNumbers ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editorLineNumbers ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
                 </div>
 
                 {/* Bracket matching */}
-                <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm text-text-primary">Bracket Matching</div>
                     <div className="text-xs text-text-tertiary">Highlight matching brackets</div>
                   </div>
                   <button
                     onClick={() => setEditorBracketMatching(!editorBracketMatching)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorBracketMatching ? 'bg-accent' : 'bg-zinc-600'}`}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorBracketMatching ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editorBracketMatching ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
@@ -517,7 +544,7 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* AI Tool tab */}
-            <TabsContent value="ai-tool" className="mt-0 space-y-4">
+            <TabsContent value="ai-tool" className="mt-0 space-y-4 px-4 pb-4">
               <div>
                 <div className="text-sm text-text-primary mb-1">Active Tool</div>
                 <select
@@ -525,7 +552,7 @@ export function SettingsPanel() {
                   onChange={(e) => {
                     setAITool.mutate([e.target.value]);
                   }}
-                  className="w-full bg-bg-deep border border-border-subtle rounded-md px-2 py-1.5 text-sm text-text-primary cursor-pointer"
+                  className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
                 >
                   {aiToolConfig && Object.values(aiToolConfig.availableTools).map((tool) => (
                     <option key={tool.id} value={tool.id}>
@@ -667,49 +694,53 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* Updates tab */}
-            <TabsContent value="updates" className="mt-0 space-y-4">
+            <TabsContent value="updates" className="mt-0 space-y-4 px-4 pb-4">
               <div className="text-xs text-text-tertiary">
                 Current version: <code className="text-text-secondary">v{APP_VERSION}</code>
               </div>
 
-              {/* Auto-check for updates */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-text-primary">Auto-check for updates</div>
-                  <div className="text-xs text-text-tertiary">Automatically check for new versions in the background</div>
+              {/* Update Preferences group */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Update Preferences</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                {/* Auto-check for updates */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-text-primary">Auto-check for updates</div>
+                    <div className="text-xs text-text-tertiary">Automatically check for new versions in the background</div>
+                  </div>
+                  <button
+                    onClick={() => setAutoCheck(!autoCheck)}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${autoCheck ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoCheck ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setAutoCheck(!autoCheck)}
-                  className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${autoCheck ? 'bg-accent' : 'bg-zinc-600'}`}
-                >
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoCheck ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
 
-              <div>
-                <div className="text-sm text-text-primary mb-1">Pre-release Channel</div>
-                <select
-                  value={allowPrerelease}
-                  onChange={(e) => setAllowPrerelease(e.target.value)}
-                  className="w-full bg-bg-deep border border-border-subtle rounded-md px-2 py-1.5 text-sm text-text-primary cursor-pointer"
-                >
-                  <option value="auto">Auto</option>
-                  <option value="always">Always</option>
-                  <option value="never">Never</option>
-                </select>
-                <div className="text-xs text-text-tertiary mt-1">Auto detects based on your current version</div>
-              </div>
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Pre-release Channel</div>
+                  <select
+                    value={allowPrerelease}
+                    onChange={(e) => setAllowPrerelease(e.target.value)}
+                    className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="always">Always</option>
+                    <option value="never">Never</option>
+                  </select>
+                  <div className="text-xs text-text-tertiary mt-1">Auto detects based on your current version</div>
+                </div>
 
-              <div>
-                <div className="text-sm text-text-primary mb-1">Check Interval (hours)</div>
-                <Input
-                  type="number"
-                  value={checkIntervalHours}
-                  onChange={(e) => setCheckIntervalHours(Number(e.target.value))}
-                  min={1}
-                  max={24}
-                  className="bg-bg-deep border-border-subtle text-sm"
-                />
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Check Interval (hours)</div>
+                  <Input
+                    type="number"
+                    value={checkIntervalHours}
+                    onChange={(e) => setCheckIntervalHours(Number(e.target.value))}
+                    min={1}
+                    max={24}
+                    className="bg-bg-deep border-border-subtle text-sm"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2">

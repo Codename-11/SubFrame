@@ -9,11 +9,14 @@ import { Sparkles } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
+import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
-import { MarkdownPreview } from './previews/MarkdownPreview';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useIpcQuery } from '../hooks/useIpc';
 import { useSettings } from '../hooks/useSettings';
 import { IPC } from '../../shared/ipcChannels';
@@ -73,7 +76,7 @@ export function WhatsNew() {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-xl max-h-[80vh] flex flex-col">
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-xl max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm">
             <Sparkles className="w-4 h-4 text-accent" />
@@ -85,15 +88,22 @@ export function WhatsNew() {
             )}
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 min-h-0 max-h-[60vh] pr-2">
+        <ScrollArea className="flex-1 min-h-0 max-h-[60vh]">
           {releaseNotes?.content ? (
-            <MarkdownPreview content={releaseNotes.content} />
+            <div className="px-4 py-2 text-sm text-text-secondary leading-relaxed [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-accent [&_h1]:mb-3 [&_h1]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-text-primary [&_h2]:mb-2 [&_h2]:mt-4 [&_h3]:text-base [&_h3]:font-medium [&_h3]:text-text-primary [&_h3]:mb-2 [&_h3]:mt-3 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-3 [&_li]:mb-1 [&_strong]:text-text-primary [&_strong]:font-semibold [&_code]:bg-bg-tertiary [&_code]:text-accent [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono [&_blockquote]:border-l-2 [&_blockquote]:border-accent [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-text-tertiary [&_blockquote]:mb-3 [&_hr]:border-border-subtle [&_hr]:my-4 [&_a]:text-info [&_a]:hover:underline">
+              <Markdown remarkPlugins={[remarkGfm]}>
+                {releaseNotes.content}
+              </Markdown>
+            </div>
           ) : isError ? (
-            <p className="text-text-tertiary text-xs">Release notes unavailable</p>
+            <p className="text-text-tertiary text-xs p-4">Release notes unavailable</p>
           ) : (
-            <p className="text-text-tertiary text-xs">Loading release notes...</p>
+            <p className="text-text-tertiary text-xs p-4">Loading release notes...</p>
           )}
         </ScrollArea>
+        <DialogFooter className="pt-2 border-t border-border-subtle">
+          <Button variant="ghost" onClick={() => handleClose(false)} className="cursor-pointer">Close</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
