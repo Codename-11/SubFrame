@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-03",
+    "lastUpdated": "2026-03-04",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-03T23:28:48.675Z",
+  "lastUpdated": "2026-03-04T01:04:56.751Z",
   "tasks": {
     "pending": [
       {
@@ -176,6 +176,90 @@
         "completedAt": null,
         "description": "Embed a Claud-ometer-style analytics dashboard directly in SubFrame. Reads `~/.claude/` data (session .jsonl logs, stats-cache.json, history.jsonl) to show usage, costs, token breakdowns, and session history — no external server needed.",
         "acceptanceCriteria": "- Overview shows total sessions, messages, tokens, cost\n- At least one chart (usage over time or model breakdown)\n- Session list with sort/filter\n- Cost estimates using per-model pricing (input/output/cache tiers)\n- Scopes to current project when project is selected\n- Handles missing ~/.claude/ gracefully (empty state)",
+        "steps": []
+      },
+      {
+        "id": "task-mmbc33h2-v7or",
+        "title": "Pipeline engine foundation — data model, IPC, and executor",
+        "status": "pending",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-04",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-04T01:04:09.301Z",
+        "updatedAt": "2026-03-04T01:04:09.301Z",
+        "completedAt": null,
+        "description": "Implement the core pipeline infrastructure: data types in ipcChannels.ts (PipelineRun, PipelineJob, PipelineStage, PipelineArtifact types), IPC channels (PIPELINE_START, PIPELINE_CANCEL, PIPELINE_PROGRESS, etc.), pipelineManager.ts with init()+setupIPC(), workflow YAML parser, sequential stage executor with DAG support, and artifact collection system. Register in main/index.ts. See ADR-007 Section 3.1-3.3.",
+        "steps": []
+      },
+      {
+        "id": "task-mmbc3cjb-je2v",
+        "title": "Built-in pipeline stages — lint, test, describe, critique, freeze",
+        "status": "pending",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-04",
+        "blockedBy": [
+          "task-mmbc33h2-v7or"
+        ],
+        "blocks": [],
+        "createdAt": "2026-03-04T01:04:21.046Z",
+        "updatedAt": "2026-03-04T01:04:21.046Z",
+        "completedAt": null,
+        "description": "Implement the built-in stage handlers in pipelineStages.ts: critique (AI code review → CommentArtifacts), lint (discover+run linters → PatchArtifacts with cached lint.sh), describe (PR title+body+Mermaid → ContentArtifact), test (run/generate tests → ContentArtifact with verdict), freeze (auto-apply pre-freeze patches, lock worktree), push (git push via gitBranchesManager), create-pr (gh pr create from accumulated artifacts). Each handler follows the StageHandler interface. See ADR-007 Section 3.4.",
+        "steps": []
+      },
+      {
+        "id": "task-mmbc3ly5-o4ih",
+        "title": "Pipeline review panel — UI for runs, artifacts, and approvals",
+        "status": "pending",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-04",
+        "blockedBy": [
+          "task-mmbc33h2-v7or"
+        ],
+        "blocks": [],
+        "createdAt": "2026-03-04T01:04:33.244Z",
+        "updatedAt": "2026-03-04T01:04:33.244Z",
+        "completedAt": null,
+        "description": "Build the renderer components: PipelinePanel.tsx (panel+full-view modes with run list and detail), PipelineTimeline.tsx (horizontal stage flow with animated status), usePipeline.ts hook (follows useTasks pattern — push listener, staleTime:Infinity, stable mutation refs), CritiqueView.tsx (file-grouped CommentArtifacts with severity badges), PatchReview.tsx (diff display with checkbox select and Apply button), PipelineLogView.tsx (scrollable per-stage logs). Add 'pipeline' to PanelId in useUIStore, wire into Sidebar+RightPanel+TerminalArea. Four tabs: Overview, Critique, Patches, Log. See ADR-007 Section 3.5.",
+        "steps": []
+      },
+      {
+        "id": "task-mmbc3vlq-ardz",
+        "title": "Git integration and workflow configuration",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-04",
+        "blockedBy": [
+          "task-mmbc3cjb-je2v",
+          "task-mmbc3ly5-o4ih"
+        ],
+        "blocks": [],
+        "createdAt": "2026-03-04T01:04:45.757Z",
+        "updatedAt": "2026-03-04T01:04:45.757Z",
+        "completedAt": null,
+        "description": "Implement git hook integration: optional pre-push hook that triggers pipeline runs, worktree isolation for mutable stages (via gitBranchesManager.addWorktree), branch filtering from workflow YAML (on.push.branches glob matching). Add WorkflowEditor component using CodeMirror for YAML editing. Store workflows per-project in .subframe/workflows/. Add default review.yml workflow template to frameTemplates.ts. See ADR-007 Sections 3.6-3.7.",
+        "steps": []
+      },
+      {
+        "id": "task-mmbc442i-3crr",
+        "title": "Pipeline extensibility — custom stages, env vars, artifact output",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-04",
+        "blockedBy": [
+          "task-mmbc3vlq-ardz"
+        ],
+        "blocks": [],
+        "createdAt": "2026-03-04T01:04:56.729Z",
+        "updatedAt": "2026-03-04T01:04:56.729Z",
+        "completedAt": null,
+        "description": "Enable custom stage support: 'run:' shell commands and 'uses:' script references in workflow YAML. Expose stage environment variables (PIPELINE_RUN_ID, PIPELINE_BRANCH, PIPELINE_BASE_SHA, PIPELINE_HEAD_SHA, PIPELINE_WORKTREE, PIPELINE_ARTIFACTS, PIPELINE_PROJECT_ROOT, PIPELINE_AI_TOOL). Implement file-based artifact output (custom stages write to PIPELINE_ARTIFACTS/content/*.md, comments/*.json, patches/*.json). Parallel job execution via DAG topological sort. See ADR-007 Sections 3.7-3.8.",
         "steps": []
       }
     ],
@@ -657,6 +741,21 @@
         "steps": []
       },
       {
+        "id": "task-mmb8be8r-dssb",
+        "title": "Enhanced empty state with AI tool indicator",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-03",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-03T23:18:38.042Z",
+        "updatedAt": "2026-03-03T23:28:48.673Z",
+        "completedAt": "2026-03-03T23:28:48.673Z",
+        "description": "1. Show which AI tool will start based on settings (e.g., 'Start Claude Code' instead of generic 'Start AI') on the empty terminal state button in TerminalArea.tsx. Mirror the sidebar AI status display. 2. Review empty grid cell UX in TerminalGrid.tsx — consider whether the current Plus button is discoverable enough or needs enhancement.",
+        "steps": []
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -840,21 +939,6 @@
         "updatedAt": "2026-01-24T16:30:00.000Z",
         "completedAt": "2026-01-24T16:30:00.000Z",
         "description": "Sag tarafta toggle edilebilen tasks paneli. Filtreleme, ekleme, duzenleme, silme, durum degistirme ozellikleri.",
-        "steps": []
-      },
-      {
-        "id": "task-mmb8be8r-dssb",
-        "title": "Enhanced empty state with AI tool indicator",
-        "status": "completed",
-        "priority": "medium",
-        "category": "feature",
-        "context": "Session 2026-03-03",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-03T23:18:38.042Z",
-        "updatedAt": "2026-03-03T23:28:48.673Z",
-        "completedAt": "2026-03-03T23:28:48.673Z",
-        "description": "1. Show which AI tool will start based on settings (e.g., 'Start Claude Code' instead of generic 'Start AI') on the empty terminal state button in TerminalArea.tsx. Mirror the sidebar AI status display. 2. Review empty grid cell UX in TerminalGrid.tsx — consider whether the current Plus button is discoverable enough or needs enhancement.",
         "steps": []
       }
     ]
