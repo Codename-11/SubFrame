@@ -3,16 +3,16 @@
  */
 
 import { useState } from 'react';
-import { RefreshCw, GitBranch, ExternalLink, Plus, Trash2, ArrowRight, FolderGit2, AlertCircle } from 'lucide-react';
+import { RefreshCw, GitBranch, ExternalLink, Plus, Trash2, ArrowRight, FolderGit2, AlertCircle, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { cn } from '../lib/utils';
-import { useGithubIssues, useGitBranches, useGitWorktrees } from '../hooks/useGithub';
+import { useGithubIssues, useGitBranches, useGitWorktrees, useGitStatus } from '../hooks/useGithub';
 import { useProjectStore } from '../stores/useProjectStore';
-import type { GitHubIssue, GitHubLabel, GitBranch as GitBranchType } from '../../shared/ipcChannels';
+import type { GitHubIssue, GitHubLabel, GitBranch as GitBranchType, GitFileStatus } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 
 /** Get contrasting text color for a hex background color */
@@ -79,6 +79,143 @@ export function GithubWorktreesPanel() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
   if (!projectPath) return <NoProject />;
   return <WorktreesTab />;
+}
+
+export function GithubChangesPanel() {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+  if (!projectPath) return <NoProject />;
+  return <ChangesTab />;
+}
+
+function FileGroup({ label, count, color, dotColor, files, statusField, open, onToggle }: {
+  label: string;
+  count: number;
+  color: string;
+  dotColor: string;
+  files: GitFileStatus[];
+  statusField: 'index' | 'working';
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 w-full px-3 py-1.5 text-[10px] uppercase tracking-wider font-medium bg-bg-deep/50 hover:bg-bg-hover/30 transition-colors cursor-pointer"
+      >
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        <div className={cn('w-1.5 h-1.5 rounded-full', dotColor)} />
+        <span className={color}>{label}</span>
+        <span className="text-text-tertiary ml-auto">{count}</span>
+      </button>
+      {open && files.map((file) => {
+        const status = file[statusField];
+        const fileName = file.path.split(/[/\\]/).pop() || file.path;
+        const dirName = file.path.includes('/') || file.path.includes('\\')
+          ? file.path.split(/[/\\]/).slice(0, -1).join('/') + '/'
+          : '';
+        return (
+          <div
+            key={file.path + statusField}
+            className="flex items-center gap-2 px-3 py-1.5 pl-7 border-b border-border-subtle/30 hover:bg-bg-hover/30 transition-colors group"
+            title={file.path}
+          >
+            <span className={cn('text-[10px] font-mono w-3 shrink-0 text-center font-bold', color)}>
+              {status}
+            </span>
+            <span className="text-xs text-text-secondary truncate">
+              {dirName && <span className="text-text-tertiary">{dirName}</span>}
+              <span className="text-text-primary">{fileName}</span>
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChangesTab() {
+  const { files, staged, modified, untracked, error, isLoading, refetch } = useGitStatus();
+  const [stagedOpen, setStagedOpen] = useState(true);
+  const [modifiedOpen, setModifiedOpen] = useState(true);
+  const [untrackedOpen, setUntrackedOpen] = useState(true);
+
+  const stagedFiles = files.filter((f: GitFileStatus) => f.index !== ' ' && f.index !== '?');
+  const modifiedFiles = files.filter((f: GitFileStatus) => f.working === 'M' || f.working === 'D');
+  const untrackedFiles = files.filter((f: GitFileStatus) => f.index === '?' && f.working === '?');
+
+  const hasChanges = stagedFiles.length > 0 || modifiedFiles.length > 0 || untrackedFiles.length > 0;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Summary bar */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-subtle shrink-0">
+        <div className="flex items-center gap-2 text-xs">
+          {staged > 0 && <span className="text-emerald-400">+{staged} staged</span>}
+          {modified > 0 && <span className="text-amber-400">~{modified} modified</span>}
+          {untracked > 0 && <span className="text-text-tertiary">?{untracked} untracked</span>}
+          {!hasChanges && !isLoading && <span className="text-text-tertiary">Clean</span>}
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-6 px-1.5 cursor-pointer">
+          <RefreshCw size={12} className={cn(isLoading && 'animate-spin')} />
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1 min-h-0">
+        {error ? (
+          <div className="flex flex-col items-center justify-center gap-2 text-text-tertiary p-6">
+            <AlertCircle className="w-5 h-5 text-error/60" />
+            <p className="text-xs text-center">Failed to load git status</p>
+            <button onClick={() => refetch()} className="text-xs text-accent hover:underline cursor-pointer">Retry</button>
+          </div>
+        ) : !hasChanges && !isLoading ? (
+          <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-2">
+            <Check size={24} className="text-emerald-400/60" />
+            <span>Working tree clean</span>
+          </div>
+        ) : (
+          <div>
+            {stagedFiles.length > 0 && (
+              <FileGroup
+                label="Staged"
+                count={stagedFiles.length}
+                color="text-emerald-400"
+                dotColor="bg-emerald-400"
+                files={stagedFiles}
+                statusField="index"
+                open={stagedOpen}
+                onToggle={() => setStagedOpen(!stagedOpen)}
+              />
+            )}
+            {modifiedFiles.length > 0 && (
+              <FileGroup
+                label="Modified"
+                count={modifiedFiles.length}
+                color="text-amber-400"
+                dotColor="bg-amber-400"
+                files={modifiedFiles}
+                statusField="working"
+                open={modifiedOpen}
+                onToggle={() => setModifiedOpen(!modifiedOpen)}
+              />
+            )}
+            {untrackedFiles.length > 0 && (
+              <FileGroup
+                label="Untracked"
+                count={untrackedFiles.length}
+                color="text-text-tertiary"
+                dotColor="bg-text-tertiary"
+                files={untrackedFiles}
+                statusField="working"
+                open={untrackedOpen}
+                onToggle={() => setUntrackedOpen(!untrackedOpen)}
+              />
+            )}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
 }
 
 function IssuesTab({ state: initialState = 'open', isPR = false }: { state?: string; isPR?: boolean }) {
@@ -221,8 +358,12 @@ function BranchesTab() {
       const result = await deleteBranch.mutateAsync([{ projectPath, branchName, force: false }]);
       if (result.error) {
         if (window.confirm(`Branch is not fully merged. Force delete?`)) {
-          await deleteBranch.mutateAsync([{ projectPath, branchName, force: true }]);
-          toast.success(`Deleted ${branchName}`);
+          try {
+            await deleteBranch.mutateAsync([{ projectPath, branchName, force: true }]);
+            toast.success(`Deleted ${branchName}`);
+          } catch {
+            toast.error('Failed to force-delete branch');
+          }
         }
       } else {
         toast.success(`Deleted ${branchName}`);
@@ -394,10 +535,16 @@ function WorktreesTab() {
       const result = await removeWorktree.mutateAsync([{ projectPath, worktreePath: wtPath, force: false }]);
       if (result.error) {
         if (window.confirm('Worktree has local changes. Force remove?')) {
-          await removeWorktree.mutateAsync([{ projectPath, worktreePath: wtPath, force: true }]);
+          try {
+            await removeWorktree.mutateAsync([{ projectPath, worktreePath: wtPath, force: true }]);
+            toast.success('Worktree force-removed');
+          } catch {
+            toast.error('Failed to force-remove worktree');
+          }
         }
+      } else {
+        toast.success('Worktree removed');
       }
-      toast.success('Worktree removed');
     } catch {
       toast.error('Failed to remove worktree');
     }
