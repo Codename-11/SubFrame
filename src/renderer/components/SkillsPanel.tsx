@@ -13,6 +13,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
 import { MarkdownPreview } from './previews/MarkdownPreview';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 import type { SkillInfo } from '../../shared/ipcChannels';
 
 /** Type the global terminalSendCommand helper */
@@ -46,6 +47,8 @@ function SkillCard({ skill }: { skill: SkillInfo }) {
     e.stopPropagation();
     if (typeof window.terminalSendCommand === 'function') {
       window.terminalSendCommand(skill.command);
+    } else {
+      toast.warning('No active terminal', { description: 'Open a terminal first.' });
     }
   };
 

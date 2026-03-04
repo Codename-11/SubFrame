@@ -57,6 +57,7 @@ import {
 import { IPC } from '../../shared/ipcChannels';
 import { typedSend } from '../lib/ipc';
 import { useSettings } from '../hooks/useSettings';
+import { toast } from 'sonner';
 import { useProjectStore } from '../stores/useProjectStore';
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { keymap, EditorView } from '@codemirror/view';
@@ -77,11 +78,14 @@ import {
   minimapCompartment,
   wordWrapCompartment,
   fontSizeCompartment,
+  fontFamilyCompartment,
   reconfigureMinimap,
   reconfigureWordWrap,
   getWordWrapExtension,
   getFontSizeExtension,
   reconfigureFontSize,
+  getFontFamilyExtension,
+  reconfigureFontFamily,
 } from '../lib/codemirror-extensions';
 
 const { ipcRenderer } = require('electron');
@@ -138,12 +142,20 @@ export function Editor({ filePath, onClose }: EditorProps) {
     theme?: string;
     wordWrap?: boolean;
     fontSize?: number;
+    fontFamily?: string;
+    lineNumbers?: boolean;
+    bracketMatching?: boolean;
+    tabSize?: number;
   } | undefined;
 
   const minimapEnabled = editorSettings?.minimap ?? false;
   const wordWrapEnabled = editorSettings?.wordWrap ?? false;
   const fontSize = editorSettings?.fontSize ?? 12;
   const themeId = (editorSettings?.theme ?? 'subframe-dark') as EditorThemeId;
+  const fontFamily = editorSettings?.fontFamily ?? "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace";
+  const lineNumbersEnabled = editorSettings?.lineNumbers ?? true;
+  const bracketMatchingEnabled = editorSettings?.bracketMatching ?? true;
+  const tabSize = editorSettings?.tabSize ?? 2;
   const [isFullscreen, setIsFullscreen] = useState(editorSettings?.fullscreen ?? false);
 
   // Project path for relative display
@@ -227,6 +239,7 @@ export function Editor({ filePath, onClose }: EditorProps) {
         setTimeout(() => setSaveStatus('idle'), 2000);
       } else {
         setSaveStatus('error');
+        toast.error('Failed to save file');
       }
     };
 
@@ -276,6 +289,11 @@ export function Editor({ filePath, onClose }: EditorProps) {
     const view = getView();
     if (view) reconfigureFontSize(view, fontSize);
   }, [fontSize, getView]);
+
+  useEffect(() => {
+    const view = getView();
+    if (view) reconfigureFontFamily(view, fontFamily);
+  }, [fontFamily, getView]);
 
   useEffect(() => {
     const view = getView();
@@ -342,12 +360,13 @@ export function Editor({ filePath, onClose }: EditorProps) {
   // Memoize CodeMirror extensions — recreate when filename or readOnly changes
   const extensions = useMemo(() => {
     const exts: Extension[] = [
-      ...getBaseExtensions(),
+      ...getBaseExtensions({ lineNumbers: lineNumbersEnabled, bracketMatching: bracketMatchingEnabled }),
       themeCompartment.of(getThemeExtension(themeId)),
       minimapCompartment.of(getMinimapExtension(minimapEnabled)),
       wordWrapCompartment.of(getWordWrapExtension(wordWrapEnabled)),
       fontSizeCompartment.of(getFontSizeExtension(fontSize)),
-      getIndentExtension(2),
+      fontFamilyCompartment.of(getFontFamilyExtension(fontFamily)),
+      getIndentExtension(tabSize),
       cursorUpdateListener,
     ];
 
@@ -379,7 +398,7 @@ export function Editor({ filePath, onClose }: EditorProps) {
     );
 
     return exts;
-  }, [fileName, readOnly, themeId, minimapEnabled, wordWrapEnabled, fontSize, cursorUpdateListener]);
+  }, [fileName, readOnly, themeId, minimapEnabled, wordWrapEnabled, fontSize, fontFamily, lineNumbersEnabled, bracketMatchingEnabled, tabSize, cursorUpdateListener]);
 
   // ── Dialog className for fullscreen vs normal ────────────────────────
 

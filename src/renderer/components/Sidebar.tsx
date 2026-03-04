@@ -3,7 +3,6 @@ import {
   FolderOpen,
   FileText,
   Settings,
-  ChevronRight,
   ChevronLeft,
   ChevronDown,
   X,
@@ -41,6 +40,7 @@ import type { AITool } from '../../shared/ipcChannels';
 import { getLogoSVG } from '../../shared/logoSVG';
 import { SidebarAgentStatus } from './SidebarAgentStatus';
 import { useGitStatus } from '../hooks/useGithub';
+import { toast } from 'sonner';
 
 /** Read version at module level — avoids importing frameConstants.ts which uses Node's `path` */
 const FRAME_VERSION: string = require('../../../package.json').version;
@@ -101,6 +101,9 @@ export function Sidebar() {
         setInitDialogOpen(false);
         if (data.success) {
           setIsFrameProject(true);
+          toast.success('Project initialized as SubFrame project');
+        } else {
+          toast.error('Failed to initialize project');
         }
       }
     };
@@ -156,7 +159,6 @@ export function Sidebar() {
         const startCommand = customCmd || activeTool?.command || 'claude';
 
         const handler = (_event: unknown, data: { terminalId?: string; success: boolean }) => {
-          ipcRenderer.removeListener(IPC.TERMINAL_CREATED, handler);
           if (data.success && data.terminalId) {
             setTimeout(() => {
               ipcRenderer.send(IPC.TERMINAL_INPUT_ID, {
@@ -164,9 +166,11 @@ export function Sidebar() {
                 data: startCommand + '\r',
               });
             }, 1000);
+          } else if (!data.success) {
+            toast.error('Failed to start terminal');
           }
         };
-        ipcRenderer.on(IPC.TERMINAL_CREATED, handler);
+        ipcRenderer.once(IPC.TERMINAL_CREATED, handler);
         ipcRenderer.send(IPC.TERMINAL_CREATE, {
           projectPath: currentProjectPath,
           cwd: currentProjectPath,

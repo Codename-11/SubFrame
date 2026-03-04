@@ -25,6 +25,7 @@ import {
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 import { useFileTree } from '../hooks/useFileTree';
 import { useGitStatus } from '../hooks/useGithub';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -160,7 +161,10 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   );
 
   const handleCopyPath = useCallback((path: string) => {
-    navigator.clipboard.writeText(path);
+    navigator.clipboard.writeText(path).then(
+      () => toast.success('Path copied'),
+      () => toast.error('Failed to copy path')
+    );
   }, []);
 
   const handleRevealInExplorer = useCallback((path: string) => {

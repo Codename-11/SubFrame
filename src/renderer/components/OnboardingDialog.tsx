@@ -20,6 +20,7 @@ import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 import {
   Loader2,
   Search,
@@ -471,7 +472,10 @@ export function OnboardingDialog({
               </Button>
               <Button
                 size="sm"
-                onClick={() => onImport(selections)}
+                onClick={() => {
+                  onImport(selections);
+                  toast.success('Project intelligence imported');
+                }}
                 disabled={
                   !selections.structure &&
                   !selections.projectNotes &&
