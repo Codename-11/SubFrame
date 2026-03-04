@@ -66,7 +66,8 @@ npm run docs:preview # Preview built docs locally
 | `.subframe/tasks/*.md` | Sub-Task files (markdown + YAML frontmatter) | Source of truth |
 | `.subframe/tasks.json` | Sub-Task index (auto-generated from .md files) | Read at session start |
 | `.subframe/PROJECT_NOTES.md` | Decisions, session notes, architecture context | Read at session start |
-| `.subframe/docs-internal/` | ADRs, architecture overview, changelog, IPC reference | Reference (not auto-loaded) |
+| `.subframe/docs-internal/` | ADRs, architecture overview, internal changelog, IPC reference | Reference (not auto-loaded) |
+| `CHANGELOG.md` | User-facing changelog ([keepachangelog](https://keepachangelog.com/) spec) | Reference |
 | `AGENTS.md` | Full rules for Sub-Task system, notes, documentation | Reference manual |
 
 **Start each session** by reading `.subframe/STRUCTURE.json`, `.subframe/tasks.json`, and `.subframe/PROJECT_NOTES.md`.
@@ -124,7 +125,7 @@ After significant work (code changes, architecture decisions, new tooling), veri
 
 1. **Sub-Task** — Was this work tracked? `node scripts/task.js list` → create/complete as needed
 2. **PROJECT_NOTES.md** — Any decisions worth preserving? Ask the user
-3. **Changelog** — Does `.subframe/docs-internal/changelog.md` reflect the changes?
+3. **Changelog** — Does `CHANGELOG.md` (keepachangelog) have entries under `[Unreleased]`? Also update `.subframe/docs-internal/changelog.md` for detailed internal notes
 4. **STRUCTURE.json** — Source files changed? `npm run structure` (also handled by pre-commit hook)
 5. **CLAUDE.md** — Did the architecture table, modules list, or build commands change?
 
@@ -148,7 +149,7 @@ When changing any of these, update **all** locations that reference them:
 | **New module/file** | .subframe/STRUCTURE.json modules section, `main/index.ts` imports (if main process), run `npm run structure` |
 | **UI terminology** (label/branding change) | index.html, renderer TSX (user-facing strings), CLAUDE.md, AGENTS.md, frameTemplates.ts |
 | **Quality tooling** (test/lint/CI config) | `vitest.config.ts`, `eslint.config.mjs`, `.prettierrc`, `tsconfig.test.json`, `.github/workflows/ci.yml` |
-| **Significant session work** | `.subframe/docs-internal/changelog.md`, `.subframe/PROJECT_NOTES.md` (decisions), `.subframe/tasks.json` (sub-task tracking) |
+| **Significant session work** | `CHANGELOG.md` (user-facing, keepachangelog), `.subframe/docs-internal/changelog.md` (internal detail), `.subframe/PROJECT_NOTES.md` (decisions), `.subframe/tasks.json` (sub-task tracking) |
 | **Version bump** | `npm version <newversion>` (updates `package.json` + git tag), then `docs/index.md` JSON-LD `softwareVersion`. `FRAME_VERSION` auto-reads from `package.json`. |
 
 ## Conventions

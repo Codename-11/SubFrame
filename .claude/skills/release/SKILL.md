@@ -60,7 +60,11 @@ Update these version strings to match the new version:
 1. **`docs/index.md`** — the `"softwareVersion"` field in the Schema.org JSON-LD structured data (in the frontmatter `head` array)
 2. **`docs/.vitepress/theme/components/NavBar.vue`** — the `logo-version` span text (e.g., `Latest: v0.2.0`)
 
-### Step 4: Generate Release Notes
+### Step 4: Update CHANGELOG.md
+
+Move items from `## [Unreleased]` to a new `## [X.Y.Z] - YYYY-MM-DD` section in `CHANGELOG.md` (keepachangelog format). Add a compare link at the bottom of the file. If there are no [Unreleased] entries, generate them from commits since last tag using Added/Changed/Fixed sections.
+
+### Step 5: Generate Release Notes
 
 Write `RELEASE_NOTES.md` following the format in [release-notes.md](release-notes.md).
 
@@ -68,17 +72,18 @@ Analyze ALL commits since the last tag to build the notes. Group by category, be
 
 **Show the draft to the user and ask for approval before continuing.** They may want to adjust wording or add context.
 
-### Step 5: Commit
+### Step 6: Commit
 
 Stage exactly these files:
 - `package.json`
 - `docs/index.md`
 - `docs/.vitepress/theme/components/NavBar.vue`
+- `CHANGELOG.md`
 - `RELEASE_NOTES.md`
 
 Commit with message: `chore(release): bump version to X.Y.Z`
 
-### Step 6: Tag
+### Step 7: Tag
 
 Create an annotated tag: `git tag vX.Y.Z`
 

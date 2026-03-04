@@ -337,10 +337,10 @@ This directory holds project documentation that doesn't belong in the root:
 
 | File | Purpose |
 |------|---------|
-| `changelog.md` | Track changes under `## [Unreleased]`, grouped by Added/Changed/Fixed/Removed |
+| `changelog.md` | Internal detailed dev log — notable changes grouped by date and domain |
 | `*.md` (ADRs) | Architecture Decision Records for significant design choices |
 
-**What goes here:** Changelog entries, architecture decision records, internal reference docs.
+**What goes here:** Internal changelog detail, architecture decision records, internal reference docs. The user-facing changelog is `CHANGELOG.md` in the project root (keepachangelog spec).
 
 **What does NOT go here:** User-facing docs (those go in `docs/` or project root), task files (those go in `.subframe/tasks/`).
 
@@ -361,7 +361,7 @@ After significant work (code changes, architecture decisions), verify SubFrame f
 
 1. **Sub-Tasks** — Was this work tracked? Check `.subframe/tasks.json` → create/complete as needed
 2. **PROJECT_NOTES.md** — Any decisions worth preserving? Ask the user
-3. **Changelog** — Does `.subframe/docs-internal/changelog.md` reflect the changes?
+3. **Changelog** — Does `CHANGELOG.md` (keepachangelog) have entries under `[Unreleased]`? Also update `.subframe/docs-internal/changelog.md` for detailed internal notes
 4. **STRUCTURE.json** — Source files changed? The pre-commit hook handles this automatically if configured; otherwise update manually
 
 The stop hook (if configured) will flag untracked work automatically.
