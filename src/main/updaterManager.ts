@@ -53,6 +53,9 @@ function init(window: BrowserWindow, app: App): void {
   autoUpdater.autoDownload = false;
   // Install on quit if update was downloaded
   autoUpdater.autoInstallOnAppQuit = true;
+  // Allow prerelease updates when running a prerelease version (e.g., beta)
+  const currentVersion: string = require('../../package.json').version;
+  autoUpdater.allowPrerelease = currentVersion.includes('-');
 
   // Wire autoUpdater events → renderer
   autoUpdater.on('checking-for-update', () => {

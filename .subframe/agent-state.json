@@ -1638,110 +1638,6 @@
       "status": "active",
       "steps": [
         {
-          "id": "step-1772582312090-50",
-          "label": "Reading RightPanel.tsx",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:32.090Z",
-          "completedAt": "2026-03-03T23:58:32.387Z"
-        },
-        {
-          "id": "step-1772582312220-50",
-          "label": "Reading App.tsx",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:32.220Z",
-          "completedAt": "2026-03-03T23:58:32.260Z"
-        },
-        {
-          "id": "step-1772582314914-50",
-          "label": "Reading PromptLibrary.tsx",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:34.914Z",
-          "completedAt": "2026-03-03T23:58:35.391Z"
-        },
-        {
-          "id": "step-1772582315071-50",
-          "label": "Spawning agent",
-          "toolName": "Agent",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:35.071Z",
-          "completedAt": "2026-03-03T23:58:56.708Z"
-        },
-        {
-          "id": "step-1772582316827-50",
-          "label": "Reading index.ts",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:36.827Z",
-          "completedAt": "2026-03-03T23:58:37.976Z"
-        },
-        {
-          "id": "step-1772582316839-50",
-          "label": "Searching files: src/main/onboardingManager.ts",
-          "toolName": "Glob",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:36.839Z",
-          "completedAt": "2026-03-03T23:58:38.382Z"
-        },
-        {
-          "id": "step-1772582317207-50",
-          "label": "Reading OnboardingDialog.tsx",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:37.207Z",
-          "completedAt": "2026-03-03T23:58:37.213Z"
-        },
-        {
-          "id": "step-1772582317613-50",
-          "label": "Reading useUIStore.ts",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:37.613Z",
-          "completedAt": "2026-03-03T23:58:37.866Z"
-        },
-        {
-          "id": "step-1772582317985",
-          "label": "Read",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:37.985Z",
-          "completedAt": "2026-03-03T23:58:37.985Z"
-        },
-        {
-          "id": "step-1772582320260-51",
-          "label": "Searching files: src/renderer/hooks/useOnboarding.ts",
-          "toolName": "Glob",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:40.260Z",
-          "completedAt": "2026-03-03T23:58:41.566Z"
-        },
-        {
-          "id": "step-1772582320758-50",
-          "label": "Reading App.tsx",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:40.758Z",
-          "completedAt": "2026-03-03T23:58:41.096Z"
-        },
-        {
-          "id": "step-1772582323204-50",
-          "label": "Reading useOnboarding.ts",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:43.204Z",
-          "completedAt": "2026-03-03T23:58:43.457Z"
-        },
-        {
-          "id": "step-1772582325684-50",
-          "label": "Reading onboardingManager.ts",
-          "toolName": "Read",
-          "status": "completed",
-          "startedAt": "2026-03-03T23:58:45.684Z",
-          "completedAt": "2026-03-03T23:58:46.401Z"
-        },
-        {
           "id": "step-1772582328202-50",
           "label": "Running command: grep -n \"export.*function init\\|export.*function s",
           "toolName": "Bash",
@@ -2033,14 +1929,118 @@
           "id": "step-1772582590017-50",
           "label": "Stage all changed files",
           "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:03:10.017Z",
+          "completedAt": "2026-03-04T00:03:16.912Z"
+        },
+        {
+          "id": "step-1772582605237-50",
+          "label": "Commit onboarding wiring and prompts panel",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:03:25.237Z",
+          "completedAt": "2026-03-04T00:03:32.417Z"
+        },
+        {
+          "id": "step-1772583509584-50",
+          "label": "Searching content: TERMINAL_INPUT_ID",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:18:29.584Z",
+          "completedAt": "2026-03-04T00:18:30.582Z"
+        },
+        {
+          "id": "step-1772583510363-50",
+          "label": "Reading PromptsPanel.tsx",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:18:30.363Z",
+          "completedAt": "2026-03-04T00:18:30.671Z"
+        },
+        {
+          "id": "step-1772583515171-50",
+          "label": "Searching content: function writeToTerminal",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:18:35.171Z",
+          "completedAt": "2026-03-04T00:18:36.009Z"
+        },
+        {
+          "id": "step-1772583527774-50",
+          "label": "Reading PromptLibrary.tsx",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:18:47.774Z",
+          "completedAt": "2026-03-04T00:18:48.368Z"
+        },
+        {
+          "id": "step-1772583534798-50",
+          "label": "Searching content: Shift.*Enter|\\\\n.*paste",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:18:54.798Z",
+          "completedAt": "2026-03-04T00:18:55.655Z"
+        },
+        {
+          "id": "step-1772583564257-50",
+          "label": "Reading updaterManager.ts",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:19:24.257Z",
+          "completedAt": "2026-03-04T00:19:24.576Z"
+        },
+        {
+          "id": "step-1772583569082-50",
+          "label": "Searching content: publish|GH_TOKEN|GITHUB_TOKEN|provider.*",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:19:29.082Z",
+          "completedAt": "2026-03-04T00:19:29.736Z"
+        },
+        {
+          "id": "step-1772583635044-50",
+          "label": "Searching content: allowPrerelease|prerelease|allowDowngrad",
+          "toolName": "Grep",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:20:35.044Z",
+          "completedAt": "2026-03-04T00:20:35.737Z"
+        },
+        {
+          "id": "step-1772583641839-50",
+          "label": "Reading updaterManager.ts",
+          "toolName": "Read",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:20:41.839Z",
+          "completedAt": "2026-03-04T00:20:42.111Z"
+        },
+        {
+          "id": "step-1772583647929-50",
+          "label": "Editing updaterManager.ts",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:20:47.929Z",
+          "completedAt": "2026-03-04T00:20:48.176Z"
+        },
+        {
+          "id": "step-1772583651993-50",
+          "label": "TypeScript typecheck",
+          "toolName": "Bash",
+          "status": "completed",
+          "startedAt": "2026-03-04T00:20:51.993Z",
+          "completedAt": "2026-03-04T00:21:08.778Z"
+        },
+        {
+          "id": "step-1772583675590-50",
+          "label": "Commit prerelease updater fix",
+          "toolName": "Bash",
           "status": "running",
-          "startedAt": "2026-03-04T00:03:10.017Z"
+          "startedAt": "2026-03-04T00:21:15.590Z"
         }
       ],
       "startedAt": "2026-03-03T21:23:18.133Z",
-      "lastActivityAt": "2026-03-04T00:03:10.017Z",
+      "lastActivityAt": "2026-03-04T00:21:15.590Z",
       "currentTool": "Bash"
     }
   ],
-  "lastUpdated": "2026-03-04T00:03:10.017Z"
+  "lastUpdated": "2026-03-04T00:21:15.590Z"
 }
