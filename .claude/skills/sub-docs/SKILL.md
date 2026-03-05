@@ -33,7 +33,7 @@ Read the recent changes (git diff, argument context) and categorize:
 - **New source modules** → update CLAUDE.md module lists (if applicable)
 - **New components** → update CLAUDE.md component lists (if applicable)
 - **Architecture decisions** → add to `.subframe/PROJECT_NOTES.md` Session Notes
-- **User-facing features** → add to `.subframe/docs-internal/changelog.md` under [Unreleased]
+- **User-facing features** → add to `CHANGELOG.md` under [Unreleased] (keepachangelog spec) AND `.subframe/docs-internal/changelog.md` for detailed notes
 
 ### Step 2: Update CLAUDE.md
 
@@ -44,12 +44,21 @@ Read `CLAUDE.md` and update only the sections that need changes. If CLAUDE.md ha
 - Keep formatting consistent with existing entries
 - Don't modify user-written content outside SubFrame-managed sections
 
-### Step 3: Update Changelog
+### Step 3: Update Changelogs
+
+**A) `CHANGELOG.md`** (project root, user-facing, [keepachangelog](https://keepachangelog.com/) spec):
+
+Read `CHANGELOG.md` and add entries under `## [Unreleased]`.
+
+**Format:**
+- Group under `### Added`, `### Changed`, `### Fixed`, `### Removed`
+- Concise, user-facing descriptions (no implementation details)
+
+**B) `.subframe/docs-internal/changelog.md`** (internal, detailed):
 
 Read `.subframe/docs-internal/changelog.md` and add entries under `## [Unreleased]`.
 
 **Format:** Follow the existing changelog style:
-- Group under `### Added`, `### Changed`, `### Fixed`, `### Removed`
 - Bold feature name, em-dash, brief description
 - Sub-bullets for implementation details
 
@@ -84,6 +93,7 @@ This picks up any new/renamed/deleted source files.
 
 Present a checklist of what was updated:
 - [ ] CLAUDE.md — what was added/changed
-- [ ] changelog.md — entries added
+- [ ] CHANGELOG.md — user-facing entries added under [Unreleased]
+- [ ] docs-internal/changelog.md — internal detail entries added
 - [ ] PROJECT_NOTES.md — decision added (or skipped)
 - [ ] STRUCTURE.json — regenerated

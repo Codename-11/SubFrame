@@ -21,29 +21,57 @@ import {
   DialogTitle,
   DialogFooter,
 } from './ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 import { usePrompts } from '../hooks/usePrompts';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
-import { useUIStore } from '../stores/useUIStore';
-import { typedSend } from '../lib/ipc';
-import { IPC } from '../../shared/ipcChannels';
 import type { SavedPrompt } from '../../shared/ipcChannels';
+import {
+  createBlankPrompt,
+  insertPromptIntoTerminal,
+  copyPromptToClipboard,
+  parseTags,
+  TEMPLATE_VARIABLES,
+  TEMPLATE_VAR_REGEX,
+} from '../lib/promptUtils';
 
-function generateId(): string {
-  return `prompt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+/** Highlight {{variable}} tokens in text with accent color */
+function highlightVars(text: string, maxLen: number): React.ReactNode {
+  const truncated = text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
+  const parts = truncated.split(TEMPLATE_VAR_REGEX);
+  const tokens = new Set(['project', 'projectPath', 'file']);
+  return parts.map((part, i) =>
+    tokens.has(part) ? (
+      <span key={i} className="text-accent">{`{{${part}}}`}</span>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
 }
 
 export function PromptLibrary() {
   const [open, setOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<SavedPrompt | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { prompts, savePrompt, deletePrompt } = usePrompts();
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const projectPath = useProjectStore((s) => s.currentProjectPath);
+
+  const deletingPrompt = prompts.find((p) => p.id === deletingId);
 
   // Register Ctrl+Shift+L keyboard shortcut
   useEffect(() => {
@@ -69,56 +97,28 @@ export function PromptLibrary() {
   }, [prompts]);
 
   // Insert prompt text into active terminal
-  const insertPrompt = useCallback(
+  const handleInsert = useCallback(
     (prompt: SavedPrompt) => {
-      if (!activeTerminalId) {
-        toast.warning('No active terminal', { description: 'Open a terminal first to insert prompts.' });
-        setOpen(false);
-        return;
-      }
-
-      // Resolve template variables
-      let text = prompt.content;
-      if (projectPath) {
-        const projectName = projectPath.split(/[\\/]/).pop() || '';
-        text = text.replace(/\{\{project\}\}/g, projectName);
-        text = text.replace(/\{\{projectPath\}\}/g, projectPath);
-      }
-      const editorFile = useUIStore.getState().editorFilePath;
-      text = text.replace(/\{\{file\}\}/g, editorFile || '');
-
-      typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: text });
-
-      // Increment usage count
-      if (projectPath) {
+      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath);
+      if (ok && projectPath) {
         savePrompt.mutate([{
           projectPath,
           prompt: { ...prompt, usageCount: (prompt.usageCount || 0) + 1 },
         }]);
       }
-
       setOpen(false);
     },
     [activeTerminalId, projectPath, savePrompt]
   );
 
   // Copy prompt to clipboard
-  const copyPrompt = useCallback((prompt: SavedPrompt) => {
-    navigator.clipboard.writeText(prompt.content);
+  const handleCopy = useCallback((prompt: SavedPrompt) => {
+    copyPromptToClipboard(prompt);
     setOpen(false);
   }, []);
 
   const handleNewPrompt = useCallback(() => {
-    setEditingPrompt({
-      id: generateId(),
-      title: '',
-      content: '',
-      tags: [],
-      category: 'General',
-      usageCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    setEditingPrompt(createBlankPrompt());
     setShowEditor(true);
     setOpen(false);
   }, []);
@@ -129,13 +129,17 @@ export function PromptLibrary() {
     setOpen(false);
   }, []);
 
-  const handleDeletePrompt = useCallback(
-    (promptId: string) => {
-      if (!projectPath) return;
-      deletePrompt.mutate([{ projectPath, promptId }]);
-    },
-    [projectPath, deletePrompt]
-  );
+  const handleRequestDelete = useCallback((promptId: string) => {
+    setDeletingId(promptId);
+    setOpen(false);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!deletingId || !projectPath) return;
+    deletePrompt.mutate([{ projectPath, promptId: deletingId }]);
+    setDeletingId(null);
+    toast.success('Prompt deleted');
+  }, [deletingId, projectPath, deletePrompt]);
 
   const handleSavePrompt = useCallback(() => {
     if (!editingPrompt || !projectPath || !editingPrompt.title.trim()) return;
@@ -182,7 +186,7 @@ export function PromptLibrary() {
                 <CommandItem
                   key={prompt.id}
                   value={`${prompt.title} ${prompt.content} ${prompt.tags.join(' ')}`}
-                  onSelect={() => insertPrompt(prompt)}
+                  onSelect={() => handleInsert(prompt)}
                   className="group"
                 >
                   <Send className="text-text-tertiary w-3.5 h-3.5 flex-shrink-0" />
@@ -199,14 +203,13 @@ export function PromptLibrary() {
                       )}
                     </div>
                     <div className="text-[10px] text-text-tertiary truncate">
-                      {prompt.content.slice(0, 80)}
-                      {prompt.content.length > 80 ? '...' : ''}
+                      {highlightVars(prompt.content, 80)}
                     </div>
                   </div>
                   {/* Action buttons — visible on hover */}
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <button
-                      onClick={(e) => { e.stopPropagation(); copyPrompt(prompt); }}
+                      onClick={(e) => { e.stopPropagation(); handleCopy(prompt); }}
                       className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
                       title="Copy to clipboard"
                     >
@@ -220,7 +223,7 @@ export function PromptLibrary() {
                       <Pencil className="w-3 h-3 text-text-tertiary" />
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDeletePrompt(prompt.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleRequestDelete(prompt.id); }}
                       className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
                       title="Delete prompt"
                     >
@@ -262,9 +265,24 @@ export function PromptLibrary() {
                   rows={5}
                   className="bg-bg-deep border-border-subtle text-text-primary text-xs font-mono resize-y"
                 />
-                <p className="text-[10px] text-text-muted mt-1">
-                  Variables: {'{{project}}'}, {'{{projectPath}}'}, {'{{file}}'}
-                </p>
+                {/* Variable insert buttons */}
+                <div className="flex items-center gap-1 mt-1">
+                  {TEMPLATE_VARIABLES.map((v) => (
+                    <button
+                      key={v.token}
+                      onClick={() => {
+                        setEditingPrompt({
+                          ...editingPrompt,
+                          content: editingPrompt.content + v.token,
+                        });
+                      }}
+                      className="px-1.5 py-0.5 rounded text-[9px] bg-accent/10 text-accent hover:bg-accent/20 transition-colors cursor-pointer"
+                      title={v.description}
+                    >
+                      {v.token}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="text-xs text-text-secondary mb-1 block">Category</label>
@@ -282,7 +300,7 @@ export function PromptLibrary() {
                   onChange={(e) =>
                     setEditingPrompt({
                       ...editingPrompt,
-                      tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean),
+                      tags: parseTags(e.target.value),
                     })
                   }
                   placeholder="debug, typescript, fix"
@@ -308,6 +326,27 @@ export function PromptLibrary() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <AlertDialogContent className="bg-bg-primary border-border-subtle text-text-primary">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Prompt</AlertDialogTitle>
+            <AlertDialogDescription className="text-text-secondary text-xs">
+              Delete &quot;{deletingPrompt?.title}&quot;? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-error text-white hover:bg-error/80 cursor-pointer"
+              onClick={handleConfirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

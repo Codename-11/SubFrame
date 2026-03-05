@@ -4,7 +4,7 @@
  * Supports dynamic menu based on active AI tool
  */
 
-import { Menu, shell } from 'electron';
+import { Menu, shell, app as _electronApp } from 'electron';
 import type { BrowserWindow, App, MenuItemConstructorOptions } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -43,6 +43,15 @@ function init(window: BrowserWindow, app: App, toolManager: AIToolManagerLike): 
 }
 
 /**
+ * Send an IPC event to the renderer
+ */
+function sendToRenderer(channel: string, ...args: unknown[]): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, ...args);
+  }
+}
+
+/**
  * Get menu template based on active AI tool
  */
 function getMenuTemplate(): MenuItemConstructorOptions[] {
@@ -58,10 +67,43 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
   const aiCommandsSubmenu = buildAICommandsSubmenu(activeTool);
 
   const template: MenuItemConstructorOptions[] = [
+    // ── File menu (standard editor convention) ──
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Terminal',
+          accelerator: 'CmdOrCtrl+Shift+T',
+          click: () => sendToRenderer(IPC.MENU_NEW_TERMINAL)
+        },
+        {
+          label: 'Close Terminal',
+          accelerator: 'CmdOrCtrl+Shift+W',
+          click: () => sendToRenderer(IPC.MENU_CLOSE_TERMINAL)
+        },
+        { type: 'separator' },
+        {
+          label: 'Open Project...',
+          click: () => sendToRenderer(IPC.PROJECT_SELECTED, '__open_dialog__')
+        },
+        { type: 'separator' },
+        {
+          label: 'Settings...',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => sendToRenderer(IPC.MENU_OPEN_SETTINGS)
+        },
+        { type: 'separator' },
+        process.platform === 'darwin'
+          ? { role: 'close' as const }
+          : { role: 'quit' as const }
+      ]
+    },
+    // ── AI Commands menu ──
     {
       label: activeTool.menuLabel,
       submenu: aiCommandsSubmenu
     },
+    // ── Edit menu ──
     {
       label: 'Edit',
       submenu: [
@@ -73,18 +115,34 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
         { role: 'paste' }
       ]
     },
+    // ── View menu ──
     {
       label: 'View',
       submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
+        {
+          label: 'Toggle Sidebar',
+          accelerator: 'CmdOrCtrl+B',
+          click: () => sendToRenderer(IPC.MENU_TOGGLE_SIDEBAR)
+        },
+        {
+          label: 'Toggle Right Panel',
+          click: () => sendToRenderer(IPC.MENU_TOGGLE_RIGHT_PANEL)
+        },
+        { type: 'separator' },
+        {
+          label: 'Reset Layout',
+          click: () => sendToRenderer(IPC.MENU_RESET_LAYOUT)
+        },
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },
-        { role: 'togglefullscreen' }
+        { role: 'togglefullscreen' },
+        { type: 'separator' },
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' }
       ]
     }
   ];
@@ -243,18 +301,14 @@ function buildToolSwitcherSubmenu(): MenuItemConstructorOptions[] {
  * Send command to terminal
  */
 function sendCommand(command: string): void {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.RUN_COMMAND, command);
-  }
+  sendToRenderer(IPC.RUN_COMMAND, command);
 }
 
 /**
  * Toggle history panel
  */
 function toggleHistoryPanel(): void {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.TOGGLE_HISTORY_PANEL);
-  }
+  sendToRenderer(IPC.TOGGLE_HISTORY_PANEL);
 }
 
 /**
@@ -277,10 +331,8 @@ function openHistoryFile(): void {
  */
 function createMenu(): Electron.Menu {
   const template = getMenuTemplate();
-  console.log('Creating menu with', template.length, 'items. First item:', template[0]?.label);
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
-  console.log('Menu applied successfully');
   return menu;
 }
 

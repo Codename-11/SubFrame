@@ -29,12 +29,14 @@ React 19, TypeScript (strict), Zustand (state), TanStack Query (IPC caching), Ta
 **Main process** — each manager has `init()` + `setupIPC()`:
 `ptyManager` `tasksManager` `pluginsManager` `claudeSessionsManager` `aiToolManager` `aiFilesManager` `settingsManager` `gitBranchesManager` `overviewManager` `agentStateManager` `skillsManager` `promptsManager` `updaterManager` `pipelineManager` `workspace` `frameProject`
 **Utilities**: `taskMarkdownParser` (parse/serialize task .md files with YAML frontmatter) `pipelineWorkflowParser` (YAML workflow parsing) `pipelineStages` (built-in stage handlers)
+**Theme**: `themeTypes` (shared theme tokens, presets, CSS mapping)
 
 **Renderer** — React components in `src/renderer/components/`:
 `App` `Sidebar` `ProjectList` `WorkspaceSelector` `Terminal` `TerminalArea` `TerminalGrid` `TerminalTabBar` `FileTree` `Editor` `RightPanel` `TasksPanel` `TaskTimeline` `TaskGraph` `TaskKanban` `SessionsPanel` `PluginsPanel` `SettingsPanel` `OverviewPanel` `StatsDetailView` `DecisionsDetailView` `GithubPanel` `AIFilesPanel` `AIToolSelector` `StructureMap` `SubFrameHealthPanel` `AgentStateView` `AgentTimeline` `SidebarAgentStatus` `SkillsPanel` `KeyboardShortcuts` `HistoryPanel` `CommandPalette` `PromptLibrary` `WhatsNew` `UpdateNotification` `OnboardingDialog` `ErrorBoundary` `PipelinePanel` `PipelineTimeline`
 **Previews** (in `src/renderer/components/previews/`): `MarkdownPreview` `HtmlPreview` `ImagePreview`
+**Theme**: `ThemeProvider` (runtime CSS variable injection from settings, feature toggle data-attributes)
 
-**Lib** (renderer utilities): `src/renderer/lib/ipc.ts` (IPC bridge) `src/renderer/lib/utils.ts` (cn helper, misc) `src/renderer/lib/codemirror-theme.ts` (CM6 SubFrame theme) `src/renderer/lib/codemirror-extensions.ts` (CM6 extensions/languages)
+**Lib** (renderer utilities): `src/renderer/lib/ipc.ts` (IPC bridge) `src/renderer/lib/utils.ts` (cn helper, misc) `src/renderer/lib/codemirror-theme.ts` (CM6 SubFrame theme) `src/renderer/lib/codemirror-extensions.ts` (CM6 extensions/languages) `src/renderer/lib/promptUtils.ts` (shared prompt utilities — template variables, insert, copy, sort)
 
 **Stores** (Zustand): `useUIStore` `useProjectStore` `useTerminalStore`
 **Hooks** (TanStack Query): `useIpc` (`useIpcQuery` `useIpcMutation`) `useIPCListener` `useTasks` `useSessions` `usePlugins` `useSettings` `useOverview` `useAIFiles` `useGithub` `useFileTree` `useTerminal` `useAgentState` `useSkills` `usePrompts` `useOnboarding` `useSubFrameHealth` `useUpdater` `usePipeline` `usePipelineWorkflows` `usePipelineProgress`
@@ -66,7 +68,8 @@ npm run docs:preview # Preview built docs locally
 | `.subframe/tasks/*.md` | Sub-Task files (markdown + YAML frontmatter) | Source of truth |
 | `.subframe/tasks.json` | Sub-Task index (auto-generated from .md files) | Read at session start |
 | `.subframe/PROJECT_NOTES.md` | Decisions, session notes, architecture context | Read at session start |
-| `.subframe/docs-internal/` | ADRs, architecture overview, changelog, IPC reference | Reference (not auto-loaded) |
+| `.subframe/docs-internal/` | ADRs, architecture overview, internal changelog, IPC reference | Reference (not auto-loaded) |
+| `CHANGELOG.md` | User-facing changelog ([keepachangelog](https://keepachangelog.com/) spec) | Reference |
 | `.subframe/workflows/*.yml` | Pipeline workflow definitions (YAML, GitHub Actions-inspired) | Read on demand |
 | `.subframe/pipelines/runs.json` | Pipeline run history (auto-managed) | Read on demand |
 | `AGENTS.md` | Full rules for Sub-Task system, notes, documentation | Reference manual |
@@ -126,7 +129,7 @@ After significant work (code changes, architecture decisions, new tooling), veri
 
 1. **Sub-Task** — Was this work tracked? `node scripts/task.js list` → create/complete as needed
 2. **PROJECT_NOTES.md** — Any decisions worth preserving? Ask the user
-3. **Changelog** — Does `.subframe/docs-internal/changelog.md` reflect the changes?
+3. **Changelog** — Does `CHANGELOG.md` (keepachangelog) have entries under `[Unreleased]`? Also update `.subframe/docs-internal/changelog.md` for detailed internal notes
 4. **STRUCTURE.json** — Source files changed? `npm run structure` (also handled by pre-commit hook)
 5. **CLAUDE.md** — Did the architecture table, modules list, or build commands change?
 
@@ -150,7 +153,7 @@ When changing any of these, update **all** locations that reference them:
 | **New module/file** | .subframe/STRUCTURE.json modules section, `main/index.ts` imports (if main process), run `npm run structure` |
 | **UI terminology** (label/branding change) | index.html, renderer TSX (user-facing strings), CLAUDE.md, AGENTS.md, frameTemplates.ts |
 | **Quality tooling** (test/lint/CI config) | `vitest.config.ts`, `eslint.config.mjs`, `.prettierrc`, `tsconfig.test.json`, `.github/workflows/ci.yml` |
-| **Significant session work** | `.subframe/docs-internal/changelog.md`, `.subframe/PROJECT_NOTES.md` (decisions), `.subframe/tasks.json` (sub-task tracking) |
+| **Significant session work** | `CHANGELOG.md` (user-facing, keepachangelog), `.subframe/docs-internal/changelog.md` (internal detail), `.subframe/PROJECT_NOTES.md` (decisions), `.subframe/tasks.json` (sub-task tracking) |
 | **Version bump** | `npm version <newversion>` (updates `package.json` + git tag), then `docs/index.md` JSON-LD `softwareVersion`. `FRAME_VERSION` auto-reads from `package.json`. |
 
 ## Conventions
@@ -209,3 +212,5 @@ gh release create v<version> --title "v<version>" --notes-file RELEASE_NOTES.md 
 - Borders: `border-subtle` → `border-default` → `border-strong`
 - **shadcn/ui components** in `src/renderer/components/ui/` — use these for buttons, dialogs, tabs, etc.
 - Use Tailwind classes with theme tokens — don't hardcode colors
+- **Theme system**: 4 built-in presets in `src/shared/themeTypes.ts`, runtime CSS injection via `ThemeProvider`, feature toggles via `[data-neon-traces]`/`[data-scanlines]`/`[data-logo-glow]` HTML attributes
+- Neon trace tokens: `--color-neon-purple`, `--color-neon-pink`, `--color-neon-cyan` (+ glow variants)

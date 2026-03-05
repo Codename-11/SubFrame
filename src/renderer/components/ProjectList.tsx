@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useProjectStore } from '../stores/useProjectStore';
+import { toast } from 'sonner';
 import { typedSend } from '../lib/ipc';
 import { useIPCEvent } from '../hooks/useIPCListener';
 import { IPC } from '../../shared/ipcChannels';
@@ -74,7 +75,18 @@ export function ProjectList() {
     const sorted = sortProjects(manual);
     setProjects(sorted as ProjectWithSource[]);
     setProjectsInStore(sorted.map((p) => ({ path: p.path, name: p.name, isFrameProject: p.isFrameProject ?? false })));
-  }, [setProjectsInStore]);
+
+    // Auto-select first project when current selection is not in the new list
+    const current = useProjectStore.getState().currentProjectPath;
+    const inList = sorted.some((p) => p.path === current);
+    if (!inList) {
+      if (sorted.length > 0) {
+        setProject(sorted[0].path, sorted[0].isFrameProject ?? false);
+      } else {
+        setProject(null, false);
+      }
+    }
+  }, [setProjectsInStore, setProject]);
 
   // Listen for workspace data from main process
   // The main process sends { projects: [...], workspaceName: "..." }
@@ -145,6 +157,7 @@ export function ProjectList() {
     const project = projects.find((p) => p.path === inlineRenamePath);
     if (trimmed && project && trimmed !== project.name) {
       ipcRenderer.send(IPC.RENAME_PROJECT, { projectPath: inlineRenamePath, newName: trimmed });
+      toast.success('Project renamed');
     }
     setInlineRenamePath(null);
     setInlineRenameValue('');
@@ -161,6 +174,7 @@ export function ProjectList() {
       name: project.name,
       isFrameProject: project.isFrameProject,
     });
+    toast.success('Project added to workspace');
   }, []);
 
   // Keyboard navigation handler

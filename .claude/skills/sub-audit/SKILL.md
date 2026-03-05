@@ -46,7 +46,7 @@ Spawn a code review agent (`feature-dev:code-reviewer` subagent type) to review 
 Spawn an explore agent (`Explore` subagent type) to check documentation completeness:
 
 1. **CLAUDE.md** — Are all modules/components listed?
-2. **changelog.md** — Does [Unreleased] reflect all new features?
+2. **CHANGELOG.md** — Does [Unreleased] reflect all new features? (Also check `.subframe/docs-internal/changelog.md` for internal detail)
 3. **PROJECT_NOTES.md** — Are architecture decisions documented?
 4. **STRUCTURE.json** — Is it up to date? (compare module count with actual files)
 

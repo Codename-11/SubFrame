@@ -21,6 +21,15 @@
   --color-accent-secondary: #c9956a;
   --color-accent-subtle: rgba(212, 165, 116, 0.15);
   --color-accent-glow: rgba(212, 165, 116, 0.08);
+
+  /* Neon synthwave traces — from logo palette, applied by ThemeProvider */
+  --color-neon-purple: #b480ff;
+  --color-neon-pink: #ff6eb4;
+  --color-neon-cyan: #64d8ff;
+  --color-neon-purple-glow: rgba(180, 128, 255, 0.12);
+  --color-neon-pink-glow: rgba(255, 110, 180, 0.10);
+  --color-neon-cyan-glow: rgba(100, 216, 255, 0.08);
+
   --color-success: #7cb382;
   --color-warning: #e0a458;
   --color-error: #d47878;
@@ -105,6 +114,33 @@
 }
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ── Neon trace enhancements (enabled per-theme via ThemeProvider) ──── */
+/* These are inactive by default; ThemeProvider adds [data-neon-traces] to <html> */
+[data-neon-traces] ::selection {
+  background: rgba(180, 128, 255, 0.35);
+  color: #fafafa;
+}
+
+[data-neon-traces] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 216, 255, 0.22);
+}
+
+/* CRT scanline overlay — enabled by [data-scanlines] attribute */
+[data-scanlines]::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.015) 2px,
+    rgba(255, 255, 255, 0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
 }
 
 /* Green pulse animation for active project dots */

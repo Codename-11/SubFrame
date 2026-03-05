@@ -166,7 +166,7 @@
   background: var(--sf-bg-elevated);
   padding: 2px 6px;
   border-radius: 4px;
-  color: var(--sf-accent);
+  color: var(--sf-accent-cyan);
 }
 
 .docs-article pre {

@@ -172,12 +172,14 @@ export function AIFilesPanel() {
     };
     saveBacklinkConfig.mutate(config, {
       onSuccess: () => toast.success('Backlink config saved'),
+      onError: () => toast.error('Failed to save backlink config'),
     });
   };
 
   const handleUpdateAll = () => {
     updateAllBacklinks.mutate(undefined, {
       onSuccess: () => toast.success('All backlinks updated'),
+      onError: () => toast.error('Failed to update backlinks'),
     });
   };
 
@@ -268,8 +270,10 @@ export function AIFilesPanel() {
                       s.hasBacklink ? (
                         <button
                           onClick={() => {
-                            removeBacklink.mutate(file.filename);
-                            toast.info('Backlink removed');
+                            removeBacklink.mutate(file.filename, {
+                              onSuccess: () => toast.info('Backlink removed'),
+                              onError: () => toast.error('Failed to remove backlink'),
+                            });
                           }}
                           className="p-1.5 rounded text-text-tertiary hover:text-red-400 hover:bg-bg-hover transition-colors cursor-pointer"
                           title="Remove backlink"
@@ -279,8 +283,10 @@ export function AIFilesPanel() {
                       ) : (
                         <button
                           onClick={() => {
-                            injectBacklink.mutate(file.filename);
-                            toast.success('Backlink injected');
+                            injectBacklink.mutate(file.filename, {
+                              onSuccess: () => toast.success('Backlink injected'),
+                              onError: () => toast.error('Failed to inject backlink'),
+                            });
                           }}
                           className="p-1.5 rounded text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer"
                           title="Inject backlink"
@@ -292,8 +298,10 @@ export function AIFilesPanel() {
                     {s.exists && s.isSymlink && file.supportsBacklink && (
                       <button
                         onClick={() => {
-                          migrateSymlink.mutate(file.filename);
-                          toast.info('Migrating symlink...');
+                          migrateSymlink.mutate(file.filename, {
+                            onSuccess: () => toast.success('Symlink migrated'),
+                            onError: () => toast.error('Failed to migrate symlink'),
+                          });
                         }}
                         className="p-1.5 rounded text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer"
                         title="Migrate symlink"
@@ -304,8 +312,10 @@ export function AIFilesPanel() {
                     {!s.exists && file.supportsBacklink && (
                       <button
                         onClick={() => {
-                          createFile.mutate(file.filename);
-                          toast.success('File created');
+                          createFile.mutate(file.filename, {
+                            onSuccess: () => toast.success('File created'),
+                            onError: () => toast.error('Failed to create file'),
+                          });
                         }}
                         className="p-1.5 rounded text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer"
                         title="Create file"

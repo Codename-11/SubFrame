@@ -1,13 +1,16 @@
 /**
- * KeyboardShortcuts — Modal overlay showing all available keyboard shortcuts.
+ * KeyboardShortcuts — Dialog showing all available keyboard shortcuts.
  * Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen.
  */
 
-import { useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { Keyboard } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
-import { ScrollArea } from './ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 
 interface ShortcutEntry {
   keys: string;
@@ -96,78 +99,38 @@ export function KeyboardShortcuts() {
   const open = useUIStore((s) => s.shortcutsHelpOpen);
   const setOpen = useUIStore((s) => s.setShortcutsHelpOpen);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        setOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, [open, setOpen]);
-
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          key="shortcuts-backdrop"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
-          onClick={() => setOpen(false)}
-        >
-          <motion.div
-            key="shortcuts-card"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
-            className="bg-bg-primary border border-border-subtle rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle shrink-0">
-              <h2 className="text-sm font-semibold text-text-primary">Keyboard Shortcuts</h2>
-              <button
-                onClick={() => setOpen(false)}
-                className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <ScrollArea className="flex-1 px-5 py-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {SHORTCUT_CATEGORIES.map((category) => (
-                  <div key={category.title}>
-                    <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
-                      {category.title}
-                    </h3>
-                    <div className="space-y-1.5">
-                      {category.shortcuts.map((shortcut) => (
-                        <div
-                          key={shortcut.keys}
-                          className="flex items-center justify-between gap-3"
-                        >
-                          <span className="text-xs text-text-secondary">{shortcut.description}</span>
-                          <Kbd>{shortcut.keys}</Kbd>
-                        </div>
-                      ))}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-2xl !flex !flex-col max-h-[80vh] overflow-hidden p-0">
+        <DialogHeader className="shrink-0 px-6 pt-6">
+          <DialogTitle className="flex items-center gap-2 text-sm">
+            <Keyboard className="w-4 h-4 text-accent" />
+            Keyboard Shortcuts
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 py-2">
+            {SHORTCUT_CATEGORIES.map((category) => (
+              <div key={category.title}>
+                <h3 className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-2">
+                  {category.title}
+                </h3>
+                <div className="space-y-1.5">
+                  {category.shortcuts.map((shortcut) => (
+                    <div
+                      key={shortcut.keys}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="text-xs text-text-secondary">{shortcut.description}</span>
+                      <Kbd>{shortcut.keys}</Kbd>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </ScrollArea>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

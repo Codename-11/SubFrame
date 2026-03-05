@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 import { useSessions } from '../hooks/useSessions';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -226,17 +227,20 @@ export function SessionsPanel() {
     const currentName = session.friendlyName || '';
     if (trimmed !== currentName) {
       renameSession(session.sessionId, trimmed);
+      toast.success('Session renamed');
     }
   }
 
   function handleDelete(session: ClaudeSession) {
     deleteSession(session.sessionId, session.slug);
     setDeleteTarget(null);
+    toast.success('Session deleted');
   }
 
   function handleDeleteAll() {
     deleteAllSessions();
     setShowDeleteAll(false);
+    toast.success('All sessions cleared');
   }
 
   if (!projectPath) {

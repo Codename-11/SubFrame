@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { SortingState } from '@tanstack/react-table';
 
-type PanelId = 'tasks' | 'plugins' | 'sessions' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | null;
+type PanelId = 'tasks' | 'plugins' | 'sessions' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | null;
 type SidebarState = 'expanded' | 'collapsed' | 'hidden';
 type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | null;
 export type StatusFilter = 'all' | 'pending' | 'in_progress' | 'completed' | 'blocked';

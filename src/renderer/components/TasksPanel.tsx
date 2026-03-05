@@ -21,7 +21,7 @@ import { TaskKanban } from './TaskKanban';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { ScrollArea } from './ui/scroll-area';
 import {
   AlertDialog,
@@ -925,7 +925,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
             </div>
           </DialogHeader>
 
-          <div className="flex flex-col gap-3 py-2 max-h-[70vh] overflow-y-auto pr-1">
+          <ScrollArea className="max-h-[70vh]">
+          <div className="flex flex-col gap-3 py-2">
             {/* Title — always shown */}
             <div>
               <label className="text-xs text-text-secondary mb-1 block">Title</label>
@@ -1117,11 +1118,12 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
               </div>
             )}
           </div>
+          </ScrollArea>
 
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="cursor-pointer">
-              Cancel
-            </Button>
+            <DialogClose asChild>
+              <Button variant="ghost" className="cursor-pointer">Cancel</Button>
+            </DialogClose>
             <Button onClick={handleSubmit} disabled={!formTitle.trim()} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
               {editingTask ? 'Update' : 'Create'}
             </Button>

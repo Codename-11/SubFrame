@@ -7,12 +7,11 @@
 import { ipcMain, type App, type BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import type { UpdaterStatus, UpdaterProgress } from '../shared/ipcChannels';
+import { getSetting } from './settingsManager';
 
 let mainWindow: BrowserWindow | null = null;
 let isPackaged = false;
 let checkInterval: ReturnType<typeof setInterval> | null = null;
-
-const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 /**
  * Send updater status to the renderer process
@@ -53,9 +52,17 @@ function init(window: BrowserWindow, app: App): void {
   autoUpdater.autoDownload = false;
   // Install on quit if update was downloaded
   autoUpdater.autoInstallOnAppQuit = true;
-  // Allow prerelease updates when running a prerelease version (e.g., beta)
-  const currentVersion: string = require('../../package.json').version;
-  autoUpdater.allowPrerelease = currentVersion.includes('-');
+  // Allow prerelease updates based on settings
+  const allowPrereleaseSetting = getSetting('updater.allowPrerelease') as string || 'auto';
+  if (allowPrereleaseSetting === 'always') {
+    autoUpdater.allowPrerelease = true;
+  } else if (allowPrereleaseSetting === 'never') {
+    autoUpdater.allowPrerelease = false;
+  } else {
+    // 'auto' — derive from current version
+    const currentVersion: string = require('../../package.json').version;
+    autoUpdater.allowPrerelease = currentVersion.includes('-');
+  }
 
   // Wire autoUpdater events → renderer
   autoUpdater.on('checking-for-update', () => {
@@ -86,6 +93,15 @@ function init(window: BrowserWindow, app: App): void {
   // Register IPC handlers (must happen inside init so isPackaged is set)
   setupIPC();
 
+  // Check if auto-checking is enabled
+  const autoCheck = getSetting('updater.autoCheck');
+  if (autoCheck === false) {
+    return;
+  }
+
+  const checkIntervalHours = (getSetting('updater.checkIntervalHours') as number) || 4;
+  const checkIntervalMs = checkIntervalHours * 3600000;
+
   // Initial check (delayed to not block startup)
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err: Error) => {
@@ -98,7 +114,7 @@ function init(window: BrowserWindow, app: App): void {
     autoUpdater.checkForUpdates().catch((err: Error) => {
       console.error('[updater] Periodic check failed:', err.message);
     });
-  }, CHECK_INTERVAL_MS);
+  }, checkIntervalMs);
 }
 
 /**

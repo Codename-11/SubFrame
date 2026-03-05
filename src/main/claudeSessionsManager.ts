@@ -9,6 +9,7 @@ import * as path from 'path';
 import * as os from 'os';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC, type SessionSegment } from '../shared/ipcChannels';
+import * as ptyManager from './ptyManager';
 
 interface SessionEntry {
   sessionId?: string;
@@ -462,6 +463,27 @@ function hasActiveSession(projectPath: string): boolean {
 }
 
 /**
+ * Get the best display name for a terminal's active Claude session.
+ * Priority: friendlyName > customTitle > firstPrompt > slug
+ */
+function getSessionNameForTerminal(terminalId: string): string | null {
+  const info = ptyManager.getTerminalInfo(terminalId);
+  if (!info?.projectPath) return null;
+
+  const sessions = getSessionsForProject(info.projectPath);
+  if (sessions.length === 0) return null;
+
+  // Use the most recently modified session
+  const session = sessions[0];
+  const name = session.friendlyName || session.customTitle || session.firstPrompt || session.slug;
+  if (!name) return null;
+
+  // Truncate long first-prompt names
+  const maxLen = 40;
+  return name.length > maxLen ? name.slice(0, maxLen - 1) + '\u2026' : name;
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIPC(ipcMain: IpcMain): void {
@@ -487,6 +509,10 @@ function setupIPC(ipcMain: IpcMain): void {
 
   ipcMain.handle(IPC.DELETE_ALL_CLAUDE_SESSIONS, async (_event, projectPath: string) => {
     return deleteAllSessions(projectPath);
+  });
+
+  ipcMain.handle(IPC.GET_TERMINAL_SESSION_NAME, async (_event, payload: { terminalId: string }) => {
+    return { name: getSessionNameForTerminal(payload.terminalId) };
   });
 }
 

@@ -142,9 +142,8 @@ function resolveLanguage(ext: string): Extension | null {
  * Returns the core set of CM6 extensions shared by all editor instances.
  * Does NOT include theme or language — those are added separately.
  */
-export function getBaseExtensions(): Extension[] {
-  return [
-    lineNumbers(),
+export function getBaseExtensions(options?: { lineNumbers?: boolean; bracketMatching?: boolean }): Extension[] {
+  const exts: Extension[] = [
     highlightActiveLineGutter(),
     highlightSpecialChars(),
     history(),
@@ -153,7 +152,6 @@ export function getBaseExtensions(): Extension[] {
     dropCursor(),
     EditorState.allowMultipleSelections.of(true),
     indentOnInput(),
-    bracketMatching(),
     closeBrackets(),
     autocompletion(),
     rectangularSelection(),
@@ -171,6 +169,15 @@ export function getBaseExtensions(): Extension[] {
       indentWithTab,
     ]),
   ];
+
+  if (options?.lineNumbers !== false) {
+    exts.push(lineNumbers());
+  }
+  if (options?.bracketMatching !== false) {
+    exts.push(bracketMatching());
+  }
+
+  return exts;
 }
 
 // ── Compartments (module-level singletons for runtime reconfiguration) ──
@@ -228,6 +235,24 @@ export function getFontSizeExtension(size: number): Extension {
 export function reconfigureFontSize(view: EditorView, size: number): void {
   view.dispatch({
     effects: fontSizeCompartment.reconfigure(getFontSizeExtension(size)),
+  });
+}
+
+// ── Font family compartment ─────────────────────────────────────────────
+
+export const fontFamilyCompartment = new Compartment();
+
+/** Returns a font-family theme extension. */
+export function getFontFamilyExtension(family: string): Extension {
+  return EditorView.theme({
+    '.cm-content, .cm-gutters': { fontFamily: family },
+  });
+}
+
+/** Reconfigure font family on an existing editor view. */
+export function reconfigureFontFamily(view: EditorView, family: string): void {
+  view.dispatch({
+    effects: fontFamilyCompartment.reconfigure(getFontFamilyExtension(family)),
   });
 }
 

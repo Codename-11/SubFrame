@@ -20,6 +20,7 @@ function loadGridLayout(): GridLayout {
 export interface TerminalInfo {
   id: string;
   name: string;
+  nameSource?: 'default' | 'user' | 'session';
   projectPath: string;
   isActive: boolean;
   createdAt?: number;
@@ -35,7 +36,7 @@ interface TerminalState {
   setActiveTerminal: (id: string) => void;
   addTerminal: (info: TerminalInfo) => void;
   removeTerminal: (id: string, currentProjectPath?: string) => void;
-  renameTerminal: (id: string, name: string) => void;
+  renameTerminal: (id: string, name: string, nameSource?: 'default' | 'user' | 'session') => void;
   reorderTerminals: (orderedIds: string[]) => void;
   switchToProject: (projectPath: string) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -93,10 +94,10 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     set({ terminals, activeTerminalId: newActive, activeByProject });
   },
 
-  renameTerminal: (id, name) => {
+  renameTerminal: (id, name, nameSource) => {
     const terminals = new Map(get().terminals);
     const info = terminals.get(id);
-    if (info) terminals.set(id, { ...info, name });
+    if (info) terminals.set(id, { ...info, name, nameSource: nameSource ?? 'user' });
     set({ terminals });
   },
 

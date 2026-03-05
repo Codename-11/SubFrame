@@ -17,6 +17,7 @@ import {
   GitPullRequest,
   GitBranch,
   FolderGit2,
+  FileDiff,
   Clock,
   LayoutDashboard,
   FileText,
@@ -35,7 +36,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { TasksPanel } from './TasksPanel';
 import { SessionsPanel } from './SessionsPanel';
 import { PluginsPanel } from './PluginsPanel';
-import { GithubIssuesPanel, GithubPRsPanel, GithubBranchesPanel, GithubWorktreesPanel } from './GithubPanel';
+import { GithubIssuesPanel, GithubPRsPanel, GithubBranchesPanel, GithubWorktreesPanel, GithubChangesPanel } from './GithubPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { OverviewPanel } from './OverviewPanel';
 import { AIFilesPanel } from './AIFilesPanel';
@@ -45,7 +46,7 @@ import { SkillsPanel } from './SkillsPanel';
 import { PromptsPanel } from './PromptsPanel';
 import { PipelinePanel } from './PipelinePanel';
 
-type PanelId = 'tasks' | 'sessions' | 'plugins' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline';
+type PanelId = 'tasks' | 'sessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline';
 
 interface PanelDef {
   id: PanelId;
@@ -59,6 +60,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   tasks:           { id: 'tasks',           label: 'Sub-Tasks',  icon: ListTodo,       shortcut: 'Ctrl+Shift+S' },
   sessions:        { id: 'sessions',        label: 'Sessions',   icon: MessageSquare },
   plugins:         { id: 'plugins',         label: 'Plugins',    icon: Puzzle,         shortcut: 'Ctrl+Shift+X' },
+  gitChanges:      { id: 'gitChanges',      label: 'Changes',    icon: FileDiff },
   githubIssues:    { id: 'githubIssues',    label: 'Issues',     icon: CircleDot,      shortcut: 'Ctrl+Shift+G' },
   githubPRs:       { id: 'githubPRs',       label: 'PRs',        icon: GitPullRequest },
   githubBranches:  { id: 'githubBranches',  label: 'Branches',   icon: GitBranch },
@@ -81,7 +83,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
 const PANEL_GROUPS: PanelId[][] = [
   ['tasks'],                                                              // Solo — Sub-Tasks
   ['agentState', 'sessions', 'history', 'prompts', 'skills', 'plugins'],    // Group — Agent hub
-  ['githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees'],    // Group — GitHub hub
+  ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees'],    // Group — GitHub hub
   ['overview'],                                                           // Solo — Overview
   ['aiFiles'],                                                            // Solo — AI Files
   ['subframeHealth'],                                                     // Solo — SubFrame Health
@@ -97,6 +99,7 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   tasks: TasksPanel,
   sessions: SessionsPanel,
   plugins: PluginsPanel,
+  gitChanges: GithubChangesPanel,
   githubIssues: GithubIssuesPanel,
   githubPRs: GithubPRsPanel,
   githubBranches: GithubBranchesPanel,

@@ -27,8 +27,10 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from './ui/context-menu';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +49,8 @@ import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore'
 import { useUIStore } from '../stores/useUIStore';
 import { IPC } from '../../shared/ipcChannels';
 import type { ShellInfo } from '../../shared/ipcChannels';
+import { typedInvoke } from '../lib/ipc';
+import * as terminalRegistry from '../lib/terminalRegistry';
 
 const { ipcRenderer } = require('electron');
 
@@ -157,11 +161,29 @@ export function TerminalTabBar({
   const finishRename = useCallback(() => {
     if (renamingId) {
       const trimmed = renameValue.trim();
-      if (trimmed) renameTerminal(renamingId, trimmed);
+      if (trimmed) renameTerminal(renamingId, trimmed, 'user');
       setRenamingId(null);
       setRenameValue('');
     }
   }, [renamingId, renameValue, renameTerminal]);
+
+  const refreshSessionName = useCallback(async (terminalId: string) => {
+    try {
+      const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, { terminalId });
+      if (result.name) {
+        renameTerminal(terminalId, result.name, 'session');
+      } else {
+        toast.info('No Claude session found for this terminal');
+      }
+    } catch {
+      toast.error('Failed to fetch session name');
+    }
+  }, [renameTerminal]);
+
+  const resetTerminalName = useCallback((terminal: TerminalInfo) => {
+    const index = terminalList.indexOf(terminal) + 1;
+    renameTerminal(terminal.id, `Terminal ${index}`, 'default');
+  }, [terminalList, renameTerminal]);
 
   const handleReorder = useCallback(
     (newOrder: TerminalInfo[]) => {
@@ -233,7 +255,14 @@ export function TerminalTabBar({
                                    ? 'text-accent'
                                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
                                }`}
-                    onClick={() => setActiveTerminal(t.id)}
+                    onClick={() => {
+                      setActiveTerminal(t.id);
+                      // Ensure terminal receives focus after React re-renders
+                      setTimeout(() => {
+                        const instance = terminalRegistry.get(t.id);
+                        if (instance) instance.terminal.focus();
+                      }, 50);
+                    }}
                     onDoubleClick={() => startRename(t.id, t.name)}
                   >
                     {/* Sliding active indicator */}
@@ -281,10 +310,21 @@ export function TerminalTabBar({
                   </button>
                 </ContextMenuTrigger>
 
-                <ContextMenuContent className="w-40">
+                <ContextMenuContent className="w-44">
                   <ContextMenuItem onClick={() => startRename(t.id, t.name)}>
                     Rename
                   </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    onClick={() => refreshSessionName(t.id)}
+                    disabled={t.nameSource === 'user'}
+                  >
+                    Refresh Name
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => resetTerminalName(t)}>
+                    Reset Name
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
                   <ContextMenuItem onClick={() => onCloseTerminal(t.id)}>
                     Close
                   </ContextMenuItem>

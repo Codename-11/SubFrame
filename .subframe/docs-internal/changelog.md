@@ -22,6 +22,57 @@ Notable changes grouped by date and domain.
   - Project initialization seeds `.subframe/workflows/` with 3 default templates and `.githooks/pre-push`
   - Keyboard shortcut: Ctrl+Shift+Y for pipeline panel/full-view toggle
   - Run persistence to `.subframe/pipelines/runs.json` with 50-run cap
+- **Enhanced Settings Panel** — Expanded from 3 tabs to 5 (General, Terminal, Editor, AI Tool, Updates)
+  - Terminal: font family, line height, cursor blink/style, default shell, bell sound, copy on select
+  - Editor (new tab): font family, line numbers, bracket matching, tab size, theme selector
+  - Updates (new tab): auto-check toggle, pre-release channel (auto/always/never), check interval, manual check
+  - General: added confirm-before-close toggle
+  - Backend consumers updated: updaterManager reads settings dynamically, ptyManager uses configured shell
+  - Live settings application: terminal options passed to registry, editor uses compartment-based reconfiguration
+- **Workspace-scoped terminal state** — Terminal layout now properly saves and restores per-project
+  - Grid layout saved per-project (was global)
+  - Tab reorder persisted across project switches
+  - activeByProject restored on app restart
+  - Maximized terminal state saved per-project session
+  - Workspace switch auto-selects first project in new workspace (was keeping stale project)
+  - Empty project sessions saved correctly (clears stale data)
+- **Conversation-name terminal tabs** — Terminal tabs auto-detect Claude session names
+  - New IPC channel `GET_TERMINAL_SESSION_NAME` bridges claudeSessionsManager to terminal tabs
+  - Name priority: friendlyName > customTitle > firstPrompt > slug
+  - `nameSource` field on TerminalInfo tracks origin ('default' | 'user' | 'session')
+  - Right-click context menu enhanced: Rename, Refresh Name, Reset Name, Close
+- **Electron menu bar** — Proper File and View menus following standard editor conventions
+  - File menu: New Terminal, Close Terminal, Open Project, Settings, Exit
+  - View menu: Toggle Sidebar, Toggle Right Panel, Reset Layout, zoom controls, fullscreen, dev tools
+  - Menu actions dispatch through proper channels (IPC events handled in App.tsx/TerminalArea.tsx)
+- **Sidebar collapse** — Removed floating icon on full sidebar hide; menu bar provides recovery path
+- **Enhanced Prompts Panel** — Full management UI in the side panel
+  - Inline editor (expand-in-place) replaces modal dialog for editing
+  - Tag-click filtering with filter bar showing all unique tags
+  - Sort dropdown (most used / recently updated / alphabetical)
+  - Collapsible categories with rename support (batch-updates all prompts in category)
+  - `{{variable}}` highlighting in content preview (accent-colored)
+  - Variable insert buttons (`{{project}}`, `{{projectPath}}`, `{{file}}`) below content textarea
+  - Keyboard navigation (Arrow keys, Enter to insert, `e` to edit)
+  - Delete confirmation dialog (both PromptsPanel and PromptLibrary)
+  - Shared utilities extracted to `src/renderer/lib/promptUtils.ts`
+
+### Fixed
+- **Ctrl+Shift+T terminal creation** — Fixed guard ref getting permanently stuck when IPC reply missed during React re-render; added 5s safety timeout and error toast
+- **Ctrl+Tab terminal switching** — Focus now explicitly follows the active terminal after switching via keyboard shortcut or tab click (50ms post-render focus)
+- **Toast notification audit** — Added proper user feedback across 14 components:
+  - AIFilesPanel: moved false-positive toasts to onSuccess callbacks
+  - GithubPanel: fixed worktree remove/branch delete false-positive success toasts
+  - WorkspaceSelector: added error handling to all 4 workspace operations
+  - Sidebar: added feedback for project initialization and AI tool start failure
+  - Editor: added error toast for file save failure
+  - FileTree, SessionsPanel, SkillsPanel, OnboardingDialog, ProjectList: added missing feedback
+- **Pre-release audit fixes**
+  - Fixed stale closure in `TERMINAL_DESTROYED` handler — now reads store directly via `getState()`
+  - Fixed stale `normalizedPath` in `closeTerminal` callback — reads `currentProjectPath` from store
+  - Fixed orphaned `TERMINAL_CREATED` listener leak in Sidebar `startAITool` — uses `ipcRenderer.once`
+  - Removed debug `console.log` statements from `menu.ts`
+  - Fixed 3 unused import warnings (menu.ts, SettingsPanel, Sidebar)
 - **Terminal grid UX improvements** — Keyboard shortcuts, resize persistence, improved handles, maximize-in-place
   - `Ctrl+G` shortcut to toggle grid/tab view (also shown in command palette + keyboard shortcuts help)
   - Command palette: "Next Grid Layout" / "Previous Grid Layout" cycle through all 8 layouts

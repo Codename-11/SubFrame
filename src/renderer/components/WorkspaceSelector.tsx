@@ -29,6 +29,7 @@ import { useProjectStore } from '../stores/useProjectStore';
 import { useIpcQuery } from '../hooks/useIpc';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
+import { toast } from 'sonner';
 import type { WorkspaceListEntry, WorkspaceListResult } from '../../shared/ipcChannels';
 
 /**
@@ -76,6 +77,8 @@ export function WorkspaceSelector() {
         refetch();
         // Re-load the project list for the newly active workspace
         typedSend(IPC.LOAD_WORKSPACE);
+      } catch {
+        toast.error('Failed to switch workspace');
       } finally {
         setLoading(false);
       }
@@ -91,6 +94,9 @@ export function WorkspaceSelector() {
       refetch();
       // Load project list for the newly created (now active) workspace
       typedSend(IPC.LOAD_WORKSPACE);
+      toast.success('Workspace created');
+    } catch {
+      toast.error('Failed to create workspace');
     } finally {
       setLoading(false);
     }
@@ -120,6 +126,9 @@ export function WorkspaceSelector() {
       try {
         await typedInvoke(IPC.WORKSPACE_RENAME, { key: renameTarget.key, newName: trimmed });
         refetch();
+        toast.success('Workspace renamed');
+      } catch {
+        toast.error('Failed to rename workspace');
       } finally {
         setLoading(false);
       }
@@ -143,6 +152,9 @@ export function WorkspaceSelector() {
       refetch();
       // Reload project list for the new active workspace
       typedSend(IPC.LOAD_WORKSPACE);
+      toast.success('Workspace deleted');
+    } catch {
+      toast.error('Failed to delete workspace');
     } finally {
       setLoading(false);
     }

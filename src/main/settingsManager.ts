@@ -16,11 +16,19 @@ interface DefaultSettings {
     autoCreateTerminal: boolean;
     defaultProjectDir: string;
     showDotfiles: boolean;
+    confirmBeforeClose: boolean;
   };
   aiTools: Record<string, unknown>;
   terminal: {
     fontSize: number;
     scrollback: number;
+    fontFamily: string;
+    lineHeight: number;
+    cursorBlink: boolean;
+    cursorStyle: string;
+    defaultShell: string;
+    bellSound: boolean;
+    copyOnSelect: boolean;
   };
   editor: {
     minimap: boolean;
@@ -28,9 +36,29 @@ interface DefaultSettings {
     theme: string;
     wordWrap: boolean;
     fontSize: number;
+    fontFamily: string;
+    lineNumbers: boolean;
+    bracketMatching: boolean;
+    tabSize: number;
+  };
+  updater: {
+    autoCheck: boolean;
+    allowPrerelease: string;
+    checkIntervalHours: number;
   };
   onboarding: {
     analysisTimeout: number;
+  };
+  appearance: {
+    activeThemeId: string;
+    customThemes: Array<{
+      id: string;
+      name: string;
+      description: string;
+      tokens: Record<string, unknown>;
+      builtIn: boolean;
+      createdAt?: string;
+    }>;
   };
   [key: string]: unknown;
 }
@@ -40,12 +68,20 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   general: {
     autoCreateTerminal: false,
     defaultProjectDir: '',
-    showDotfiles: false
+    showDotfiles: false,
+    confirmBeforeClose: true,
   },
   aiTools: {},
   terminal: {
     fontSize: 14,
-    scrollback: 10000
+    scrollback: 10000,
+    fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+    lineHeight: 1.2,
+    cursorBlink: true,
+    cursorStyle: 'bar',
+    defaultShell: '',
+    bellSound: false,
+    copyOnSelect: false,
   },
   editor: {
     minimap: false,
@@ -53,10 +89,23 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     theme: 'subframe-dark',
     wordWrap: false,
     fontSize: 12,
+    fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+    lineNumbers: true,
+    bracketMatching: true,
+    tabSize: 2,
+  },
+  updater: {
+    autoCheck: true,
+    allowPrerelease: 'auto',
+    checkIntervalHours: 4,
   },
   onboarding: {
     analysisTimeout: 120000,
-  }
+  },
+  appearance: {
+    activeThemeId: 'classic-amber',
+    customThemes: [],
+  },
 };
 
 let settings: Record<string, unknown> | null = null;
