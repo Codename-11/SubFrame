@@ -6,7 +6,6 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { ScrollArea } from './ui/scroll-area';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink, Github, FileText, Sparkles, Scale, Info } from 'lucide-react';
@@ -151,12 +150,12 @@ export function SettingsPanel() {
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-2xl max-h-[80vh] flex flex-col overflow-hidden" aria-describedby={undefined}>
-        <DialogHeader>
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-2xl !flex !flex-col max-h-[80vh] overflow-hidden p-0" aria-describedby={undefined}>
+        <DialogHeader className="shrink-0 px-6 pt-6">
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col px-6 pb-6">
           <TabsList className="bg-bg-deep border border-border-subtle shrink-0">
             <TabsTrigger value="general" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
               General
@@ -178,7 +177,7 @@ export function SettingsPanel() {
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 min-h-0 mt-4">
+          <div className="flex-1 min-h-0 overflow-y-auto mt-4">
             {/* General tab */}
             <TabsContent value="general" className="mt-0 space-y-4 px-4 pb-4">
               {/* Startup group */}
@@ -849,7 +848,7 @@ export function SettingsPanel() {
                 </button>
               </div>
             </TabsContent>
-          </ScrollArea>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>

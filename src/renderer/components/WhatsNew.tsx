@@ -15,7 +15,6 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { ScrollArea } from './ui/scroll-area';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useIpcQuery } from '../hooks/useIpc';
@@ -77,8 +76,8 @@ export function WhatsNew() {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-xl max-h-[80vh] flex flex-col overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-xl !flex !flex-col max-h-[80vh] overflow-hidden p-0" showCloseButton={false}>
+        <DialogHeader className="shrink-0 px-6 pt-6">
           <DialogTitle className="flex items-center gap-2 text-sm">
             <Sparkles className="w-4 h-4 text-accent" />
             What&apos;s New
@@ -89,9 +88,9 @@ export function WhatsNew() {
             )}
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 min-h-0 max-h-[60vh]">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6">
           {releaseNotes?.content ? (
-            <div className="px-4 py-2 text-sm text-text-secondary leading-relaxed [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-accent [&_h1]:mb-3 [&_h1]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-text-primary [&_h2]:mb-2 [&_h2]:mt-4 [&_h3]:text-base [&_h3]:font-medium [&_h3]:text-text-primary [&_h3]:mb-2 [&_h3]:mt-3 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-3 [&_li]:mb-1 [&_strong]:text-text-primary [&_strong]:font-semibold [&_code]:bg-bg-tertiary [&_code]:text-accent [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono [&_blockquote]:border-l-2 [&_blockquote]:border-accent [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-text-tertiary [&_blockquote]:mb-3 [&_hr]:border-border-subtle [&_hr]:my-4 [&_a]:text-info [&_a]:hover:underline">
+            <div className="py-2 text-sm text-text-secondary leading-relaxed [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-accent [&_h1]:mb-3 [&_h1]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-text-primary [&_h2]:mb-2 [&_h2]:mt-4 [&_h3]:text-base [&_h3]:font-medium [&_h3]:text-text-primary [&_h3]:mb-2 [&_h3]:mt-3 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-3 [&_li]:mb-1 [&_strong]:text-text-primary [&_strong]:font-semibold [&_code]:bg-bg-tertiary [&_code]:text-accent [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono [&_blockquote]:border-l-2 [&_blockquote]:border-accent [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-text-tertiary [&_blockquote]:mb-3 [&_hr]:border-border-subtle [&_hr]:my-4 [&_a]:text-info [&_a]:hover:underline">
               <Markdown remarkPlugins={[remarkGfm]}>
                 {releaseNotes.content}
               </Markdown>
@@ -101,8 +100,8 @@ export function WhatsNew() {
           ) : (
             <p className="text-text-tertiary text-xs p-4">Loading release notes...</p>
           )}
-        </ScrollArea>
-        <DialogFooter className="pt-2 border-t border-border-subtle">
+        </div>
+        <DialogFooter className="shrink-0 px-6 pb-6 pt-2 border-t border-border-subtle">
           <DialogClose asChild>
             <Button variant="ghost" className="cursor-pointer">Close</Button>
           </DialogClose>

@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
-import { ScrollArea } from './ui/scroll-area';
 
 interface ShortcutEntry {
   keys: string;
@@ -100,18 +99,18 @@ export function KeyboardShortcuts() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-2xl !flex !flex-col max-h-[80vh] overflow-hidden p-0">
+        <DialogHeader className="shrink-0 px-6 pt-6">
           <DialogTitle className="flex items-center gap-2 text-sm">
             <Keyboard className="w-4 h-4 text-accent" />
             Keyboard Shortcuts
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 px-1 py-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 py-2">
             {SHORTCUT_CATEGORIES.map((category) => (
               <div key={category.title}>
-                <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                <h3 className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-2">
                   {category.title}
                 </h3>
                 <div className="space-y-1.5">
@@ -128,7 +127,7 @@ export function KeyboardShortcuts() {
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
