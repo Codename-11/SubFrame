@@ -77,7 +77,7 @@ export function WhatsNew() {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-xl max-h-[80vh] flex flex-col">
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-xl max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm">
             <Sparkles className="w-4 h-4 text-accent" />

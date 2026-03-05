@@ -151,7 +151,7 @@ export function SettingsPanel() {
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-2xl max-h-[80vh] flex flex-col" aria-describedby={undefined}>
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-2xl max-h-[80vh] flex flex-col overflow-hidden" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
