@@ -36,6 +36,7 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
       { keys: 'Ctrl+Shift+G', description: 'GitHub Issues' },
       { keys: 'Ctrl+Shift+X', description: 'Plugins' },
       { keys: 'Ctrl+Shift+H', description: 'History' },
+      { keys: 'Ctrl+Shift+Y', description: 'Pipeline' },
     ],
   },
   {
@@ -51,6 +52,7 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
       { keys: 'Ctrl+F', description: 'Search in terminal' },
       { keys: 'Ctrl+Shift+O', description: 'Toggle overview' },
       { keys: 'Ctrl+Shift+K', description: 'Toggle tasks full-view' },
+      { keys: 'Ctrl+Shift+Y', description: 'Toggle pipeline full-view' },
     ],
   },
   {

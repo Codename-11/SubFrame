@@ -204,6 +204,21 @@ export const IPC = {
   UPDATER_DOWNLOAD: 'updater-download',
   UPDATER_INSTALL: 'updater-install',
   UPDATER_PROGRESS: 'updater-progress',
+
+  // Pipeline System
+  PIPELINE_LIST_WORKFLOWS: 'pipeline-list-workflows',
+  PIPELINE_LIST_RUNS: 'pipeline-list-runs',
+  PIPELINE_GET_RUN: 'pipeline-get-run',
+  PIPELINE_START: 'pipeline-start',
+  PIPELINE_CANCEL: 'pipeline-cancel',
+  PIPELINE_APPROVE_STAGE: 'pipeline-approve-stage',
+  PIPELINE_REJECT_STAGE: 'pipeline-reject-stage',
+  PIPELINE_APPLY_PATCH: 'pipeline-apply-patch',
+  PIPELINE_PROGRESS: 'pipeline-progress',
+  PIPELINE_RUN_UPDATED: 'pipeline-run-updated',
+  PIPELINE_RUNS_DATA: 'pipeline-runs-data',
+  WATCH_PIPELINE: 'watch-pipeline',
+  UNWATCH_PIPELINE: 'unwatch-pipeline',
 } as const;
 
 export type IPCChannel = (typeof IPC)[keyof typeof IPC];
@@ -555,7 +570,7 @@ export interface BacklinkConfig {
 export interface SubFrameComponentStatus {
   id: string;
   label: string;
-  category: 'core' | 'hooks' | 'claude-integration' | 'git' | 'skills';
+  category: 'core' | 'hooks' | 'claude-integration' | 'git' | 'skills' | 'pipeline';
   exists: boolean;
   current: boolean;
   needsUpdate: boolean;
@@ -723,6 +738,127 @@ export interface UpdaterProgress {
   total: number;
 }
 
+// ─── Pipeline Types ──────────────────────────────────────────────────────────
+
+export type PipelineTrigger = 'manual' | 'pre-push' | 'skill';
+export type PipelineRunStatus = 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+export type StageType = 'lint' | 'test' | 'describe' | 'critique' | 'freeze' | 'push' | 'create-pr' | 'custom';
+export type StageStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type ArtifactSeverity = 'error' | 'warning' | 'info' | 'suggestion';
+
+export interface ContentArtifact {
+  id: string;
+  type: 'content';
+  stageId: string;
+  title: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface CommentArtifact {
+  id: string;
+  type: 'comment';
+  stageId: string;
+  file: string;
+  line: number;
+  endLine?: number;
+  message: string;
+  severity: ArtifactSeverity;
+  category?: string;
+  createdAt: string;
+}
+
+export interface PatchArtifact {
+  id: string;
+  type: 'patch';
+  stageId: string;
+  title: string;
+  explanation: string;
+  diff: string;
+  files: string[];
+  applied: boolean;
+  createdAt: string;
+}
+
+export type PipelineArtifact = ContentArtifact | CommentArtifact | PatchArtifact;
+
+export interface PipelineStage {
+  id: string;
+  name: string;
+  type: StageType;
+  status: StageStatus;
+  requireApproval: boolean | 'if_patches';
+  continueOnError: boolean;
+  frozen: boolean;
+  artifacts: string[];
+  logs: string[];
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+}
+
+export interface PipelineJob {
+  id: string;
+  name: string;
+  needs: string[];
+  stages: PipelineStage[];
+  status: StageStatus;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface PipelineRun {
+  id: string;
+  projectPath: string;
+  workflowId: string;
+  trigger: PipelineTrigger;
+  status: PipelineRunStatus;
+  branch: string;
+  baseSha: string;
+  headSha: string;
+  jobs: PipelineJob[];
+  artifacts: PipelineArtifact[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export interface WorkflowStep {
+  name: string;
+  uses?: string;
+  run?: string;
+  'require-approval'?: boolean | 'if_patches';
+  'continue-on-error'?: boolean;
+  timeout?: number;
+  env?: Record<string, string>;
+}
+
+export interface WorkflowJob {
+  name?: string;
+  needs?: string[];
+  steps: WorkflowStep[];
+}
+
+export interface WorkflowDefinition {
+  name: string;
+  on: {
+    push?: { branches?: string[]; 'branches-ignore'?: string[] };
+    manual?: boolean;
+  };
+  jobs: Record<string, WorkflowJob>;
+}
+
+export interface PipelineRunsPayload {
+  projectPath: string;
+  runs: PipelineRun[];
+}
+
+export interface PipelineProgressEvent {
+  runId: string;
+  stageId: string;
+  log: string;
+}
+
 // ─── Handle Map (ipcMain.handle → ipcRenderer.invoke) ───────────────────────
 
 /** Maps invoke channels to their argument tuple and return type */
@@ -796,6 +932,14 @@ export interface IPCHandleMap {
   [IPC.UPDATER_CHECK]: { args: []; return: UpdateCheckResult };
   [IPC.UPDATER_DOWNLOAD]: { args: []; return: void };
   [IPC.UPDATER_INSTALL]: { args: []; return: void };
+
+  // Pipeline
+  [IPC.PIPELINE_LIST_WORKFLOWS]: { args: [projectPath: string]; return: WorkflowDefinition[] };
+  [IPC.PIPELINE_START]: { args: [payload: { projectPath: string; workflowId: string; trigger: PipelineTrigger }]; return: { runId: string } };
+  [IPC.PIPELINE_CANCEL]: { args: [runId: string]; return: { success: boolean } };
+  [IPC.PIPELINE_APPROVE_STAGE]: { args: [payload: { runId: string; stageId: string }]; return: { success: boolean } };
+  [IPC.PIPELINE_REJECT_STAGE]: { args: [payload: { runId: string; stageId: string }]; return: { success: boolean } };
+  [IPC.PIPELINE_APPLY_PATCH]: { args: [payload: { runId: string; patchId: string }]; return: { success: boolean; error?: string } };
 }
 
 // ─── Send Map (ipcRenderer.send → ipcMain.on) ───────────────────────────────
@@ -884,6 +1028,12 @@ export interface IPCSendMap {
 
   // Onboarding
   [IPC.CANCEL_ONBOARDING_ANALYSIS]: string; // projectPath
+
+  // Pipeline
+  [IPC.PIPELINE_LIST_RUNS]: { projectPath: string };
+  [IPC.PIPELINE_GET_RUN]: { runId: string };
+  [IPC.WATCH_PIPELINE]: string; // projectPath
+  [IPC.UNWATCH_PIPELINE]: void;
 }
 
 // ─── Event Map (main → renderer via webContents.send) ────────────────────────
@@ -939,6 +1089,11 @@ export interface IPCEventMap {
   // Auto-Updater
   [IPC.UPDATER_STATUS]: UpdaterStatus;
   [IPC.UPDATER_PROGRESS]: UpdaterProgress;
+
+  // Pipeline
+  [IPC.PIPELINE_PROGRESS]: PipelineProgressEvent;
+  [IPC.PIPELINE_RUN_UPDATED]: PipelineRun;
+  [IPC.PIPELINE_RUNS_DATA]: PipelineRunsPayload;
 }
 
 // ─── CommonJS compat (keep old require('...ipcChannels') working) ────────────

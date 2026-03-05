@@ -7,6 +7,21 @@ Notable changes grouped by date and domain.
 ## [Unreleased]
 
 ### Added
+- **Pipeline system** — Configurable CI/review pipelines with AI-powered stages
+  - Pipeline execution engine with topological job sort (Kahn's algorithm), sequential stage execution, freeze semantics, approval gates, and AbortController cancellation
+  - 8 built-in stage handlers: lint, test, describe, critique, freeze, push, create-pr, custom
+  - YAML workflow configuration (GitHub Actions-inspired) in `.subframe/workflows/*.yml`
+  - Typed artifact system: ContentArtifact (markdown), CommentArtifact (file:line anchored), PatchArtifact (unified diffs)
+  - 13 typed IPC channels for pipeline management
+  - TanStack Query hooks (`usePipeline`, `usePipelineWorkflows`, `usePipelineProgress`) with send/on pattern
+  - Pipeline panel (side-panel + full-view) with toolbar, run list, and 4-tab detail view (Overview, Critique, Patches, Log)
+  - Animated PipelineTimeline component with stage nodes, status colors, and progress bar
+  - 3 seeded workflow templates: review (pre-push + manual), task-verify (manual), health-check (manual)
+  - Pre-push git hook trigger — writes trigger file that pipeline engine watches and auto-starts push-enabled workflows
+  - Pipeline category in SubFrame Health panel — tracks workflows dir and template files
+  - Project initialization seeds `.subframe/workflows/` with 3 default templates and `.githooks/pre-push`
+  - Keyboard shortcut: Ctrl+Shift+Y for pipeline panel/full-view toggle
+  - Run persistence to `.subframe/pipelines/runs.json` with 50-run cap
 - **Terminal grid UX improvements** — Keyboard shortcuts, resize persistence, improved handles, maximize-in-place
   - `Ctrl+G` shortcut to toggle grid/tab view (also shown in command palette + keyboard shortcuts help)
   - Command palette: "Next Grid Layout" / "Previous Grid Layout" cycle through all 8 layouts

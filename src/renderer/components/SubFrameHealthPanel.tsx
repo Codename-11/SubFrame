@@ -26,6 +26,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   skills: 'Claude Code Skills',
   'claude-integration': 'Claude Integration',
   git: 'Git Hooks',
+  pipeline: 'Pipeline Workflows',
 };
 
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
@@ -33,10 +34,11 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   hooks: 'Event scripts that run during Claude Code sessions',
   skills: 'Slash commands for task management, documentation, and audits',
   'claude-integration': 'Hook configuration in .claude/settings.json',
-  git: 'Pre-commit hooks for auto-updating project structure',
+  git: 'Pre-commit and pre-push hooks for automation',
+  pipeline: 'Configurable CI/review workflows in .subframe/workflows/',
 };
 
-const CATEGORY_ORDER = ['core', 'hooks', 'skills', 'claude-integration', 'git'];
+const CATEGORY_ORDER = ['core', 'hooks', 'skills', 'claude-integration', 'git', 'pipeline'];
 
 function groupByCategory(components: SubFrameComponentStatus[]): Record<string, SubFrameComponentStatus[]> {
   const groups: Record<string, SubFrameComponentStatus[]> = {};

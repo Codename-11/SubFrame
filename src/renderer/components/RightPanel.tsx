@@ -24,6 +24,7 @@ import {
   Activity,
   Zap,
   BookMarked,
+  Workflow,
   X,
   ChevronLeft,
   ChevronRight,
@@ -42,8 +43,9 @@ import { SubFrameHealthPanel } from './SubFrameHealthPanel';
 import { AgentStateView } from './AgentStateView';
 import { SkillsPanel } from './SkillsPanel';
 import { PromptsPanel } from './PromptsPanel';
+import { PipelinePanel } from './PipelinePanel';
 
-type PanelId = 'tasks' | 'sessions' | 'plugins' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts';
+type PanelId = 'tasks' | 'sessions' | 'plugins' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline';
 
 interface PanelDef {
   id: PanelId;
@@ -68,6 +70,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   agentState:      { id: 'agentState',      label: 'Activity',   icon: Activity,       shortcut: 'Ctrl+Shift+A' },
   skills:          { id: 'skills',          label: 'Skills',     icon: Zap },
   prompts:         { id: 'prompts',         label: 'Prompts',    icon: BookMarked,     shortcut: 'Ctrl+Shift+L' },
+  pipeline:        { id: 'pipeline',        label: 'Pipeline',   icon: Workflow,       shortcut: 'Ctrl+Shift+Y' },
 };
 
 /**
@@ -82,6 +85,7 @@ const PANEL_GROUPS: PanelId[][] = [
   ['overview'],                                                           // Solo — Overview
   ['aiFiles'],                                                            // Solo — AI Files
   ['subframeHealth'],                                                     // Solo — SubFrame Health
+  ['pipeline'],                                                            // Solo — Pipeline
 ];
 
 /** Find which group a panel belongs to */
@@ -104,6 +108,7 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   agentState: AgentStateView,
   skills: SkillsPanel,
   prompts: PromptsPanel,
+  pipeline: PipelinePanel,
 };
 
 export function RightPanel() {

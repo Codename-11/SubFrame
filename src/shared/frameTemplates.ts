@@ -885,6 +885,34 @@ exit 0
 }
 
 /**
+ * Pre-push git hook template.
+ * Triggers pipeline workflows configured with "on: { push: true }".
+ */
+export function getPrePushHookTemplate(): string {
+  return `#!/bin/bash
+# SubFrame pre-push hook
+# Triggers pipeline workflows configured with "on: { push: true }"
+# To bypass: git push --no-verify
+
+SUBFRAME_DIR=".subframe"
+PIPELINES_DIR="$SUBFRAME_DIR/pipelines"
+TRIGGER_FILE="$PIPELINES_DIR/.pre-push-trigger"
+
+# Only trigger if SubFrame is initialized
+if [ ! -d "$SUBFRAME_DIR" ]; then
+  exit 0
+fi
+
+# Write trigger file for SubFrame to detect
+mkdir -p "$PIPELINES_DIR"
+echo "{\\"trigger\\": \\"pre-push\\", \\"timestamp\\": \\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\"}" > "$TRIGGER_FILE"
+
+# Don't block the push — pipeline runs async via SubFrame UI
+exit 0
+`;
+}
+
+/**
  * Pre-commit hook updater script (Node.js)
  */
 export function getHookUpdaterScript(): string {
@@ -2249,5 +2277,88 @@ Show a summary of what was created or updated:
 - Run \\\`npm run structure\\\` if available to enrich STRUCTURE.json with line numbers
 - Start working on the created sub-tasks
 \\\`\\\`\\\`
+`;
+}
+
+// ─── Pipeline Workflow Templates ──────────────────────────────────────────────
+
+export function getDefaultReviewWorkflow(): string {
+  return `name: review
+on:
+  push:
+    branches: ['*']
+  manual: true
+
+jobs:
+  quality:
+    name: Quality Checks
+    steps:
+      - name: Lint
+        uses: lint
+      - name: Test
+        uses: test
+        continue-on-error: true
+
+  review:
+    name: Code Review
+    needs: [quality]
+    steps:
+      - name: Describe Changes
+        uses: describe
+      - name: Code Review
+        uses: critique
+        require-approval: if_patches
+      - name: Freeze
+        uses: freeze
+
+  publish:
+    name: Publish
+    needs: [review]
+    steps:
+      - name: Push
+        uses: push
+      - name: Create PR
+        uses: create-pr
+`;
+}
+
+export function getTaskVerifyWorkflow(): string {
+  return `name: task-verify
+on:
+  manual: true
+
+jobs:
+  verify:
+    name: Task Verification
+    steps:
+      - name: Run Tests
+        uses: test
+      - name: Verify Implementation
+        uses: critique
+        require-approval: if_patches
+      - name: Generate Summary
+        uses: describe
+`;
+}
+
+export function getHealthCheckWorkflow(): string {
+  return `name: health-check
+on:
+  manual: true
+
+jobs:
+  audit:
+    name: Project Audit
+    steps:
+      - name: Lint Check
+        uses: lint
+        continue-on-error: true
+      - name: Test Suite
+        uses: test
+        continue-on-error: true
+      - name: Architecture Review
+        uses: describe
+      - name: Code Quality Review
+        uses: critique
 `;
 }

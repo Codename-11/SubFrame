@@ -40,6 +40,7 @@ export const FRAME_FILES = {
   SKILLS_SUB_DOCS: path.join('.claude', 'skills', 'sub-docs', 'SKILL.md'),
   SKILLS_SUB_AUDIT: path.join('.claude', 'skills', 'sub-audit', 'SKILL.md'),
   SKILLS_ONBOARD: path.join('.claude', 'skills', 'onboard', 'SKILL.md'),
+  HOOKS_PRE_PUSH: path.join('.githooks', 'pre-push'),
 } as const;
 
 /** SubFrame bin directory for AI tool wrappers */
@@ -50,6 +51,12 @@ export const GITHOOKS_DIR: string = '.githooks';
 
 /** Tasks directory for individual markdown task files */
 export const FRAME_TASKS_DIR: string = path.join('.subframe', 'tasks');
+
+/** Pipeline workflows directory */
+export const FRAME_WORKFLOWS_DIR: string = path.join('.subframe', 'workflows');
+
+/** Pipeline runtime state directory */
+export const FRAME_PIPELINES_DIR: string = path.join('.subframe', 'pipelines');
 
 /** SubFrame version — single source of truth is package.json */
 export const FRAME_VERSION: string = require('../../package.json').version;

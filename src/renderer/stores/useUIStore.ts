@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import type { SortingState } from '@tanstack/react-table';
 
-type PanelId = 'tasks' | 'plugins' | 'sessions' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | null;
+type PanelId = 'tasks' | 'plugins' | 'sessions' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | null;
 type SidebarState = 'expanded' | 'collapsed' | 'hidden';
-type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | null;
+type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | null;
 export type StatusFilter = 'all' | 'pending' | 'in_progress' | 'completed' | 'blocked';
 
 interface UIState {
@@ -28,7 +28,7 @@ interface UIState {
   // Full-view overlay (renders inside TerminalArea instead of terminal content)
   fullViewContent: FullViewContent;
   setFullViewContent: (content: FullViewContent) => void;
-  toggleFullView: (content: 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions') => void;
+  toggleFullView: (content: 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline') => void;
 
   // Editor
   editorFilePath: string | null;
@@ -138,7 +138,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
 
   // TasksPanel sort/filter — session-scoped (no localStorage)
-  tasksSorting: [{ id: 'priority', desc: false }],
+  tasksSorting: [{ id: 'status', desc: false }],
   setTasksSorting: (s) => set({ tasksSorting: s }),
   tasksStatusFilter: 'all',
   setTasksStatusFilter: (f) => set({ tasksStatusFilter: f }),

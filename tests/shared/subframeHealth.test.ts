@@ -8,7 +8,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { getSubFrameHealth, getComponentRegistry, getHooksDir } from '../../src/shared/subframeHealth';
 import { writeClaudeSettings, mergeSubFrameHooks } from '../../src/shared/claudeSettingsUtils';
-import { FRAME_DIR, FRAME_FILES, FRAME_TASKS_DIR, GITHOOKS_DIR } from '../../src/shared/frameConstants';
+import { FRAME_DIR, FRAME_FILES, FRAME_TASKS_DIR, FRAME_WORKFLOWS_DIR, GITHOOKS_DIR } from '../../src/shared/frameConstants';
 import { AGENTS_TEMPLATE_VERSION } from '../../src/shared/frameTemplates';
 
 let tmpDir: string;
@@ -141,6 +141,17 @@ function deployFullProject(): void {
     path.join(githooksDir, 'update-structure.js'),
     getTemplateById('update-structure'),
   );
+  fs.writeFileSync(
+    path.join(githooksDir, 'pre-push'),
+    getTemplateById('pre-push'),
+  );
+
+  // Pipeline workflow files (existence-only)
+  const workflowsDir = path.join(tmpDir, FRAME_WORKFLOWS_DIR);
+  fs.mkdirSync(workflowsDir, { recursive: true });
+  fs.writeFileSync(path.join(workflowsDir, 'review.yml'), 'name: review\non:\n  manual: true\njobs:\n  q:\n    steps:\n      - name: Lint\n        uses: lint\n');
+  fs.writeFileSync(path.join(workflowsDir, 'task-verify.yml'), 'name: task-verify\non:\n  manual: true\njobs:\n  v:\n    steps:\n      - name: Test\n        uses: test\n');
+  fs.writeFileSync(path.join(workflowsDir, 'health-check.yml'), 'name: health-check\non:\n  manual: true\njobs:\n  a:\n    steps:\n      - name: Lint\n        uses: lint\n');
 }
 
 // ── getComponentRegistry ─────────────────────────────────────────────────────
@@ -159,11 +170,11 @@ describe('getComponentRegistry', () => {
       expect(entry.label).toBeDefined();
       expect(entry.category).toBeDefined();
       expect(entry.path).toBeDefined();
-      expect(['core', 'hooks', 'claude-integration', 'git', 'skills']).toContain(entry.category);
+      expect(['core', 'hooks', 'claude-integration', 'git', 'skills', 'pipeline']).toContain(entry.category);
     }
   });
 
-  it('includes entries from all 5 categories', () => {
+  it('includes entries from all 6 categories', () => {
     const registry = getComponentRegistry();
     const categories = new Set(registry.map((e) => e.category));
     expect(categories.has('core')).toBe(true);
@@ -171,6 +182,7 @@ describe('getComponentRegistry', () => {
     expect(categories.has('claude-integration')).toBe(true);
     expect(categories.has('git')).toBe(true);
     expect(categories.has('skills')).toBe(true);
+    expect(categories.has('pipeline')).toBe(true);
   });
 });
 

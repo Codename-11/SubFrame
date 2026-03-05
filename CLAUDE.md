@@ -27,17 +27,17 @@ React 19, TypeScript (strict), Zustand (state), TanStack Query (IPC caching), Ta
 ### Key Modules
 
 **Main process** — each manager has `init()` + `setupIPC()`:
-`ptyManager` `tasksManager` `pluginsManager` `claudeSessionsManager` `aiToolManager` `aiFilesManager` `settingsManager` `gitBranchesManager` `overviewManager` `agentStateManager` `skillsManager` `promptsManager` `updaterManager` `workspace` `frameProject`
-**Utilities**: `taskMarkdownParser` (parse/serialize task .md files with YAML frontmatter)
+`ptyManager` `tasksManager` `pluginsManager` `claudeSessionsManager` `aiToolManager` `aiFilesManager` `settingsManager` `gitBranchesManager` `overviewManager` `agentStateManager` `skillsManager` `promptsManager` `updaterManager` `pipelineManager` `workspace` `frameProject`
+**Utilities**: `taskMarkdownParser` (parse/serialize task .md files with YAML frontmatter) `pipelineWorkflowParser` (YAML workflow parsing) `pipelineStages` (built-in stage handlers)
 
 **Renderer** — React components in `src/renderer/components/`:
-`App` `Sidebar` `ProjectList` `WorkspaceSelector` `Terminal` `TerminalArea` `TerminalGrid` `TerminalTabBar` `FileTree` `Editor` `RightPanel` `TasksPanel` `TaskTimeline` `TaskGraph` `TaskKanban` `SessionsPanel` `PluginsPanel` `SettingsPanel` `OverviewPanel` `StatsDetailView` `DecisionsDetailView` `GithubPanel` `AIFilesPanel` `AIToolSelector` `StructureMap` `SubFrameHealthPanel` `AgentStateView` `AgentTimeline` `SidebarAgentStatus` `SkillsPanel` `KeyboardShortcuts` `HistoryPanel` `CommandPalette` `PromptLibrary` `WhatsNew` `UpdateNotification` `OnboardingDialog` `ErrorBoundary`
+`App` `Sidebar` `ProjectList` `WorkspaceSelector` `Terminal` `TerminalArea` `TerminalGrid` `TerminalTabBar` `FileTree` `Editor` `RightPanel` `TasksPanel` `TaskTimeline` `TaskGraph` `TaskKanban` `SessionsPanel` `PluginsPanel` `SettingsPanel` `OverviewPanel` `StatsDetailView` `DecisionsDetailView` `GithubPanel` `AIFilesPanel` `AIToolSelector` `StructureMap` `SubFrameHealthPanel` `AgentStateView` `AgentTimeline` `SidebarAgentStatus` `SkillsPanel` `KeyboardShortcuts` `HistoryPanel` `CommandPalette` `PromptLibrary` `WhatsNew` `UpdateNotification` `OnboardingDialog` `ErrorBoundary` `PipelinePanel` `PipelineTimeline`
 **Previews** (in `src/renderer/components/previews/`): `MarkdownPreview` `HtmlPreview` `ImagePreview`
 
 **Lib** (renderer utilities): `src/renderer/lib/ipc.ts` (IPC bridge) `src/renderer/lib/utils.ts` (cn helper, misc) `src/renderer/lib/codemirror-theme.ts` (CM6 SubFrame theme) `src/renderer/lib/codemirror-extensions.ts` (CM6 extensions/languages)
 
 **Stores** (Zustand): `useUIStore` `useProjectStore` `useTerminalStore`
-**Hooks** (TanStack Query): `useIpc` (`useIpcQuery` `useIpcMutation`) `useIPCListener` `useTasks` `useSessions` `usePlugins` `useSettings` `useOverview` `useAIFiles` `useGithub` `useFileTree` `useTerminal` `useAgentState` `useSkills` `usePrompts` `useOnboarding` `useSubFrameHealth` `useUpdater`
+**Hooks** (TanStack Query): `useIpc` (`useIpcQuery` `useIpcMutation`) `useIPCListener` `useTasks` `useSessions` `usePlugins` `useSettings` `useOverview` `useAIFiles` `useGithub` `useFileTree` `useTerminal` `useAgentState` `useSkills` `usePrompts` `useOnboarding` `useSubFrameHealth` `useUpdater` `usePipeline` `usePipelineWorkflows` `usePipelineProgress`
 
 ### Build & Dev
 
@@ -67,6 +67,8 @@ npm run docs:preview # Preview built docs locally
 | `.subframe/tasks.json` | Sub-Task index (auto-generated from .md files) | Read at session start |
 | `.subframe/PROJECT_NOTES.md` | Decisions, session notes, architecture context | Read at session start |
 | `.subframe/docs-internal/` | ADRs, architecture overview, changelog, IPC reference | Reference (not auto-loaded) |
+| `.subframe/workflows/*.yml` | Pipeline workflow definitions (YAML, GitHub Actions-inspired) | Read on demand |
+| `.subframe/pipelines/runs.json` | Pipeline run history (auto-managed) | Read on demand |
 | `AGENTS.md` | Full rules for Sub-Task system, notes, documentation | Reference manual |
 
 **Start each session** by reading `.subframe/STRUCTURE.json`, `.subframe/tasks.json`, and `.subframe/PROJECT_NOTES.md`.

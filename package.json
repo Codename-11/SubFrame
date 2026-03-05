@@ -128,6 +128,7 @@
     "xterm-addon-fit": "^0.8.0",
     "xterm-addon-search": "^0.13.0",
     "xterm-addon-webgl": "^0.16.0",
+    "yaml": "^2.8.2",
     "zustand": "^5.0.11"
   },
   "build": {

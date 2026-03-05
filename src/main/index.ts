@@ -33,6 +33,7 @@ import * as skillsManager from './skillsManager';
 import * as promptsManager from './promptsManager';
 import * as onboardingManager from './onboardingManager';
 import * as updaterManager from './updaterManager';
+import * as pipelineManager from './pipelineManager';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
 // ── Global error handlers — surface errors to terminal on crash/exit ──
@@ -288,6 +289,7 @@ function setupAllIPC(): void {
   skillsManager.setupIPC(ipcMain);
   promptsManager.setupIPC(ipcMain);
   onboardingManager.setupIPC(ipcMain);
+  pipelineManager.setupIPC(ipcMain);
   // Note: updaterManager.setupIPC() is called inside updaterManager.init()
   // because it needs app.isPackaged to be set first
 
@@ -339,6 +341,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   aiFilesManager.init(window);
   agentStateManager.init(window);
   onboardingManager.init(window);
+  pipelineManager.init(window);
   updaterManager.init(window, app);
 }
 

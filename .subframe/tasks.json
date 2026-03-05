@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-03",
+    "lastUpdated": "2026-03-05",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-03T23:28:48.675Z",
+  "lastUpdated": "2026-03-05T02:38:23.926Z",
   "tasks": {
     "pending": [
       {
@@ -143,7 +143,6 @@
         "updatedAt": "2026-03-03T02:54:52.625Z",
         "completedAt": null,
         "description": "Overhaul AgentStateView to better differentiate separate Claude Code sessions and add visual hierarchy for sub-agents.",
-        "acceptanceCriteria": "- Panel mode shows session sidebar + timeline (not just a single card)\n- Sub-agents visually nested under parent sessions\n- Multiple concurrent sessions clearly differentiated\n- SidebarAgentStatus shows session count badge when >1 active",
         "steps": []
       },
       {
@@ -159,7 +158,6 @@
         "updatedAt": "2026-03-03T02:55:17.851Z",
         "completedAt": null,
         "description": "Add a visual personification view for agents that makes multi-session and sub-agent workflows tangible and intuitive.",
-        "acceptanceCriteria": "- Agent cards render with status-colored aura and tool badge\n- Sub-agent hierarchy visually represented as a tree\n- Multiple sessions render side-by-side with clear boundaries\n- Smooth animations for agent spawn/complete lifecycle\n- Works in both sidebar (compact) and full-view modes",
         "steps": []
       },
       {
@@ -175,7 +173,81 @@
         "updatedAt": "2026-03-03T03:09:31.673Z",
         "completedAt": null,
         "description": "Embed a Claud-ometer-style analytics dashboard directly in SubFrame. Reads `~/.claude/` data (session .jsonl logs, stats-cache.json, history.jsonl) to show usage, costs, token breakdowns, and session history — no external server needed.",
-        "acceptanceCriteria": "- Overview shows total sessions, messages, tokens, cost\n- At least one chart (usage over time or model breakdown)\n- Session list with sort/filter\n- Cost estimates using per-model pricing (input/output/cache tiers)\n- Scopes to current project when project is selected\n- Handles missing ~/.claude/ gracefully (empty state)",
+        "steps": []
+      },
+      {
+        "id": "task-mmcuvhgj-moet",
+        "title": "Pipeline: multi-agent orchestration",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-05",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:37:53.058Z",
+        "updatedAt": "2026-03-05T02:37:53.058Z",
+        "completedAt": null,
+        "description": "Implement stage-isolated agent invocations where each pipeline stage spawns a separate AI tool session with scoped context. Supports composable agent chains where output artifacts from one stage feed into the next stage's prompt context.",
+        "steps": []
+      },
+      {
+        "id": "task-mmcuvnp6-spv5",
+        "title": "Pipeline: release automation workflow",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-05",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:38:01.145Z",
+        "updatedAt": "2026-03-05T02:38:01.145Z",
+        "completedAt": null,
+        "description": "Create a release pipeline workflow template that runs test suite, generates release notes via AI, bumps version, requires human approval gate, then pushes and creates GitHub release. Replaces the manual /release skill workflow with an automated pipeline.",
+        "steps": []
+      },
+      {
+        "id": "task-mmcuvtnt-x53k",
+        "title": "Pipeline: custom team workflow templates",
+        "status": "pending",
+        "priority": "low",
+        "category": "feature",
+        "context": "Session 2026-03-05",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:38:08.872Z",
+        "updatedAt": "2026-03-05T02:38:08.872Z",
+        "completedAt": null,
+        "description": "Add a workflow template gallery/browser in the Pipeline panel UI. Include starter templates for common workflows: database migration verification, Docker image builds, deployment to staging, security scanning (npm audit), and allow teams to create/share custom templates.",
+        "steps": []
+      },
+      {
+        "id": "task-mmcuvzfa-wmsp",
+        "title": "Pipeline: parallel job execution",
+        "status": "pending",
+        "priority": "low",
+        "category": "feature",
+        "context": "Session 2026-03-05",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:38:16.341Z",
+        "updatedAt": "2026-03-05T02:38:16.341Z",
+        "completedAt": null,
+        "description": "Implement concurrent execution of independent jobs in the pipeline DAG. Jobs with no mutual dependencies (as determined by topological sort) should run in parallel using Promise.all. Includes progress tracking for parallel stages and proper abort propagation.",
+        "steps": []
+      },
+      {
+        "id": "task-mmcuw59d-idrl",
+        "title": "Pipeline: worktree isolation for stages",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-05",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:38:23.905Z",
+        "updatedAt": "2026-03-05T02:38:23.905Z",
+        "completedAt": null,
+        "description": "Implement git worktree-based isolation for pipeline stages. Create a temporary worktree for the pipeline run so stages can modify files without affecting the user's working directory. The worktreePath field already exists in StageContext but is always null.",
         "steps": []
       }
     ],
@@ -193,7 +265,6 @@
         "updatedAt": "2026-03-03T00:01:32.623Z",
         "completedAt": "2026-03-02T23:38:15.743Z",
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
-        "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)",
         "steps": []
       }
     ],
@@ -346,9 +417,6 @@
         "updatedAt": "2026-03-01T16:35:59.662Z",
         "completedAt": "2026-03-01T16:35:59.662Z",
         "description": "Research Claude Code's hooks system (startup hooks, pre/post command hooks, etc.) and evaluate how SubFrame can leverage them to enforce context loading at session start. Currently CLAUDE.md instructs Claude to read STRUCTURE.json, tasks.json, and PROJECT_NOTES.md — but this is a soft directive. A startup hook could automatically dump key context or run find-module.js on init. Scope: (1) Research available hook types and trigger points. (2) Prototype a startup hook that auto-loads SubFrame context files. (3) Evaluate whether hooks can be bundled with SubFrame project initialization (frameProject.js / projectInit.js). (4) Document findings and recommended hook configurations in AGENTS.md or a new docs file.",
-        "userRequest": "User noted that CLAUDE.md 'read at session start' is a directive, not enforced. Suggested hooks as a way to make context loading bulletproof. User said: 'add hooks enhancements/research as a task/todo in our system'",
-        "acceptanceCriteria": "1. Documented research on Claude Code hooks API (what's available, how they work). 2. Working prototype of a SubFrame startup hook that auto-loads context. 3. Decision on whether to include hooks in SubFrame project init. 4. If implemented, hooks are registered during Initialize as SubFrame Project flow.",
-        "notes": "Claude Code supports hooks in ~/.claude/settings.json and .claude/settings.json (project-scoped). Could also explore /init command integration. Related to the broader goal of making SubFrame context loading guaranteed rather than best-effort.\n[2026-03-01] Implemented: CLI script (scripts/task.js), 3 hooks (session-start, prompt-submit, stop), /sub-tasks skill, archive system. All documented in CLAUDE.md and AGENTS.md.",
         "steps": []
       },
       {
@@ -394,7 +462,6 @@
         "updatedAt": "2026-03-01T22:48:07.617Z",
         "completedAt": "2026-03-01T22:48:07.617Z",
         "description": "Currently, the Sub-Task automation (scripts/task.js CLI, scripts/hooks/*.js hooks, .claude/skills/sub-tasks/ skill, .claude/settings.json hook config) only exists in the SubFrame repo itself. Projects initialized via 'Initialize as SubFrame Project' get tasks.json and docs but not the automated tooling. Add an optional step to initializeProject() in projectInit.ts that deploys lightweight versions of: (1) scripts/task.js CLI script, (2) scripts/hooks/ session-start, prompt-submit, stop hooks, (3) .claude/settings.json hook wiring, (4) .claude/skills/sub-tasks/SKILL.md skill. Consider whether to copy files or generate from templates. Must not overwrite existing .claude/settings.json content (merge hook config).",
-        "userRequest": "Will this get 'Installed' when we init a SubFrame project?",
         "steps": []
       },
       {
@@ -410,7 +477,6 @@
         "updatedAt": "2026-03-01T22:48:09.377Z",
         "completedAt": "2026-03-01T22:48:09.377Z",
         "description": "No uninit/cleanup flow exists. Add the ability to cleanly remove SubFrame from a project without breaking anything. Should remove: .subframe/ directory, AGENTS.md (if SubFrame-generated), CLAUDE.md/GEMINI.md backlinks (preserve user content), .githooks/ (if SubFrame-created), .claude/settings.json hook entries (if SubFrame-added), .claude/skills/sub-tasks/ (if deployed). Must be safe — warn before destructive actions, confirm with user, never delete user content. Could be a CLI command (node scripts/init.js --uninit) and/or a UI button in SubFrame app.",
-        "userRequest": "Do we allow cleanly and properly uninitializing a project/cleanup without breaking?",
         "steps": []
       },
       {
@@ -426,7 +492,6 @@
         "updatedAt": "2026-03-01T22:48:11.395Z",
         "completedAt": "2026-03-01T22:48:11.395Z",
         "description": "Currently project detection is binary — isFrameProject() checks .subframe/config.json existence. Enhance to show richer status: (1) Which SubFrame components are present (config, tasks, structure, hooks, CLI, skill). (2) Visual indicator in project list showing init level (e.g., 'basic' vs 'full' with hooks). (3) Ability to see what's missing and optionally install missing components. Could be a status panel or info tooltip expansion in the project list UI.",
-        "userRequest": "Do we show status cleanly?",
         "steps": []
       },
       {
@@ -577,7 +642,6 @@
         "updatedAt": "2026-03-02T01:34:32.734Z",
         "completedAt": "2026-03-02T01:34:32.734Z",
         "description": "Live monitoring of Claude Code agent sessions in SubFrame. Ports & Adapters architecture: Claude Code PreToolUse/PostToolUse hooks write to .subframe/agent-state.json, main process watches via fs.watch, renderer displays via AgentStateView/AgentTimeline/SidebarAgentStatus. 4 new IPC channels, Ctrl+Shift+A shortcut, terminal navbar Agents button.",
-        "userRequest": "Enhance Sub-Tasks with sidebar-timeline/stepper, full view, real-time agent/session visualization inspired by claude-code-by-agents project",
         "steps": []
       },
       {
@@ -623,7 +687,6 @@
         "updatedAt": "2026-03-03T00:00:13.308Z",
         "completedAt": "2026-03-03T00:00:13.308Z",
         "description": "Implement self-updating via electron-updater. Check GitHub Releases for new versions, show in-app notification, one-click install. Use delta updates to minimize download size. This is the immediate solution — the transport abstraction sub-task covers the future CDN-loaded renderer approach for browser mode.",
-        "notes": "[2026-03-02] Implementing standard electron-updater first. Transport abstraction (for future browser mode) tracked separately.\n[2026-03-03] Implemented electron-updater auto-update system: updaterManager (main), useUpdater hook (renderer), UpdateNotification toast component, SettingsPanel 'Check for Updates' button, 5 IPC channels. Dev mode guard prevents crashes in development. Build and typecheck pass.",
         "steps": []
       },
       {
@@ -657,6 +720,21 @@
         "steps": []
       },
       {
+        "id": "task-mmb8be8r-dssb",
+        "title": "Enhanced empty state with AI tool indicator",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-03",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-03T23:18:38.042Z",
+        "updatedAt": "2026-03-03T23:28:48.673Z",
+        "completedAt": "2026-03-03T23:28:48.673Z",
+        "description": "1. Show which AI tool will start based on settings (e.g., 'Start Claude Code' instead of generic 'Start AI') on the empty terminal state button in TerminalArea.tsx. Mirror the sidebar AI status display. 2. Review empty grid cell UX in TerminalGrid.tsx — consider whether the current Plus button is discoverable enough or needs enhancement.",
+        "steps": []
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -669,9 +747,6 @@
         "updatedAt": "2026-03-01T22:58:25.849Z",
         "completedAt": "2026-03-01T22:58:25.849Z",
         "description": "Comprehensive UI, QoL, and cross-platform improvements. (1) Project Renaming - double-click/right-click/F2 rename. (2) Customizable AI Start Command - editable per-tool via settings. (3) Windows Usage Bars - cross-platform OAuth from credentials file + Keychain fallback. (4) Settings Panel - 3 sections: General (auto-terminal toggle), AI Tool Config, Terminal. (5) Terminal UX - scroll-to-bottom button, lineHeight/letterSpacing fixes. (6) Windows Sessions Fix - encodeProjectPath handles backslashes/colons. (7) Tasks Panel - always loads on project change, fs.watch() real-time updates, refresh button, trailing-comma-tolerant JSON. (8) Windows Audit - replaced Unix shell commands in overviewManager with Node.js equivalents. (9) Sidebar Collapse - bottom collapse icon, expand tab when hidden, localStorage persistence. (10) Cross-platform Dev Tooling - scripts/dev.js, DEV_SETUP.bat + dev_setup.ps1. (11) Docs - README.md and QUICKSTART.md updated with Windows setup, commands, roadmap. (12) Startup Performance - splash window, in-app loading screen, two-phase renderer init (initCritical/initDeferred), window state persistence, debounced resize, D3 defer. (13) Sessions Panel Rewrite - scans .jsonl files instead of non-existent sessions-index.json, state dots (active/recent/inactive with pulse), split resume button with dropdown (default tool, claude, claude --continue, custom), HTML tag stripping, sessions tab first with icons. (14) Claude Panel Collapse - collapse arrow shrinks to 44px icon strip, click icons to expand, X to fully hide.",
-        "userRequest": "Projects can't be named, can't modify claude start command, Windows usage bars show --, no settings panel, terminal logo crunched, no scroll-to-bottom. Follow-ups: fix tasks not loading, sessions broken on Windows, audit Windows issues, update docs, sidebar collapse, auto-terminal as setting, startup UI freeze on maximize.",
-        "acceptanceCriteria": "1. Project rename via double-click/context menu. 2. AI start command customizable per-tool. 3. Usage bars work on Windows. 4. Settings panel with General/AI/Terminal sections. 5. Scroll-to-bottom button. 6. ASCII logo renders cleanly. 7. Sessions load on Windows. 8. Tasks load on project change with real-time watching. 9. Overview metrics cross-platform. 10. Sidebar collapsible. 11. DEV_SETUP.bat automates Windows prereqs. 12. Docs updated. 13. Splash screen on startup, no UI freeze on maximize, window state persisted. 14. Sessions show with state dots and resume from panel. 15. Claude panel collapses to icon strip.",
-        "notes": "Scope grew from 5 to 15 items. Pivoted from upstream PR to spinoff due to scope of planned changes. All changes are cross-platform safe.",
         "steps": []
       },
       {
@@ -686,10 +761,7 @@
         "createdAt": "2026-03-01T20:00:00.000Z",
         "updatedAt": "2026-03-01T22:58:25.740Z",
         "completedAt": "2026-03-01T22:58:25.740Z",
-        "description": "Complete refactor of SubFrame from vanilla JavaScript with imperative DOM manipulation to a modern React + TypeScript stack. This is a multi-phase effort covering the entire codebase.\n\n**Technology Stack:**\n- **React 19** — component architecture, hooks, Suspense for lazy-loaded panels\n- **TypeScript** (strict mode) — type safety across main, renderer, shared, and IPC layer\n- **Zustand** — lightweight global state (UI state: active panel, terminal IDs, sidebar width, view mode)\n- **TanStack Query** — IPC call caching, loading/error states, invalidation (file tree, sessions, tasks, overview)\n- **TanStack Table** — headless table for tasks list, sessions list with built-in sorting, filtering, column management\n- **shadcn/ui** — component library built on Radix UI primitives (buttons, modals/dialogs, tabs, dropdowns, tooltips, context menus, command palette, forms, toasts). Implies **Tailwind CSS** as the styling system.\n- **Tailwind CSS v4** — replaces the hand-written CSS files (variables.css, main.css, layout.css, panels.css, terminal.css, ui.css). SubFrame's warm-neutral + amber accent design tokens map to Tailwind theme config / shadcn CSS variables.\n- **Framer Motion** — declarative animations for panel open/close, modal transitions, list reorder, AnimatePresence for exit animations, layout animations for sidebar resize.\n- **esbuild** (kept) — already supports TSX natively, sub-second builds preserved.\n\n**Scope:**\n\n**Phase 1 — Foundation (TypeScript + Tailwind + Build)**\n- Add `tsconfig.json` configs (separate for main, renderer, shared) with strict mode\n- Update esbuild config for `.tsx` entry point and JSX transform\n- Install and configure Tailwind CSS v4 with PostCSS (esbuild plugin or separate step)\n- Initialize shadcn/ui (`npx shadcn@latest init`) — configure theme with SubFrame's warm-neutral palette (--background, --foreground, --accent mapped from current --bg-primary, --text-primary, --accent-primary #d4a574)\n- Add dependencies: `react`, `react-dom`, `zustand`, `@tanstack/react-query`, `@tanstack/react-table`, `framer-motion`, `tailwindcss`, `@types/react`, `@types/react-dom`, `@types/node`, `typescript`, plus shadcn peer deps (`class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`)\n- Convert `src/shared/ipcChannels.js` → `ipcChannels.ts` with typed channel map (backbone — every IPC call becomes type-safe)\n- Convert remaining shared modules: `frameConstants.ts`, `frameTemplates.ts`, `backlinkUtils.ts`, `projectInit.ts`\n- Create typed IPC utility: `typedInvoke<Channel>(...args): Promise<ReturnType>` for renderer, `typedHandle<Channel>(handler)` for main\n- Create TanStack Query wrapper hooks for IPC: `useIpcQuery(channel, args)` and `useIpcMutation(channel)`\n\n**Phase 2 — Main Process (TypeScript only, no React)**\n- Convert all 20 main process files from `.js` to `.ts`\n- Add interfaces for all manager modules (e.g., `ISettingsManager`, `IWorkspace`, `IPtyManager`)\n- Type all `ipcMain.handle` / `ipcMain.on` handlers with the typed IPC utility\n- Type node-pty instances, Electron BrowserWindow, and menu builders\n- Files: index.js, ptyManager.js, pty.js, workspace.js, settingsManager.js, tasksManager.js, pluginsManager.js, claudeSessionsManager.js, overviewManager.js, frameProject.js, fileTree.js, fileEditor.js, gitBranchesManager.js, githubManager.js, promptLogger.js, claudeUsageManager.js, aiToolManager.js, aiFilesManager.js, menu.js, dialogs.js\n\n**Phase 3 — Renderer: React + shadcn Components**\n- Replace `index.html` monolithic structure with a single `<div id='root'>` + React mount\n- Set up providers: `<QueryClientProvider>` (TanStack Query), Zustand stores (no provider needed)\n- Install shadcn components as needed: `button`, `dialog`, `tabs`, `dropdown-menu`, `context-menu`, `command`, `input`, `textarea`, `badge`, `tooltip`, `toast`/`sonner`, `separator`, `scroll-area`, `resizable` (for sidebar/panels), `sheet` (for mobile-style slide panels), `table`\n- Create React component tree:\n  - `<App>` — root layout with `<ResizablePanelGroup>` (shadcn resizable) for sidebar + main + right panel\n  - `<Sidebar>` — workspace `<DropdownMenu>`, project list, action `<Button>`s\n  - `<FileTree>` — recursive tree with expand/collapse via `<Collapsible>`, icons from `lucide-react`\n  - `<TerminalArea>` — `<Tabs>` (shadcn) for tab bar + terminal grid container\n  - `<Terminal>` — xterm.js wrapper with useEffect lifecycle, `<ContextMenu>` for right-click (shadcn)\n  - `<Editor>` — file editor as `<Dialog>` or `<Sheet>` overlay\n  - `<RightPanel>` — `<Tabs>` container for sub-panels\n  - `<TasksPanel>` — TanStack Table for task list with sorting/filtering, `<Dialog>` for add/edit modal with shadcn form components, `<Badge>` for status/priority\n  - `<SessionsPanel>` — TanStack Table for session list with sorting by date/status, split `<Button>` for resume\n  - `<PluginsPanel>` — plugin cards\n  - `<SettingsPanel>` — `<Dialog>` with `<Tabs>` sections (General, AI Tool, Terminal)\n  - `<OverviewPanel>` — dashboard cards with `<motion.div>` entry animations\n  - `<AIFilesPanel>` — status indicators + action `<Button>`s\n  - `<GithubPanel>` — PR/issue list\n  - `<ProjectListUI>` — project cards in sidebar\n  - `<AIToolSelector>` — `<DropdownMenu>` or `<Command>` palette for tool selection\n  - `<StructureMap>` — D3 visualization via useRef + useEffect (D3 manages its own DOM subtree)\n- Zustand stores: `useUIStore` (sidebar state, active panel, view mode), `useProjectStore` (active project, workspace), `useTerminalStore` (terminal IDs, active terminal, grid layout)\n- TanStack Query hooks: `useFileTree(projectPath)`, `useTasks(projectPath)`, `useSessions()`, `useOverview()`, `usePlugins()`, `useSettings()`\n- TanStack Table instances: `useTasksTable()` with column defs for title/status/priority/category/date + sorting + filtering, `useSessionsTable()` with column defs for title/date/branch/messages/state + sorting\n- Framer Motion: `<AnimatePresence>` for panel show/hide, `<motion.div>` with `layout` prop for sidebar resize, `<Reorder>` for draggable terminal tabs, staggered list animations for task/session entries\n\n**Phase 4 — Styles Migration (CSS → Tailwind)**\n- Delete hand-written CSS files: variables.css, main.css, layout.css, panels.css, terminal.css, ui.css\n- Map current design tokens to Tailwind theme:\n  - `--bg-primary: #0f0f10` → `--background` in shadcn theme\n  - `--bg-secondary: #1a1a1c` → `--card` / `--muted`\n  - `--accent-primary: #d4a574` → `--primary` (amber accent preserved)\n  - `--text-primary: #e8e6e3` → `--foreground`\n  - Spacing scale (`--space-xs` through `--space-xl`) → Tailwind spacing utilities\n  - Semantic colors (`--success`, `--warning`, `--error`) → custom Tailwind colors\n- Keep `xterm.css` (xterm.js's own stylesheet — not ours to replace)\n- Font setup: DM Sans + JetBrains Mono configured in Tailwind fontFamily\n- Dark mode: shadcn's `dark` class on root (SubFrame is dark-only, so hardcode this)\n\n**Phase 5 — Testing & Cleanup**\n- Remove all 20 vanilla renderer `.js` files\n- Remove dead HTML markup from index.html\n- Remove old CSS files (replaced by Tailwind + shadcn)\n- Verify all IPC channels work end-to-end with typed system\n- Test xterm.js lifecycle in React (mount, unmount, resize, fit)\n- Test TanStack Table sorting/filtering on tasks and sessions\n- Test all shadcn components render correctly in Electron (no browser-only APIs)\n- Test Framer Motion animations don't cause layout thrashing\n- Test all panel toggles, modals, keyboard shortcuts, context menus\n- Cross-platform verification (Windows + macOS)\n- Update esbuild scripts, dev.js, STRUCTURE.json\n- Update CLAUDE.md CSS Design System section to reference Tailwind + shadcn instead of variables.css\n\n**Key technical considerations:**\n- xterm.js in React requires careful lifecycle management — Terminal instance must be created in useEffect, disposed on unmount, and fit() called on resize via ResizeObserver\n- shadcn/ui in Electron: components are copied into the project (not a node_module), so no CDN or network dependency — works offline\n- Tailwind CSS in Electron: PostCSS build step integrates with esbuild via plugin or as a pre-build step\n- TanStack Table is headless — shadcn's `<Table>` component provides the styling, TanStack provides the logic (sorting, filtering, column visibility)\n- TanStack Query `queryClient.invalidateQueries(['fileTree'])` triggered by fs.watch events from main process = automatic UI refresh\n- Framer Motion `AnimatePresence` requires components to have `key` props and `exit` animations — plan component structure accordingly\n- node-pty stays server-side (main process) — only the IPC transport changes type signatures\n- Electron's contextBridge/preload pattern stays the same — React just calls the exposed API\n- The two-phase init (initCritical/initDeferred) maps to React.lazy + Suspense for deferred panels\n- D3.js coexists with React via useRef + useEffect (D3 manages its own DOM subtree within a ref'd container)\n\n**Dependency additions:**\n- Production: `react`, `react-dom`, `zustand`, `@tanstack/react-query`, `@tanstack/react-table`, `framer-motion`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`\n- Dev: `typescript`, `@types/react`, `@types/react-dom`, `@types/node`, `tailwindcss`, `postcss`, `autoprefixer`\n- shadcn components: installed via CLI into `src/renderer/components/ui/` (not a dependency — source code copied in)\n\n**Files affected:** Every file in src/renderer/ (20 files rewritten to TSX), every file in src/main/ (20 files converted to TS), every file in src/shared/ (6 files converted to TS), all 6 CSS files (deleted/replaced by Tailwind), index.html (simplified), package.json, esbuild config, plus new: tsconfig.json files, tailwind.config.ts, postcss.config.js, components.json (shadcn config), src/renderer/components/ui/ directory. ~52 files total affected.",
-        "userRequest": "User said: 'I want you to ref our docs/refs etc - Create a proper subtask to implement a full refactor of our UI to use React and TypeScript-etc'. Follow-up: User chose 'Moderate — React + Zustand + TanStack Query' stack, then added: 'plus shadcn and framermotion etc' and 'we should add table so we can add proper sorting/filtering etc cleanly' (TanStack Table).",
-        "acceptanceCriteria": "1. TypeScript compiles with strict mode — zero `any` escape hatches in new code. 2. All IPC channels are type-safe (channel name → payload → return type). 3. All 20 renderer modules are React TSX components with proper hooks (no imperative DOM manipulation). 4. xterm.js terminals mount/unmount cleanly in React lifecycle without memory leaks. 5. Zustand stores for UI state — no global mutable state object. 6. TanStack Query wraps all IPC data-fetching calls with proper caching and invalidation. 7. TanStack Table powers tasks list and sessions list with working sort + filter. 8. shadcn/ui components used for all interactive elements (buttons, dialogs, tabs, dropdowns, context menus, toasts, forms). 9. Tailwind CSS is the sole styling system — no hand-written CSS files remain (except xterm.css). 10. SubFrame's warm-neutral + amber accent design preserved in Tailwind theme config. 11. Framer Motion animations on panel transitions, modal open/close, list items. 12. All existing features work identically: multi-terminal (tabs + grid), file tree, editor, all panels (tasks, plugins/sessions, settings, overview, AI files, GitHub), sidebar resize, keyboard shortcuts, workspace switching. 13. Main process fully typed in TypeScript. 14. Shared modules fully typed with exported interfaces. 15. Build still works via esbuild (sub-second builds preserved). 16. Cross-platform: Windows + macOS verified. 17. index.html reduced to minimal shell (React root div + loading screen). 18. No regressions in startup performance (splash screen, deferred panel loading via Suspense).",
-        "notes": "This is the largest refactor in SubFrame's history. Full implementation plan written to .subframe/PROJECT_NOTES.md [2026-03-01] section with exact configs, commands, migration order, and risk mitigations.\n\n**Research completed (4-agent team):**\n- Renderer: 20 files, 9,100 lines, all DOM patterns + module dependencies mapped\n- IPC: 154 channels traced (28 handle, 126 on) — 35 query candidates, 40 mutation candidates, 10 streams\n- CSS: 7,158 lines, 41 design tokens, 15 keyframe animations, 913 selectors, full Tailwind mapping\n- Stack: shadcn manual setup confirmed (rsc:false), Tailwind v4 via esbuild-plugin-tailwindcss v2.x, TanStack Query wraps ipcRenderer.invoke() directly, React 19 works on Electron 28 (but v28 is EOL — upgrade recommended), Framer Motion hardware-accelerated in Electron, DIY xterm.js hook recommended over wrappers\n\n**Stack decision rationale:**\n- **Zustand over Redux/Context**: SubFrame's state is simple UI state + server-derived data. Zustand is ~1KB, zero boilerplate, works outside React (keyboard handlers).\n- **TanStack Query for IPC**: Wraps ipcRenderer.invoke() with caching, stale-while-revalidate, loading/error states. queryClient.invalidateQueries() triggered by fs.watch = automatic UI refresh.\n- **TanStack Table for lists**: Tasks panel needs sort by priority/status/date + text filter. Sessions panel needs sort by date/state + search. Headless — shadcn provides styled `<Table>` shell.\n- **shadcn/ui**: Accessible, themed components copied into project (no runtime dependency). Built on Radix UI primitives. Works offline in Electron.\n- **Tailwind v4**: CSS-first config (no tailwind.config.js). @theme directive replaces variables.css. Dark-mode-only simplifies config.\n- **Framer Motion**: AnimatePresence enables exit animations (impossible with CSS). Layout animations for sidebar resize.\n\n**Migration order (leaf → root):** state.js → sidebarResize → aiToolSelector → editor → fileTree → projectList → historyPanel → terminal system → all panels → overviewPanel → structureMap → App root.\n\n**Critical finding:** Electron 28 is EOL since Oct 2025 — bundle upgrade to v33+ in Phase 0.\n\nSome existing pending sub-tasks (task-subtask-enhancements, task-subtask-ux, task-terminal-warp) will be significantly easier to implement AFTER this refactor. The SubFrame Server (web app mode) future vision also benefits — React + Tailwind components work identically in Electron and browser.",
+        "description": "Complete refactor of SubFrame from vanilla JavaScript with imperative DOM manipulation to a modern React + TypeScript stack. This is a multi-phase effort covering the entire codebase.\r\n\r\n**Technology Stack:**\r\n- **React 19** — component architecture, hooks, Suspense for lazy-loaded panels\r\n- **TypeScript** (strict mode) — type safety across main, renderer, shared, and IPC layer\r\n- **Zustand** — lightweight global state (UI state: active panel, terminal IDs, sidebar width, view mode)\r\n- **TanStack Query** — IPC call caching, loading/error states, invalidation (file tree, sessions, tasks, overview)\r\n- **TanStack Table** — headless table for tasks list, sessions list with built-in sorting, filtering, column management\r\n- **shadcn/ui** — component library built on Radix UI primitives (buttons, modals/dialogs, tabs, dropdowns, tooltips, context menus, command palette, forms, toasts). Implies **Tailwind CSS** as the styling system.\r\n- **Tailwind CSS v4** — replaces the hand-written CSS files (variables.css, main.css, layout.css, panels.css, terminal.css, ui.css). SubFrame's warm-neutral + amber accent design tokens map to Tailwind theme config / shadcn CSS variables.\r\n- **Framer Motion** — declarative animations for panel open/close, modal transitions, list reorder, AnimatePresence for exit animations, layout animations for sidebar resize.\r\n- **esbuild** (kept) — already supports TSX natively, sub-second builds preserved.\r\n\r\n**Scope:**\r\n\r\n**Phase 1 — Foundation (TypeScript + Tailwind + Build)**\r\n- Add `tsconfig.json` configs (separate for main, renderer, shared) with strict mode\r\n- Update esbuild config for `.tsx` entry point and JSX transform\r\n- Install and configure Tailwind CSS v4 with PostCSS (esbuild plugin or separate step)\r\n- Initialize shadcn/ui (`npx shadcn@latest init`) — configure theme with SubFrame's warm-neutral palette (--background, --foreground, --accent mapped from current --bg-primary, --text-primary, --accent-primary #d4a574)\r\n- Add dependencies: `react`, `react-dom`, `zustand`, `@tanstack/react-query`, `@tanstack/react-table`, `framer-motion`, `tailwindcss`, `@types/react`, `@types/react-dom`, `@types/node`, `typescript`, plus shadcn peer deps (`class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`)\r\n- Convert `src/shared/ipcChannels.js` → `ipcChannels.ts` with typed channel map (backbone — every IPC call becomes type-safe)\r\n- Convert remaining shared modules: `frameConstants.ts`, `frameTemplates.ts`, `backlinkUtils.ts`, `projectInit.ts`\r\n- Create typed IPC utility: `typedInvoke<Channel>(...args): Promise<ReturnType>` for renderer, `typedHandle<Channel>(handler)` for main\r\n- Create TanStack Query wrapper hooks for IPC: `useIpcQuery(channel, args)` and `useIpcMutation(channel)`\r\n\r\n**Phase 2 — Main Process (TypeScript only, no React)**\r\n- Convert all 20 main process files from `.js` to `.ts`\r\n- Add interfaces for all manager modules (e.g., `ISettingsManager`, `IWorkspace`, `IPtyManager`)\r\n- Type all `ipcMain.handle` / `ipcMain.on` handlers with the typed IPC utility\r\n- Type node-pty instances, Electron BrowserWindow, and menu builders\r\n- Files: index.js, ptyManager.js, pty.js, workspace.js, settingsManager.js, tasksManager.js, pluginsManager.js, claudeSessionsManager.js, overviewManager.js, frameProject.js, fileTree.js, fileEditor.js, gitBranchesManager.js, githubManager.js, promptLogger.js, claudeUsageManager.js, aiToolManager.js, aiFilesManager.js, menu.js, dialogs.js\r\n\r\n**Phase 3 — Renderer: React + shadcn Components**\r\n- Replace `index.html` monolithic structure with a single `<div id='root'>` + React mount\r\n- Set up providers: `<QueryClientProvider>` (TanStack Query), Zustand stores (no provider needed)\r\n- Install shadcn components as needed: `button`, `dialog`, `tabs`, `dropdown-menu`, `context-menu`, `command`, `input`, `textarea`, `badge`, `tooltip`, `toast`/`sonner`, `separator`, `scroll-area`, `resizable` (for sidebar/panels), `sheet` (for mobile-style slide panels), `table`\r\n- Create React component tree:\r\n  - `<App>` — root layout with `<ResizablePanelGroup>` (shadcn resizable) for sidebar + main + right panel\r\n  - `<Sidebar>` — workspace `<DropdownMenu>`, project list, action `<Button>`s\r\n  - `<FileTree>` — recursive tree with expand/collapse via `<Collapsible>`, icons from `lucide-react`\r\n  - `<TerminalArea>` — `<Tabs>` (shadcn) for tab bar + terminal grid container\r\n  - `<Terminal>` — xterm.js wrapper with useEffect lifecycle, `<ContextMenu>` for right-click (shadcn)\r\n  - `<Editor>` — file editor as `<Dialog>` or `<Sheet>` overlay\r\n  - `<RightPanel>` — `<Tabs>` container for sub-panels\r\n  - `<TasksPanel>` — TanStack Table for task list with sorting/filtering, `<Dialog>` for add/edit modal with shadcn form components, `<Badge>` for status/priority\r\n  - `<SessionsPanel>` — TanStack Table for session list with sorting by date/status, split `<Button>` for resume\r\n  - `<PluginsPanel>` — plugin cards\r\n  - `<SettingsPanel>` — `<Dialog>` with `<Tabs>` sections (General, AI Tool, Terminal)\r\n  - `<OverviewPanel>` — dashboard cards with `<motion.div>` entry animations\r\n  - `<AIFilesPanel>` — status indicators + action `<Button>`s\r\n  - `<GithubPanel>` — PR/issue list\r\n  - `<ProjectListUI>` — project cards in sidebar\r\n  - `<AIToolSelector>` — `<DropdownMenu>` or `<Command>` palette for tool selection\r\n  - `<StructureMap>` — D3 visualization via useRef + useEffect (D3 manages its own DOM subtree)\r\n- Zustand stores: `useUIStore` (sidebar state, active panel, view mode), `useProjectStore` (active project, workspace), `useTerminalStore` (terminal IDs, active terminal, grid layout)\r\n- TanStack Query hooks: `useFileTree(projectPath)`, `useTasks(projectPath)`, `useSessions()`, `useOverview()`, `usePlugins()`, `useSettings()`\r\n- TanStack Table instances: `useTasksTable()` with column defs for title/status/priority/category/date + sorting + filtering, `useSessionsTable()` with column defs for title/date/branch/messages/state + sorting\r\n- Framer Motion: `<AnimatePresence>` for panel show/hide, `<motion.div>` with `layout` prop for sidebar resize, `<Reorder>` for draggable terminal tabs, staggered list animations for task/session entries\r\n\r\n**Phase 4 — Styles Migration (CSS → Tailwind)**\r\n- Delete hand-written CSS files: variables.css, main.css, layout.css, panels.css, terminal.css, ui.css\r\n- Map current design tokens to Tailwind theme:\r\n  - `--bg-primary: #0f0f10` → `--background` in shadcn theme\r\n  - `--bg-secondary: #1a1a1c` → `--card` / `--muted`\r\n  - `--accent-primary: #d4a574` → `--primary` (amber accent preserved)\r\n  - `--text-primary: #e8e6e3` → `--foreground`\r\n  - Spacing scale (`--space-xs` through `--space-xl`) → Tailwind spacing utilities\r\n  - Semantic colors (`--success`, `--warning`, `--error`) → custom Tailwind colors\r\n- Keep `xterm.css` (xterm.js's own stylesheet — not ours to replace)\r\n- Font setup: DM Sans + JetBrains Mono configured in Tailwind fontFamily\r\n- Dark mode: shadcn's `dark` class on root (SubFrame is dark-only, so hardcode this)\r\n\r\n**Phase 5 — Testing & Cleanup**\r\n- Remove all 20 vanilla renderer `.js` files\r\n- Remove dead HTML markup from index.html\r\n- Remove old CSS files (replaced by Tailwind + shadcn)\r\n- Verify all IPC channels work end-to-end with typed system\r\n- Test xterm.js lifecycle in React (mount, unmount, resize, fit)\r\n- Test TanStack Table sorting/filtering on tasks and sessions\r\n- Test all shadcn components render correctly in Electron (no browser-only APIs)\r\n- Test Framer Motion animations don't cause layout thrashing\r\n- Test all panel toggles, modals, keyboard shortcuts, context menus\r\n- Cross-platform verification (Windows + macOS)\r\n- Update esbuild scripts, dev.js, STRUCTURE.json\r\n- Update CLAUDE.md CSS Design System section to reference Tailwind + shadcn instead of variables.css\r\n\r\n**Key technical considerations:**\r\n- xterm.js in React requires careful lifecycle management — Terminal instance must be created in useEffect, disposed on unmount, and fit() called on resize via ResizeObserver\r\n- shadcn/ui in Electron: components are copied into the project (not a node_module), so no CDN or network dependency — works offline\r\n- Tailwind CSS in Electron: PostCSS build step integrates with esbuild via plugin or as a pre-build step\r\n- TanStack Table is headless — shadcn's `<Table>` component provides the styling, TanStack provides the logic (sorting, filtering, column visibility)\r\n- TanStack Query `queryClient.invalidateQueries(['fileTree'])` triggered by fs.watch events from main process = automatic UI refresh\r\n- Framer Motion `AnimatePresence` requires components to have `key` props and `exit` animations — plan component structure accordingly\r\n- node-pty stays server-side (main process) — only the IPC transport changes type signatures\r\n- Electron's contextBridge/preload pattern stays the same — React just calls the exposed API\r\n- The two-phase init (initCritical/initDeferred) maps to React.lazy + Suspense for deferred panels\r\n- D3.js coexists with React via useRef + useEffect (D3 manages its own DOM subtree within a ref'd container)\r\n\r\n**Dependency additions:**\r\n- Production: `react`, `react-dom`, `zustand`, `@tanstack/react-query`, `@tanstack/react-table`, `framer-motion`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`\r\n- Dev: `typescript`, `@types/react`, `@types/react-dom`, `@types/node`, `tailwindcss`, `postcss`, `autoprefixer`\r\n- shadcn components: installed via CLI into `src/renderer/components/ui/` (not a dependency — source code copied in)\r\n\r\n**Files affected:** Every file in src/renderer/ (20 files rewritten to TSX), every file in src/main/ (20 files converted to TS), every file in src/shared/ (6 files converted to TS), all 6 CSS files (deleted/replaced by Tailwind), index.html (simplified), package.json, esbuild config, plus new: tsconfig.json files, tailwind.config.ts, postcss.config.js, components.json (shadcn config), src/renderer/components/ui/ directory. ~52 files total affected.",
         "steps": []
       },
       {
@@ -840,21 +912,6 @@
         "updatedAt": "2026-01-24T16:30:00.000Z",
         "completedAt": "2026-01-24T16:30:00.000Z",
         "description": "Sag tarafta toggle edilebilen tasks paneli. Filtreleme, ekleme, duzenleme, silme, durum degistirme ozellikleri.",
-        "steps": []
-      },
-      {
-        "id": "task-mmb8be8r-dssb",
-        "title": "Enhanced empty state with AI tool indicator",
-        "status": "completed",
-        "priority": "medium",
-        "category": "feature",
-        "context": "Session 2026-03-03",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-03T23:18:38.042Z",
-        "updatedAt": "2026-03-03T23:28:48.673Z",
-        "completedAt": "2026-03-03T23:28:48.673Z",
-        "description": "1. Show which AI tool will start based on settings (e.g., 'Start Claude Code' instead of generic 'Start AI') on the empty terminal state button in TerminalArea.tsx. Mirror the sidebar AI status display. 2. Review empty grid cell UX in TerminalGrid.tsx — consider whether the current Plus button is discoverable enough or needs enhancement.",
         "steps": []
       }
     ]

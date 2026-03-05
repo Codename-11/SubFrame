@@ -65,6 +65,11 @@ function DialogContent({
         {...props}
       >
         {children}
+        {/* Hidden fallback description to suppress Radix aria-describedby warning
+            when consumers don't provide a DialogDescription */}
+        <DialogPrimitive.Description className="sr-only">
+          Dialog content
+        </DialogPrimitive.Description>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"

@@ -15,6 +15,7 @@ import { StructureMap } from './StructureMap';
 import { TasksPanel } from './TasksPanel';
 import { StatsDetailView } from './StatsDetailView';
 import { DecisionsDetailView } from './DecisionsDetailView';
+import { PipelinePanel } from './PipelinePanel';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -291,6 +292,13 @@ export function TerminalArea() {
         return;
       }
 
+      // Ctrl+Shift+Y — Toggle pipeline full-view
+      if (modKey && e.shiftKey && key === 'y') {
+        e.preventDefault();
+        toggleFullView('pipeline');
+        return;
+      }
+
     };
 
     document.addEventListener('keydown', handler);
@@ -349,6 +357,7 @@ export function TerminalArea() {
     tasks: 'Sub-Tasks',
     stats: 'Repository Stats',
     decisions: 'Project Decisions',
+    pipeline: 'Pipeline',
   };
   const fullViewTitle = fullViewContent ? fullViewTitles[fullViewContent] ?? '' : '';
 
@@ -369,7 +378,7 @@ export function TerminalArea() {
             {/* Full-view top bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-border-subtle bg-bg-secondary shrink-0">
               <div className="flex items-center gap-2">
-                {fullViewContent && fullViewContent !== 'overview' && (
+                {fullViewContent && fullViewContent !== 'overview' && fullViewContent !== 'pipeline' && (
                   <button
                     onClick={() => setFullViewContent('overview')}
                     className="flex items-center gap-1 px-2 py-1 rounded text-[11px] text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
@@ -407,6 +416,9 @@ export function TerminalArea() {
                 )}
                 {fullViewContent === 'decisions' && (
                   <DecisionsDetailView />
+                )}
+                {fullViewContent === 'pipeline' && (
+                  <PipelinePanel isFullView />
                 )}
               </ErrorBoundary>
             </div>

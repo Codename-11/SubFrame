@@ -6,12 +6,12 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { FRAME_DIR, FRAME_FILES, FRAME_TASKS_DIR, GITHOOKS_DIR, SUBFRAME_HOOKS_DIR } from './frameConstants';
+import { FRAME_DIR, FRAME_FILES, FRAME_TASKS_DIR, FRAME_WORKFLOWS_DIR, GITHOOKS_DIR, SUBFRAME_HOOKS_DIR } from './frameConstants';
 import * as templates from './frameTemplates';
 import { hasSubFrameHooks, readClaudeSettings } from './claudeSettingsUtils';
 import type { SubFrameComponentStatus, SubFrameHealthStatus } from './ipcChannels';
 
-type ComponentCategory = 'core' | 'hooks' | 'claude-integration' | 'git' | 'skills';
+type ComponentCategory = 'core' | 'hooks' | 'claude-integration' | 'git' | 'skills' | 'pipeline';
 
 interface ComponentRegistryEntry {
   id: string;
@@ -176,11 +176,48 @@ const COMPONENT_REGISTRY: ComponentRegistryEntry[] = [
     getTemplate: () => templates.getPreCommitHookTemplate(),
   },
   {
+    id: 'pre-push',
+    label: 'Pre-push hook',
+    category: 'git',
+    path: path.join(GITHOOKS_DIR, 'pre-push'),
+    getTemplate: () => templates.getPrePushHookTemplate(),
+  },
+  {
     id: 'update-structure',
     label: 'Structure updater',
     category: 'git',
     path: path.join(GITHOOKS_DIR, 'update-structure.js'),
     getTemplate: () => templates.getHookUpdaterScript(),
+  },
+
+  // ── Pipeline (existence-only — user-customizable workflows) ──
+  {
+    id: 'workflows-dir',
+    label: 'workflows/',
+    category: 'pipeline',
+    path: FRAME_WORKFLOWS_DIR,
+    existenceOnly: true,
+  },
+  {
+    id: 'workflow-review',
+    label: 'review.yml',
+    category: 'pipeline',
+    path: path.join(FRAME_WORKFLOWS_DIR, 'review.yml'),
+    existenceOnly: true,
+  },
+  {
+    id: 'workflow-task-verify',
+    label: 'task-verify.yml',
+    category: 'pipeline',
+    path: path.join(FRAME_WORKFLOWS_DIR, 'task-verify.yml'),
+    existenceOnly: true,
+  },
+  {
+    id: 'workflow-health-check',
+    label: 'health-check.yml',
+    category: 'pipeline',
+    path: path.join(FRAME_WORKFLOWS_DIR, 'health-check.yml'),
+    existenceOnly: true,
   },
 ];
 

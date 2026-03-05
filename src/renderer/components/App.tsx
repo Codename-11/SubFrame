@@ -84,6 +84,12 @@ export function App() {
         togglePanel('agentState');
       }
 
+      // Ctrl/Cmd+Shift+Y — Toggle pipeline panel
+      if (modKey && e.shiftKey && key === 'y') {
+        e.preventDefault();
+        togglePanel('pipeline');
+      }
+
       // Ctrl/Cmd+, — Toggle settings
       if (modKey && !e.shiftKey && key === ',') {
         e.preventDefault();

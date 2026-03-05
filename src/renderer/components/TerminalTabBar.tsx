@@ -21,6 +21,7 @@ import {
   Github,
   Activity,
   LayoutDashboard,
+  Workflow,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -53,7 +54,7 @@ interface TerminalTabBarProps {
   onCreateTerminal: (shell?: string) => void;
   onCloseTerminal: (id: string) => void;
   onOverviewToggle?: () => void;
-  onTogglePanel?: (panel: 'tasks' | 'githubIssues' | 'agentState' | 'overview') => void;
+  onTogglePanel?: (panel: 'tasks' | 'githubIssues' | 'agentState' | 'overview' | 'pipeline') => void;
   projectTerminals: TerminalInfo[];
 }
 
@@ -428,6 +429,7 @@ export function TerminalTabBar({
               { id: 'tasks' as const, label: 'Sub-Tasks', icon: ListTodo, shortcut: 'Ctrl+Shift+S' },
               { id: 'agentState' as const, label: 'Agent', icon: Activity, shortcut: 'Ctrl+Shift+A' },
               { id: 'githubIssues' as const, label: 'GitHub', icon: Github, shortcut: 'Ctrl+Shift+G' },
+              { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
             ] as const).map((panel) => {
               const Icon = panel.icon;
               return (

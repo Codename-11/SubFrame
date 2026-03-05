@@ -7,7 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES, FRAME_BIN_DIR, GITHOOKS_DIR, SUBFRAME_HOOKS_DIR, FRAME_TASKS_DIR } from './frameConstants';
+import { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES, FRAME_BIN_DIR, GITHOOKS_DIR, SUBFRAME_HOOKS_DIR, FRAME_TASKS_DIR, FRAME_WORKFLOWS_DIR } from './frameConstants';
 import * as templates from './frameTemplates';
 import { injectBacklink, isSymlinkFile } from './backlinkUtils';
 import { readClaudeSettings, mergeSubFrameHooks, writeClaudeSettings } from './claudeSettingsUtils';
@@ -256,6 +256,33 @@ export function initializeProject(projectPath: string, options: InitOptions = {}
     } else {
       skipped.push('.githooks/pre-commit');
     }
+  }
+
+  // Pre-push hook (alongside pre-commit)
+  if (hooks && fs.existsSync(gitDirPath)) {
+    const hooksDirPath = path.join(projectPath, GITHOOKS_DIR);
+    const prePushPath = path.join(hooksDirPath, 'pre-push');
+    if (!fs.existsSync(prePushPath)) {
+      if (!fs.existsSync(hooksDirPath)) {
+        fs.mkdirSync(hooksDirPath, { recursive: true });
+      }
+      fs.writeFileSync(prePushPath, templates.getPrePushHookTemplate(), { mode: 0o755 });
+      created.push('.githooks/pre-push');
+    } else {
+      skipped.push('.githooks/pre-push');
+    }
+  }
+
+  // Pipeline workflows (.subframe/workflows/)
+  const workflowsDir = path.join(projectPath, FRAME_WORKFLOWS_DIR);
+  if (!fs.existsSync(workflowsDir)) {
+    fs.mkdirSync(workflowsDir, { recursive: true });
+    fs.writeFileSync(path.join(workflowsDir, 'review.yml'), templates.getDefaultReviewWorkflow(), 'utf8');
+    fs.writeFileSync(path.join(workflowsDir, 'task-verify.yml'), templates.getTaskVerifyWorkflow(), 'utf8');
+    fs.writeFileSync(path.join(workflowsDir, 'health-check.yml'), templates.getHealthCheckWorkflow(), 'utf8');
+    created.push('.subframe/workflows/ (3 templates)');
+  } else {
+    skipped.push('.subframe/workflows/');
   }
 
   // Claude Code skills (.claude/skills/sub-tasks/, sub-docs/, sub-audit/, onboard/)
