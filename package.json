@@ -155,7 +155,8 @@
     },
     "nsis": {
       "oneClick": true,
-      "deleteAppDataOnUninstall": true
+      "deleteAppDataOnUninstall": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "dmg": {
       "title": "${productName} ${version}",
