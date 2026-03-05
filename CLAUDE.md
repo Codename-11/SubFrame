@@ -29,10 +29,12 @@ React 19, TypeScript (strict), Zustand (state), TanStack Query (IPC caching), Ta
 **Main process** — each manager has `init()` + `setupIPC()`:
 `ptyManager` `tasksManager` `pluginsManager` `claudeSessionsManager` `aiToolManager` `aiFilesManager` `settingsManager` `gitBranchesManager` `overviewManager` `agentStateManager` `skillsManager` `promptsManager` `updaterManager` `workspace` `frameProject`
 **Utilities**: `taskMarkdownParser` (parse/serialize task .md files with YAML frontmatter)
+**Theme**: `themeTypes` (shared theme tokens, presets, CSS mapping)
 
 **Renderer** — React components in `src/renderer/components/`:
 `App` `Sidebar` `ProjectList` `WorkspaceSelector` `Terminal` `TerminalArea` `TerminalGrid` `TerminalTabBar` `FileTree` `Editor` `RightPanel` `TasksPanel` `TaskTimeline` `TaskGraph` `TaskKanban` `SessionsPanel` `PluginsPanel` `SettingsPanel` `OverviewPanel` `StatsDetailView` `DecisionsDetailView` `GithubPanel` `AIFilesPanel` `AIToolSelector` `StructureMap` `SubFrameHealthPanel` `AgentStateView` `AgentTimeline` `SidebarAgentStatus` `SkillsPanel` `KeyboardShortcuts` `HistoryPanel` `CommandPalette` `PromptLibrary` `WhatsNew` `UpdateNotification` `OnboardingDialog` `ErrorBoundary`
 **Previews** (in `src/renderer/components/previews/`): `MarkdownPreview` `HtmlPreview` `ImagePreview`
+**Theme**: `ThemeProvider` (runtime CSS variable injection from settings, feature toggle data-attributes)
 
 **Lib** (renderer utilities): `src/renderer/lib/ipc.ts` (IPC bridge) `src/renderer/lib/utils.ts` (cn helper, misc) `src/renderer/lib/codemirror-theme.ts` (CM6 SubFrame theme) `src/renderer/lib/codemirror-extensions.ts` (CM6 extensions/languages) `src/renderer/lib/promptUtils.ts` (shared prompt utilities — template variables, insert, copy, sort)
 
@@ -208,3 +210,5 @@ gh release create v<version> --title "v<version>" --notes-file RELEASE_NOTES.md 
 - Borders: `border-subtle` → `border-default` → `border-strong`
 - **shadcn/ui components** in `src/renderer/components/ui/` — use these for buttons, dialogs, tabs, etc.
 - Use Tailwind classes with theme tokens — don't hardcode colors
+- **Theme system**: 4 built-in presets in `src/shared/themeTypes.ts`, runtime CSS injection via `ThemeProvider`, feature toggles via `[data-neon-traces]`/`[data-scanlines]`/`[data-logo-glow]` HTML attributes
+- Neon trace tokens: `--color-neon-purple`, `--color-neon-pink`, `--color-neon-cyan` (+ glow variants)

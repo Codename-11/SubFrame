@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Theme system**: Full theme customization with 4 built-in presets (Classic Amber, Synthwave Traces, Midnight Purple, Terminal Green), custom theme creation, color pickers, and feature toggles (neon traces, CRT scanlines, logo glow)
+- **Appearance tab**: New first tab in Settings — preset gallery with live switching, color customization, save/delete custom themes
+- **ThemeProvider component**: Runtime CSS variable injection, shadcn/ui token sync, data-attribute feature toggles
+- **Neon trace CSS system**: `[data-neon-traces]` and `[data-scanlines]` attribute-driven styles in globals.css
+- **Docs site theme**: Replaced generic amber accent with logo's neon synthwave palette (purple/pink/cyan) across landing, docs, and blog pages
+
 ## [0.1.0-beta.3] - 2026-03-03
 
 ### Added

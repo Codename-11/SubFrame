@@ -2,14 +2,43 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-04",
+    "lastUpdated": "2026-03-05",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-04T03:50:59.828Z",
+  "lastUpdated": "2026-03-05T02:46:20.550Z",
   "tasks": {
     "pending": [
+      {
+        "id": "task-1772674776397-kc624grpq",
+        "title": "Task Editor UI Option",
+        "status": "pending",
+        "priority": "medium",
+        "category": "refactor",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T01:39:36.397Z",
+        "updatedAt": "2026-03-05T01:39:36.397Z",
+        "completedAt": null,
+        "description": "Currently the Sub-Tasks system only allows viewing existing tasks via the markdown editor. Similar to the creation wizard for Sub-Tasks, allow switching between UI/Markdown view.\nI also want to enhance the Sub-Tasks side view pane dropdown detail view (and full view dropdown detail view) to visual render within dropdown (steps, timeline element, etc) if available.\nLastly I want to fix the Sub-Tasks Tags to properly split priority out into its own column so we can sort by priority as well in table view.",
+        "acceptanceCriteria": "Define what \"done\" looks like.",
+        "notes": "Any additional context or references.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Enhance Sub-Task editing with UI capability"
+          },
+          {
+            "completed": false,
+            "label": "Enhance Sub-Task dropdown view with UI capability"
+          },
+          {
+            "completed": false,
+            "label": "Split priority into its own column in Sub-Tasks table view"
+          }
+        ]
+      },
       {
         "id": "task-m6",
         "title": "Claude Code chat sidebar",
@@ -279,6 +308,21 @@
       }
     ],
     "inProgress": [
+      {
+        "id": "task-mmcsn89b-ob9k",
+        "title": "Pipeline engine foundation",
+        "status": "in_progress",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-05",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T01:35:28.654Z",
+        "updatedAt": "2026-03-05T01:35:38.507Z",
+        "completedAt": null,
+        "description": "Data model, IPC channels, pipelineManager.ts, workflow parser, stage executor. ADR-007 Phase 1.",
+        "steps": []
+      },
       {
         "id": "task-terminal-warp",
         "title": "Warp-style terminal UX improvements",
@@ -954,6 +998,21 @@
         "updatedAt": "2026-01-24T16:30:00.000Z",
         "completedAt": "2026-01-24T16:30:00.000Z",
         "description": "Sag tarafta toggle edilebilen tasks paneli. Filtreleme, ekleme, duzenleme, silme, durum degistirme ozellikleri.",
+        "steps": []
+      },
+      {
+        "id": "task-mmcuszy6-iado",
+        "title": "Theme system with presets and custom themes",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-05",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:35:57.054Z",
+        "updatedAt": "2026-03-05T02:46:20.547Z",
+        "completedAt": "2026-03-05T02:46:20.547Z",
+        "description": "Implement a full theme system that lets users: (1) choose from built-in presets (Classic Amber, Synthwave Traces, custom), (2) customize individual tokens (accent, neon traces, surfaces), (3) save/load custom themes. Includes: theme data model in settings, ThemeProvider component, Appearance tab in SettingsPanel with color pickers, preset gallery, live preview, and runtime CSS variable injection. Neon synthwave traces (purple/pink/cyan) from the logo palette become configurable.",
         "steps": []
       }
     ]

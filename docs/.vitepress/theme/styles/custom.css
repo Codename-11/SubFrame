@@ -11,10 +11,15 @@
   --sf-text-secondary: #a1a1aa;
   --sf-text-tertiary: #71717a;
 
-  --sf-accent: #f59e0b;
-  --sf-accent-dim: #d97706;
-  --sf-accent-glow: rgba(245, 158, 11, 0.15);
-  --sf-accent-subtle: rgba(245, 158, 11, 0.08);
+  --sf-accent: #b480ff;
+  --sf-accent-dim: #9b6be0;
+  --sf-accent-glow: rgba(180, 128, 255, 0.15);
+  --sf-accent-subtle: rgba(180, 128, 255, 0.08);
+  --sf-accent-pink: #ff6eb4;
+  --sf-accent-cyan: #64d8ff;
+  --sf-accent-pink-glow: rgba(255, 110, 180, 0.15);
+  --sf-accent-cyan-glow: rgba(100, 216, 255, 0.12);
+  --sf-accent-gradient: linear-gradient(135deg, #b480ff, #ff6eb4, #64d8ff);
 
   --sf-color-success: #22c55e;
   --sf-color-error: #ef4444;

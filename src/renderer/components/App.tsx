@@ -12,6 +12,7 @@ import { UpdateNotification } from './UpdateNotification';
 import { OnboardingDialog } from './OnboardingDialog';
 import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
+import { ThemeProvider } from './ThemeProvider';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 
@@ -252,6 +253,9 @@ export function App() {
 
       {/* Auto-updater notification (side-effect only, renders null) */}
       <UpdateNotification />
+
+      {/* Theme provider (side-effect only, applies CSS custom properties) */}
+      <ThemeProvider />
 
       {/* Onboarding dialog for project intelligence */}
       <OnboardingDialog

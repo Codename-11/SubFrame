@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SubFrame App Theme Enhancement — Interactive Preview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* ── Existing SubFrame tokens (unchanged) ── */
+    --bg-deep: #0f0f10;
+    --bg-primary: #151516;
+    --bg-secondary: #1a1a1c;
+    --bg-tertiary: #222225;
+    --bg-elevated: #28282c;
+    --bg-hover: #2e2e33;
+    --text-primary: #e8e6e3;
+    --text-secondary: #a09b94;
+    --text-tertiary: #6b6660;
+    --text-muted: #4a4642;
+    --accent: #d4a574;
+    --accent-secondary: #c9956a;
+    --accent-subtle: rgba(212, 165, 116, 0.15);
+    --success: #7cb382;
+    --warning: #e0a458;
+    --error: #d47878;
+    --info: #78a5d4;
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-default: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.12);
+    --font-sans: 'DM Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* ── NEW: Synthwave accent traces ── */
+    --neon-purple: #b480ff;
+    --neon-pink: #ff6eb4;
+    --neon-cyan: #64d8ff;
+    --neon-purple-glow: rgba(180, 128, 255, 0.12);
+    --neon-pink-glow: rgba(255, 110, 180, 0.10);
+    --neon-cyan-glow: rgba(100, 216, 255, 0.08);
+    --neon-gradient: linear-gradient(135deg, #b480ff, #ff6eb4, #64d8ff);
+    --scanline: rgba(255, 255, 255, 0.015);
+  }
+
+  body {
+    background: #0a0a0c;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: rgba(180, 128, 255, 0.35);
+    color: #fafafa;
+  }
+
+  /* ── Page layout ── */
+  .page { max-width: 1100px; margin: 0 auto; padding: 40px 32px 80px; }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 56px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .page-header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+  }
+  .page-header p {
+    color: var(--text-secondary);
+    font-size: 15px;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  .page-header .gradient-text {
+    background: var(--neon-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Toggle row */
+  .toggle-bar {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 24px 0 0;
+    flex-wrap: wrap;
+  }
+  .toggle-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .toggle-btn:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+  .toggle-btn.active {
+    border-color: var(--neon-purple);
+    color: var(--neon-purple);
+    background: var(--neon-purple-glow);
+    box-shadow: 0 0 12px var(--neon-purple-glow);
+  }
+
+  /* Sections */
+  .section { margin-bottom: 56px; }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    letter-spacing: -0.01em;
+  }
+  .section-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* ── Comparison cards ── */
+  .compare-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+  }
+  .compare-card .card-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .compare-card .card-label .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .card-label .dot.amber { background: var(--accent); }
+  .card-label .dot.neon { background: var(--neon-purple); box-shadow: 0 0 6px var(--neon-purple-glow); }
+
+  /* ════════════════════════════════════════════════
+     MOCK UI COMPONENTS
+     ════════════════════════════════════════════════ */
+
+  /* ── Tabs ── */
+  .mock-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 16px;
+  }
+  .mock-tab {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 10px 16px;
+    color: var(--text-tertiary);
+    position: relative;
+    cursor: default;
+    transition: color 0.2s;
+  }
+  .mock-tab.active { color: var(--text-primary); }
+
+  /* Before: amber underline */
+  .mock-tab.active.amber::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+  /* After: gradient underline */
+  .mock-tab.active.neon::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--neon-gradient);
+    box-shadow: 0 1px 8px var(--neon-purple-glow);
+  }
+
+  /* ── Terminal mock ── */
+  .mock-terminal {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    min-height: 120px;
+  }
+  .term-prompt { color: var(--accent); }
+  .term-cmd { color: var(--text-primary); }
+  .term-output { color: var(--text-secondary); }
+  .term-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+  .term-cursor.amber { background: var(--accent); }
+  .term-cursor.neon {
+    background: var(--neon-pink);
+    box-shadow: 0 0 6px var(--neon-pink-glow), 0 0 12px rgba(255, 110, 180, 0.06);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Focus ring demo ── */
+  .mock-input {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 100%;
+    outline: none;
+    transition: all 0.2s;
+  }
+  .mock-input.focus-amber {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.15);
+  }
+  .mock-input.focus-neon {
+    border-color: var(--neon-purple);
+    box-shadow: 0 0 0 2px var(--neon-purple-glow), 0 0 16px var(--neon-purple-glow), 0 0 4px var(--neon-pink-glow);
+  }
+
+  /* ── Buttons ── */
+  .mock-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: default;
+    transition: all 0.2s;
+  }
+  .mock-btn.primary-amber {
+    background: var(--accent);
+    color: var(--bg-deep);
+  }
+  .mock-btn.ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-default);
+  }
+
+  /* ── Sidebar mock ── */
+  .mock-sidebar {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    width: 100%;
+    overflow: hidden;
+  }
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    position: relative;
+  }
+  .sidebar-logo .logo-text {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .sidebar-logo.with-glow::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 28px;
+    transform: translate(-50%, -50%);
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--neon-pink-glow), transparent 70%);
+    filter: blur(8px);
+    animation: logo-pulse 4s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes logo-pulse {
+    0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    cursor: default;
+    transition: all 0.15s;
+  }
+  .sidebar-item.active {
+    color: var(--text-primary);
+    background: var(--accent-subtle);
+  }
+  .sidebar-item .icon {
+    width: 16px; height: 16px;
+    border-radius: 3px;
+    background: var(--bg-elevated);
+  }
+  .sidebar-item.active .icon { background: var(--accent); }
+
+  /* ── Progress bar ── */
+  .mock-progress-track {
+    height: 3px;
+    background: var(--border-subtle);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+  .mock-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    width: 65%;
+    transition: all 0.3s;
+  }
+  .mock-progress-fill.amber { background: var(--accent); }
+  .mock-progress-fill.neon {
+    background: var(--neon-gradient);
+    box-shadow: 0 0 8px var(--neon-purple-glow);
+    animation: progress-glow 2s ease-in-out infinite;
+  }
+  @keyframes progress-glow {
+    0%, 100% { box-shadow: 0 0 8px var(--neon-purple-glow); }
+    50% { box-shadow: 0 0 12px var(--neon-pink-glow), 0 0 4px var(--neon-purple-glow); }
+  }
+
+  /* ── Status dots ── */
+  .status-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+  .status-dot.thinking-amber {
+    background: var(--accent);
+    animation: pulse-amber 2s ease-in-out infinite;
+  }
+  @keyframes pulse-amber {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(212, 165, 116, 0); }
+  }
+  .status-dot.thinking-neon {
+    background: var(--neon-purple);
+    animation: pulse-neon 2s ease-in-out infinite;
+  }
+  @keyframes pulse-neon {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(180, 128, 255, 0.5); }
+    50% { box-shadow: 0 0 0 5px rgba(180, 128, 255, 0); }
+  }
+  .status-dot.active-amber { background: var(--success); }
+  .status-dot.active-neon {
+    background: var(--neon-cyan);
+    box-shadow: 0 0 4px var(--neon-cyan-glow);
+  }
+
+  /* ── Scrollbar demo ── */
+  .scrollbar-demo {
+    height: 100px;
+    overflow-y: scroll;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-deep);
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.8;
+  }
+  .scrollbar-demo.amber {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.08) transparent;
+  }
+  .scrollbar-demo.amber::-webkit-scrollbar { width: 6px; }
+  .scrollbar-demo.amber::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-demo.amber::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+  .scrollbar-demo.amber::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+  .scrollbar-demo.neon {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(180,128,255,0.12) transparent;
+  }
+  .scrollbar-demo.neon::-webkit-scrollbar { width: 6px; }
+  .scrollbar-demo.neon::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-demo.neon::-webkit-scrollbar-thumb { background: rgba(180,128,255,0.12); border-radius: 3px; }
+  .scrollbar-demo.neon::-webkit-scrollbar-thumb:hover { background: rgba(100, 216, 255, 0.22); }
+
+  /* ── Scanline overlay demo ── */
+  .scanline-demo {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .scanline-demo.active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      var(--scanline) 2px,
+      var(--scanline) 4px
+    );
+    pointer-events: none;
+    border-radius: 8px;
+  }
+
+  /* ── Command palette mock ── */
+  .mock-palette {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    padding: 4px;
+    width: 100%;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  }
+  .palette-input-wrap {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .palette-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+  .palette-input::placeholder { color: var(--text-muted); }
+  .palette-results {
+    padding: 4px;
+  }
+  .palette-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: default;
+  }
+  .palette-item.selected {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .palette-item .shortcut {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    background: var(--bg-elevated);
+    border-radius: 4px;
+  }
+  .mock-palette.neon-focus {
+    border-color: var(--neon-purple);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px var(--neon-purple-glow), 0 0 24px var(--neon-purple-glow);
+  }
+
+  /* ── Full app mock ── */
+  .app-frame {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    min-height: 380px;
+    position: relative;
+  }
+  .app-sidebar-col {
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+  }
+  .app-main-col {
+    display: flex;
+    flex-direction: column;
+  }
+  .app-tab-bar {
+    display: flex;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0 8px;
+  }
+  .app-tab {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 10px 14px;
+    color: var(--text-tertiary);
+    position: relative;
+    white-space: nowrap;
+  }
+  .app-tab.active {
+    color: var(--text-primary);
+    background: var(--bg-deep);
+  }
+  .app-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .app-tab.active.neon-tab::after {
+    background: var(--neon-gradient);
+    box-shadow: 0 0 8px var(--neon-purple-glow);
+  }
+  .app-tab.active.amber-tab::after {
+    background: var(--accent);
+  }
+  .app-terminal {
+    flex: 1;
+    padding: 16px 20px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+  .app-terminal .prompt { color: var(--accent); }
+
+  /* ── Color swatch grid ── */
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+  }
+  .swatch {
+    border-radius: 8px;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid var(--border-subtle);
+    min-height: 72px;
+    justify-content: flex-end;
+  }
+  .swatch .name { color: rgba(255,255,255,0.7); font-weight: 500; }
+  .swatch .hex { color: rgba(255,255,255,0.4); }
+
+  /* Helper */
+  .note {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-style: italic;
+  }
+  .spacer { height: 8px; }
+
+  @media (max-width: 768px) {
+    .section-row { grid-template-columns: 1fr; }
+    .app-frame { grid-template-columns: 1fr; min-height: auto; }
+    .app-sidebar-col { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE HEADER
+     ═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <h1>SubFrame Theme: <span class="gradient-text">Warm Amber + Neon Traces</span></h1>
+    <p>The amber is what you interact with. The neon is what breathes underneath.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       COLOR PALETTE
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Color Palette</div>
+    <div class="section-title">Existing Amber + New Neon Tokens</div>
+    <div class="swatch-grid">
+      <div class="swatch" style="background: #d4a574;"><span class="name">accent</span><span class="hex">#d4a574</span></div>
+      <div class="swatch" style="background: #c9956a;"><span class="name">accent-sec</span><span class="hex">#c9956a</span></div>
+      <div class="swatch" style="background: #b480ff;"><span class="name">neon-purple</span><span class="hex">#b480ff</span></div>
+      <div class="swatch" style="background: #ff6eb4;"><span class="name">neon-pink</span><span class="hex">#ff6eb4</span></div>
+      <div class="swatch" style="background: #64d8ff;"><span class="name">neon-cyan</span><span class="hex">#64d8ff</span></div>
+      <div class="swatch" style="background: var(--bg-deep);"><span class="name">bg-deep</span><span class="hex">#0f0f10</span></div>
+      <div class="swatch" style="background: var(--bg-primary);"><span class="name">bg-primary</span><span class="hex">#151516</span></div>
+      <div class="swatch" style="background: var(--bg-secondary);"><span class="name">bg-secondary</span><span class="hex">#1a1a1c</span></div>
+      <div class="swatch" style="background: var(--bg-elevated);"><span class="name">bg-elevated</span><span class="hex">#28282c</span></div>
+      <div class="swatch" style="background: var(--success);"><span class="name">success</span><span class="hex">#7cb382</span></div>
+      <div class="swatch" style="background: var(--error);"><span class="name">error</span><span class="hex">#d47878</span></div>
+      <div class="swatch" style="background: var(--info);"><span class="name">info</span><span class="hex">#78a5d4</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       1. TAB INDICATORS
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Enhancement 1</div>
+    <div class="section-title">Active Tab Indicator</div>
+    <div class="section-row">
+      <div class="compare-card">
+        <div class="card-label"><span class="dot amber"></span> Current — Amber underline</div>
+        <div class="mock-tabs">
+          <div class="mock-tab active amber">terminal-1</div>
+          <div class="mock-tab">terminal-2</div>
+          <div class="mock-tab">terminal-3</div>
+        </div>
+        <div class="mock-terminal">
+          <div><span class="term-prompt">$</span> <span class="term-cmd">claude</span></div>
+          <div class="term-output">Starting Claude Code...</div>
+          <div><span class="term-prompt">$</span> <span class="term-cursor amber"></span></div>
+        </div>
+      </div>
+      <div class="compare-card">
+        <div class="card-label"><span class="dot neon"></span> Enhanced — Gradient underline</div>
+        <div class="mock-tabs">
+          <div class="mock-tab active neon">terminal-1</div>
+          <div class="mock-tab">terminal-2</div>
+          <div class="mock-tab">terminal-3</div>
+        </div>
+        <div class="mock-terminal">
+          <div><span class="term-prompt">$</span> <span class="term-cmd">claude</span></div>
+          <div class="term-output">Starting Claude Code...</div>
+          <div><span class="term-prompt">$</span> <span class="term-cursor neon"></span></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Tab underline uses the logo gradient. Terminal cursor shifts from amber to pink with a subtle glow.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       2. FOCUS RINGS
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Enhancement 2</div>
+    <div class="section-title">Focus Rings & Command Palette</div>
+    <div class="section-row">
+      <div class="compare-card">
+        <div class="card-label"><span class="dot amber"></span> Current — Amber focus</div>
+        <div class="spacer"></div>
+        <input class="mock-input focus-amber" value="Search files..." readonly>
+        <div class="spacer"></div>
+        <div style="margin-top: 16px;">
+          <div class="mock-palette">
+            <div class="palette-input-wrap"><input class="palette-input" value="Open file..." readonly></div>
+            <div class="palette-results">
+              <div class="palette-item selected">Terminal <span class="shortcut">Ctrl+`</span></div>
+              <div class="palette-item">Tasks <span class="shortcut">Ctrl+T</span></div>
+              <div class="palette-item">Settings <span class="shortcut">Ctrl+,</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="compare-card">
+        <div class="card-label"><span class="dot neon"></span> Enhanced — Purple neon focus</div>
+        <div class="spacer"></div>
+        <input class="mock-input focus-neon" value="Search files..." readonly>
+        <div class="spacer"></div>
+        <div style="margin-top: 16px;">
+          <div class="mock-palette neon-focus">
+            <div class="palette-input-wrap"><input class="palette-input" value="Open file..." readonly></div>
+            <div class="palette-results">
+              <div class="palette-item selected">Terminal <span class="shortcut">Ctrl+`</span></div>
+              <div class="palette-item">Tasks <span class="shortcut">Ctrl+T</span></div>
+              <div class="palette-item">Settings <span class="shortcut">Ctrl+,</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Focus ring shifts from amber to purple with a pink outer glow. Command palette gets a neon halo when active.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       3. PROGRESS BARS & STATUS
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Enhancement 3</div>
+    <div class="section-title">Progress Bars & Status Indicators</div>
+    <div class="section-row">
+      <div class="compare-card">
+        <div class="card-label"><span class="dot amber"></span> Current</div>
+        <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px; font-family: var(--font-mono);">Loading workspace...</div>
+        <div class="mock-progress-track"><div class="mock-progress-fill amber"></div></div>
+        <div style="height: 20px;"></div>
+        <div class="status-row">
+          <div class="status-item"><div class="status-dot thinking-amber"></div> Thinking</div>
+          <div class="status-item"><div class="status-dot active-amber"></div> Running</div>
+          <div class="status-item"><div class="status-dot" style="background: var(--error);"></div> Error</div>
+          <div class="status-item"><div class="status-dot" style="background: var(--text-muted);"></div> Idle</div>
+        </div>
+      </div>
+      <div class="compare-card">
+        <div class="card-label"><span class="dot neon"></span> Enhanced</div>
+        <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px; font-family: var(--font-mono);">Loading workspace...</div>
+        <div class="mock-progress-track"><div class="mock-progress-fill neon"></div></div>
+        <div style="height: 20px;"></div>
+        <div class="status-row">
+          <div class="status-item"><div class="status-dot thinking-neon"></div> Thinking</div>
+          <div class="status-item"><div class="status-dot active-neon"></div> Running</div>
+          <div class="status-item"><div class="status-dot" style="background: var(--error);"></div> Error</div>
+          <div class="status-item"><div class="status-dot" style="background: var(--text-muted);"></div> Idle</div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Progress fills use the logo gradient with a pulsing glow. "Thinking" status shifts from amber to purple pulse. "Running" becomes cyan. Error/Idle stay the same.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       4. SIDEBAR LOGO GLOW
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Enhancement 4</div>
+    <div class="section-title">Sidebar Logo Ambient Glow</div>
+    <div class="section-row">
+      <div class="compare-card">
+        <div class="card-label"><span class="dot amber"></span> Current — Static logo</div>
+        <div class="mock-sidebar">
+          <div class="sidebar-logo">
+            <svg width="28" height="28" viewBox="0 0 180 180">
+              <g transform="rotate(0,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.35)" stroke-width="2.5"/></g>
+              <g transform="rotate(60,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.3)" stroke-width="2.5" stroke-dasharray="5 3.5"/></g>
+              <g transform="rotate(120,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.28)" stroke-width="2.5"/></g>
+              <circle cx="90" cy="90" r="7" fill="#ff6eb4"/>
+            </svg>
+            <span class="logo-text">SubFrame</span>
+          </div>
+          <div class="sidebar-item active"><span class="icon"></span> Terminal</div>
+          <div class="sidebar-item"><span class="icon"></span> Tasks</div>
+          <div class="sidebar-item"><span class="icon"></span> Files</div>
+          <div class="sidebar-item"><span class="icon"></span> Settings</div>
+        </div>
+      </div>
+      <div class="compare-card">
+        <div class="card-label"><span class="dot neon"></span> Enhanced — Breathing glow</div>
+        <div class="mock-sidebar">
+          <div class="sidebar-logo with-glow">
+            <svg width="28" height="28" viewBox="0 0 180 180">
+              <g transform="rotate(0,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.35)" stroke-width="2.5"/></g>
+              <g transform="rotate(60,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.3)" stroke-width="2.5" stroke-dasharray="5 3.5"/></g>
+              <g transform="rotate(120,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.28)" stroke-width="2.5"/></g>
+              <circle cx="90" cy="90" r="7" fill="#ff6eb4"/>
+            </svg>
+            <span class="logo-text">SubFrame</span>
+          </div>
+          <div class="sidebar-item active"><span class="icon"></span> Terminal</div>
+          <div class="sidebar-item"><span class="icon"></span> Tasks</div>
+          <div class="sidebar-item"><span class="icon"></span> Files</div>
+          <div class="sidebar-item"><span class="icon"></span> Settings</div>
+        </div>
+      </div>
+    </div>
+    <p class="note">A subtle pink radial glow pulses slowly behind the logo icon. Barely visible — subliminal "alive" energy.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       5. SCROLLBAR HOVER
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Enhancement 5</div>
+    <div class="section-title">Scrollbar Thumb on Hover</div>
+    <div class="section-row">
+      <div class="compare-card">
+        <div class="card-label"><span class="dot amber"></span> Current — White/gray thumb</div>
+        <div class="scrollbar-demo amber">
+          <div>src/main/index.ts</div>
+          <div>src/main/ptyManager.ts</div>
+          <div>src/main/tasksManager.ts</div>
+          <div>src/main/pluginsManager.ts</div>
+          <div>src/main/settingsManager.ts</div>
+          <div>src/main/gitBranchesManager.ts</div>
+          <div>src/main/overviewManager.ts</div>
+          <div>src/main/agentStateManager.ts</div>
+          <div>src/main/skillsManager.ts</div>
+          <div>src/main/promptsManager.ts</div>
+          <div>src/renderer/index.tsx</div>
+          <div>src/renderer/App.tsx</div>
+        </div>
+      </div>
+      <div class="compare-card">
+        <div class="card-label"><span class="dot neon"></span> Enhanced — Cyan tint on hover</div>
+        <div class="scrollbar-demo neon">
+          <div>src/main/index.ts</div>
+          <div>src/main/ptyManager.ts</div>
+          <div>src/main/tasksManager.ts</div>
+          <div>src/main/pluginsManager.ts</div>
+          <div>src/main/settingsManager.ts</div>
+          <div>src/main/gitBranchesManager.ts</div>
+          <div>src/main/overviewManager.ts</div>
+          <div>src/main/agentStateManager.ts</div>
+          <div>src/main/skillsManager.ts</div>
+          <div>src/main/promptsManager.ts</div>
+          <div>src/renderer/index.tsx</div>
+          <div>src/renderer/App.tsx</div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Hover the scrollbar on the right panel. Default state is a faint purple tint; hover reveals a cyan glow.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       6. CRT SCANLINES (Optional)
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Enhancement 6 (Optional)</div>
+    <div class="section-title">CRT Scanline Overlay</div>
+    <div class="section-row">
+      <div class="compare-card">
+        <div class="card-label"><span class="dot amber"></span> Without scanlines</div>
+        <div class="scanline-demo">
+          <div class="mock-terminal">
+            <div><span class="term-prompt">$</span> <span class="term-cmd">npm run dev</span></div>
+            <div class="term-output">  VITE v6.0.0  ready in 280 ms</div>
+            <div class="term-output">  ➜  Local:   http://localhost:5173/</div>
+            <div class="term-output">  ➜  Network: http://192.168.1.42:5173/</div>
+            <div><span class="term-prompt">$</span> <span class="term-cursor amber"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="compare-card">
+        <div class="card-label"><span class="dot neon"></span> With scanlines (1.5% opacity)</div>
+        <div class="scanline-demo active">
+          <div class="mock-terminal">
+            <div><span class="term-prompt">$</span> <span class="term-cmd">npm run dev</span></div>
+            <div class="term-output">  VITE v6.0.0  ready in 280 ms</div>
+            <div class="term-output">  ➜  Local:   http://localhost:5173/</div>
+            <div class="term-output">  ➜  Network: http://192.168.1.42:5173/</div>
+            <div><span class="term-prompt">$</span> <span class="term-cursor neon"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Very subtle horizontal lines across the terminal. Adds a subliminal CRT/Fallout texture. May be too much — user preference.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       7. FULL COMPOSITE VIEW
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Composite Preview</div>
+    <div class="section-title">Full App Mock — All Enhancements Together</div>
+
+    <div class="section-row">
+      <!-- BEFORE -->
+      <div class="compare-card" style="padding: 16px;">
+        <div class="card-label"><span class="dot amber"></span> Current</div>
+        <div class="app-frame">
+          <div class="app-sidebar-col">
+            <div class="sidebar-logo">
+              <svg width="24" height="24" viewBox="0 0 180 180">
+                <g transform="rotate(0,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.35)" stroke-width="3"/></g>
+                <g transform="rotate(60,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.3)" stroke-width="3" stroke-dasharray="5 3.5"/></g>
+                <g transform="rotate(120,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.28)" stroke-width="3"/></g>
+                <circle cx="90" cy="90" r="8" fill="#ff6eb4"/>
+              </svg>
+              <span class="logo-text" style="font-size: 13px;">SubFrame</span>
+            </div>
+            <div class="sidebar-item active"><span class="icon"></span> Terminal</div>
+            <div class="sidebar-item"><span class="icon"></span> Tasks</div>
+            <div class="sidebar-item"><span class="icon"></span> Files</div>
+            <div class="sidebar-item"><span class="icon"></span> Settings</div>
+            <div style="flex:1;"></div>
+            <div style="padding: 12px 16px;">
+              <div class="status-item" style="font-size: 11px;"><div class="status-dot thinking-amber"></div> Claude thinking...</div>
+            </div>
+          </div>
+          <div class="app-main-col">
+            <div class="app-tab-bar">
+              <div class="app-tab active amber-tab">workspace ~/project</div>
+              <div class="app-tab">claude-session</div>
+            </div>
+            <div class="app-terminal">
+              <div><span class="prompt">~/project $</span> claude "add auth"</div>
+              <div style="color: var(--text-tertiary);">⠋ Claude is thinking...</div>
+              <div class="mock-progress-track" style="margin: 8px 0;"><div class="mock-progress-fill amber" style="width: 45%;"></div></div>
+              <div><span class="prompt">~/project $</span> <span class="term-cursor amber"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AFTER -->
+      <div class="compare-card" style="padding: 16px;">
+        <div class="card-label"><span class="dot neon"></span> Enhanced</div>
+        <div class="app-frame scanline-demo active">
+          <div class="app-sidebar-col">
+            <div class="sidebar-logo with-glow">
+              <svg width="24" height="24" viewBox="0 0 180 180">
+                <g transform="rotate(0,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.35)" stroke-width="3"/></g>
+                <g transform="rotate(60,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.3)" stroke-width="3" stroke-dasharray="5 3.5"/></g>
+                <g transform="rotate(120,90,90)"><ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.28)" stroke-width="3"/></g>
+                <circle cx="90" cy="90" r="8" fill="#ff6eb4"/>
+              </svg>
+              <span class="logo-text" style="font-size: 13px;">SubFrame</span>
+            </div>
+            <div class="sidebar-item active"><span class="icon"></span> Terminal</div>
+            <div class="sidebar-item"><span class="icon"></span> Tasks</div>
+            <div class="sidebar-item"><span class="icon"></span> Files</div>
+            <div class="sidebar-item"><span class="icon"></span> Settings</div>
+            <div style="flex:1;"></div>
+            <div style="padding: 12px 16px;">
+              <div class="status-item" style="font-size: 11px;"><div class="status-dot thinking-neon"></div> Claude thinking...</div>
+            </div>
+          </div>
+          <div class="app-main-col">
+            <div class="app-tab-bar">
+              <div class="app-tab active neon-tab">workspace ~/project</div>
+              <div class="app-tab">claude-session</div>
+            </div>
+            <div class="app-terminal">
+              <div><span class="prompt">~/project $</span> claude "add auth"</div>
+              <div style="color: var(--text-tertiary);">⠋ Claude is thinking...</div>
+              <div class="mock-progress-track" style="margin: 8px 0;"><div class="mock-progress-fill neon" style="width: 45%;"></div></div>
+              <div><span class="prompt">~/project $</span> <span class="term-cursor neon"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Side-by-side composite. The enhanced version adds gradient tab indicator, pink cursor, gradient progress bar, purple "thinking" pulse, logo ambient glow, and faint scanlines. All amber interactive elements (sidebar active, prompt color, buttons) remain unchanged.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SELECTION DEMO
+       ═══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">Try It</div>
+    <div class="section-title">Select This Text</div>
+    <p style="color: var(--text-secondary); font-size: 15px; line-height: 1.8; max-width: 600px;">
+      Drag to select this paragraph — the selection highlight is now purple (#b480ff at 35% opacity) instead of the default browser blue. This small touch ties every text interaction back to the SubFrame identity. The neon lives in the spaces between actions.
+    </p>
+  </div>
+
+</div>
+</body>
+</html>

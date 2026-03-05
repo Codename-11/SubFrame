@@ -8,13 +8,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink, Github, FileText, Sparkles, Scale, Info } from 'lucide-react';
+import { FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink, Github, FileText, Sparkles, Scale, Info, Palette, Check, RotateCcw, Save } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 import { EDITOR_THEMES } from '../lib/codemirror-theme';
+import { motion } from 'framer-motion';
+import {
+  type ThemeTokens,
+  type ThemeDefinition,
+  BUILTIN_THEMES,
+  THEME_CLASSIC_AMBER,
+  getThemeById,
+} from '../../shared/themeTypes';
 
 const APP_VERSION = require('../../../package.json').version;
 
@@ -56,6 +64,12 @@ export function SettingsPanel() {
   const [allowPrerelease, setAllowPrerelease] = useState('auto');
   const [checkIntervalHours, setCheckIntervalHours] = useState(4);
 
+  // Appearance / theme state
+  const [activeThemeId, setActiveThemeId] = useState('classic-amber');
+  const [customTokenOverrides, setCustomTokenOverrides] = useState<Partial<ThemeTokens>>({});
+  const [customThemeName, setCustomThemeName] = useState('');
+  const [showSaveThemeInput, setShowSaveThemeInput] = useState(false);
+
   // Custom tool form state
   const [newToolName, setNewToolName] = useState('');
   const [newToolCommand, setNewToolCommand] = useState('');
@@ -89,6 +103,10 @@ export function SettingsPanel() {
     setAutoCheck(updater.autoCheck !== false);
     setAllowPrerelease((updater.allowPrerelease as string) || 'auto');
     setCheckIntervalHours((updater.checkIntervalHours as number) || 4);
+
+    const appearance = (settings.appearance as Record<string, unknown>) || {};
+    setActiveThemeId((appearance.activeThemeId as string) || 'classic-amber');
+    setCustomTokenOverrides({});
 
     if (aiToolConfig) {
       const activeTool = aiToolConfig.activeTool;
@@ -157,6 +175,9 @@ export function SettingsPanel() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col px-6 pb-6">
           <TabsList className="bg-bg-deep border border-border-subtle shrink-0">
+            <TabsTrigger value="appearance" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
+              Appearance
+            </TabsTrigger>
             <TabsTrigger value="general" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
               General
             </TabsTrigger>
@@ -178,6 +199,262 @@ export function SettingsPanel() {
           </TabsList>
 
           <div className="flex-1 min-h-0 overflow-y-auto mt-4">
+            {/* Appearance tab */}
+            <TabsContent value="appearance" className="mt-0 space-y-4 px-4 pb-4">
+              {/* Theme Presets */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Theme Presets</div>
+              <div className="grid grid-cols-2 gap-2">
+                {(() => {
+                  const appearance = (settings.appearance as Record<string, unknown>) || {};
+                  const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
+                  const allThemes = [...BUILTIN_THEMES, ...customThemes];
+                  return allThemes.map((theme) => (
+                    <motion.button
+                      key={theme.id}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => {
+                        setActiveThemeId(theme.id);
+                        setCustomTokenOverrides({});
+                        updateSetting.mutate([{ key: 'appearance.activeThemeId', value: theme.id }]);
+                      }}
+                      className={`relative text-left rounded-lg p-3 border transition-colors cursor-pointer ${
+                        activeThemeId === theme.id
+                          ? 'border-accent bg-bg-elevated'
+                          : 'border-border-subtle bg-bg-secondary/50 hover:bg-bg-hover'
+                      }`}
+                    >
+                      {activeThemeId === theme.id && (
+                        <div className="absolute top-2 right-2">
+                          <Check className="w-3.5 h-3.5 text-accent" />
+                        </div>
+                      )}
+                      <div className="text-sm text-text-primary font-medium mb-0.5">{theme.name}</div>
+                      <div className="text-xs text-text-tertiary mb-2 line-clamp-1">{theme.description}</div>
+                      <div className="flex gap-1.5">
+                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.bgDeep }} />
+                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.accent }} />
+                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonPurple }} />
+                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonPink }} />
+                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonCyan }} />
+                      </div>
+                      {!theme.builtIn && (
+                        <button
+                          className="absolute bottom-2 right-2 text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+                          title="Delete custom theme"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updated = customThemes.filter((t: ThemeDefinition) => t.id !== theme.id);
+                            updateSetting.mutate([{ key: 'appearance.customThemes', value: updated }]);
+                            if (activeThemeId === theme.id) {
+                              setActiveThemeId('classic-amber');
+                              updateSetting.mutate([{ key: 'appearance.activeThemeId', value: 'classic-amber' }]);
+                            }
+                            toast.success(`Deleted "${theme.name}"`);
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </motion.button>
+                  ));
+                })()}
+              </div>
+
+              {/* Customization */}
+              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Customize</div>
+              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
+                {/* Color pickers */}
+                {(() => {
+                  const appearance = (settings.appearance as Record<string, unknown>) || {};
+                  const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
+                  const baseTheme = getThemeById(activeThemeId, customThemes) ?? THEME_CLASSIC_AMBER;
+                  const currentTokens = { ...baseTheme.tokens, ...customTokenOverrides };
+
+                  const colorFields: { key: keyof ThemeTokens; label: string }[] = [
+                    { key: 'accent', label: 'Accent' },
+                    { key: 'neonPurple', label: 'Neon Purple' },
+                    { key: 'neonPink', label: 'Neon Pink' },
+                    { key: 'neonCyan', label: 'Neon Cyan' },
+                  ];
+
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        {colorFields.map(({ key, label }) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={currentTokens[key] as string}
+                              onChange={(e) => {
+                                setCustomTokenOverrides((prev) => ({ ...prev, [key]: e.target.value }));
+                              }}
+                              className="w-8 h-8 rounded border border-border-subtle cursor-pointer bg-transparent"
+                            />
+                            <div className="text-sm text-text-primary">{label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Feature toggles */}
+                      <div className="border-t border-border-subtle pt-3 mt-3 space-y-3">
+                        {/* Neon Traces toggle */}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm text-text-primary">Neon Traces</div>
+                            <div className="text-xs text-text-tertiary">Synthwave glow effects on scrollbars and selections</div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newVal = !(customTokenOverrides.enableNeonTraces ?? currentTokens.enableNeonTraces);
+                              setCustomTokenOverrides((prev) => ({ ...prev, enableNeonTraces: newVal }));
+                            }}
+                            className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${
+                              (customTokenOverrides.enableNeonTraces ?? currentTokens.enableNeonTraces) ? 'bg-accent' : 'bg-bg-tertiary'
+                            }`}
+                          >
+                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                              (customTokenOverrides.enableNeonTraces ?? currentTokens.enableNeonTraces) ? 'translate-x-4.5' : 'translate-x-0.5'
+                            }`} />
+                          </button>
+                        </div>
+
+                        {/* Scanlines toggle */}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm text-text-primary">CRT Scanlines</div>
+                            <div className="text-xs text-text-tertiary">Subtle scanline overlay for retro feel</div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newVal = !(customTokenOverrides.enableScanlines ?? currentTokens.enableScanlines);
+                              setCustomTokenOverrides((prev) => ({ ...prev, enableScanlines: newVal }));
+                            }}
+                            className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${
+                              (customTokenOverrides.enableScanlines ?? currentTokens.enableScanlines) ? 'bg-accent' : 'bg-bg-tertiary'
+                            }`}
+                          >
+                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                              (customTokenOverrides.enableScanlines ?? currentTokens.enableScanlines) ? 'translate-x-4.5' : 'translate-x-0.5'
+                            }`} />
+                          </button>
+                        </div>
+
+                        {/* Logo glow toggle */}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm text-text-primary">Logo Glow</div>
+                            <div className="text-xs text-text-tertiary">Ambient glow effect on sidebar logo</div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newVal = !(customTokenOverrides.enableLogoGlow ?? currentTokens.enableLogoGlow);
+                              setCustomTokenOverrides((prev) => ({ ...prev, enableLogoGlow: newVal }));
+                            }}
+                            className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${
+                              (customTokenOverrides.enableLogoGlow ?? currentTokens.enableLogoGlow) ? 'bg-accent' : 'bg-bg-tertiary'
+                            }`}
+                          >
+                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                              (customTokenOverrides.enableLogoGlow ?? currentTokens.enableLogoGlow) ? 'translate-x-4.5' : 'translate-x-0.5'
+                            }`} />
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 flex-wrap">
+                {/* Save as Custom Theme */}
+                {showSaveThemeInput ? (
+                  <div className="flex gap-2 items-center flex-1">
+                    <Input
+                      value={customThemeName}
+                      onChange={(e) => setCustomThemeName(e.target.value)}
+                      placeholder="Theme name"
+                      className="bg-bg-deep border-border-subtle text-sm flex-1"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setShowSaveThemeInput(false);
+                          setCustomThemeName('');
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer shrink-0"
+                      disabled={!customThemeName.trim()}
+                      onClick={() => {
+                        const appearance = (settings.appearance as Record<string, unknown>) || {};
+                        const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
+                        const base = getThemeById(activeThemeId, customThemes) ?? THEME_CLASSIC_AMBER;
+                        const newTheme: ThemeDefinition = {
+                          id: `custom-${Date.now()}`,
+                          name: customThemeName.trim(),
+                          description: 'Custom theme',
+                          tokens: { ...base.tokens, ...customTokenOverrides } as ThemeTokens,
+                          builtIn: false,
+                          createdAt: new Date().toISOString(),
+                        };
+                        const updated = [...customThemes, newTheme];
+                        updateSetting.mutate([{ key: 'appearance.customThemes', value: updated }]);
+                        updateSetting.mutate([{ key: 'appearance.activeThemeId', value: newTheme.id }]);
+                        setActiveThemeId(newTheme.id);
+                        setCustomTokenOverrides({});
+                        setShowSaveThemeInput(false);
+                        setCustomThemeName('');
+                        toast.success(`Saved theme "${newTheme.name}"`);
+                      }}
+                    >
+                      <Save className="h-3.5 w-3.5 mr-1" />
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="cursor-pointer shrink-0"
+                      onClick={() => {
+                        setShowSaveThemeInput(false);
+                        setCustomThemeName('');
+                      }}
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {Object.keys(customTokenOverrides).length > 0 && (
+                      <>
+                        <Button
+                          size="sm"
+                          className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                          onClick={() => setShowSaveThemeInput(true)}
+                        >
+                          <Save className="h-3.5 w-3.5 mr-1" />
+                          Save as Custom Theme
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setCustomTokenOverrides({});
+                            toast.info('Reset to preset defaults');
+                          }}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                          Reset to Preset
+                        </Button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </TabsContent>
+
             {/* General tab */}
             <TabsContent value="general" className="mt-0 space-y-4 px-4 pb-4">
               {/* Startup group */}

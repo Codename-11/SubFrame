@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-04",
+  "lastUpdated": "2026-03-05",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -2383,7 +2383,7 @@
       ],
       "functions": {
         "init": {
-          "line": 101,
+          "line": 116,
           "params": [
             "window",
             "app"
@@ -2395,18 +2395,18 @@
           ]
         },
         "loadSettings": {
-          "line": 111,
+          "line": 126,
           "purpose": "Load settings from file",
           "calls": [
             "deepMerge"
           ]
         },
         "saveSettings": {
-          "line": 130,
+          "line": 145,
           "purpose": "Save settings to file"
         },
         "updateSetting": {
-          "line": 143,
+          "line": 158,
           "params": [
             "keyPath",
             "value"
@@ -2417,14 +2417,14 @@
           ]
         },
         "getSetting": {
-          "line": 168,
+          "line": 183,
           "params": [
             "keyPath"
           ],
           "purpose": "Get a setting by key path"
         },
         "deepMerge": {
-          "line": 183,
+          "line": 198,
           "params": [
             "target",
             "unknown>",
@@ -2434,14 +2434,14 @@
           "purpose": "Deep merge two objects"
         },
         "setupIPC": {
-          "line": 204,
+          "line": 219,
           "purpose": "Setup IPC handlers",
           "calls": [
             "updateSetting"
           ]
         }
       },
-      "loc": 215,
+      "loc": 230,
       "ipc": {
         "listens": [
           "LOAD_SETTINGS",
@@ -3291,6 +3291,7 @@
         "OnboardingDialog",
         "Editor",
         "ErrorBoundary",
+        "ThemeProvider",
         "stores/useUIStore",
         "stores/useProjectStore",
         "hooks/useOnboarding",
@@ -3299,7 +3300,7 @@
       ],
       "functions": {
         "App": {
-          "line": 29,
+          "line": 30,
           "purpose": "Keyboard shortcuts are wired here to match the original app.",
           "calls": [
             "useAIToolConfig",
@@ -3307,7 +3308,7 @@
           ]
         }
       },
-      "loc": 284,
+      "loc": 288,
       "ipc": {
         "listens": [
           "MENU_TOGGLE_SIDEBAR",
@@ -3660,21 +3661,20 @@
       ],
       "depends": [
         "lucide-react",
-        "stores/useUIStore",
-        "ui/scroll-area"
+        "stores/useUIStore"
       ],
       "functions": {
         "Kbd": {
-          "line": 80,
+          "line": 79,
           "params": [
             "{ children }"
           ]
         },
         "KeyboardShortcuts": {
-          "line": 97
+          "line": 96
         }
       },
-      "loc": 136
+      "loc": 135
     },
     "renderer/components/OnboardingDialog": {
       "file": "src\\renderer\\components\\OnboardingDialog.tsx",
@@ -4230,7 +4230,6 @@
         "react",
         "ui/dialog",
         "ui/tabs",
-        "ui/scroll-area",
         "ui/input",
         "ui/button",
         "lucide-react",
@@ -4239,19 +4238,21 @@
         "lib/ipc",
         "../shared/ipcChannels",
         "sonner",
-        "lib/codemirror-theme"
+        "lib/codemirror-theme",
+        "framer-motion"
       ],
       "functions": {
         "SettingsPanel": {
-          "line": 24,
+          "line": 31,
           "calls": [
+            "getThemeById",
             "typedInvoke",
             "useAIToolConfig",
             "useSettings"
           ]
         }
       },
-      "loc": 858
+      "loc": 1134
     },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
@@ -4987,6 +4988,28 @@
         ]
       }
     },
+    "renderer/components/ThemeProvider": {
+      "file": "src\\renderer\\components\\ThemeProvider.tsx",
+      "description": "",
+      "exports": [
+        "ThemeProvider"
+      ],
+      "depends": [
+        "react",
+        "hooks/useSettings"
+      ],
+      "functions": {
+        "ThemeProvider": {
+          "line": 18,
+          "purpose": "Mount once in the app root — no context needed, uses useSettings() directly.",
+          "calls": [
+            "getThemeById",
+            "useSettings"
+          ]
+        }
+      },
+      "loc": 87
+    },
     "renderer/components/UpdateNotification": {
       "file": "src\\renderer\\components\\UpdateNotification.tsx",
       "description": "UpdateNotification — side-effect component that listens for auto-updater events and shows non-intrusive sonner toasts. Renders null.",
@@ -5019,7 +5042,6 @@
         "react",
         "lucide-react",
         "ui/button",
-        "ui/scroll-area",
         "react-markdown",
         "remark-gfm",
         "hooks/useIpc",
@@ -5035,7 +5057,7 @@
           ]
         }
       },
-      "loc": 111
+      "loc": 113
     },
     "renderer/components/WorkspaceSelector": {
       "file": "src\\renderer\\components\\WorkspaceSelector.tsx",
@@ -6747,6 +6769,31 @@
         }
       },
       "loc": 353
+    },
+    "shared/themeTypes": {
+      "file": "src\\shared\\themeTypes.ts",
+      "description": "SubFrame Theme System — Type definitions and built-in presets.",
+      "exports": [
+        "getThemeById",
+        "DEFAULT_APPEARANCE",
+        "THEME_CLASSIC_AMBER",
+        "THEME_SYNTHWAVE_TRACES",
+        "THEME_MIDNIGHT_PURPLE",
+        "THEME_TERMINAL_GREEN",
+        "BUILTIN_THEMES",
+        "TOKEN_TO_CSS"
+      ],
+      "depends": [],
+      "functions": {
+        "getThemeById": {
+          "line": 246,
+          "params": [
+            "id",
+            "customThemes"
+          ]
+        }
+      },
+      "loc": 283
     }
   },
   "ipcChannels": {
@@ -7643,6 +7690,20 @@
         "module": "renderer/lib/terminalRegistry",
         "file": "src\\renderer\\lib\\terminalRegistry.ts",
         "description": "Persistent terminal instance registry. Decouples xterm.js Terminal lifecycle from React component mount/unmount."
+      }
+    ],
+    "theme-provider": [
+      {
+        "module": "renderer/components/ThemeProvider",
+        "file": "src\\renderer\\components\\ThemeProvider.tsx",
+        "description": ""
+      }
+    ],
+    "theme-types": [
+      {
+        "module": "shared/themeTypes",
+        "file": "src\\shared\\themeTypes.ts",
+        "description": "SubFrame Theme System — Type definitions and built-in presets."
       }
     ],
     "update-notification": [

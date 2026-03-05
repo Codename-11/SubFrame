@@ -49,6 +49,17 @@ interface DefaultSettings {
   onboarding: {
     analysisTimeout: number;
   };
+  appearance: {
+    activeThemeId: string;
+    customThemes: Array<{
+      id: string;
+      name: string;
+      description: string;
+      tokens: Record<string, unknown>;
+      builtIn: boolean;
+      createdAt?: string;
+    }>;
+  };
   [key: string]: unknown;
 }
 
@@ -90,7 +101,11 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   },
   onboarding: {
     analysisTimeout: 120000,
-  }
+  },
+  appearance: {
+    activeThemeId: 'classic-amber',
+    customThemes: [],
+  },
 };
 
 let settings: Record<string, unknown> | null = null;

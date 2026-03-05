@@ -148,15 +148,15 @@
 }
 
 .btn-accent {
-  background: var(--sf-accent);
+  background: var(--sf-accent-gradient);
   color: var(--sf-bg-primary);
   font-weight: 600;
 }
 
 .btn-accent:hover {
-  background: var(--sf-accent-dim);
+  filter: brightness(1.1);
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px var(--sf-accent-glow);
+  box-shadow: 0 8px 24px var(--sf-accent-glow), 0 4px 12px var(--sf-accent-pink-glow);
 }
 
 .btn-outline {
@@ -214,7 +214,7 @@
   left: -20%;
   width: 800px;
   height: 800px;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--sf-accent-pink-glow) 0%, transparent 70%);
   filter: blur(100px);
   pointer-events: none;
   animation: float 10s ease-in-out infinite reverse;
@@ -283,7 +283,10 @@
 
 .hero-title em {
   font-style: normal;
-  color: var(--sf-accent);
+  background: var(--sf-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .hero-subtitle {
@@ -406,7 +409,7 @@
   display: inline-block;
   width: 8px;
   height: 18px;
-  background: var(--sf-accent);
+  background: var(--sf-accent-pink);
   margin-left: 2px;
   animation: blink 1s step-end infinite;
 }
@@ -469,7 +472,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--sf-accent), transparent);
+  background: var(--sf-accent-gradient);
   opacity: 0;
   transition: opacity var(--sf-transition-base);
 }
@@ -654,7 +657,10 @@
   font-family: var(--sf-font-display);
   font-size: clamp(36px, 8vw, 56px);
   font-weight: 700;
-  color: var(--sf-accent);
+  background: var(--sf-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   line-height: 1;
   margin-bottom: var(--sf-space-sm);
 }
@@ -679,7 +685,7 @@
   transform: translate(-50%, -50%);
   width: 600px;
   height: 400px;
-  background: radial-gradient(ellipse, var(--sf-accent-glow) 0%, transparent 70%);
+  background: radial-gradient(ellipse, var(--sf-accent-glow) 0%, var(--sf-accent-pink-glow) 40%, transparent 70%);
   filter: blur(60px);
   pointer-events: none;
 }
@@ -700,7 +706,10 @@
 
 .cta-title em {
   font-style: normal;
-  color: var(--sf-accent);
+  background: var(--sf-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .cta-subtitle {
