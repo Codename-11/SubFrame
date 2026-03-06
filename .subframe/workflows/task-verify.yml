@@ -1,0 +1,15 @@
+name: task-verify
+on:
+  manual: true
+
+jobs:
+  verify:
+    name: Task Verification
+    steps:
+      - name: Run Tests
+        uses: test
+      - name: Verify Implementation
+        uses: critique
+        require-approval: if_patches
+      - name: Generate Summary
+        uses: describe

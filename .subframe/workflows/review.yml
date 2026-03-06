@@ -1,0 +1,36 @@
+name: review
+on:
+  push:
+    branches: ['*']
+  manual: true
+
+jobs:
+  quality:
+    name: Quality Checks
+    steps:
+      - name: Lint
+        uses: lint
+      - name: Test
+        uses: test
+        continue-on-error: true
+
+  review:
+    name: Code Review
+    needs: [quality]
+    steps:
+      - name: Describe Changes
+        uses: describe
+      - name: Code Review
+        uses: critique
+        require-approval: if_patches
+      - name: Freeze
+        uses: freeze
+
+  publish:
+    name: Publish
+    needs: [review]
+    steps:
+      - name: Push
+        uses: push
+      - name: Create PR
+        uses: create-pr

@@ -1,0 +1,18 @@
+name: health-check
+on:
+  manual: true
+
+jobs:
+  audit:
+    name: Project Audit
+    steps:
+      - name: Lint Check
+        uses: lint
+        continue-on-error: true
+      - name: Test Suite
+        uses: test
+        continue-on-error: true
+      - name: Architecture Review
+        uses: describe
+      - name: Code Quality Review
+        uses: critique
