@@ -12,24 +12,27 @@
 
 <p align="center">
   <a href="https://github.com/Codename-11/SubFrame/actions/workflows/ci.yml"><img src="https://github.com/Codename-11/SubFrame/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/pre--release-beta-blueviolet" alt="Beta" />
+  <a href="https://github.com/Codename-11/SubFrame/releases"><img src="https://img.shields.io/github/v/release/Codename-11/SubFrame?include_prereleases&label=version&color=orange" alt="Version" /></a>
   <img src="https://img.shields.io/badge/license-BSL--1.1-blue" alt="License" />
-  <img src="https://img.shields.io/badge/version-0.1.0--beta.1-orange" alt="Version" />
-  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React" />
-  <img src="https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white" alt="Electron" />
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white" alt="Electron" />
   <img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows" />
   <img src="https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white" alt="macOS" />
   <img src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black" alt="Linux" />
 </p>
 
 <p align="center">
-  <a href="#installation">Install</a> · <a href="#features">Features</a> · <a href="#development">Development</a> · <a href="https://sub-frame.dev">Website</a>
+  <a href="#installation">Install</a> · <a href="#features">Features</a> · <a href="#development">Development</a> · <a href="https://sub-frame.dev">Website</a> · <a href="https://sub-frame.dev/guide/">Docs</a>
 </p>
 
 ---
+
+> **This project is under active development and in public beta.** We're looking for early adopters to test, break things, and help shape the direction of SubFrame. If you run into issues or have ideas, [open an issue](https://github.com/Codename-11/SubFrame/issues) — every report helps.
 
 A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). SubFrame wraps your existing AI tools in a structured workspace — persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions. Cross-platform: Windows, macOS, and Linux.
 
@@ -157,7 +160,8 @@ Real-time visibility into Claude Code agent sessions:
 - **Overview Dashboard** — Project metrics, module counts, task summaries, health status, and recent file activity at a glance
 - **Plugin System** — Extend SubFrame with plugins
 - **Structure Map** — Interactive D3.js force-directed graph of module dependencies, color-coded by process layer
-- **Settings Panel** — Configure project and workspace preferences
+- **Theme System** — 4 built-in presets (Classic Amber, Synthwave Traces, Midnight Purple, Terminal Green) with custom theme support, color pickers, and feature toggles (neon traces, scanlines, logo glow)
+- **Settings Panel** — Configure appearance, terminal, editor, AI tools, and updater preferences
 - **Keyboard Shortcuts** — Full keyboard navigation:
 
 | Shortcut | Action |
@@ -268,12 +272,23 @@ npm run dist:mac      # macOS (signed DMG)
 
 ## Contributing
 
-Contributions welcome!
+SubFrame is in early beta and we'd love your help. Whether it's bug reports, feature ideas, documentation improvements, or code contributions — everything is welcome.
+
+**Ways to get involved:**
+
+- **Try it out** — Download, use it with your AI tools, and [report what breaks](https://github.com/Codename-11/SubFrame/issues/new)
+- **Request features** — Have an idea? [Open an issue](https://github.com/Codename-11/SubFrame/issues/new) and describe your use case
+- **Submit a PR** — Bug fixes, improvements, and new features are all appreciated
+- **Spread the word** — Star the repo, share it with other developers
+
+**To contribute code:**
 
 1. Fork the repo
 2. Create a feature branch (`git checkout -b feature/your-feature`)
 3. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, etc.)
 4. Open a Pull Request
+
+We review all PRs and aim to respond promptly. Don't worry about getting everything perfect — we'd rather see your contribution and iterate together.
 
 ## License
 
@@ -292,5 +307,5 @@ SubFrame is built upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozha
 ---
 
 <p align="center">
-  <strong>v0.1.0-beta.1</strong> · Active development · <a href="https://sub-frame.dev">SubFrame</a>
+  <strong>v0.1.0-beta.3</strong> · Public beta — <a href="https://github.com/Codename-11/SubFrame/issues">feedback welcome</a> · <a href="https://sub-frame.dev">sub-frame.dev</a>
 </p>

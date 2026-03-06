@@ -83,7 +83,7 @@ Access the file tree with `Ctrl+Shift+E`.
 Clicking a file opens SubFrame's built-in editor powered by CodeMirror 6. The editor opens as a dialog overlay and supports:
 
 - **Syntax Highlighting** — Language support for TypeScript, JavaScript, JSON, Markdown, HTML, CSS, and more
-- **Themes** — Multiple editor themes including SubFrame Dark (default), with a theme picker in the toolbar
+- **Themes** — Multiple editor themes including SubFrame Dark (default), with a theme picker in the toolbar. The editor theme inherits accent colors from the active app theme.
 - **Minimap** — Toggle a code minimap for quick navigation through large files
 - **Word Wrap** — Toggle word wrapping for long lines
 - **Font Size** — Adjustable font size with +/- controls
@@ -190,6 +190,44 @@ The Structure Map is an interactive D3.js visualization of your project's module
 Both views support zoom, pan, search filtering, and click-to-select for module details. The info panel shows the selected module's file path, LOC, function count, exports, and IPC channels. You can also export the visualization as an SVG file.
 
 Access it from the Overview dashboard by clicking the Structure card, or through the full-view navigation.
+
+## Theme & Appearance
+
+SubFrame includes a full theme system with built-in presets and custom theme support.
+
+### Built-in Presets
+
+Choose from 4 presets in Settings > Appearance:
+
+- **Classic Amber** — Warm neutrals with amber accent (default)
+- **Synthwave Traces** — Purple/pink/cyan neon with optional scanlines and glow effects
+- **Midnight Purple** — Deep purple tones with violet accents
+- **Terminal Green** — Classic green-on-black terminal aesthetic
+
+Presets apply instantly and affect all UI elements — panels, buttons, badges, borders, and the editor.
+
+### Custom Themes
+
+Adjust individual color tokens (accent, background, text) and save as a custom theme. Custom themes persist across sessions and appear alongside the built-in presets.
+
+### Feature Toggles
+
+Optional visual effects that can be enabled independently of the active theme:
+
+- **Neon Traces** — Glowing border accents on panels and interactive elements
+- **Scanlines** — Subtle CRT-style scanline overlay
+- **Logo Glow** — Soft glow effect on the SubFrame logo in the sidebar
+
+## Auto-Updater
+
+SubFrame includes a built-in auto-updater powered by electron-updater. When a new version is published on GitHub Releases:
+
+1. SubFrame checks periodically (configurable, default every 4 hours)
+2. A notification appears when an update is available
+3. You choose when to download — updates are never automatic
+4. After downloading, the update installs on next app restart
+
+Pre-release versions (beta, alpha, RC) are offered based on your current version type by default. You can override this in Settings > Updater.
 
 ## Keyboard Shortcuts
 

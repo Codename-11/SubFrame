@@ -5,14 +5,25 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import NavBar from './components/NavBar.vue'
 import Footer from './components/Footer.vue'
 
+interface SidebarLink {
+  text: string
+  link: string
+}
+
+interface SidebarGroup {
+  text: string
+  items: SidebarLink[]
+}
+
+type SidebarEntry = SidebarLink | SidebarGroup
+
 const { page, theme, frontmatter } = useData()
 
-const sidebarItems = computed(() => {
+const sidebarEntries = computed(() => {
   const sidebar = theme.value.sidebar || {}
-  // Find matching sidebar group for current path
-  for (const [prefix, items] of Object.entries(sidebar)) {
+  for (const [prefix, entries] of Object.entries(sidebar)) {
     if (page.value.relativePath.startsWith(prefix.replace(/^\//, ''))) {
-      return items as Array<{ text: string; link: string }>
+      return entries as SidebarEntry[]
     }
   }
   return []
@@ -26,6 +37,10 @@ function isActive(link: string): boolean {
   const normalizedLink = link.endsWith('/') ? link : link + '/'
   const normalizedCurrent = currentPath.value.endsWith('/') ? currentPath.value : currentPath.value + '/'
   return normalizedLink === normalizedCurrent
+}
+
+function isGroup(entry: SidebarEntry): entry is SidebarGroup {
+  return 'items' in entry
 }
 
 // Mobile sidebar toggle
@@ -63,16 +78,32 @@ onUnmounted(() => {
 
       <aside class="docs-sidebar" :class="{ open: sidebarOpen }">
         <nav class="docs-sidebar-nav">
-          <a
-            v-for="item in sidebarItems"
-            :key="item.link"
-            :href="withBase(item.link)"
-            class="docs-sidebar-link"
-            :class="{ active: isActive(item.link) }"
-            @click="closeSidebar"
-          >
-            {{ item.text }}
-          </a>
+          <template v-for="entry in sidebarEntries" :key="isGroup(entry) ? entry.text : entry.link">
+            <!-- Grouped sidebar -->
+            <template v-if="isGroup(entry)">
+              <div class="docs-sidebar-group-label">{{ entry.text }}</div>
+              <a
+                v-for="item in entry.items"
+                :key="item.link"
+                :href="withBase(item.link)"
+                class="docs-sidebar-link"
+                :class="{ active: isActive(item.link) }"
+                @click="closeSidebar"
+              >
+                {{ item.text }}
+              </a>
+            </template>
+            <!-- Flat sidebar link -->
+            <a
+              v-else
+              :href="withBase(entry.link)"
+              class="docs-sidebar-link"
+              :class="{ active: isActive(entry.link) }"
+              @click="closeSidebar"
+            >
+              {{ entry.text }}
+            </a>
+          </template>
         </nav>
       </aside>
 

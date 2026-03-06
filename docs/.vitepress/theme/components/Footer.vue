@@ -15,8 +15,10 @@ import LogoSvg from './LogoSvg.vue'
         </a>
 
         <div class="footer-links">
-          <a href="https://github.com/Codename-11/SubFrame" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a :href="withBase('/guide/')">Docs</a>
           <a :href="withBase('/blog/')">Blog</a>
+          <a href="https://github.com/Codename-11/SubFrame" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/Codename-11/SubFrame/issues" target="_blank" rel="noopener noreferrer">Issues</a>
           <a href="https://github.com/anthropics/claude-code" target="_blank" rel="noopener noreferrer">Claude Code</a>
           <a href="https://github.com/openai/codex" target="_blank" rel="noopener noreferrer">Codex CLI</a>
           <a href="https://github.com/google-gemini/gemini-cli" target="_blank" rel="noopener noreferrer">Gemini CLI</a>

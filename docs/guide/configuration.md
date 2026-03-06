@@ -4,11 +4,15 @@ SubFrame stores configuration at two levels: **application settings** that apply
 
 ## Settings Panel
 
-Open the Settings panel with <kbd>Ctrl</kbd>+<kbd>,</kbd> (or from the menu). It contains three tabs:
+Open the Settings panel with <kbd>Ctrl</kbd>+<kbd>,</kbd> (or from the menu). It contains six tabs:
 
 - **General** -- startup behavior, file tree visibility, default project directory
 - **AI Tool** -- active AI tool selection, start command overrides, custom tools
 - **Terminal** -- font size, scrollback buffer, tab auto-rename
+- **Editor** -- minimap, word wrap, font size, theme selection
+- **Appearance** -- theme presets, custom themes, color pickers, feature toggles
+- **Updater** -- auto-update checks, update channels, check intervals
+- **About** -- version info, license, links, changelog
 
 Changes take effect immediately and are persisted to disk.
 
@@ -30,15 +34,62 @@ Changes take effect immediately and are persisted to disk.
 
 ## Editor Settings
 
-Editor settings are stored in the settings file but are not currently exposed in the Settings panel UI. You can edit them manually in the settings file (see [Data Locations](#data-locations) below).
+The **Editor** tab controls the built-in CodeMirror 6 editor:
 
 | Setting | Description | Default |
 |---|---|---|
-| `editor.minimap` | Show code minimap in the editor | `false` |
-| `editor.fullscreen` | Open editor in fullscreen mode | `false` |
-| `editor.theme` | CodeMirror editor theme | `subframe-dark` |
-| `editor.wordWrap` | Wrap long lines in the editor | `false` |
-| `editor.fontSize` | Editor text size in pixels | `12` |
+| **Minimap** | Show a code minimap for quick navigation | `false` |
+| **Fullscreen** | Open editor in fullscreen mode by default | `false` |
+| **Theme** | CodeMirror editor theme | `subframe-dark` |
+| **Word Wrap** | Wrap long lines in the editor | `false` |
+| **Font Size** | Editor text size in pixels | `12` |
+
+## Appearance Settings
+
+The **Appearance** tab controls SubFrame's visual theme:
+
+### Theme Presets
+
+SubFrame ships with 4 built-in theme presets:
+
+| Preset | Description |
+|---|---|
+| **Classic Amber** | Warm neutral tones with amber accent (default) |
+| **Synthwave Traces** | Purple, pink, and cyan neon aesthetic with optional scanlines |
+| **Midnight Purple** | Deep purple tones with violet accents |
+| **Terminal Green** | Classic green-on-black terminal look |
+
+Click any preset card in the gallery to apply it immediately.
+
+### Custom Themes
+
+You can create custom themes by adjusting individual color tokens:
+
+- **Accent** -- Primary accent color used for highlights, badges, and active elements
+- **Background** -- Main background color
+- **Text** -- Primary text color
+
+Click **Save as Custom** to persist your custom theme. Saved custom themes appear alongside the built-in presets.
+
+### Feature Toggles
+
+| Toggle | Description |
+|---|---|
+| **Neon Traces** | Adds glowing border accents to panels and interactive elements |
+| **Scanlines** | Overlays subtle CRT-style scanlines on the interface |
+| **Logo Glow** | Adds a soft glow effect to the SubFrame logo |
+
+## Updater Settings
+
+The **Updater** tab controls automatic update behavior:
+
+| Setting | Description | Default |
+|---|---|---|
+| **Auto-check for updates** | Periodically check GitHub Releases for new versions | `true` |
+| **Check interval** | How often to check, in hours | `4` |
+| **Allow pre-release updates** | Whether to offer beta/alpha/RC versions | `auto` (matches current version type) |
+
+When an update is available, SubFrame shows a notification. You choose when to download and install — updates are never forced.
 
 ## AI Tool Configuration
 

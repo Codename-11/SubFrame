@@ -59,12 +59,22 @@ export default defineConfig({
 
     sidebar: {
       '/guide/': [
-        { text: 'Getting Started', link: '/guide/' },
-        { text: 'Features', link: '/guide/features' },
-        { text: 'Keyboard Shortcuts', link: '/guide/keyboard-shortcuts' },
-        { text: 'Configuration', link: '/guide/configuration' },
-        { text: 'AI Tool Setup', link: '/guide/ai-tool-setup' },
-        { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+        {
+          text: 'Getting Started',
+          items: [
+            { text: 'Installation & Setup', link: '/guide/' },
+            { text: 'Features Overview', link: '/guide/features' },
+            { text: 'AI Tool Setup', link: '/guide/ai-tool-setup' },
+          ],
+        },
+        {
+          text: 'Reference',
+          items: [
+            { text: 'Configuration', link: '/guide/configuration' },
+            { text: 'Keyboard Shortcuts', link: '/guide/keyboard-shortcuts' },
+            { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+          ],
+        },
       ],
     },
   },

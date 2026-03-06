@@ -152,6 +152,11 @@ const faqItems = [
             <span>Claude &middot; Codex &middot; Gemini</span>
           </div>
 
+          <div class="hero-beta-badge">
+            <span class="beta-dot"></span>
+            Public Beta &mdash; Help us test and shape SubFrame
+          </div>
+
           <div class="hero-logo" aria-hidden="true">
             <LogoSvg :size="120" id="hero" :frame="true" />
           </div>
@@ -761,6 +766,55 @@ const faqItems = [
       </div>
     </section>
 
+    <!-- Community -->
+    <section class="community" id="community">
+      <div class="container">
+        <div class="section-label fade-in">Community</div>
+        <h2 class="section-title fade-in">Built in the open,<br />shaped by you</h2>
+        <p class="section-subtitle fade-in">
+          SubFrame is under active development. We need testers, feedback, and contributors to make it great.
+        </p>
+
+        <div class="community-grid">
+          <div class="community-card fade-in">
+            <div class="community-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" />
+              </svg>
+            </div>
+            <h3 class="community-title">Try It Out</h3>
+            <p class="community-description">
+              Download, install, and put SubFrame through its paces with your real projects. Every rough edge you find helps us improve.
+            </p>
+          </div>
+
+          <div class="community-card fade-in">
+            <div class="community-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <h3 class="community-title">Report &amp; Request</h3>
+            <p class="community-description">
+              Found a bug? Have an idea? <a href="https://github.com/Codename-11/SubFrame/issues/new" target="_blank" rel="noopener noreferrer">Open an issue</a> — every report and feature request helps shape the roadmap.
+            </p>
+          </div>
+
+          <div class="community-card fade-in">
+            <div class="community-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+              </svg>
+            </div>
+            <h3 class="community-title">Contribute</h3>
+            <p class="community-description">
+              Bug fixes, features, docs improvements — all welcome. Fork, branch, and <a href="https://github.com/Codename-11/SubFrame" target="_blank" rel="noopener noreferrer">open a PR</a>. We review everything promptly.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- CTA -->
     <section class="cta" id="download">
       <div class="container">
@@ -769,8 +823,7 @@ const faqItems = [
             Ready to code<br /><em>smarter?</em>
           </h2>
           <p class="cta-subtitle fade-in">
-            Download SubFrame for macOS or Windows and experience AI-native development. Free and
-            open source.
+            SubFrame is free and open source. Download for macOS or Windows, or build from source.
           </p>
           <div class="cta-actions fade-in">
             <a href="https://github.com/Codename-11/SubFrame/releases" class="btn btn-accent btn-large">
