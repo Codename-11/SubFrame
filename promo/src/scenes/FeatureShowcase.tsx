@@ -33,7 +33,7 @@ const TerminalCardMock: React.FC = () => {
         borderRadius: 8,
         padding: '12px 14px',
         fontFamily: fonts.mono,
-        fontSize: 11,
+        fontSize: 13,
         lineHeight: 1.8,
         border: `1px solid ${app.border}`,
       }}
@@ -50,7 +50,7 @@ const TerminalCardMock: React.FC = () => {
       >
         <span
           style={{
-            fontSize: 10,
+            fontSize: 12,
             padding: '2px 8px',
             borderRadius: 4,
             background: app.bgTertiary,
@@ -60,7 +60,7 @@ const TerminalCardMock: React.FC = () => {
         >
           Claude Code
         </span>
-        <span style={{ fontSize: 10, padding: '2px 8px', color: app.textTertiary }}>
+        <span style={{ fontSize: 12, padding: '2px 8px', color: app.textTertiary }}>
           Terminal 2
         </span>
       </div>
@@ -107,7 +107,7 @@ const TaskCardMock: React.FC = () => {
         borderRadius: 8,
         padding: '10px 12px',
         fontFamily: fonts.display,
-        fontSize: 11,
+        fontSize: 13,
         border: `1px solid ${app.border}`,
       }}
     >
@@ -127,7 +127,7 @@ const TaskCardMock: React.FC = () => {
             style={{
               padding: '2px 8px',
               borderRadius: 4,
-              fontSize: 10,
+              fontSize: 12,
               color: i === 0 ? app.accent : app.textMuted,
               background: i === 0 ? app.accentSubtle : 'transparent',
             }}
@@ -152,12 +152,12 @@ const TaskCardMock: React.FC = () => {
               borderBottom: i < tasks.length - 1 ? `1px solid ${app.border}` : 'none',
             }}
           >
-            <span style={{ color: app.textMuted, fontSize: 8 }}>-</span>
+            <span style={{ color: app.textMuted, fontSize: 10 }}>-</span>
             <span
               style={{
                 flex: 1,
                 color: app.textPrimary,
-                fontSize: 11,
+                fontSize: 13,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -167,11 +167,11 @@ const TaskCardMock: React.FC = () => {
             </span>
             <span
               style={{
-                padding: '1px 6px',
+                padding: '2px 8px',
                 borderRadius: 3,
                 background: sc.bg,
                 color: sc.text,
-                fontSize: 9,
+                fontSize: 11,
                 flexShrink: 0,
               }}
             >
@@ -181,7 +181,7 @@ const TaskCardMock: React.FC = () => {
               <span
                 style={{
                   fontFamily: fonts.mono,
-                  fontSize: 9,
+                  fontSize: 11,
                   color: app.textTertiary,
                   flexShrink: 0,
                 }}
@@ -223,7 +223,7 @@ const PipelineCardMock: React.FC = () => {
         borderRadius: 8,
         padding: '10px 12px',
         fontFamily: fonts.display,
-        fontSize: 11,
+        fontSize: 13,
         border: `1px solid ${app.border}`,
       }}
     >
@@ -239,20 +239,20 @@ const PipelineCardMock: React.FC = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontFamily: fonts.mono, fontSize: 10, color: app.accent }}>
+          <span style={{ fontFamily: fonts.mono, fontSize: 12, color: app.accent }}>
             &gt;
           </span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: app.textPrimary }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: app.textPrimary }}>
             ci-pipeline.yml
           </span>
         </div>
         <span
           style={{
-            padding: '1px 6px',
+            padding: '2px 8px',
             borderRadius: 3,
             background: 'rgba(120,53,15,0.4)',
             color: '#fcd34d',
-            fontSize: 9,
+            fontSize: 11,
           }}
         >
           Running
@@ -284,7 +284,7 @@ const PipelineCardMock: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 8,
+                fontSize: 9,
                 color: ss.text,
                 fontFamily: fonts.mono,
                 fontWeight: 700,
@@ -309,7 +309,7 @@ const PipelineCardMock: React.FC = () => {
             <span
               style={{
                 fontFamily: fonts.mono,
-                fontSize: 11,
+                fontSize: 13,
                 color: stage.status === 'running' ? app.accent : app.textPrimary,
                 flex: 1,
               }}
@@ -323,7 +323,7 @@ const PipelineCardMock: React.FC = () => {
               <span
                 style={{
                   fontFamily: fonts.mono,
-                  fontSize: 9,
+                  fontSize: 11,
                   color: app.textMuted,
                   flexShrink: 0,
                 }}
@@ -365,7 +365,7 @@ const PipelineCardMock: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-between',
             marginTop: 3,
-            fontSize: 9,
+            fontSize: 11,
             color: app.textMuted,
           }}
         >
@@ -446,11 +446,11 @@ const FeatureCard: React.FC<{ feature: Feature; index: number }> = ({
       style={{
         opacity,
         transform: `translateY(${translateY}px)`,
-        width: 360,
+        width: 400,
         background: colors.bgCard,
         border: `1px solid ${colors.border}`,
         borderRadius: 12,
-        padding: 20,
+        padding: 22,
         boxShadow: glow(feature.color, 30, 0.06),
       }}
     >
@@ -459,7 +459,7 @@ const FeatureCard: React.FC<{ feature: Feature; index: number }> = ({
         <span
           style={{
             fontFamily: fonts.mono,
-            fontSize: 18,
+            fontSize: 22,
             fontWeight: 700,
             color: feature.color,
           }}
@@ -469,7 +469,7 @@ const FeatureCard: React.FC<{ feature: Feature; index: number }> = ({
         <span
           style={{
             fontFamily: fonts.display,
-            fontSize: 18,
+            fontSize: 22,
             fontWeight: 600,
             color: colors.textPrimary,
           }}
@@ -482,7 +482,7 @@ const FeatureCard: React.FC<{ feature: Feature; index: number }> = ({
       <div
         style={{
           fontFamily: fonts.display,
-          fontSize: 13,
+          fontSize: 16,
           color: colors.textSecondary,
           marginBottom: 14,
           lineHeight: 1.5,
@@ -524,7 +524,7 @@ export const FeatureShowcase: React.FC = () => {
         style={{
           ...gradientText(),
           fontFamily: fonts.display,
-          fontSize: 36,
+          fontSize: 44,
           fontWeight: 700,
           opacity: headerOpacity,
           marginBottom: 36,
@@ -560,8 +560,8 @@ export const FeatureShowcase: React.FC = () => {
         <span
           style={{
             fontFamily: fonts.display,
-            fontSize: 13,
-            color: colors.textTertiary,
+            fontSize: 15,
+            color: colors.textSecondary,
             fontWeight: 500,
             letterSpacing: '0.05em',
           }}
@@ -609,10 +609,10 @@ export const FeatureShowcase: React.FC = () => {
               <span
                 style={{
                   fontFamily: fonts.mono,
-                  fontSize: 14,
+                  fontSize: 16,
                   color: colors.accentPurple,
                   fontWeight: 700,
-                  width: 18,
+                  width: 20,
                   textAlign: 'center',
                 }}
               >
@@ -622,7 +622,7 @@ export const FeatureShowcase: React.FC = () => {
                 <div
                   style={{
                     fontFamily: fonts.display,
-                    fontSize: 13,
+                    fontSize: 15,
                     fontWeight: 600,
                     color: colors.textPrimary,
                   }}
@@ -632,8 +632,8 @@ export const FeatureShowcase: React.FC = () => {
                 <div
                   style={{
                     fontFamily: fonts.display,
-                    fontSize: 11,
-                    color: colors.textTertiary,
+                    fontSize: 13,
+                    color: colors.textSecondary,
                   }}
                 >
                   {feat.desc}

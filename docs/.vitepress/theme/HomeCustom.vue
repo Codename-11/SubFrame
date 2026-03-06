@@ -216,6 +216,7 @@ const faqItems = [
         <div class="hero-video">
           <video
             src="/assets/promo.mp4"
+            controls
             autoplay
             loop
             muted

@@ -37,7 +37,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="ProblemStatement"
         component={ProblemStatement}
-        durationInFrames={270}
+        durationInFrames={435}
         fps={PROMO_FPS}
         width={1920}
         height={1080}
@@ -45,7 +45,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="AppDemo"
         component={AppDemo}
-        durationInFrames={450}
+        durationInFrames={540}
         fps={PROMO_FPS}
         width={1920}
         height={1080}
@@ -69,7 +69,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="Architecture"
         component={Architecture}
-        durationInFrames={240}
+        durationInFrames={270}
         fps={PROMO_FPS}
         width={1920}
         height={1080}

@@ -35,8 +35,8 @@
 > **This project is under active development and in public beta.** We're looking for early adopters to test, break things, and help shape the direction of SubFrame. If you run into issues or have ideas, [open an issue](https://github.com/Codename-11/SubFrame/issues) — every report helps.
 
 <p align="center">
-  <video src="https://sub-frame.dev/assets/promo.mp4" width="720" autoplay loop muted playsinline>
-    Your browser does not support the video tag.
+  <video src="https://sub-frame.dev/assets/promo.mp4" width="720" controls muted playsinline>
+    Your browser does not support the video tag. <a href="https://sub-frame.dev/assets/promo.mp4">Watch the promo video</a>.
   </video>
 </p>
 

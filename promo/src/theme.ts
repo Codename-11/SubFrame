@@ -2,13 +2,13 @@
 
 // Docs/site palette (used for title card, outro, branding scenes)
 export const site = {
-  bg: '#08080a',
-  bgSecondary: '#0e0e12',
-  bgElevated: '#14141a',
-  bgCard: '#101014',
+  bg: '#111118',
+  bgSecondary: '#16161e',
+  bgElevated: '#1c1c26',
+  bgCard: '#151520',
   textPrimary: '#eeeef0',
-  textSecondary: '#9d9db0',
-  textTertiary: '#6b6b80',
+  textSecondary: '#b0b0c4',
+  textTertiary: '#8585a0',
   accentPurple: '#a855f7',
   accentPink: '#e040a0',
   accentCyan: '#38d9f5',
@@ -45,6 +45,7 @@ export const colors = {
   bgSecondary: site.bgSecondary,
   bgElevated: site.bgElevated,
   bgCard: site.bgCard,
+  bgDiagram: '#0c0c12',
   textPrimary: site.textPrimary,
   textSecondary: site.textSecondary,
   textTertiary: site.textTertiary,
@@ -57,8 +58,8 @@ export const colors = {
   success: '#22c55e',
   warning: '#f59e0b',
   error: '#ef4444',
-  border: 'rgba(255, 255, 255, 0.06)',
-  borderHover: 'rgba(255, 255, 255, 0.12)',
+  border: 'rgba(255, 255, 255, 0.10)',
+  borderHover: 'rgba(255, 255, 255, 0.16)',
 } as const;
 
 export const fonts = {

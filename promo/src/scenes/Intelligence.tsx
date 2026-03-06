@@ -184,7 +184,7 @@ const NodeCard: React.FC<{
         <div
           style={{
             fontFamily: isMono ? fonts.mono : fonts.display,
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: 600,
             color: color,
             lineHeight: 1.3,
@@ -195,8 +195,8 @@ const NodeCard: React.FC<{
         <div
           style={{
             fontFamily: fonts.display,
-            fontSize: 13,
-            color: app.textTertiary,
+            fontSize: 15,
+            color: app.textSecondary,
             lineHeight: 1.3,
           }}
         >
@@ -265,7 +265,7 @@ export const Intelligence: React.FC = () => {
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: '#050506',
+        backgroundColor: colors.bg,
         fontFamily: fonts.display,
       }}
     >
@@ -391,7 +391,7 @@ export const Intelligence: React.FC = () => {
           width: LOGO_CLEAR_RADIUS * 2,
           height: LOGO_CLEAR_RADIUS * 2,
           borderRadius: '50%',
-          background: `radial-gradient(circle, #050506 60%, transparent 100%)`,
+          background: `radial-gradient(circle, ${colors.bg} 60%, transparent 100%)`,
           transform: 'translate(-50%, -50%)',
           opacity: logoOpacity,
         }}
@@ -419,9 +419,9 @@ export const Intelligence: React.FC = () => {
           transform: 'translateX(-50%)',
           opacity: logoOpacity,
           fontFamily: fonts.display,
-          fontSize: 14,
+          fontSize: 16,
           fontWeight: 600,
-          color: app.textTertiary,
+          color: app.textSecondary,
           letterSpacing: '0.08em',
           textAlign: 'center',
         }}
@@ -463,9 +463,9 @@ export const Intelligence: React.FC = () => {
             [0, 1], [0, 0.5]
           ),
           fontFamily: fonts.mono,
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: 600,
-          color: app.textMuted,
+          color: app.textTertiary,
           letterSpacing: '0.12em',
         }}
       >
@@ -482,9 +482,9 @@ export const Intelligence: React.FC = () => {
             [0, 1], [0, 0.5]
           ),
           fontFamily: fonts.mono,
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: 600,
-          color: app.textMuted,
+          color: app.textTertiary,
           letterSpacing: '0.12em',
         }}
       >

@@ -69,9 +69,15 @@ export const TerminalMock: React.FC<{
   activePanelIndex?: number;
   /** Which workspace's terminals to show (0=Default, 1=Work) */
   workspaceIndex?: number;
-  /** Frame at which to expand grid to 4x4 (only for workspace 1) */
-  expandGridAt?: number;
-}> = ({ animateIn = true, showTabBar = true, showUsage = true, gridAt, activePanelIndex = 0, workspaceIndex = 0, expandGridAt }) => {
+  /** Grid layout string like '2x2' or '3x3' */
+  gridLayout?: string;
+  /** Whether to show the grid layout dropdown */
+  showGridDropdown?: boolean;
+  /** Which dropdown item to highlight (e.g. '3x3') */
+  gridDropdownHighlight?: string;
+  /** Frame at which grid layout changed (for staggered new-pane fade-in) */
+  layoutChangedAt?: number;
+}> = ({ animateIn = true, showTabBar = true, showUsage = true, gridAt, activePanelIndex = 0, workspaceIndex = 0, gridLayout = '2x2', showGridDropdown = false, gridDropdownHighlight, layoutChangedAt }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -212,25 +218,71 @@ export const TerminalMock: React.FC<{
             +
           </div>
 
-          {/* Grid layout toggle */}
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 6,
-              fontSize: 12,
-              fontFamily: fonts.mono,
-              color: gridIconActive ? app.accent : app.textTertiary,
-              background: gridIconActive ? app.accentSubtle : 'transparent',
-              border: gridIconActive
-                ? `1px solid rgba(212, 165, 116, 0.2)`
-                : '1px solid transparent',
-            }}
-          >
-            ⊞
+          {/* Grid layout toggle + dropdown */}
+          <div style={{ position: 'relative' }}>
+            <div
+              style={{
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                padding: '0 6px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontFamily: fonts.mono,
+                color: gridIconActive ? app.accent : app.textTertiary,
+                background: gridIconActive ? app.accentSubtle : 'transparent',
+                border: gridIconActive
+                  ? `1px solid rgba(212, 165, 116, 0.2)`
+                  : '1px solid transparent',
+              }}
+            >
+              <span style={{ fontSize: 11 }}>{gridLayout.replace('x', '×')}</span>
+              <span style={{ fontSize: 8, opacity: 0.5 }}>▼</span>
+            </div>
+
+            {/* Grid layout dropdown */}
+            {showGridDropdown && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 32,
+                  right: 0,
+                  width: 64,
+                  background: app.bgElevated,
+                  border: `1px solid ${app.borderStrong}`,
+                  borderRadius: 8,
+                  padding: '4px 0',
+                  zIndex: 100,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                }}
+              >
+                {['1x2', '2x2', '3x1', '3x2', '3x3'].map((layout) => {
+                  const isHighlighted = layout === gridDropdownHighlight;
+                  const isCurrent = layout === gridLayout;
+                  return (
+                    <div
+                      key={layout}
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: 11,
+                        fontFamily: fonts.mono,
+                        textAlign: 'center',
+                        color: isCurrent ? app.accent : isHighlighted ? app.textPrimary : app.textSecondary,
+                        fontWeight: isCurrent ? 600 : 400,
+                        background: isHighlighted
+                          ? 'rgba(212, 165, 116, 0.12)'
+                          : 'transparent',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {layout.replace('x', '×')}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Divider */}
@@ -275,7 +327,14 @@ export const TerminalMock: React.FC<{
 
       {/* Terminal content — single pane or grid */}
       {useGrid ? (
-        <TerminalGridMock splitAt={0} gridAppearsAt={gridAt!} workspaceIndex={workspaceIndex} expandAt={expandGridAt} />
+        <TerminalGridMock
+          splitAt={0}
+          gridAppearsAt={gridAt!}
+          workspaceIndex={workspaceIndex}
+          gridCols={parseInt(gridLayout.split('x')[0]) || 2}
+          gridRows={parseInt(gridLayout.split('x')[1]) || 2}
+          layoutChangedAt={layoutChangedAt}
+        />
       ) : (
         <div
           style={{

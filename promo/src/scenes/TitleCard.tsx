@@ -135,14 +135,14 @@ export const TitleCard: React.FC = () => {
             alignItems: 'center',
             gap: 20,
             fontFamily: fonts.display,
-            fontSize: 15,
-            color: colors.textTertiary,
+            fontSize: 20,
+            color: colors.textSecondary,
           }}
         >
           <span>macOS</span>
-          <span style={{ color: colors.border, fontSize: 10 }}>|</span>
+          <span style={{ color: colors.textTertiary, fontSize: 14 }}>|</span>
           <span>Windows</span>
-          <span style={{ color: colors.border, fontSize: 10 }}>|</span>
+          <span style={{ color: colors.textTertiary, fontSize: 14 }}>|</span>
           <span>Linux</span>
         </div>
 
@@ -153,7 +153,7 @@ export const TitleCard: React.FC = () => {
             alignItems: 'center',
             gap: 8,
             fontFamily: fonts.mono,
-            fontSize: 13,
+            fontSize: 17,
           }}
         >
           <span style={{ color: colors.accentCyan }}>Free &amp; Open Source</span>

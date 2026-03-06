@@ -131,69 +131,13 @@ const workPanes: GridPane[] = [
       { text: '  DB is up to date', color: app.textTertiary, delay: 32 },
     ],
   },
-  // Row 3 extras (appear on 4x4)
+  // Row 3 extras (appear on 3x3 expansion)
   {
     name: 'infra',
     lines: [
       { text: '$ terraform plan', color: app.accent, delay: 5 },
       { text: '  Refreshing state...', color: app.textTertiary, delay: 18 },
       { text: '  0 to add, 0 to change', color: app.success, delay: 30 },
-    ],
-  },
-  {
-    name: 'monitoring',
-    lines: [
-      { text: '$ curl :9090/metrics', color: app.accent, delay: 8 },
-      { text: '  http_req_total 14829', color: app.textTertiary, delay: 20 },
-      { text: '  p99_latency_ms 42', color: app.textTertiary, delay: 30 },
-    ],
-  },
-  {
-    name: 'queue',
-    lines: [
-      { text: '$ bull-board', color: app.accent, delay: 6 },
-      { text: '  Active: 3 jobs', color: app.info, delay: 18 },
-      { text: '  Completed: 1204', color: app.success, delay: 28 },
-    ],
-  },
-  {
-    name: 'e2e',
-    lines: [
-      { text: '$ npx playwright test', color: app.accent, delay: 10 },
-      { text: '  login.spec (4 tests)', color: app.success, delay: 24 },
-      { text: '  api.spec (8 tests)', color: app.success, delay: 36 },
-    ],
-  },
-  // Row 4 extras
-  {
-    name: 'build',
-    lines: [
-      { text: '$ npm run build', color: app.accent, delay: 4 },
-      { text: '  Compiling TS...', color: app.textTertiary, delay: 16 },
-      { text: '  Build complete 3.2s', color: app.success, delay: 30 },
-    ],
-  },
-  {
-    name: 'lint',
-    lines: [
-      { text: '$ npm run lint', color: app.accent, delay: 7 },
-      { text: '  0 errors, 2 warnings', color: app.warning, delay: 22 },
-    ],
-  },
-  {
-    name: 'bench',
-    lines: [
-      { text: '$ npm run bench', color: app.accent, delay: 9 },
-      { text: '  /users: 2400 req/s', color: app.info, delay: 22 },
-      { text: '  /auth:  1800 req/s', color: app.info, delay: 32 },
-    ],
-  },
-  {
-    name: 'Claude #2',
-    lines: [
-      { text: '$ claude', color: app.accent, delay: 5 },
-      { text: '> infra-config session', color: app.textTertiary, delay: 16 },
-      { text: '$ review terraform plan', color: app.accent, delay: 30 },
     ],
   },
 ];
@@ -294,9 +238,13 @@ export const TerminalGridMock: React.FC<{
   gridAppearsAt?: number;
   /** Which workspace's terminals to show (0=Default, 1=Work) */
   workspaceIndex?: number;
-  /** Frame at which to start expanding to 4x4 (only for workspace 1) */
-  expandAt?: number;
-}> = ({ splitAt = 0, gridAppearsAt = 0, workspaceIndex = 0, expandAt }) => {
+  /** Grid columns (default 2) */
+  gridCols?: number;
+  /** Grid rows (default 2) */
+  gridRows?: number;
+  /** Frame at which the grid layout changed — triggers staggered fade-in for new panes */
+  layoutChangedAt?: number;
+}> = ({ splitAt = 0, gridAppearsAt = 0, workspaceIndex = 0, gridCols = 2, gridRows = 2, layoutChangedAt }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -310,20 +258,7 @@ export const TerminalGridMock: React.FC<{
   const panes = panesByWorkspace[workspaceIndex] || panesByWorkspace[0];
   const showGrid = frame >= splitAt;
   const gridGap = interpolate(gridProgress, [0, 1], [0, 4]);
-
-  // For workspace 1: expand from 2x2 → 3x3 → 4x4
-  let gridCols = 2;
-  let gridRows = 2;
-  if (workspaceIndex === 1 && expandAt !== undefined) {
-    const expandRel = frame - expandAt;
-    if (expandRel >= 20) {
-      gridCols = 4;
-      gridRows = 4;
-    } else if (expandRel >= 10) {
-      gridCols = 3;
-      gridRows = 3;
-    }
-  }
+  const totalPanes = gridRows * gridCols;
 
   return (
     <div
@@ -348,19 +283,20 @@ export const TerminalGridMock: React.FC<{
             padding: gridGap,
           }}
         >
-          {Array.from({ length: gridRows * gridCols }).map((_, idx) => {
+          {Array.from({ length: totalPanes }).map((_, idx) => {
             const pane = panes[idx % panes.length];
             const isActive = idx === 0;
-            // Stagger appearance for expanded panes
-            const isExpanded = idx >= 4;
-            const expandDelay = expandAt !== undefined ? expandAt + Math.floor(idx / 4) * 10 : gridAppearsAt;
-            const paneOffset = isExpanded ? expandDelay : gridAppearsAt;
+            // Panes beyond the original 4 fade in when layout changes
+            const isNewPane = idx >= 4;
+            const paneOffset = isNewPane && layoutChangedAt !== undefined
+              ? layoutChangedAt
+              : gridAppearsAt;
 
-            // Opacity for newly expanded panes
             let paneOpacity = 1;
-            if (isExpanded && expandAt !== undefined) {
+            if (isNewPane && layoutChangedAt !== undefined) {
+              const stagger = layoutChangedAt + (idx - 4) * 4;
               const paneProgress = spring({
-                frame: frame - expandDelay,
+                frame: frame - stagger,
                 fps,
                 config: { damping: 14, stiffness: 100 },
               });

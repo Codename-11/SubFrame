@@ -137,8 +137,8 @@ export const Outro: React.FC = () => {
         <div
           style={{
             fontFamily: fonts.mono,
-            fontSize: 17,
-            color: colors.textTertiary,
+            fontSize: 20,
+            color: colors.textSecondary,
             marginBottom: 10,
           }}
         >
@@ -147,7 +147,7 @@ export const Outro: React.FC = () => {
         <div
           style={{
             fontFamily: fonts.display,
-            fontSize: 20,
+            fontSize: 24,
             color: colors.textSecondary,
           }}
         >

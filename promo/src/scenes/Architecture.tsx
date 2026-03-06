@@ -99,7 +99,7 @@ const ModuleCard: React.FC<{
       <div
         style={{
           fontFamily: fonts.display,
-          fontSize: 15,
+          fontSize: 18,
           fontWeight: 600,
           color,
           lineHeight: 1.3,
@@ -110,8 +110,8 @@ const ModuleCard: React.FC<{
       <div
         style={{
           fontFamily: fonts.mono,
-          fontSize: 11,
-          color: app.textTertiary,
+          fontSize: 13,
+          color: app.textSecondary,
           lineHeight: 1.3,
         }}
       >
@@ -280,7 +280,7 @@ export const Architecture: React.FC = () => {
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: '#050506',
+        backgroundColor: colors.bg,
         fontFamily: fonts.display,
       }}
     >
@@ -414,7 +414,7 @@ export const Architecture: React.FC = () => {
           transform: 'translate(-50%, -50%)',
           opacity: interpolate(ipcDrawProgress, [0.3, 0.7], [0, 1]),
           padding: '6px 20px',
-          background: '#050506',
+          background: colors.bg,
           borderRadius: 20,
           border: `1px solid rgba(168, 85, 247, 0.3)`,
         }}
@@ -422,7 +422,7 @@ export const Architecture: React.FC = () => {
         <span
           style={{
             fontFamily: fonts.mono,
-            fontSize: 13,
+            fontSize: 15,
             fontWeight: 600,
             color: colors.accentPurple,
             letterSpacing: '0.06em',
@@ -445,7 +445,7 @@ export const Architecture: React.FC = () => {
         <div
           style={{
             fontFamily: fonts.mono,
-            fontSize: 11,
+            fontSize: 14,
             fontWeight: 600,
             color: colors.accentPurple,
             letterSpacing: '0.1em',
@@ -457,8 +457,8 @@ export const Architecture: React.FC = () => {
         <div
           style={{
             fontFamily: fonts.mono,
-            fontSize: 10,
-            color: app.textMuted,
+            fontSize: 12,
+            color: app.textTertiary,
           }}
         >
           Node.js + Electron
@@ -478,7 +478,7 @@ export const Architecture: React.FC = () => {
         <div
           style={{
             fontFamily: fonts.mono,
-            fontSize: 11,
+            fontSize: 14,
             fontWeight: 600,
             color: colors.accentPink,
             letterSpacing: '0.1em',
@@ -490,8 +490,8 @@ export const Architecture: React.FC = () => {
         <div
           style={{
             fontFamily: fonts.mono,
-            fontSize: 10,
-            color: app.textMuted,
+            fontSize: 12,
+            color: app.textTertiary,
           }}
         >
           React 19 + TypeScript
@@ -551,7 +551,7 @@ export const Architecture: React.FC = () => {
       >
         <div
           style={{
-            fontSize: 26,
+            fontSize: 30,
             fontWeight: 500,
             color: app.textSecondary,
             letterSpacing: '-0.01em',

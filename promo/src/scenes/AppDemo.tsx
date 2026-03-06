@@ -28,14 +28,14 @@ import { CursorMock } from '../ui/CursorMock';
  *   195-255: AI Tool Selector overlay (browse tools, select Claude Code)
  *   265-330: Command palette opens, highlight steps to "Project Overview"
  *   330:     Palette closes → Overview panel cross-fades in (tab bar updates)
- *   348-395: Cursor appears, moves to sidebar workspace selector
- *   356:     Cursor clicks workspace selector
- *   360:     Workspace switch (Default -> Work) — sidebar, tabs, grid all change
- *   365:     Grid expands 2x2 -> 3x3 -> 4x4 (16 panes)
- *   385:     Cursor clicks again to switch back
- *   393:     Workspace switches back (Work -> Default) — grid returns to 2x2
- *   330-440: Overview panel with animated charts + stats
- *   440+:    Hold
+ *   340-350: Cursor appears, moves to grid layout dropdown button
+ *   352:     Cursor clicks dropdown — layout menu opens
+ *   364:     Cursor selects 3×3 — grid changes to 9 panes
+ *   375-385: Cursor moves to sidebar workspace selector
+ *   388:     Cursor clicks — workspace switch (Default → Work)
+ *   415:     Cursor clicks back — workspace switches back (Work → Default)
+ *   330-435: Overview panel with animated charts + stats
+ *   435+:    Hold
  */
 
 export const AppDemo: React.FC = () => {
@@ -60,17 +60,17 @@ export const AppDemo: React.FC = () => {
   const introTextOpacity = interpolate(introTextProgress, [0, 1], [0, 1]);
   const introTextY = interpolate(introTextProgress, [0, 1], [15, 0]);
 
-  // Entire intro fades out
-  const introFadeOut = interpolate(frame, [40, 60], [1, 0], {
+  // Entire intro fades out — stays longer before dissolving
+  const introFadeOut = interpolate(frame, [95, 120], [1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-  const showIntro = frame < 60;
+  const showIntro = frame < 120;
 
-  // ─── App chrome animations (shifted forward by ~35 frames) ──────────────────
+  // ─── App chrome animations (starts sooner, fades in behind intro) ─────────
 
   const chromeProgress = spring({
-    frame: frame - 35,
+    frame: frame - 25,
     fps,
     config: { damping: 16, stiffness: 80 },
   });
@@ -120,9 +120,15 @@ export const AppDemo: React.FC = () => {
   // Which panel toggle is active in the tab bar (0=Tasks, 2=Overview)
   const activePanelIndex = showOverview ? 2 : 0;
 
-  // Workspace switching — cursor clicks at ~356, switch happens at 360, back at 393
+  // Grid layout — cursor clicks dropdown at ~356, hovers 3×3 at ~372, selects at ~378
+  const gridLayout = frame >= 378 ? '3x3' : '2x2';
+  const showGridDropdown = frame >= 358 && frame < 380;
+  const gridDropdownHighlight = frame >= 370 && frame < 380 ? '3x3' : undefined;
+  const layoutChangedAt = 378;
+
+  // Workspace switching — cursor clicks at ~442, switch happens at 444, back at 484
   const activeProjectIndex =
-    frame >= 360 && frame < 393 ? 1 : 0;
+    frame >= 444 && frame < 484 ? 1 : 0;
 
   // Title bar text follows active workspace's first project
   const titleBarProject = activeProjectIndex === 1
@@ -173,8 +179,8 @@ export const AppDemo: React.FC = () => {
       ) * interpolate(frame, [322, 329], [1, 0], { extrapolateRight: 'clamp' })
     : 0;
 
-  // "Project Overview" label when overview appears
-  const showLabel4 = frame >= 335 && frame < 415;
+  // "Project Overview" label when overview appears (ends before grid dropdown)
+  const showLabel4 = frame >= 335 && frame < 350;
   const label4Opacity = showLabel4
     ? interpolate(
         spring({
@@ -184,21 +190,35 @@ export const AppDemo: React.FC = () => {
         }),
         [0, 1],
         [0, 1]
-      ) * interpolate(frame, [405, 415], [1, 0], { extrapolateRight: 'clamp' })
+      ) * interpolate(frame, [345, 352], [1, 0], { extrapolateRight: 'clamp' })
     : 0;
 
-  // "Multi-Workspace" label during workspace switch
-  const showLabel5 = frame >= 362 && frame < 398;
-  const label5Opacity = showLabel5
+  // "Grid Layout" label during grid dropdown + hold on 3×3
+  const showLabel5a = frame >= 356 && frame < 435;
+  const label5aOpacity = showLabel5a
     ? interpolate(
         spring({
-          frame: frame - 362,
+          frame: frame - 356,
           fps,
           config: { damping: 14, stiffness: 100 },
         }),
         [0, 1],
         [0, 1]
-      ) * interpolate(frame, [393, 400], [1, 0], { extrapolateRight: 'clamp' })
+      ) * interpolate(frame, [430, 437], [1, 0], { extrapolateRight: 'clamp' })
+    : 0;
+
+  // "Multi-Workspace" label during workspace switch
+  const showLabel5 = frame >= 442 && frame < 510;
+  const label5Opacity = showLabel5
+    ? interpolate(
+        spring({
+          frame: frame - 442,
+          fps,
+          config: { damping: 14, stiffness: 100 },
+        }),
+        [0, 1],
+        [0, 1]
+      ) * interpolate(frame, [505, 512], [1, 0], { extrapolateRight: 'clamp' })
     : 0;
 
   return (
@@ -362,7 +382,10 @@ export const AppDemo: React.FC = () => {
               gridAt={150}
               activePanelIndex={activePanelIndex}
               workspaceIndex={activeProjectIndex}
-              expandGridAt={365}
+              gridLayout={gridLayout}
+              showGridDropdown={showGridDropdown}
+              gridDropdownHighlight={gridDropdownHighlight}
+              layoutChangedAt={layoutChangedAt}
             />
           </div>
 
@@ -433,16 +456,31 @@ export const AppDemo: React.FC = () => {
           </div>
         )}
 
-        {/* Cursor for workspace switch — guides viewer's eye to sidebar */}
+        {/* Cursor — grid dropdown then workspace switch */}
         <CursorMock
-          enterAt={348}
-          exitAt={395}
+          enterAt={340}
+          exitAt={515}
           waypoints={[
-            { frame: 348, x: 600, y: 450 },
-            { frame: 356, x: 80, y: 150, click: true },
-            { frame: 375, x: 80, y: 150 },
-            { frame: 385, x: 80, y: 150, click: true },
-            { frame: 395, x: 300, y: 300 },
+            // Start from center of terminal area
+            { frame: 340, x: 700, y: 400 },
+            // Move to grid layout dropdown button in tab bar
+            { frame: 354, x: 1136, y: 56, click: true },
+            // Hold while dropdown opens
+            { frame: 362, x: 1136, y: 56 },
+            // Move down through dropdown to "3×3" option (5th item)
+            { frame: 372, x: 1136, y: 170 },
+            // Click 3×3
+            { frame: 376, x: 1136, y: 170, click: true },
+            // Grid changes — pause to let viewer see 3×3
+            { frame: 395, x: 700, y: 400 },
+            // Move to sidebar workspace selector
+            { frame: 440, x: 80, y: 150, click: true },
+            // Workspace switches — hold to see Work workspace
+            { frame: 468, x: 80, y: 150 },
+            // Click back to Default
+            { frame: 480, x: 80, y: 150, click: true },
+            // Workspace switches back — drift away
+            { frame: 510, x: 400, y: 350 },
           ]}
         />
       </div>
@@ -513,6 +551,23 @@ export const AppDemo: React.FC = () => {
             }}
           >
             Project Overview — stats, charts, git activity
+          </span>
+        </div>
+      )}
+      {label5aOpacity > 0.01 && (
+        <div style={{ position: 'absolute', bottom: 56, opacity: label5aOpacity }}>
+          <span
+            style={{
+              fontFamily: fonts.mono,
+              fontSize: 14,
+              color: app.accent,
+              padding: '6px 16px',
+              background: app.bgSecondary,
+              borderRadius: 8,
+              border: `1px solid rgba(212, 165, 116, 0.2)`,
+            }}
+          >
+            Grid Layout — 1×2 up to 3×3
           </span>
         </div>
       )}
