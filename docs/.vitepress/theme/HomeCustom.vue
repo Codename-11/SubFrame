@@ -95,6 +95,32 @@ function scrollTo(href: string) {
   }
 }
 
+// Platform detection
+type Platform = 'macos' | 'windows' | 'linux' | 'unknown'
+const detectedPlatform = ref<Platform>('unknown')
+const releaseBaseUrl = 'https://github.com/Codename-11/SubFrame/releases/latest'
+
+onMounted(() => {
+  const ua = navigator.userAgent.toLowerCase()
+  if (ua.includes('mac')) detectedPlatform.value = 'macos'
+  else if (ua.includes('win')) detectedPlatform.value = 'windows'
+  else if (ua.includes('linux')) detectedPlatform.value = 'linux'
+})
+
+const platformLabel: Record<Platform, string> = {
+  macos: 'macOS',
+  windows: 'Windows',
+  linux: 'Linux',
+  unknown: 'your platform',
+}
+
+const platformIcon: Record<Platform, string> = {
+  macos: 'apple',
+  windows: 'windows',
+  linux: 'linux',
+  unknown: 'download',
+}
+
 const faqItems = [
   {
     question: 'What is SubFrame?',
@@ -173,7 +199,7 @@ const faqItems = [
 
           <div class="hero-actions">
             <a href="#download" class="btn btn-accent btn-large" @click.prevent="scrollTo('#download')">
-              Download for macOS &amp; Windows
+              Download for {{ platformLabel[detectedPlatform] }}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="7 10 12 15 17 10" />
@@ -816,7 +842,7 @@ const faqItems = [
       </div>
     </section>
 
-    <!-- CTA -->
+    <!-- CTA / Download -->
     <section class="cta" id="download">
       <div class="container">
         <div class="cta-content">
@@ -826,14 +852,15 @@ const faqItems = [
           <p class="cta-subtitle fade-in">
             SubFrame is free and open source. Download for macOS or Windows, or build from source.
           </p>
+          <p class="cta-platforms fade-in">* Available for macOS and Windows. Linux support coming soon.</p>
+
+          <!-- Primary: detected platform -->
           <div class="cta-actions fade-in">
-            <a href="https://github.com/Codename-11/SubFrame/releases" class="btn btn-accent btn-large">
-              Download SubFrame
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+            <a :href="releaseBaseUrl" class="btn btn-accent btn-large">
+              <svg v-if="detectedPlatform === 'macos'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83"/><path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/></svg>
+              <svg v-else-if="detectedPlatform === 'windows'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+              Download for {{ platformLabel[detectedPlatform] }}
             </a>
             <a href="https://github.com/Codename-11/SubFrame" class="btn btn-outline btn-large">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -841,6 +868,27 @@ const faqItems = [
               </svg>
               View Source
             </a>
+          </div>
+
+          <!-- All platforms -->
+          <div class="download-platforms fade-in">
+            <p class="download-label">All platforms</p>
+            <div class="download-links">
+              <a :href="releaseBaseUrl" class="download-platform-link">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83"/><path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/></svg>
+                <span>macOS</span>
+                <span class="download-ext">.dmg</span>
+              </a>
+              <a :href="releaseBaseUrl" class="download-platform-link">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+                <span>Windows</span>
+                <span class="download-ext">.exe</span>
+              </a>
+              <a href="https://github.com/Codename-11/SubFrame#quick-start" class="download-platform-link">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>
+                <span>Build from source</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>

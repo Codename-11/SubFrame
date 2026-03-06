@@ -806,6 +806,13 @@
   font-size: 18px;
   color: var(--sf-text-secondary);
   max-width: 500px;
+  margin: 0 auto var(--sf-space-sm);
+}
+
+.cta-platforms {
+  font-family: var(--sf-font-mono);
+  font-size: 12px;
+  color: var(--sf-text-tertiary);
   margin: 0 auto var(--sf-space-2xl);
 }
 
@@ -814,6 +821,56 @@
   align-items: center;
   justify-content: center;
   gap: var(--sf-space-md);
+}
+
+/* Download platforms row */
+.download-platforms {
+  margin-top: var(--sf-space-2xl);
+  text-align: center;
+}
+
+.download-label {
+  font-family: var(--sf-font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sf-text-tertiary);
+  margin-bottom: var(--sf-space-md);
+}
+
+.download-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sf-space-md);
+}
+
+.download-platform-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sf-space-sm);
+  padding: var(--sf-space-sm) var(--sf-space-lg);
+  background: var(--sf-bg-card);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius-md);
+  color: var(--sf-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--sf-transition-fast);
+}
+
+.download-platform-link:hover {
+  border-color: rgba(168, 85, 247, 0.25);
+  color: var(--sf-text-primary);
+  background: var(--sf-bg-elevated);
+}
+
+.download-ext {
+  font-family: var(--sf-font-mono);
+  font-size: 11px;
+  color: var(--sf-text-tertiary);
+  opacity: 0.7;
 }
 
 /* ===== FOOTER ===== */
@@ -1017,6 +1074,17 @@
   .cta-actions .btn-large {
     width: 100%;
     max-width: 320px;
+    justify-content: center;
+  }
+
+  .download-links {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .download-platform-link {
+    width: 100%;
+    max-width: 280px;
     justify-content: center;
   }
 
