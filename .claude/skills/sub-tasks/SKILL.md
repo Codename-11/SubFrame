@@ -99,6 +99,36 @@ When the user says things like "let's do this later", "add a task for...", or "w
 1. Capture the user's exact words as `userRequest`
 2. Write a detailed `description` explaining what, how, and which files
 3. Set appropriate `priority` and `category`
-4. Create the .md file
-5. Regenerate the index
-6. Confirm the task was created
+4. **Break down the work into steps** — add a `## Steps` section with `- [ ] Step label` checkboxes for each discrete piece of work. This enables the TaskTimeline UI stepper in SubFrame.
+5. Include `acceptanceCriteria` describing how to verify completion
+6. Create the .md file
+7. Regenerate the index
+8. Confirm the task was created
+
+### Writing rich task files
+
+Always include these sections when they add value:
+- **`## Steps`** — Checklist of discrete work items (`- [ ] Label`). The UI renders these as an interactive stepper with progress tracking.
+- **`## User Request`** — The user's original words as blockquotes (`> words`).
+- **`## Acceptance Criteria`** — How to verify the task is complete.
+- **`## Notes`** — Session notes, context, links to related files.
+
+Example of a well-structured task body:
+```markdown
+Implement platform-aware download buttons on the docs landing page.
+
+## Steps
+
+- [ ] Add platform detection via navigator.userAgent
+- [ ] Create download button component with OS-specific label
+- [ ] Add fallback download links for all platforms
+- [ ] Test on mobile viewports
+
+## User Request
+
+> Enhance the download section to detect the user's platform
+
+## Acceptance Criteria
+
+Download button shows correct OS label; all platforms remain accessible via secondary links.
+```

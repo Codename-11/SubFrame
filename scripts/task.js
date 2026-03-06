@@ -811,11 +811,17 @@ function cmdComplete(root, taskId) {
 }
 
 function cmdAdd(root, args) {
-  // Parse named arguments
+  // Parse named arguments (--add-step can appear multiple times)
   const opts = {};
+  const stepLabels = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith('--') && i + 1 < args.length) {
-      opts[args[i].substring(2)] = args[++i];
+      const key = args[i].substring(2);
+      if (key === 'add-step') {
+        stepLabels.push(args[++i]);
+      } else {
+        opts[key] = args[++i];
+      }
     }
   }
 
@@ -844,7 +850,7 @@ function cmdAdd(root, args) {
     context: opts.context || `Session ${now.split('T')[0]}`,
     blockedBy,
     blocks,
-    steps: [],
+    steps: stepLabels.map(label => ({ label, completed: false })),
     createdAt: now,
     updatedAt: now,
     completedAt: null,
