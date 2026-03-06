@@ -1,39 +1,40 @@
 /* Global VitePress overrides + SubFrame design tokens */
 
 :root {
-  /* SubFrame palette */
-  --sf-bg-primary: #0a0a0b;
-  --sf-bg-secondary: #111113;
-  --sf-bg-elevated: #18181b;
-  --sf-bg-card: #141416;
+  /* SubFrame palette — synthwave */
+  --sf-bg-primary: #08080a;
+  --sf-bg-secondary: #0e0e12;
+  --sf-bg-elevated: #14141a;
+  --sf-bg-card: #101014;
 
-  --sf-text-primary: #fafafa;
-  --sf-text-secondary: #a1a1aa;
-  --sf-text-tertiary: #71717a;
+  --sf-text-primary: #eeeef0;
+  --sf-text-secondary: #9d9db0;
+  --sf-text-tertiary: #6b6b80;
 
-  --sf-accent: #b480ff;
-  --sf-accent-dim: #9b6be0;
-  --sf-accent-glow: rgba(180, 128, 255, 0.15);
-  --sf-accent-subtle: rgba(180, 128, 255, 0.08);
-  --sf-accent-pink: #ff6eb4;
-  --sf-accent-cyan: #64d8ff;
-  --sf-accent-pink-glow: rgba(255, 110, 180, 0.15);
-  --sf-accent-cyan-glow: rgba(100, 216, 255, 0.12);
-  --sf-accent-gradient: linear-gradient(135deg, #b480ff, #ff6eb4, #64d8ff);
+  /* Accent — shifted toward purple, less pink */
+  --sf-accent: #a855f7;
+  --sf-accent-dim: #9333ea;
+  --sf-accent-glow: rgba(168, 85, 247, 0.18);
+  --sf-accent-subtle: rgba(168, 85, 247, 0.08);
+  --sf-accent-pink: #e040a0;
+  --sf-accent-cyan: #38d9f5;
+  --sf-accent-pink-glow: rgba(224, 64, 160, 0.12);
+  --sf-accent-cyan-glow: rgba(56, 217, 245, 0.10);
+  --sf-accent-gradient: linear-gradient(135deg, #a855f7, #e040a0, #38d9f5);
 
   --sf-color-success: #22c55e;
   --sf-color-error: #ef4444;
   --sf-color-warning: #f59e0b;
   --sf-color-info: #3b82f6;
 
-  /* Logo palette — neon synthwave */
-  --sf-logo-purple: #b480ff;
-  --sf-logo-pink: #ff6eb4;
-  --sf-logo-cyan: #64d8ff;
-  --sf-logo-gradient: linear-gradient(135deg, #b480ff, #ff6eb4, #64d8ff);
-  --sf-logo-glow-purple: rgba(180, 128, 255, 0.15);
-  --sf-logo-glow-pink: rgba(255, 110, 180, 0.12);
-  --sf-logo-glow-cyan: rgba(100, 216, 255, 0.10);
+  /* Logo palette — neon synthwave (purple-dominant) */
+  --sf-logo-purple: #a855f7;
+  --sf-logo-pink: #e040a0;
+  --sf-logo-cyan: #38d9f5;
+  --sf-logo-gradient: linear-gradient(135deg, #a855f7, #e040a0, #38d9f5);
+  --sf-logo-glow-purple: rgba(168, 85, 247, 0.18);
+  --sf-logo-glow-pink: rgba(224, 64, 160, 0.10);
+  --sf-logo-glow-cyan: rgba(56, 217, 245, 0.08);
 
   --sf-border: rgba(255, 255, 255, 0.06);
   --sf-border-hover: rgba(255, 255, 255, 0.12);

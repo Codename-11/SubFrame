@@ -38,15 +38,15 @@ const props = withDefaults(defineProps<{
       </filter>
       <!-- Ambient gradient -->
       <radialGradient :id="`${id}-ag`">
-        <stop offset="0%" stop-color="rgba(255,110,180,0.18)" />
-        <stop offset="50%" stop-color="rgba(180,128,255,0.05)" />
+        <stop offset="0%" stop-color="rgba(168,85,247,0.15)" />
+        <stop offset="50%" stop-color="rgba(224,64,160,0.04)" />
         <stop offset="100%" stop-color="transparent" />
       </radialGradient>
       <!-- Frame gradient -->
       <linearGradient v-if="frame" :id="`${id}-fg`" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#b480ff" stop-opacity="0.5" />
-        <stop offset="50%" stop-color="#ff6eb4" stop-opacity="0.4" />
-        <stop offset="100%" stop-color="#64d8ff" stop-opacity="0.5" />
+        <stop offset="0%" stop-color="#a855f7" stop-opacity="0.5" />
+        <stop offset="50%" stop-color="#e040a0" stop-opacity="0.4" />
+        <stop offset="100%" stop-color="#38d9f5" stop-opacity="0.5" />
       </linearGradient>
       <!-- Orbit paths for animateMotion -->
       <path :id="`${id}-p1`" d="M32,90A58,22 0 1,0 148,90A58,22 0 1,0 32,90" />
@@ -66,8 +66,8 @@ const props = withDefaults(defineProps<{
 
     <!-- Orbit 1: Purple -->
     <g transform="rotate(0,90,90)">
-      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.3)" stroke-width="1.5" />
-      <circle r="3" fill="#b480ff" :filter="`url(#${id}-ge)`">
+      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(168,85,247,0.3)" stroke-width="1.5" />
+      <circle r="3" fill="#a855f7" :filter="`url(#${id}-ge)`">
         <animateMotion v-if="animate" dur="4s" begin="0s" repeatCount="indefinite">
           <mpath :href="`#${id}-p1`" />
         </animateMotion>
@@ -77,10 +77,10 @@ const props = withDefaults(defineProps<{
       </circle>
     </g>
 
-    <!-- Orbit 2: Pink (dashed) -->
+    <!-- Orbit 2: Neon pink (dashed) -->
     <g transform="rotate(60,90,90)">
-      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.25)" stroke-width="1.5" stroke-dasharray="5 3.5" />
-      <circle r="3" fill="#ff6eb4" :filter="`url(#${id}-ge)`">
+      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(224,64,160,0.25)" stroke-width="1.5" stroke-dasharray="5 3.5" />
+      <circle r="3" fill="#e040a0" :filter="`url(#${id}-ge)`">
         <animateMotion v-if="animate" dur="5.5s" begin="-1.833s" repeatCount="indefinite">
           <mpath :href="`#${id}-p2`" />
         </animateMotion>
@@ -89,16 +89,16 @@ const props = withDefaults(defineProps<{
 
     <!-- Orbit 3: Cyan -->
     <g transform="rotate(120,90,90)">
-      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.22)" stroke-width="1.5" />
-      <circle r="3" fill="#64d8ff" :filter="`url(#${id}-ge)`">
+      <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(56,217,245,0.22)" stroke-width="1.5" />
+      <circle r="3" fill="#38d9f5" :filter="`url(#${id}-ge)`">
         <animateMotion v-if="animate" dur="7s" begin="-4.667s" repeatCount="indefinite">
           <mpath :href="`#${id}-p3`" />
         </animateMotion>
       </circle>
     </g>
 
-    <!-- Nucleus -->
-    <circle cx="90" cy="90" r="5.5" fill="#ff6eb4" :filter="`url(#${id}-gn)`">
+    <!-- Nucleus — purple-dominant -->
+    <circle cx="90" cy="90" r="5.5" fill="#a855f7" :filter="`url(#${id}-gn)`">
       <animate v-if="animate" attributeName="r" values="5;6.5;5" dur="2.5s" repeatCount="indefinite"
         calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1" />
     </circle>

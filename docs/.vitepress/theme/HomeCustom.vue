@@ -148,13 +148,14 @@ const faqItems = [
     <section class="hero">
       <div class="container">
         <div class="hero-content">
-          <div class="hero-badge">
-            <span>Claude &middot; Codex &middot; Gemini</span>
-          </div>
-
-          <div class="hero-beta-badge">
-            <span class="beta-dot"></span>
-            Public Beta &mdash; Help us test and shape SubFrame
+          <div class="hero-badges">
+            <div class="hero-badge">
+              <span>Claude &middot; Codex &middot; Gemini</span>
+            </div>
+            <div class="hero-beta-badge">
+              <span class="beta-dot"></span>
+              Public Beta &mdash; Help us test and shape SubFrame
+            </div>
           </div>
 
           <div class="hero-logo" aria-hidden="true">
