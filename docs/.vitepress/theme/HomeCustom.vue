@@ -212,6 +212,18 @@ const faqItems = [
           </div>
         </div>
 
+        <!-- Promo Video -->
+        <div class="hero-video">
+          <video
+            src="/assets/promo.mp4"
+            autoplay
+            loop
+            muted
+            playsinline
+            preload="auto"
+          />
+        </div>
+
         <!-- Terminal Preview -->
         <TerminalMockup />
       </div>

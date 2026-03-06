@@ -324,6 +324,24 @@
   }
 }
 
+/* ===== PROMO VIDEO ===== */
+.hero-video {
+  width: 100%;
+  max-width: 880px;
+  margin: var(--sf-space-xl) auto var(--sf-space-lg);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--sf-border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: fadeInUp 0.6s ease-out 0.8s both;
+}
+
+.hero-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* ===== TERMINAL PREVIEW ===== */
 .hero-preview {
   margin-top: var(--sf-space-4xl);

@@ -1,0 +1,21 @@
+{
+  "name": "subframe-promo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Promo out/promo.mp4",
+    "render:gif": "remotion render src/index.ts Promo out/promo.gif --image-format png"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.291",
+    "@remotion/google-fonts": "4.0.291",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "4.0.291"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.5.0"
+  }
+}
