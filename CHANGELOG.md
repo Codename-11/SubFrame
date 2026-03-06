@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.4] - 2026-03-05
+
 ### Added
 - **Theme system**: Full theme customization with 4 built-in presets (Classic Amber, Synthwave Traces, Midnight Purple, Terminal Green), custom theme creation, color pickers, and feature toggles (neon traces, CRT scanlines, logo glow)
 - **Appearance tab**: New first tab in Settings — preset gallery with live switching, color customization, save/delete custom themes
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docs site theme**: Replaced generic amber accent with logo's neon synthwave palette (purple/pink/cyan) across landing, docs, and blog pages
 - **Terminal grid drag-to-swap**: Slot-based grid model supports dragging terminals between filled and empty cells
 - **Usage element resilience**: Session usage pill persists through API errors with stale-while-revalidate; shows "Usage unavailable" with contextual tooltip on cold start 429/401 errors
+- **Pipeline system**: Configurable CI/review pipelines with AI-powered stages, YAML workflow templates, and run history tracking
 
 ### Fixed
 - Terminal grid drag-to-empty pane not working (replaced ordered-list model with slot-based grid positions)
