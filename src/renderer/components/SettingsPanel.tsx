@@ -209,13 +209,23 @@ export function SettingsPanel() {
                   const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
                   const allThemes = [...BUILTIN_THEMES, ...customThemes];
                   return allThemes.map((theme) => (
-                    <motion.button
+                    <motion.div
                       key={theme.id}
                       whileTap={{ scale: 0.97 }}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => {
                         setActiveThemeId(theme.id);
                         setCustomTokenOverrides({});
                         updateSetting.mutate([{ key: 'appearance.activeThemeId', value: theme.id }]);
+                      }}
+                      onKeyDown={(e: React.KeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setActiveThemeId(theme.id);
+                          setCustomTokenOverrides({});
+                          updateSetting.mutate([{ key: 'appearance.activeThemeId', value: theme.id }]);
+                        }
                       }}
                       className={`relative text-left rounded-lg p-3 border transition-colors cursor-pointer ${
                         activeThemeId === theme.id
@@ -255,7 +265,7 @@ export function SettingsPanel() {
                           <Trash2 className="w-3 h-3" />
                         </button>
                       )}
-                    </motion.button>
+                    </motion.div>
                   ));
                 })()}
               </div>

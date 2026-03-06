@@ -107,7 +107,15 @@ export function TerminalTabBar({
   // Load Claude usage data
   useEffect(() => {
     const handler = (_event: unknown, data: any) => {
-      setUsageData(data);
+      // On error, preserve existing usage values if backend didn't
+      if (data?.error && !(data.fiveHour || data.sevenDay)) {
+        setUsageData(prev => prev?.fiveHour || prev?.sevenDay
+          ? { ...prev, error: data.error, lastUpdated: data.lastUpdated }
+          : data
+        );
+      } else {
+        setUsageData(data);
+      }
     };
     ipcRenderer.on(IPC.CLAUDE_USAGE_DATA, handler);
     ipcRenderer.send(IPC.LOAD_CLAUDE_USAGE);
@@ -337,16 +345,23 @@ export function TerminalTabBar({
       </div>
 
       {/* Context usage bars — collapsed by default, weekly expands on hover */}
-      {usageData && !usageData.error && (usageData.fiveHour || usageData.sevenDay) && (
+      {usageData && (usageData.fiveHour || usageData.sevenDay || usageData.error) && (
         <div
-          className="group/usage flex items-center gap-2 px-2 py-0.5 bg-bg-tertiary border border-border-subtle
+          className={`group/usage flex items-center gap-2 px-2 py-0.5 bg-bg-tertiary border border-border-subtle
                      rounded-md cursor-pointer hover:bg-bg-hover hover:border-border-default transition-all
-                     flex-shrink-0 mr-1 overflow-hidden"
+                     flex-shrink-0 mr-1 overflow-hidden ${usageData.error && usageData.fiveHour ? 'opacity-80' : ''}`}
           onClick={() => ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE)}
-          title={usageData.error ? `Error: ${usageData.error}\nClick to refresh` : 'Click to refresh'}
+          title={usageData.error
+            ? `${usageData.error}\n${usageData.error.includes('429') ? 'Rate limited by Anthropic API — will retry automatically' : usageData.error.includes('401') ? 'OAuth token may be expired — re-authenticate Claude Code' : usageData.error.includes('No OAuth') ? 'No OAuth token found — sign in to Claude Code first' : 'Temporary error'}${usageData.fiveHour ? '\nShowing cached data' : ''}\nClick to retry now`
+            : 'Click to refresh'}
         >
-          {usageData.fiveHour && (
+          {usageData.error && (
+            <span className="h-1.5 w-1.5 rounded-full bg-warning flex-shrink-0 animate-pulse" title={usageData.fiveHour ? 'Stale data' : 'Unavailable'} />
+          )}
+          {usageData.fiveHour ? (
             <UsageItem label="Session" utilization={usageData.fiveHour.utilization} resetsAt={usageData.fiveHour.resetsAt} />
+          ) : usageData.error && (
+            <span className="text-[10px] text-text-secondary whitespace-nowrap">Usage unavailable</span>
           )}
           {usageData.sevenDay && (
             <div className="max-w-0 opacity-0 overflow-hidden transition-all duration-300 ease-in-out

@@ -180,24 +180,24 @@ function fetchUsage(): Promise<UsageData> {
           } else if (res.statusCode === 401) {
             resolve({
               error: 'Token expired or invalid',
-              fiveHour: null,
-              sevenDay: null,
-              lastUpdated: new Date().toISOString()
+              fiveHour: cachedUsage?.fiveHour || null,
+              sevenDay: cachedUsage?.sevenDay || null,
+              lastUpdated: cachedUsage?.lastUpdated || new Date().toISOString()
             });
           } else {
             resolve({
               error: `API error: ${res.statusCode}`,
-              fiveHour: null,
-              sevenDay: null,
-              lastUpdated: new Date().toISOString()
+              fiveHour: cachedUsage?.fiveHour || null,
+              sevenDay: cachedUsage?.sevenDay || null,
+              lastUpdated: cachedUsage?.lastUpdated || new Date().toISOString()
             });
           }
         } catch (_parseErr) {
           resolve({
             error: 'Failed to parse response',
-            fiveHour: null,
-            sevenDay: null,
-            lastUpdated: new Date().toISOString()
+            fiveHour: cachedUsage?.fiveHour || null,
+            sevenDay: cachedUsage?.sevenDay || null,
+            lastUpdated: cachedUsage?.lastUpdated || new Date().toISOString()
           });
         }
       });
@@ -227,13 +227,18 @@ function fetchUsage(): Promise<UsageData> {
 }
 
 /**
- * Send usage data to renderer
+ * Send usage data to renderer, with retry on transient errors (429, network)
  */
-async function sendUsageToRenderer(): Promise<void> {
+async function sendUsageToRenderer(retries = 2, delay = 5000): Promise<void> {
   if (!mainWindow || mainWindow.isDestroyed()) return;
 
   const usage = await fetchUsage();
   mainWindow.webContents.send(IPC.CLAUDE_USAGE_DATA, usage);
+
+  // Retry on transient errors if we have no cached data yet
+  if (usage.error && !cachedUsage && retries > 0) {
+    setTimeout(() => sendUsageToRenderer(retries - 1, delay * 2), delay);
+  }
 }
 
 /**

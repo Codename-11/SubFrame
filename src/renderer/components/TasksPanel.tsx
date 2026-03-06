@@ -59,8 +59,11 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 const CATEGORY_COLORS: Record<string, string> = {
   feature: 'bg-violet-900/60 text-violet-300',
+  enhancement: 'bg-indigo-900/60 text-indigo-300',
+  bug: 'bg-orange-900/60 text-orange-300',
   fix: 'bg-orange-900/60 text-orange-300',
   refactor: 'bg-cyan-900/60 text-cyan-300',
+  research: 'bg-pink-900/60 text-pink-300',
   docs: 'bg-blue-900/60 text-blue-300',
   test: 'bg-teal-900/60 text-teal-300',
   chore: 'bg-zinc-700 text-zinc-300',
@@ -68,8 +71,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const CATEGORY_SHORT: Record<string, string> = {
   feature: 'Feat',
+  enhancement: 'Enh',
+  bug: 'Bug',
   fix: 'Fix',
   refactor: 'Refac',
+  research: 'Rsrch',
   docs: 'Docs',
   test: 'Test',
   chore: 'Chore',
@@ -1095,8 +1101,10 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                   className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-1.5 text-sm text-text-primary"
                 >
                   <option value="feature">Feature</option>
+                  <option value="enhancement">Enhancement</option>
                   <option value="bug">Bug</option>
                   <option value="refactor">Refactor</option>
+                  <option value="research">Research</option>
                   <option value="docs">Docs</option>
                   <option value="test">Test</option>
                   <option value="chore">Chore</option>
