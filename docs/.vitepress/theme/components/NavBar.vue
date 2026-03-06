@@ -13,7 +13,7 @@ function onAnchorClick(e: Event, href: string) {
     el.scrollIntoView({ behavior: 'smooth' })
   } else {
     // Navigate to homepage with hash
-    window.location.href = withBase('/') + href.slice(1)
+    window.location.href = withBase('/') + href
   }
 }
 
@@ -32,7 +32,7 @@ function onMobileNav(e: Event, href: string) {
         </div>
         <div class="logo-label">
           <span class="logo-text">SubFrame</span>
-          <span class="logo-version">Latest: v0.1.0-beta.1</span>
+          <span class="logo-version">Latest: v0.1.0-beta.3</span>
         </div>
       </a>
 
