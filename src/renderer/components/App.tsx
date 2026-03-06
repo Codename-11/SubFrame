@@ -166,10 +166,7 @@ export function App() {
     };
     const onOpenSettings = () => useUIStore.getState().setSettingsOpen(true);
     const onNewTerminal = () => {
-      const projectPath = useProjectStore.getState().currentProjectPath;
-      if (projectPath) {
-        ipcRenderer.send(IPC.TERMINAL_CREATE, { projectPath, cwd: projectPath });
-      }
+      window.dispatchEvent(new CustomEvent('menu-new-terminal'));
     };
 
     ipcRenderer.on(IPC.MENU_TOGGLE_SIDEBAR, onToggleSidebar);

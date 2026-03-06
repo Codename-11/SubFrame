@@ -130,11 +130,10 @@ export function TerminalArea() {
       }, 5000);
       (creatingTerminal as any)._safetyTimeout = safetyTimeout;
 
-      typedSend(IPC.TERMINAL_CREATE, {
-        projectPath: currentProjectPath ?? undefined,
-        shell: shell ?? undefined,
-        cwd: currentProjectPath ?? undefined,
-      });
+      const payload: Record<string, string> = {};
+      if (currentProjectPath) { payload.projectPath = currentProjectPath; payload.cwd = currentProjectPath; }
+      if (typeof shell === 'string') { payload.shell = shell; }
+      typedSend(IPC.TERMINAL_CREATE, payload as any);
     },
     [currentProjectPath]
   );
@@ -203,6 +202,13 @@ export function TerminalArea() {
     window.addEventListener('menu-close-terminal', handler);
     return () => window.removeEventListener('menu-close-terminal', handler);
   }, [closeTerminal]);
+
+  // Listen for menu-triggered new terminal (dispatched from App.tsx menu handler)
+  useEffect(() => {
+    const handler = () => createTerminal();
+    window.addEventListener('menu-new-terminal', handler);
+    return () => window.removeEventListener('menu-new-terminal', handler);
+  }, [createTerminal]);
 
   // Per-project session save/restore on project switch and initial mount
   useEffect(() => {

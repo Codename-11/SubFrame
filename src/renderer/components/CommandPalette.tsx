@@ -183,10 +183,9 @@ export function CommandPalette() {
             <CommandShortcut>Ctrl+Shift+Enter</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => runAction(() => {
-            typedSend(IPC.TERMINAL_CREATE, {
-              projectPath: currentProjectPath ?? undefined,
-              cwd: currentProjectPath ?? undefined,
-            });
+            const payload: Record<string, string> = {};
+            if (currentProjectPath) { payload.projectPath = currentProjectPath; payload.cwd = currentProjectPath; }
+            typedSend(IPC.TERMINAL_CREATE, payload as any);
           })}>
             <Plus className="text-text-tertiary" />
             <span>New Terminal</span>
