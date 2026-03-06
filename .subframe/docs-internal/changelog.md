@@ -6,6 +6,47 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Terminal Grid & Usage Element Improvements (2026-03-05)
+
+#### Terminal Grid Drag-to-Swap
+- **Slot-based grid model**: Replaced sequential ordered-list model with `(string | null)[]` grid slots
+  - Each cell index directly maps to a terminal ID or null (empty)
+  - Supports sparse placement: empty cells can appear anywhere, not just at the end
+  - Swap logic: simple array index swap works for all combos (filled↔filled, filled↔empty)
+- **Draggable header bar**: Left section (grip + name) is the drag handle; right section has action buttons
+  - Buttons have `p-1` padding + hover background for larger click target
+  - Prevents accidental drags when clicking maximize/close
+- **Terminal sync effect**: Rebuilds slots when terminals added/removed, preserving existing positions
+- **Files**: `TerminalGrid.tsx` (rewritten grid model)
+
+#### Usage Element Resilience
+- **Stale-while-revalidate**: Backend preserves `cachedUsage` on errors; renderer preserves existing values
+- **Cold start 429 handling**: Shows "Usage unavailable" with amber pulse indicator when API fails on first load
+- **Contextual tooltips**: Different messages for 429 rate limit, 401 expired token, no OAuth token
+- **Retry with backoff**: Backend retries twice (5s, 10s) on cold start transient errors
+- **Files**: `claudeUsageManager.ts`, `TerminalTabBar.tsx`
+
+#### Electron IPC Fixes
+- **IPC sanitizer**: `sanitizeForIPC()` in `ipc.ts` strips `undefined` values from all `typedSend`/`typedInvoke` payloads
+- **Terminal creation routing**: Menu Ctrl+Shift+T now dispatches CustomEvent through TerminalArea's `createTerminal()` guard
+- **Structured clone fix**: CommandPalette and TerminalArea build payloads imperatively (no `undefined` properties)
+- **Clone error root cause**: `TerminalGrid.tsx` had `onClick={onCreateTerminal}` passing React `MouseEvent` as the `shell` parameter — a non-cloneable object. Fixed with `onClick={() => onCreateTerminal()}` wrapper + `typeof shell === 'string'` guard in `createTerminal()`
+- **Nested button fix**: Settings theme preset card changed from `motion.button` to `motion.div` with `role="button"`
+- **Files**: `ipc.ts`, `App.tsx`, `TerminalArea.tsx`, `TerminalGrid.tsx`, `CommandPalette.tsx`, `SettingsPanel.tsx`
+
+#### Hook Path Fix
+- **Root cause**: Hook commands in `.claude/settings.json` used relative paths (`node .subframe/hooks/stop.js`). When CWD was a subdirectory like `promo/`, the path resolved to `promo/.subframe/hooks/stop.js` which doesn't exist
+- **Fix**: All hook commands now use `$(git rev-parse --show-toplevel)` to anchor paths to the repo root
+- **Files**: `.claude/settings.json`
+
+#### Grid Pane-Targeted Terminal Creation
+- **Pending slot ref**: `TerminalGrid.tsx` tracks which empty pane was clicked via `pendingSlotRef`
+- **Priority assignment**: Slot rebuild effect fills the pending slot first before falling back to first-available
+- **One-shot**: Ref is cleared after use, so only the immediate next terminal goes to the targeted pane
+- **Files**: `TerminalGrid.tsx`
+
+---
+
 ### Added
 - **Pipeline system** — Configurable CI/review pipelines with AI-powered stages
   - Pipeline execution engine with topological job sort (Kahn's algorithm), sequential stage execution, freeze semantics, approval gates, and AbortController cancellation

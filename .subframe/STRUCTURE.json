@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-05",
+  "lastUpdated": "2026-03-06",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -664,13 +664,17 @@
         },
         "sendUsageToRenderer": {
           "line": 232,
-          "purpose": "Send usage data to renderer",
+          "params": [
+            "retries",
+            "delay"
+          ],
+          "purpose": "Send usage data to renderer, with retry on transient errors (429, network)",
           "calls": [
             "fetchUsage"
           ]
         },
         "startPolling": {
-          "line": 242,
+          "line": 247,
           "params": [
             "interval"
           ],
@@ -681,11 +685,11 @@
           ]
         },
         "stopPolling": {
-          "line": 260,
+          "line": 265,
           "purpose": "Stop polling"
         },
         "setupIPC": {
-          "line": 270,
+          "line": 275,
           "params": [
             "ipcMain"
           ],
@@ -695,14 +699,14 @@
           ]
         },
         "cleanup": {
-          "line": 287,
+          "line": 292,
           "purpose": "Cleanup on app quit",
           "calls": [
             "stopPolling"
           ]
         }
       },
-      "loc": 293,
+      "loc": 298,
       "ipc": {
         "listens": [
           "LOAD_CLAUDE_USAGE",
@@ -1349,29 +1353,30 @@
         "promptsManager",
         "onboardingManager",
         "updaterManager",
+        "pipelineManager",
         "shared/logoSVG"
       ],
       "functions": {
         "getWindowStatePath": {
-          "line": 57,
+          "line": 58,
           "purpose": "Get path for persisted window state"
         },
         "loadWindowState": {
-          "line": 64,
+          "line": 65,
           "purpose": "Load saved window state (bounds + maximized)",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "saveWindowState": {
-          "line": 76,
+          "line": 77,
           "purpose": "Save current window state",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "createSplash": {
-          "line": 89,
+          "line": 90,
           "params": [
             "bounds",
             "isMaximized"
@@ -1382,7 +1387,7 @@
           ]
         },
         "createWindow": {
-          "line": 136,
+          "line": 137,
           "purpose": "Create main application window",
           "calls": [
             "createSplash",
@@ -1392,25 +1397,25 @@
           ]
         },
         "setupAllIPC": {
-          "line": 269,
+          "line": 270,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 317,
+          "line": 319,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 328,
+          "line": 330,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 366,
+      "loc": 369,
       "ipc": {
         "listens": [
           "GET_RELEASE_NOTES",
@@ -1851,6 +1856,509 @@
         ],
         "emits": []
       }
+    },
+    "main/pipelineManager": {
+      "file": "src\\main\\pipelineManager.ts",
+      "description": "Pipeline Manager Module Orchestrates pipeline runs: parses workflows, executes jobs/stages, handles approval gates, and pushes progress events to the renderer.",
+      "exports": [
+        "init",
+        "setupIPC",
+        "watchWorkflows",
+        "unwatchWorkflows",
+        "watchPrePushTrigger",
+        "unwatchPrePushTrigger"
+      ],
+      "depends": [
+        "fs",
+        "path",
+        "crypto",
+        "child_process",
+        "shared/ipcChannels",
+        "shared/frameConstants",
+        "pipelineWorkflowParser",
+        "aiToolManager"
+      ],
+      "functions": {
+        "uid": {
+          "line": 53,
+          "purpose": "─── Helpers ─────────────────────────────────────────────────────────────────"
+        },
+        "now": {
+          "line": 57
+        },
+        "send": {
+          "line": 61,
+          "params": [
+            "channel",
+            "data"
+          ]
+        },
+        "emitProgress": {
+          "line": 67,
+          "params": [
+            "runId",
+            "stageId",
+            "log"
+          ],
+          "calls": [
+            "send"
+          ]
+        },
+        "broadcastRunUpdate": {
+          "line": 72,
+          "params": [
+            "run"
+          ],
+          "calls": [
+            "send"
+          ]
+        },
+        "broadcastRunsList": {
+          "line": 76,
+          "params": [
+            "projectPath"
+          ],
+          "calls": [
+            "send"
+          ]
+        },
+        "ensurePipelinesDir": {
+          "line": 86,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Get the pipelines directory, creating it if needed."
+        },
+        "ensureWorkflowsDir": {
+          "line": 97,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Ensure the workflows directory exists, seeding with default workflow if empty.",
+          "calls": [
+            "getHealthCheckWorkflow"
+          ]
+        },
+        "persistRuns": {
+          "line": 112,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Persist runs to .subframe/pipelines/runs.json",
+          "calls": [
+            "ensurePipelinesDir"
+          ]
+        },
+        "loadPersistedRuns": {
+          "line": 134,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Load persisted runs from disk.",
+          "calls": [
+            "now"
+          ]
+        },
+        "execAsync": {
+          "line": 159,
+          "params": [
+            "cmd",
+            "cwd: string"
+          ],
+          "purpose": "Run a shell command and return stdout."
+        },
+        "topologicalSortJobs": {
+          "line": 177,
+          "params": [
+            "jobs",
+            "{ name?: string; needs?: string[]; steps: WorkflowStep[] }>"
+          ],
+          "purpose": "Returns an ordered array of [jobId, WorkflowJob] pairs."
+        },
+        "stepToStageType": {
+          "line": 228,
+          "params": [
+            "step"
+          ],
+          "purpose": "Map a workflow step's `uses` value to a StageType."
+        },
+        "buildRun": {
+          "line": 241,
+          "params": [
+            "workflow",
+            "projectPath",
+            "trigger",
+            "branch",
+            "baseSha",
+            "headSha: string"
+          ],
+          "purpose": "Build a PipelineRun from a workflow definition.",
+          "calls": [
+            "now",
+            "stepToStageType",
+            "topologicalSortJobs",
+            "uid"
+          ]
+        },
+        "executeRun": {
+          "line": 302,
+          "params": [
+            "runCtx",
+            "workflow"
+          ],
+          "purpose": "Execute a full pipeline run.",
+          "calls": [
+            "broadcastRunUpdate",
+            "emitProgress",
+            "getStageHandler",
+            "now",
+            "persistRuns",
+            "runCustomStage",
+            "shouldRequireApproval",
+            "waitForApproval"
+          ]
+        },
+        "shouldRequireApproval": {
+          "line": 496,
+          "params": [
+            "stage",
+            "artifacts"
+          ],
+          "purpose": "Determine if a stage should pause for approval."
+        },
+        "waitForApproval": {
+          "line": 508,
+          "params": [
+            "runCtx"
+          ],
+          "purpose": "Returns true if approved, false if rejected."
+        },
+        "init": {
+          "line": 531,
+          "params": [
+            "window"
+          ],
+          "purpose": "Initialize the pipeline manager."
+        },
+        "setupIPC": {
+          "line": 538,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Setup all IPC handlers for the pipeline system.",
+          "calls": [
+            "broadcastRunUpdate",
+            "broadcastRunsList",
+            "buildRun",
+            "ensureWorkflowsDir",
+            "execAsync",
+            "executeRun",
+            "listWorkflows",
+            "loadPersistedRuns",
+            "now",
+            "persistRuns",
+            "unwatchPrePushTrigger",
+            "unwatchWorkflows",
+            "watchPrePushTrigger",
+            "watchWorkflows"
+          ]
+        },
+        "watchWorkflows": {
+          "line": 736,
+          "params": [
+            "projectPath"
+          ],
+          "calls": [
+            "send",
+            "unwatchWorkflows"
+          ]
+        },
+        "unwatchWorkflows": {
+          "line": 757
+        },
+        "startPipelineFromTrigger": {
+          "line": 772,
+          "params": [
+            "projectPath",
+            "workflowId",
+            "trigger: PipelineTrigger"
+          ],
+          "purpose": "the IPC handler and the file watcher.",
+          "calls": [
+            "broadcastRunUpdate",
+            "broadcastRunsList",
+            "buildRun",
+            "ensureWorkflowsDir",
+            "execAsync",
+            "executeRun",
+            "listWorkflows"
+          ]
+        },
+        "watchPrePushTrigger": {
+          "line": 830,
+          "params": [
+            "projectPath"
+          ],
+          "calls": [
+            "listWorkflows",
+            "startPipelineFromTrigger",
+            "unwatchPrePushTrigger"
+          ]
+        },
+        "unwatchPrePushTrigger": {
+          "line": 865
+        }
+      },
+      "loc": 882,
+      "ipc": {
+        "listens": [
+          "PIPELINE_LIST_WORKFLOWS",
+          "PIPELINE_START",
+          "PIPELINE_CANCEL",
+          "PIPELINE_APPROVE_STAGE",
+          "PIPELINE_REJECT_STAGE",
+          "PIPELINE_APPLY_PATCH",
+          "PIPELINE_LIST_RUNS",
+          "PIPELINE_GET_RUN",
+          "WATCH_PIPELINE",
+          "UNWATCH_PIPELINE"
+        ],
+        "emits": [
+          "channel"
+        ]
+      }
+    },
+    "main/pipelineStages": {
+      "file": "src\\main\\pipelineStages.ts",
+      "description": "Pipeline Stage Handlers Built-in stage implementations for the pipeline system.",
+      "exports": [
+        "runLintStage",
+        "runTestStage",
+        "runDescribeStage",
+        "runCritiqueStage",
+        "runFreezeStage",
+        "runPushStage",
+        "runCreatePrStage",
+        "runCustomStage",
+        "getStageHandler"
+      ],
+      "depends": [
+        "child_process",
+        "crypto",
+        "fs",
+        "path",
+        "shared/frameConstants"
+      ],
+      "functions": {
+        "uid": {
+          "line": 46,
+          "purpose": "─── Utilities ───────────────────────────────────────────────────────────────"
+        },
+        "now": {
+          "line": 50
+        },
+        "execAsyncWithEnv": {
+          "line": 57,
+          "params": [
+            "cmd",
+            "opts",
+            "string | undefined> }"
+          ],
+          "purpose": "Run a shell command with custom env and return stdout/stderr."
+        },
+        "execAsync": {
+          "line": 85,
+          "params": [
+            "cmd",
+            "opts: { cwd: string; signal?: AbortSignal }"
+          ],
+          "purpose": "Run a shell command and return stdout/stderr."
+        },
+        "getDiff": {
+          "line": 115,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Get the diff between baseSha and headSha.",
+          "calls": [
+            "execAsync"
+          ]
+        },
+        "spawnAITool": {
+          "line": 138,
+          "params": [
+            "ctx",
+            "prompt: string"
+          ],
+          "purpose": "Spawn the AI tool CLI with a prompt and parse JSON from stdout."
+        },
+        "parseJSONFromOutput": {
+          "line": 189,
+          "params": [
+            "output"
+          ],
+          "purpose": "The output may contain markdown fences or other wrapping."
+        },
+        "runLintStage": {
+          "line": 231,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Runs the lint command and parses output.",
+          "calls": [
+            "execAsync",
+            "now",
+            "parseJSONFromOutput",
+            "parseLintOutput",
+            "spawnAITool",
+            "uid"
+          ]
+        },
+        "parseLintOutput": {
+          "line": 321,
+          "params": [
+            "output",
+            "stageId"
+          ],
+          "purpose": "Handles patterns like: file.ts:10:5: error message",
+          "calls": [
+            "now",
+            "uid"
+          ]
+        },
+        "runTestStage": {
+          "line": 348,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Spawns AI tool with diff context to run/evaluate tests.",
+          "calls": [
+            "getDiff",
+            "now",
+            "parseJSONFromOutput",
+            "spawnAITool",
+            "uid"
+          ]
+        },
+        "runDescribeStage": {
+          "line": 410,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Computes diff and spawns AI tool for PR description.",
+          "calls": [
+            "getDiff",
+            "now",
+            "parseJSONFromOutput",
+            "spawnAITool",
+            "uid"
+          ]
+        },
+        "runCritiqueStage": {
+          "line": 472,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Produces CommentArtifact[] for inline comments and ContentArtifact for summary.",
+          "calls": [
+            "getDiff",
+            "now",
+            "parseJSONFromOutput",
+            "spawnAITool",
+            "uid"
+          ]
+        },
+        "runFreezeStage": {
+          "line": 590,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Marks frozen=true on subsequent stages and produces a summary artifact.",
+          "calls": [
+            "now",
+            "uid"
+          ]
+        },
+        "runPushStage": {
+          "line": 618,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Executes `git push` with safety checks.",
+          "calls": [
+            "execAsync",
+            "now",
+            "uid"
+          ]
+        },
+        "runCreatePrStage": {
+          "line": 682,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Uses `gh pr create` with accumulated describe artifacts for the PR body.",
+          "calls": [
+            "execAsync",
+            "now",
+            "uid"
+          ]
+        },
+        "runCustomStage": {
+          "line": 759,
+          "params": [
+            "ctx",
+            "step",
+            "string> }"
+          ],
+          "purpose": "Executes the `run:` shell command or `uses:` script from a workflow step."
+        },
+        "getStageHandler": {
+          "line": 860,
+          "params": [
+            "stageType"
+          ],
+          "purpose": "Resolve a stage type string to its handler function."
+        }
+      },
+      "loc": 872
+    },
+    "main/pipelineWorkflowParser": {
+      "file": "src\\main\\pipelineWorkflowParser.ts",
+      "description": "Pipeline Workflow Parser Parses YAML workflow files from .subframe/workflows/*.yml",
+      "exports": [
+        "parseWorkflow",
+        "listWorkflows",
+        "getDefaultWorkflow",
+        "getTaskVerificationWorkflow",
+        "getHealthCheckWorkflow"
+      ],
+      "depends": [
+        "fs",
+        "path",
+        "yaml",
+        "shared/frameConstants",
+        "shared/frameTemplates"
+      ],
+      "functions": {
+        "parseWorkflow": {
+          "line": 17,
+          "params": [
+            "content"
+          ],
+          "purpose": "Validates required fields: name, on, jobs."
+        },
+        "listWorkflows": {
+          "line": 65,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "List all workflows from the .subframe/workflows/ directory of a project.",
+          "calls": [
+            "parseWorkflow"
+          ]
+        }
+      },
+      "loc": 96
     },
     "main/pluginsManager": {
       "file": "src\\main\\pluginsManager.ts",
@@ -3308,7 +3816,7 @@
           ]
         }
       },
-      "loc": 288,
+      "loc": 291,
       "ipc": {
         "listens": [
           "MENU_TOGGLE_SIDEBAR",
@@ -3318,9 +3826,7 @@
           "MENU_OPEN_SETTINGS",
           "MENU_NEW_TERMINAL"
         ],
-        "emits": [
-          "TERMINAL_CREATE"
-        ]
+        "emits": []
       }
     },
     "renderer/components/CommandPalette": {
@@ -3345,7 +3851,35 @@
           ]
         }
       },
-      "loc": 285
+      "loc": 284
+    },
+    "renderer/components/CritiqueView": {
+      "file": "src\\renderer\\components\\CritiqueView.tsx",
+      "description": "CritiqueView — Displays CommentArtifact[] grouped by file with severity badges.",
+      "exports": [
+        "CritiqueView"
+      ],
+      "depends": [
+        "react",
+        "framer-motion",
+        "lucide-react",
+        "lib/utils"
+      ],
+      "functions": {
+        "SeverityBadge": {
+          "line": 22,
+          "params": [
+            "{ severity }"
+          ]
+        },
+        "CritiqueView": {
+          "line": 38,
+          "params": [
+            "{ artifacts }"
+          ]
+        }
+      },
+      "loc": 153
     },
     "renderer/components/DecisionsDetailView": {
       "file": "src\\renderer\\components\\DecisionsDetailView.tsx",
@@ -3665,16 +4199,16 @@
       ],
       "functions": {
         "Kbd": {
-          "line": 79,
+          "line": 81,
           "params": [
             "{ children }"
           ]
         },
         "KeyboardShortcuts": {
-          "line": 96
+          "line": 98
         }
       },
-      "loc": 135
+      "loc": 137
     },
     "renderer/components/OnboardingDialog": {
       "file": "src\\renderer\\components\\OnboardingDialog.tsx",
@@ -3843,6 +4377,214 @@
         }
       },
       "loc": 589
+    },
+    "renderer/components/PatchReview": {
+      "file": "src\\renderer\\components\\PatchReview.tsx",
+      "description": "PatchReview — Displays PatchArtifact[] with diff preview and apply controls.",
+      "exports": [
+        "PatchReview"
+      ],
+      "depends": [
+        "react",
+        "framer-motion",
+        "lucide-react",
+        "ui/button",
+        "lib/utils"
+      ],
+      "functions": {
+        "DiffView": {
+          "line": 18,
+          "params": [
+            "{ diff }"
+          ]
+        },
+        "PatchReview": {
+          "line": 43,
+          "params": [
+            "{ artifacts",
+            "onApplyPatch }"
+          ]
+        }
+      },
+      "loc": 227
+    },
+    "renderer/components/PipelineLogView": {
+      "file": "src\\renderer\\components\\PipelineLogView.tsx",
+      "description": "PipelineLogView — Scrollable log viewer for pipeline stage output.",
+      "exports": [
+        "PipelineLogView"
+      ],
+      "depends": [
+        "react",
+        "framer-motion",
+        "lucide-react",
+        "lib/utils"
+      ],
+      "functions": {
+        "StageStatusBadge": {
+          "line": 24,
+          "params": [
+            "{ status }"
+          ]
+        },
+        "PipelineLogView": {
+          "line": 33,
+          "params": [
+            "{ stages",
+            "logs }"
+          ]
+        }
+      },
+      "loc": 171
+    },
+    "renderer/components/PipelinePanel": {
+      "file": "src\\renderer\\components\\PipelinePanel.tsx",
+      "description": "PipelinePanel — Main pipeline panel supporting side-panel and full-view modes. Shows workflow selector, run list, and run detail with tabs.",
+      "exports": [
+        "PipelinePanel"
+      ],
+      "depends": [
+        "react",
+        "framer-motion",
+        "ui/button",
+        "ui/scroll-area",
+        "ui/tabs",
+        "lib/utils",
+        "hooks/usePipeline",
+        "PipelineTimeline"
+      ],
+      "functions": {
+        "formatRelativeTime": {
+          "line": 49,
+          "params": [
+            "dateString"
+          ],
+          "purpose": "─── Utilities ───────────────────────────────────────────────────────────────"
+        },
+        "StatusBadge": {
+          "line": 87,
+          "params": [
+            "{ status }"
+          ],
+          "purpose": "─── Sub-components ──────────────────────────────────────────────────────────"
+        },
+        "RunListItem": {
+          "line": 98,
+          "params": [
+            "{\r\n  run",
+            "isSelected",
+            "onSelect",
+            "}: {\r\n  run: PipelineRun;\r\n  isSelected: boolean;\r\n  onSelect"
+          ]
+        },
+        "OverviewTab": {
+          "line": 146,
+          "params": [
+            "{ run",
+            "onStageClick }"
+          ]
+        },
+        "ArtifactCard": {
+          "line": 180,
+          "params": [
+            "{ artifact }"
+          ]
+        },
+        "ContentArtifactCard": {
+          "line": 193,
+          "params": [
+            "{ artifact }"
+          ]
+        },
+        "CommentArtifactCard": {
+          "line": 206,
+          "params": [
+            "{ artifact }"
+          ]
+        },
+        "PatchArtifactSummary": {
+          "line": 228,
+          "params": [
+            "{ artifact }"
+          ]
+        },
+        "CritiqueView": {
+          "line": 253,
+          "params": [
+            "{ run }"
+          ]
+        },
+        "PatchReview": {
+          "line": 296,
+          "params": [
+            "{\r\n  run",
+            "onApplyPatch",
+            "}: {\r\n  run: PipelineRun;\r\n  onApplyPatch"
+          ]
+        },
+        "PipelineLogView": {
+          "line": 363,
+          "params": [
+            "{\r\n  run",
+            "logs",
+            "initialStageId",
+            "}: {\r\n  run: PipelineRun;\r\n  logs",
+            "string[]>;\r\n  initialStageId?: string | null;\r\n}"
+          ]
+        },
+        "PipelinePanel": {
+          "line": 435,
+          "params": [
+            "{ isFullView"
+          ]
+        }
+      },
+      "loc": 720
+    },
+    "renderer/components/PipelineTimeline": {
+      "file": "src\\renderer\\components\\PipelineTimeline.tsx",
+      "description": "PipelineTimeline — Horizontal stage flow visualization for pipeline runs. Compact mode shows a progress bar with count. Full mode shows stage nodes connected by lines with status indicators.",
+      "exports": [
+        "PipelineTimeline"
+      ],
+      "depends": [
+        "framer-motion",
+        "lucide-react",
+        "lib/utils"
+      ],
+      "functions": {
+        "formatDuration": {
+          "line": 19,
+          "params": [
+            "ms"
+          ]
+        },
+        "countFinished": {
+          "line": 29,
+          "params": [
+            "stages"
+          ]
+        },
+        "PipelineTimeline": {
+          "line": 33,
+          "params": [
+            "{ stages",
+            "onStageClick",
+            "compact }"
+          ]
+        },
+        "StageNode": {
+          "line": 109,
+          "params": [
+            "{ stage",
+            "index",
+            "total",
+            "prevStatus",
+            "onClick }"
+          ]
+        }
+      },
+      "loc": 250
     },
     "renderer/components/PluginsPanel": {
       "file": "src\\renderer\\components\\PluginsPanel.tsx",
@@ -4137,24 +4879,25 @@
         "SubFrameHealthPanel",
         "AgentStateView",
         "SkillsPanel",
-        "PromptsPanel"
+        "PromptsPanel",
+        "PipelinePanel"
       ],
       "functions": {
         "getGroup": {
-          "line": 90,
+          "line": 94,
           "params": [
             "panelId"
           ]
         },
         "RightPanel": {
-          "line": 112,
+          "line": 117,
           "calls": [
             "cn",
             "getGroup"
           ]
         }
       },
-      "loc": 283
+      "loc": 288
     },
     "renderer/components/SessionsPanel": {
       "file": "src\\renderer\\components\\SessionsPanel.tsx",
@@ -4252,7 +4995,7 @@
           ]
         }
       },
-      "loc": 1134
+      "loc": 1144
     },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
@@ -4547,26 +5290,26 @@
       ],
       "functions": {
         "groupByCategory": {
-          "line": 41,
+          "line": 43,
           "params": [
             "components"
           ]
         },
         "getStatusBadge": {
-          "line": 53,
+          "line": 55,
           "params": [
             "comp"
           ],
           "purpose": "── Status helpers ──"
         },
         "getStatusIcon": {
-          "line": 63,
+          "line": 65,
           "params": [
             "comp"
           ]
         },
         "SimpleCheckbox": {
-          "line": 92,
+          "line": 94,
           "params": [
             "{\r\n  checked",
             "onChange",
@@ -4576,7 +5319,7 @@
           "purpose": "── Simple checkbox (no shadcn Checkbox available) ──"
         },
         "SubFrameHealthPanel": {
-          "line": 112,
+          "line": 114,
           "calls": [
             "cn",
             "getStatusBadge",
@@ -4586,7 +5329,7 @@
           ]
         }
       },
-      "loc": 434
+      "loc": 436
     },
     "renderer/components/TaskGraph": {
       "file": "src\\renderer\\components\\TaskGraph.tsx",
@@ -4602,7 +5345,7 @@
       ],
       "functions": {
         "getLayoutedElements": {
-          "line": 79,
+          "line": 85,
           "params": [
             "nodes",
             "edges",
@@ -4610,7 +5353,7 @@
           ]
         },
         "TaskCardNode": {
-          "line": 116,
+          "line": 122,
           "params": [
             "{ data",
             "selected",
@@ -4620,7 +5363,7 @@
           "purpose": "── Custom card node ─────────────────────────────────────────────────"
         },
         "TaskGraphInner": {
-          "line": 212,
+          "line": 218,
           "params": [
             "{ tasks",
             "onSelectTask",
@@ -4629,13 +5372,13 @@
           ]
         },
         "TaskGraph": {
-          "line": 313,
+          "line": 319,
           "params": [
             "props"
           ]
         }
       },
-      "loc": 320
+      "loc": 326
     },
     "renderer/components/TaskKanban": {
       "file": "src\\renderer\\components\\TaskKanban.tsx",
@@ -4654,13 +5397,13 @@
       ],
       "functions": {
         "formatDate": {
-          "line": 75,
+          "line": 81,
           "params": [
             "iso"
           ]
         },
         "TaskCard": {
-          "line": 97,
+          "line": 103,
           "params": [
             "{\r\n  task",
             "isExpanded",
@@ -4673,7 +5416,7 @@
           ]
         },
         "TaskKanban": {
-          "line": 281,
+          "line": 287,
           "params": [
             "{\r\n  tasks",
             "onUpdateStatus",
@@ -4685,7 +5428,7 @@
           ]
         }
       },
-      "loc": 440
+      "loc": 446
     },
     "renderer/components/TasksPanel": {
       "file": "src\\renderer\\components\\TasksPanel.tsx",
@@ -4716,7 +5459,7 @@
       ],
       "functions": {
         "formToMarkdown": {
-          "line": 93,
+          "line": 99,
           "params": [
             "description",
             "steps",
@@ -4725,26 +5468,26 @@
           ]
         },
         "markdownToForm": {
-          "line": 124,
+          "line": 130,
           "params": [
             "md"
           ]
         },
         "formatDate": {
-          "line": 183,
+          "line": 189,
           "params": [
             "iso"
           ]
         },
         "SortHeader": {
-          "line": 211,
+          "line": 217,
           "params": [
             "{ column",
             "label }"
           ]
         },
         "TaskActions": {
-          "line": 233,
+          "line": 239,
           "params": [
             "{\r\n  task",
             "onUpdateStatus",
@@ -4757,20 +5500,20 @@
           ]
         },
         "TasksPanel": {
-          "line": 330,
+          "line": 336,
           "params": [
             "{ isFullView"
           ]
         },
         "TaskDetail": {
-          "line": 1137,
+          "line": 1145,
           "params": [
             "{ task",
             "updateTask }"
           ]
         }
       },
-      "loc": 1205,
+      "loc": 1213,
       "ipc": {
         "listens": [],
         "emits": [
@@ -4858,6 +5601,7 @@
         "TasksPanel",
         "StatsDetailView",
         "DecisionsDetailView",
+        "PipelinePanel",
         "ErrorBoundary",
         "stores/useTerminalStore",
         "stores/useProjectStore",
@@ -4871,20 +5615,20 @@
       ],
       "functions": {
         "saveSession": {
-          "line": 45,
+          "line": 46,
           "params": [
             "projectPath",
             "store"
           ]
         },
         "loadSession": {
-          "line": 77,
+          "line": 78,
           "params": [
             "projectPath"
           ]
         },
         "TerminalArea": {
-          "line": 87,
+          "line": 88,
           "calls": [
             "createTerminal",
             "getLogoSVG",
@@ -4896,7 +5640,7 @@
           ]
         }
       },
-      "loc": 583,
+      "loc": 601,
       "ipc": {
         "listens": [
           "TERMINAL_CREATED",
@@ -4908,7 +5652,7 @@
     },
     "renderer/components/TerminalGrid": {
       "file": "src\\renderer\\components\\TerminalGrid.tsx",
-      "description": "Terminal grid layout component. Renders terminals in a CSS Grid with resize handles between cells.",
+      "description": "Terminal grid layout component. Renders terminals in a CSS Grid with resize handles between cells. Supports drag-to-swap reordering of grid cells.",
       "exports": [
         "TerminalGrid"
       ],
@@ -4920,7 +5664,7 @@
       ],
       "functions": {
         "TerminalGrid": {
-          "line": 28,
+          "line": 29,
           "params": [
             "{ onCloseTerminal",
             "onCreateTerminal",
@@ -4928,7 +5672,7 @@
           ]
         }
       },
-      "loc": 279
+      "loc": 387
     },
     "renderer/components/TerminalTabBar": {
       "file": "src\\renderer\\components\\TerminalTabBar.tsx",
@@ -4949,7 +5693,7 @@
       ],
       "functions": {
         "TerminalTabBar": {
-          "line": 64,
+          "line": 65,
           "params": [
             "{\r\n  onCreateTerminal",
             "onCloseTerminal",
@@ -4960,7 +5704,7 @@
           ]
         },
         "UsageItem": {
-          "line": 585,
+          "line": 602,
           "params": [
             "{ label",
             "utilization",
@@ -4968,13 +5712,13 @@
           ]
         },
         "ResetTime": {
-          "line": 608,
+          "line": 625,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 627,
+      "loc": 644,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -5368,6 +6112,58 @@
         }
       },
       "loc": 24
+    },
+    "renderer/hooks/usePipeline": {
+      "file": "src\\renderer\\hooks\\usePipeline.ts",
+      "description": "TanStack Query hooks for pipeline management. Wraps PIPELINE_LIST_RUNS (send/on) + PIPELINE_START, PIPELINE_CANCEL, etc. mutations.",
+      "exports": [
+        "usePipeline",
+        "usePipelineWorkflows",
+        "usePipelineProgress"
+      ],
+      "depends": [
+        "electron",
+        "@tanstack/react-query",
+        "lib/ipc",
+        "useIPCListener",
+        "stores/useProjectStore",
+        "react"
+      ],
+      "functions": {
+        "usePipeline": {
+          "line": 24,
+          "purpose": "Query hook that loads pipeline runs via send/on pattern and keeps cache fresh via IPC events.",
+          "calls": [
+            "typedInvoke",
+            "typedSend",
+            "useIPCEvent"
+          ]
+        },
+        "usePipelineWorkflows": {
+          "line": 152,
+          "purpose": "Query hook for available workflow definitions.",
+          "calls": [
+            "typedInvoke"
+          ]
+        },
+        "usePipelineProgress": {
+          "line": 175,
+          "params": [
+            "runId"
+          ],
+          "purpose": "Hook that listens to PIPELINE_PROGRESS events and maintains a log buffer per stage.",
+          "calls": [
+            "useIPCEvent"
+          ]
+        }
+      },
+      "loc": 204,
+      "ipc": {
+        "listens": [
+          "PIPELINE_RUNS_DATA"
+        ],
+        "emits": []
+      }
     },
     "renderer/hooks/usePlugins": {
       "file": "src\\renderer\\hooks\\usePlugins.ts",
@@ -5835,16 +6631,26 @@
           ],
           "purpose": "Type-safe ipcRenderer.invoke — maps channel to args and return type."
         },
+        "sanitizeForIPC": {
+          "line": 25,
+          "params": [
+            "value"
+          ],
+          "purpose": "Does NOT recurse into class instances, Maps, Sets, etc. to avoid infinite loops."
+        },
         "typedSend": {
-          "line": 23,
+          "line": 41,
           "params": [
             "channel",
             "...args: IPCSendMap[K] extends void ? [] : [payload: IPCSendMap[K]]"
           ],
-          "purpose": "Type-safe ipcRenderer.send — maps channel to payload type."
+          "purpose": "Type-safe ipcRenderer.send — maps channel to payload type.",
+          "calls": [
+            "sanitizeForIPC"
+          ]
         },
         "typedOn": {
-          "line": 38,
+          "line": 56,
           "params": [
             "channel",
             "handler",
@@ -5853,7 +6659,7 @@
           "purpose": "Returns an unsubscribe function."
         }
       },
-      "loc": 47,
+      "loc": 65,
       "ipc": {
         "listens": [
           "channel"
@@ -6318,6 +7124,8 @@
         "FRAME_BIN_DIR",
         "GITHOOKS_DIR",
         "FRAME_TASKS_DIR",
+        "FRAME_WORKFLOWS_DIR",
+        "FRAME_PIPELINES_DIR",
         "FRAME_VERSION",
         "INTELLIGENCE_FILES"
       ],
@@ -6326,7 +7134,7 @@
         "path"
       ],
       "functions": {},
-      "loc": 89
+      "loc": 96
     },
     "shared/frameTemplates": {
       "file": "src\\shared\\frameTemplates.ts",
@@ -6344,6 +7152,7 @@
         "getGenericWrapperTemplate",
         "getNativeFileTemplate",
         "getPreCommitHookTemplate",
+        "getPrePushHookTemplate",
         "getHookUpdaterScript",
         "getSessionStartHookTemplate",
         "getPromptSubmitHookTemplate",
@@ -6355,6 +7164,9 @@
         "getSubDocsSkillTemplate",
         "getSubAuditSkillTemplate",
         "getOnboardSkillTemplate",
+        "getDefaultReviewWorkflow",
+        "getTaskVerifyWorkflow",
+        "getHealthCheckWorkflow",
         "AGENTS_TEMPLATE_VERSION"
       ],
       "depends": [
@@ -6471,22 +7283,26 @@
           "line": 845,
           "purpose": "Pre-commit hook template for user projects"
         },
+        "getPrePushHookTemplate": {
+          "line": 891,
+          "purpose": "Triggers pipeline workflows configured with \"on: { push: true }\"."
+        },
         "getHookUpdaterScript": {
-          "line": 890,
+          "line": 918,
           "purpose": "Pre-commit hook updater script (Node.js)",
           "calls": [
             "stripExt"
           ]
         },
         "stripExt": {
-          "line": 906,
+          "line": 934,
           "params": [
             "p"
           ],
           "purpose": "Strip any JS/TS extension for module key"
         },
         "getSessionStartHookTemplate": {
-          "line": 1023,
+          "line": 1051,
           "purpose": "Injects pending/in-progress sub-tasks into Claude's context at session start.",
           "calls": [
             "findTasksFile",
@@ -6494,7 +7310,7 @@
           ]
         },
         "findTasksFile": {
-          "line": 1221,
+          "line": 1249,
           "params": [
             "startDir"
           ],
@@ -6503,7 +7319,7 @@
           ]
         },
         "main": {
-          "line": 1613,
+          "line": 1641,
           "purpose": "── Main ────────────────────────────────────────────────────────────────────",
           "calls": [
             "cleanStaleSessions",
@@ -6513,7 +7329,7 @@
           ]
         },
         "getPromptSubmitHookTemplate": {
-          "line": 1109,
+          "line": 1137,
           "purpose": "Fuzzy-matches user prompts against pending sub-task titles.",
           "calls": [
             "findTasksFile",
@@ -6522,14 +7338,14 @@
           ]
         },
         "matchScore": {
-          "line": 1134,
+          "line": 1162,
           "params": [
             "prompt",
             "title"
           ]
         },
         "getStopHookTemplate": {
-          "line": 1196,
+          "line": 1224,
           "purpose": "Reminds about in-progress sub-tasks and detects untracked work.",
           "calls": [
             "findProjectRoot",
@@ -6539,20 +7355,20 @@
           ]
         },
         "findProjectRoot": {
-          "line": 1560,
+          "line": 1588,
           "params": [
             "startDir"
           ],
           "purpose": "── Helpers ─────────────────────────────────────────────────────────────────"
         },
         "getModifiedSourceFiles": {
-          "line": 1228,
+          "line": 1256,
           "params": [
             "projectRoot"
           ]
         },
         "getPreToolUseHookTemplate": {
-          "line": 1300,
+          "line": 1328,
           "purpose": "Writes a \"running\" step to agent-state.json for real-time agent visualization.",
           "calls": [
             "buildLabel",
@@ -6564,34 +7380,34 @@
           ]
         },
         "buildLabel": {
-          "line": 1348,
+          "line": 1376,
           "params": [
             "toolName",
             "toolInput"
           ]
         },
         "loadState": {
-          "line": 1569,
+          "line": 1597,
           "params": [
             "statePath"
           ]
         },
         "writeState": {
-          "line": 1578,
+          "line": 1606,
           "params": [
             "statePath",
             "state"
           ]
         },
         "cleanStaleSessions": {
-          "line": 1595,
+          "line": 1623,
           "params": [
             "state",
             "now"
           ]
         },
         "getPostToolUseHookTemplate": {
-          "line": 1540,
+          "line": 1568,
           "purpose": "Marks matching running step as \"completed\" in agent-state.json.",
           "calls": [
             "cleanStaleSessions",
@@ -6602,27 +7418,37 @@
           ]
         },
         "getClaudeSettingsHooksTemplate": {
-          "line": 1704,
+          "line": 1732,
           "purpose": "Returns the hooks portion of .claude/settings.json pointing to .subframe/hooks/"
         },
         "getSubTasksSkillTemplate": {
-          "line": 1745,
+          "line": 1773,
           "purpose": "instead of the SubFrame-app-specific scripts/task.js CLI"
         },
         "getSubDocsSkillTemplate": {
-          "line": 1856,
+          "line": 1884,
           "purpose": "/sub-docs skill template — generalized for any SubFrame-managed project"
         },
         "getSubAuditSkillTemplate": {
-          "line": 1952,
+          "line": 1980,
           "purpose": "/sub-audit skill template — generalized for any SubFrame-managed project"
         },
         "getOnboardSkillTemplate": {
-          "line": 2040,
+          "line": 2068,
           "purpose": "/onboard skill template — analyze project intelligence and bootstrap SubFrame files"
+        },
+        "getDefaultReviewWorkflow": {
+          "line": 2285,
+          "purpose": "─── Pipeline Workflow Templates ──────────────────────────────────────────────"
+        },
+        "getTaskVerifyWorkflow": {
+          "line": 2325
+        },
+        "getHealthCheckWorkflow": {
+          "line": 2344
         }
       },
-      "loc": 2254
+      "loc": 2365
     },
     "shared/ipcChannels": {
       "file": "src\\shared\\ipcChannels.ts",
@@ -6634,7 +7460,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 969
+      "loc": 1124
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -6717,7 +7543,7 @@
           "purpose": "Initialize a project as a SubFrame project."
         }
       },
-      "loc": 326
+      "loc": 353
     },
     "shared/subframeHealth": {
       "file": "src\\shared\\subframeHealth.ts",
@@ -6736,7 +7562,7 @@
       ],
       "functions": {
         "checkComponent": {
-          "line": 190,
+          "line": 227,
           "params": [
             "projectPath",
             "entry: ComponentRegistryEntry"
@@ -6748,7 +7574,7 @@
           ]
         },
         "getSubFrameHealth": {
-          "line": 309,
+          "line": 346,
           "params": [
             "projectPath"
           ],
@@ -6760,15 +7586,15 @@
           ]
         },
         "getComponentRegistry": {
-          "line": 343,
+          "line": 380,
           "purpose": "Get the component registry (for use by update handlers)."
         },
         "getHooksDir": {
-          "line": 350,
+          "line": 387,
           "purpose": "Get the hooks directory path constant."
         }
       },
-      "loc": 353
+      "loc": 390
     },
     "shared/themeTypes": {
       "file": "src\\shared\\themeTypes.ts",
@@ -7292,6 +8118,13 @@
         "description": "CommandPalette — Floating command palette triggered by Ctrl+/. Provides quick access to actions, panel toggles, terminal commands, project switching, and settings."
       }
     ],
+    "critique-view": [
+      {
+        "module": "renderer/components/CritiqueView",
+        "file": "src\\renderer\\components\\CritiqueView.tsx",
+        "description": "CritiqueView — Displays CommentArtifact[] grouped by file with severity badges."
+      }
+    ],
     "decisions-detail-view": [
       {
         "module": "renderer/components/DecisionsDetailView",
@@ -7477,6 +8310,53 @@
         "module": "renderer/components/OverviewPanel",
         "file": "src\\renderer\\components\\OverviewPanel.tsx",
         "description": "OverviewPanel — Dashboard view with project stats cards. Uses Framer Motion stagger animation on mount."
+      }
+    ],
+    "patch-review": [
+      {
+        "module": "renderer/components/PatchReview",
+        "file": "src\\renderer\\components\\PatchReview.tsx",
+        "description": "PatchReview — Displays PatchArtifact[] with diff preview and apply controls."
+      }
+    ],
+    "pipeline": [
+      {
+        "module": "main/pipelineManager",
+        "file": "src\\main\\pipelineManager.ts",
+        "description": "Pipeline Manager Module Orchestrates pipeline runs: parses workflows, executes jobs/stages, handles approval gates, and pushes progress events to the renderer."
+      },
+      {
+        "module": "renderer/components/PipelinePanel",
+        "file": "src\\renderer\\components\\PipelinePanel.tsx",
+        "description": "PipelinePanel — Main pipeline panel supporting side-panel and full-view modes. Shows workflow selector, run list, and run detail with tabs."
+      }
+    ],
+    "pipeline-log-view": [
+      {
+        "module": "renderer/components/PipelineLogView",
+        "file": "src\\renderer\\components\\PipelineLogView.tsx",
+        "description": "PipelineLogView — Scrollable log viewer for pipeline stage output."
+      }
+    ],
+    "pipeline-stages": [
+      {
+        "module": "main/pipelineStages",
+        "file": "src\\main\\pipelineStages.ts",
+        "description": "Pipeline Stage Handlers Built-in stage implementations for the pipeline system."
+      }
+    ],
+    "pipeline-timeline": [
+      {
+        "module": "renderer/components/PipelineTimeline",
+        "file": "src\\renderer\\components\\PipelineTimeline.tsx",
+        "description": "PipelineTimeline — Horizontal stage flow visualization for pipeline runs. Compact mode shows a progress bar with count. Full mode shows stage nodes connected by lines with status indicators."
+      }
+    ],
+    "pipeline-workflow-parser": [
+      {
+        "module": "main/pipelineWorkflowParser",
+        "file": "src\\main\\pipelineWorkflowParser.ts",
+        "description": "Pipeline Workflow Parser Parses YAML workflow files from .subframe/workflows/*.yml"
       }
     ],
     "plugins": [
@@ -7670,7 +8550,7 @@
       {
         "module": "renderer/components/TerminalGrid",
         "file": "src\\renderer\\components\\TerminalGrid.tsx",
-        "description": "Terminal grid layout component. Renders terminals in a CSS Grid with resize handles between cells."
+        "description": "Terminal grid layout component. Renders terminals in a CSS Grid with resize handles between cells. Supports drag-to-swap reordering of grid cells."
       },
       {
         "module": "renderer/components/TerminalTabBar",
@@ -7774,6 +8654,13 @@
         "module": "renderer/hooks/useOverview",
         "file": "src\\renderer\\hooks\\useOverview.ts",
         "description": "TanStack Query hook for project overview data."
+      }
+    ],
+    "use-pipeline": [
+      {
+        "module": "renderer/hooks/usePipeline",
+        "file": "src\\renderer\\hooks\\usePipeline.ts",
+        "description": "TanStack Query hooks for pipeline management. Wraps PIPELINE_LIST_RUNS (send/on) + PIPELINE_START, PIPELINE_CANCEL, etc. mutations."
       }
     ],
     "use-plugins": [

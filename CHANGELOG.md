@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ThemeProvider component**: Runtime CSS variable injection, shadcn/ui token sync, data-attribute feature toggles
 - **Neon trace CSS system**: `[data-neon-traces]` and `[data-scanlines]` attribute-driven styles in globals.css
 - **Docs site theme**: Replaced generic amber accent with logo's neon synthwave palette (purple/pink/cyan) across landing, docs, and blog pages
+- **Terminal grid drag-to-swap**: Slot-based grid model supports dragging terminals between filled and empty cells
+- **Usage element resilience**: Session usage pill persists through API errors with stale-while-revalidate; shows "Usage unavailable" with contextual tooltip on cold start 429/401 errors
+
+### Fixed
+- Terminal grid drag-to-empty pane not working (replaced ordered-list model with slot-based grid positions)
+- Ctrl+Shift+T not spawning terminal in grid mode (Electron menu accelerator intercept, now routes through CustomEvent)
+- "An object could not be cloned" Electron IPC error on terminal creation (React `MouseEvent` leaking through `onClick={handler}` into optional `shell` parameter)
+- Nested `<button>` inside `<button>` HTML violation in Settings theme preset gallery
+- Grid empty pane "New Terminal" button now places the terminal in the clicked pane instead of the first empty slot
+- Usage element text unreadable in error state (upgraded from `text-text-muted` to `text-text-secondary`, removed compounding opacity)
+- Hook commands failing in subdirectories (relative paths resolved to wrong CWD; now anchored to git root via `git rev-parse`)
 
 ## [0.1.0-beta.3] - 2026-03-03
 

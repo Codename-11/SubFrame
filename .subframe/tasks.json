@@ -1,34 +1,27 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking index (SubFrame's task system)",
+    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-05",
+    "lastUpdated": "2026-03-06",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-05T17:29:02.910Z",
-  "taskSchema": {
-    "_comment": "This schema shows the expected structure for each task",
-    "id": "unique-id (task-xxx format)",
-    "title": "Short actionable title (max 60 chars)",
-    "description": "Claude's detailed explanation - what, how, which files affected",
-    "userRequest": "Original user prompt/request - copy verbatim",
-    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
-    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
-    "status": "pending | in_progress | completed",
-    "priority": "high | medium | low",
-    "category": "feature | fix | refactor | docs | test",
-    "context": "Session date and context",
-    "blockedBy": "Array of task IDs this task is blocked by",
-    "blocks": "Array of task IDs this task blocks",
-    "steps": "Array of { label, completed } step objects",
-    "createdAt": "ISO timestamp",
-    "updatedAt": "ISO timestamp",
-    "completedAt": "ISO timestamp | null"
-  },
+  "lastUpdated": "2026-03-06T01:53:57.912Z",
   "tasks": {
     "pending": [
+      {
+        "id": "task-1772674776397-kc624grpq",
+        "title": "Task Editor UI Option",
+        "status": "pending",
+        "priority": "medium",
+        "category": "refactor",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T01:39:36.397Z",
+        "updatedAt": "2026-03-05T01:39:36.397Z",
+        "completedAt": null
+      },
       {
         "id": "task-1772722916748-m562u62l7",
         "title": "Left Sidebar 'Add Projects' via add new folder doesn't add to workspace",
@@ -39,23 +32,7 @@
         "blocks": [],
         "createdAt": "2026-03-05T15:01:56.748Z",
         "updatedAt": "2026-03-05T15:01:56.748Z",
-        "completedAt": null,
-        "description": "The left sidebar 'Add Projects' discovery overlay doesn't allow refresh or when user adds project to workspace via Add Folder (File Explorer) nothing happens. Adding from 'Discovered' does work.",
-        "steps": []
-      },
-      {
-        "id": "task-1772722979366-6otdbdyb2",
-        "title": "Add 'Enhancement' catagory for Sub-Tasks",
-        "status": "pending",
-        "priority": "high",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-05T15:02:59.366Z",
-        "updatedAt": "2026-03-05T15:02:59.366Z",
-        "completedAt": null,
-        "description": "",
-        "steps": []
+        "completedAt": null
       },
       {
         "id": "task-1772723006337-9hz8gve8s",
@@ -67,9 +44,7 @@
         "blocks": [],
         "createdAt": "2026-03-05T15:03:26.337Z",
         "updatedAt": "2026-03-05T15:03:26.337Z",
-        "completedAt": null,
-        "description": "",
-        "steps": []
+        "completedAt": null
       },
       {
         "id": "task-1772731742884-0p0hh1fz8",
@@ -81,9 +56,19 @@
         "blocks": [],
         "createdAt": "2026-03-05T17:29:02.884Z",
         "updatedAt": "2026-03-05T17:29:02.884Z",
-        "completedAt": null,
-        "description": "In Settings for our AI Tool we allow setting the default start command, etc. It would be nice if common usages were below the input field as pills - respective to the AI tool used? For example Claude could have 'claude', or 'claude --dangerously-skip-permissions', etc.",
-        "steps": []
+        "completedAt": null
+      },
+      {
+        "id": "task-1772759585638-fa4jd4idr",
+        "title": "Overview Navbar status badge",
+        "status": "pending",
+        "priority": "low",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-06T01:13:05.638Z",
+        "updatedAt": "2026-03-06T01:13:05.638Z",
+        "completedAt": null
       },
       {
         "id": "task-m6",
@@ -91,14 +76,12 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "context": "todos.json - mediumTerm",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
-        "updatedAt": "2026-01-24T16:30:00.000Z",
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
         "completedAt": null,
-        "description": "Dedicated UI for Claude Code interactions",
-        "steps": []
+        "context": "todos.json - mediumTerm"
       },
       {
         "id": "task-mm9tf4gn-i6w1",
@@ -106,14 +89,12 @@
         "status": "pending",
         "priority": "low",
         "category": "infra",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:33:51.574Z",
         "updatedAt": "2026-03-02T23:33:51.574Z",
         "completedAt": null,
-        "description": "Get Apple Developer cert and Windows code signing cert to eliminate Gatekeeper/SmartScreen warnings on install. This is critical for public launch credibility.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9tf4qf-lbim",
@@ -121,14 +102,12 @@
         "status": "pending",
         "priority": "low",
         "category": "feature",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:33:51.925Z",
         "updatedAt": "2026-03-02T23:33:51.925Z",
         "completedAt": null,
-        "description": "Add opt-in usage analytics with first-launch prompt and Settings toggle. Track activation funnel (install → project opened → AI tool launched), feature usage, session duration, retention, and crash reports. Consider PostHog or custom endpoint. Must be transparent and privacy-respecting.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9tf4v9-a98g",
@@ -136,14 +115,12 @@
         "status": "pending",
         "priority": "low",
         "category": "feature",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:33:52.100Z",
         "updatedAt": "2026-03-02T23:33:52.100Z",
         "completedAt": null,
-        "description": "3-step wizard on first launch: select AI tool → set project directory → open first project. Reduces drop-off for new users who don't know where to start.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9tf53x-uwqx",
@@ -151,14 +128,12 @@
         "status": "pending",
         "priority": "low",
         "category": "feature",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:33:52.412Z",
         "updatedAt": "2026-03-02T23:33:52.412Z",
         "completedAt": null,
-        "description": "Allow users to export workspace config, tasks, and session history as a zip. Provides data portability and peace of mind.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9tfdtq-esl5",
@@ -166,14 +141,12 @@
         "status": "pending",
         "priority": "low",
         "category": "planning",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:34:03.709Z",
         "updatedAt": "2026-03-02T23:34:03.709Z",
         "completedAt": null,
-        "description": "Review BUSL-1.1 change date and additional use grant terms. Define what a future Pro tier would include (team sync, cloud sessions, advanced analytics). Document the decision in PROJECT_NOTES.md. No code changes — strategy and planning only.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9u1q50-8xrh",
@@ -181,14 +154,12 @@
         "status": "pending",
         "priority": "medium",
         "category": "refactor",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:51:26.099Z",
         "updatedAt": "2026-03-02T23:51:26.099Z",
         "completedAt": null,
-        "description": "Refactor src/renderer/lib/ipc.ts to use a pluggable Transport interface. Extract ElectronTransport (current window.electron.invoke) and prepare WebSocketTransport stub for future browser mode. useIpcQuery/useIpcMutation stay unchanged — only the underlying transport swaps. This unlocks: CDN-loaded renderer for instant UI updates in Electron, browser mode via subframe-server, and mobile/tablet access. Depends on subframe-server being ready for the WebSocket side.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9yj6xk-wovk",
@@ -196,14 +167,12 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-03",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-03T01:56:59.480Z",
         "updatedAt": "2026-03-03T01:56:59.480Z",
         "completedAt": null,
-        "description": "Create a /ux-audit skill that performs a structured heuristic evaluation of SubFrame. Should check: shortcut conflicts, missing tooltips, dead-end states, label/terminology consistency, unreachable features, empty states, error states, accessibility gaps, command palette completeness, and flow coherence. Output a structured report with severity ratings.",
-        "steps": []
+        "context": "Session 2026-03-03"
       },
       {
         "id": "task-mma0lmtu-bzg2",
@@ -211,14 +180,12 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-03",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-03T02:54:52.625Z",
         "updatedAt": "2026-03-03T02:54:52.625Z",
         "completedAt": null,
-        "description": "Overhaul AgentStateView to better differentiate separate Claude Code sessions and add visual hierarchy for sub-agents.",
-        "steps": []
+        "context": "Session 2026-03-03"
       },
       {
         "id": "task-mma0m6ak-kkod",
@@ -226,14 +193,12 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-03",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-03T02:55:17.851Z",
         "updatedAt": "2026-03-03T02:55:17.851Z",
         "completedAt": null,
-        "description": "Add a visual personification view for agents that makes multi-session and sub-agent workflows tangible and intuitive.",
-        "steps": []
+        "context": "Session 2026-03-03"
       },
       {
         "id": "task-mma14h3u-u7og",
@@ -241,14 +206,12 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-03",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-03T03:09:31.673Z",
         "updatedAt": "2026-03-03T03:09:31.673Z",
         "completedAt": null,
-        "description": "Embed a Claud-ometer-style analytics dashboard directly in SubFrame. Reads `~/.claude/` data (session .jsonl logs, stats-cache.json, history.jsonl) to show usage, costs, token breakdowns, and session history — no external server needed.",
-        "steps": []
+        "context": "Session 2026-03-03"
       },
       {
         "id": "task-mmbc33h2-v7or",
@@ -256,14 +219,12 @@
         "status": "pending",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-03-04",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-04T01:04:09.301Z",
         "updatedAt": "2026-03-04T01:04:09.301Z",
         "completedAt": null,
-        "description": "Implement the core pipeline infrastructure: data types in ipcChannels.ts (PipelineRun, PipelineJob, PipelineStage, PipelineArtifact types), IPC channels (PIPELINE_START, PIPELINE_CANCEL, PIPELINE_PROGRESS, etc.), pipelineManager.ts with init()+setupIPC(), workflow YAML parser, sequential stage executor with DAG support, and artifact collection system. Register in main/index.ts. See ADR-007 Section 3.1-3.3.",
-        "steps": []
+        "context": "Session 2026-03-04"
       },
       {
         "id": "task-mmbc3cjb-je2v",
@@ -271,7 +232,6 @@
         "status": "pending",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-03-04",
         "blockedBy": [
           "task-mmbc33h2-v7or"
         ],
@@ -279,8 +239,7 @@
         "createdAt": "2026-03-04T01:04:21.046Z",
         "updatedAt": "2026-03-04T01:04:21.046Z",
         "completedAt": null,
-        "description": "Implement the built-in stage handlers in pipelineStages.ts: critique (AI code review → CommentArtifacts), lint (discover+run linters → PatchArtifacts with cached lint.sh), describe (PR title+body+Mermaid → ContentArtifact), test (run/generate tests → ContentArtifact with verdict), freeze (auto-apply pre-freeze patches, lock worktree), push (git push via gitBranchesManager), create-pr (gh pr create from accumulated artifacts). Each handler follows the StageHandler interface. See ADR-007 Section 3.4.",
-        "steps": []
+        "context": "Session 2026-03-04"
       },
       {
         "id": "task-mmbc3ly5-o4ih",
@@ -288,7 +247,6 @@
         "status": "pending",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-03-04",
         "blockedBy": [
           "task-mmbc33h2-v7or"
         ],
@@ -296,8 +254,7 @@
         "createdAt": "2026-03-04T01:04:33.244Z",
         "updatedAt": "2026-03-04T01:04:33.244Z",
         "completedAt": null,
-        "description": "Build the renderer components: PipelinePanel.tsx (panel+full-view modes with run list and detail), PipelineTimeline.tsx (horizontal stage flow with animated status), usePipeline.ts hook (follows useTasks pattern — push listener, staleTime:Infinity, stable mutation refs), CritiqueView.tsx (file-grouped CommentArtifacts with severity badges), PatchReview.tsx (diff display with checkbox select and Apply button), PipelineLogView.tsx (scrollable per-stage logs). Add 'pipeline' to PanelId in useUIStore, wire into Sidebar+RightPanel+TerminalArea. Four tabs: Overview, Critique, Patches, Log. See ADR-007 Section 3.5.",
-        "steps": []
+        "context": "Session 2026-03-04"
       },
       {
         "id": "task-mmbc3vlq-ardz",
@@ -305,7 +262,6 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-04",
         "blockedBy": [
           "task-mmbc3cjb-je2v",
           "task-mmbc3ly5-o4ih"
@@ -314,8 +270,7 @@
         "createdAt": "2026-03-04T01:04:45.757Z",
         "updatedAt": "2026-03-04T01:04:45.757Z",
         "completedAt": null,
-        "description": "Implement git hook integration: optional pre-push hook that triggers pipeline runs, worktree isolation for mutable stages (via gitBranchesManager.addWorktree), branch filtering from workflow YAML (on.push.branches glob matching). Add WorkflowEditor component using CodeMirror for YAML editing. Store workflows per-project in .subframe/workflows/. Add default review.yml workflow template to frameTemplates.ts. See ADR-007 Sections 3.6-3.7.",
-        "steps": []
+        "context": "Session 2026-03-04"
       },
       {
         "id": "task-mmbc442i-3crr",
@@ -323,7 +278,6 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-04",
         "blockedBy": [
           "task-mmbc3vlq-ardz"
         ],
@@ -331,8 +285,7 @@
         "createdAt": "2026-03-04T01:04:56.729Z",
         "updatedAt": "2026-03-04T01:04:56.729Z",
         "completedAt": null,
-        "description": "Enable custom stage support: 'run:' shell commands and 'uses:' script references in workflow YAML. Expose stage environment variables (PIPELINE_RUN_ID, PIPELINE_BRANCH, PIPELINE_BASE_SHA, PIPELINE_HEAD_SHA, PIPELINE_WORKTREE, PIPELINE_ARTIFACTS, PIPELINE_PROJECT_ROOT, PIPELINE_AI_TOOL). Implement file-based artifact output (custom stages write to PIPELINE_ARTIFACTS/content/*.md, comments/*.json, patches/*.json). Parallel job execution via DAG topological sort. See ADR-007 Sections 3.7-3.8.",
-        "steps": []
+        "context": "Session 2026-03-04"
       },
       {
         "id": "task-mmbi1nmn-v0jy",
@@ -340,14 +293,90 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-04",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-04T03:50:59.806Z",
         "updatedAt": "2026-03-04T03:50:59.806Z",
         "completedAt": null,
-        "description": "Integrate CHANGELOG.md (keepachangelog spec) with the SubFrame sub-task and release workflow. Goals: (1) Auto-generate changelog entries from completed sub-tasks on release — map task categories to keepachangelog sections (feature→Added, fix→Fixed, etc.). (2) Add a /changelog skill that previews unreleased changes from completed tasks since last tag. (3) Update /release skill to append to CHANGELOG.md during version bump. (4) Consider rendering CHANGELOG.md inline in the Settings About tab (currently opens GitHub). (5) Keep .subframe/docs-internal/changelog.md as the detailed internal log — CHANGELOG.md is the user-facing keepachangelog spec file.",
-        "steps": []
+        "context": "Session 2026-03-04"
+      },
+      {
+        "id": "task-mmcuvhgj-moet",
+        "title": "Pipeline: multi-agent orchestration",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:37:53.058Z",
+        "updatedAt": "2026-03-05T02:37:53.058Z",
+        "completedAt": null,
+        "context": "Session 2026-03-05"
+      },
+      {
+        "id": "task-mmcuvnp6-spv5",
+        "title": "Pipeline: release automation workflow",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:38:01.145Z",
+        "updatedAt": "2026-03-05T02:38:01.145Z",
+        "completedAt": null,
+        "context": "Session 2026-03-05"
+      },
+      {
+        "id": "task-mmcuvtnt-x53k",
+        "title": "Pipeline: custom team workflow templates",
+        "status": "pending",
+        "priority": "low",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:38:08.872Z",
+        "updatedAt": "2026-03-05T02:38:08.872Z",
+        "completedAt": null,
+        "context": "Session 2026-03-05"
+      },
+      {
+        "id": "task-mmcuvzfa-wmsp",
+        "title": "Pipeline: parallel job execution",
+        "status": "pending",
+        "priority": "low",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:38:16.341Z",
+        "updatedAt": "2026-03-05T02:38:16.341Z",
+        "completedAt": null,
+        "context": "Session 2026-03-05"
+      },
+      {
+        "id": "task-mmcuw59d-idrl",
+        "title": "Pipeline: worktree isolation for stages",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:38:23.905Z",
+        "updatedAt": "2026-03-05T02:38:23.905Z",
+        "completedAt": null,
+        "context": "Session 2026-03-05"
+      },
+      {
+        "id": "task-mme7xagk-7omc",
+        "title": "Research Claude Code remote/headless mode for session enhancement",
+        "status": "pending",
+        "priority": "medium",
+        "category": "research",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-06T01:30:58.484Z",
+        "updatedAt": "2026-03-06T01:30:58.484Z",
+        "completedAt": null,
+        "context": "Session 2026-03-06"
       }
     ],
     "inProgress": [
@@ -357,31 +386,39 @@
         "status": "in_progress",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-02-28 - Terminal UX modernization",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-02-28T23:00:00.000Z",
         "updatedAt": "2026-03-03T00:01:32.623Z",
         "completedAt": "2026-03-02T23:38:15.743Z",
-        "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
-        "steps": []
+        "context": "Session 2026-02-28 - Terminal UX modernization"
       }
     ],
     "completed": [
+      {
+        "id": "task-1772722979366-6otdbdyb2",
+        "title": "Add 'Enhancement' catagory for Sub-Tasks",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T15:02:59.366Z",
+        "updatedAt": "2026-03-06T01:35:03.343Z",
+        "completedAt": "2026-03-06T01:35:03.343Z"
+      },
       {
         "id": "task-c1",
         "title": "IDE layout (sidebar + terminal)",
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Initial development",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
-        "updatedAt": "2026-01-21T00:00:00.000Z",
-        "completedAt": "2026-01-21T00:00:00.000Z",
-        "description": "3-panel IDE layout with project explorer, terminal, and history",
-        "steps": []
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z",
+        "context": "Initial development"
       },
       {
         "id": "task-c2",
@@ -389,14 +426,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Initial development",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
-        "updatedAt": "2026-01-21T00:00:00.000Z",
-        "completedAt": "2026-01-21T00:00:00.000Z",
-        "description": "Hierarchical, collapsible file tree",
-        "steps": []
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z",
+        "context": "Initial development"
       },
       {
         "id": "task-c3",
@@ -404,14 +439,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Initial development",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
-        "updatedAt": "2026-01-21T00:00:00.000Z",
-        "completedAt": "2026-01-21T00:00:00.000Z",
-        "description": "Side panel showing command history with timestamps",
-        "steps": []
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z",
+        "context": "Initial development"
       },
       {
         "id": "task-c4",
@@ -419,14 +452,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "todos.json - mediumTerm",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
-        "updatedAt": "2026-01-21T00:00:00.000Z",
-        "completedAt": "2026-01-21T00:00:00.000Z",
-        "description": "Support multiple terminal instances in tabs",
-        "steps": []
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z",
+        "context": "todos.json - mediumTerm"
       },
       {
         "id": "task-c5",
@@ -434,14 +465,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "todos.json - mediumTerm",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
-        "updatedAt": "2026-01-21T00:00:00.000Z",
-        "completedAt": "2026-01-21T00:00:00.000Z",
-        "description": "Side-by-side terminal panels with grid layout (2x1, 2x2, 3x1, 3x2, 3x3)",
-        "steps": []
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z",
+        "context": "todos.json - mediumTerm"
       },
       {
         "id": "task-c6",
@@ -449,14 +478,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "todos.json - mediumTerm",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
-        "updatedAt": "2026-01-21T00:00:00.000Z",
-        "completedAt": "2026-01-21T00:00:00.000Z",
-        "description": "Basic file editing capability within the app",
-        "steps": []
+        "createdAt": "2026-01-21T00:00:00Z",
+        "updatedAt": "2026-01-21T00:00:00Z",
+        "completedAt": "2026-01-21T00:00:00Z",
+        "context": "todos.json - mediumTerm"
       },
       {
         "id": "task-claude-detect",
@@ -464,14 +491,12 @@
         "status": "completed",
         "priority": "low",
         "category": "feature",
-        "context": "Session 2026-01-25 - Task delegation feature",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-01-25T00:00:00.000Z",
         "updatedAt": "2026-03-02T23:38:15.863Z",
         "completedAt": "2026-03-02T23:38:15.863Z",
-        "description": "Currently we track claudeCodeRunning with a simple boolean. Improve detection to actually check if Claude Code is running in terminal (parse terminal output for Claude prompt patterns).",
-        "steps": []
+        "context": "Session 2026-01-25 - Task delegation feature"
       },
       {
         "id": "task-claude-md",
@@ -479,14 +504,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-01-24 - Frame dokuman sistemi",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-24T15:30:00.000Z",
-        "updatedAt": "2026-01-24T16:00:00.000Z",
-        "completedAt": "2026-01-24T16:00:00.000Z",
-        "description": "Frame projeleri icin CLAUDE.md sablonu, task tanima kurallari, dokuman guncelleme stratejileri",
-        "steps": []
+        "createdAt": "2026-01-24T15:30:00Z",
+        "updatedAt": "2026-01-24T16:00:00Z",
+        "completedAt": "2026-01-24T16:00:00Z",
+        "context": "Session 2026-01-24 - Frame dokuman sistemi"
       },
       {
         "id": "task-design",
@@ -494,14 +517,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-01-24 - Kullanici talebi",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-24T15:00:00.000Z",
-        "updatedAt": "2026-01-24T15:30:00.000Z",
-        "completedAt": "2026-01-24T15:30:00.000Z",
-        "description": "Claude Desktop benzeri minimalist ve modern tasarim. DM Sans + JetBrains Mono fontlari, warm-neutral renk paleti.",
-        "steps": []
+        "createdAt": "2026-01-24T15:00:00Z",
+        "updatedAt": "2026-01-24T15:30:00Z",
+        "completedAt": "2026-01-24T15:30:00Z",
+        "context": "Session 2026-01-24 - Kullanici talebi"
       },
       {
         "id": "task-hooks",
@@ -509,14 +530,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "research",
-        "context": "Session 2026-02-28 - CLAUDE.md rewrite and context loading discussion",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-02-28T23:30:00.000Z",
+        "createdAt": "2026-02-28T23:30:00Z",
         "updatedAt": "2026-03-01T16:35:59.662Z",
         "completedAt": "2026-03-01T16:35:59.662Z",
-        "description": "Research Claude Code's hooks system (startup hooks, pre/post command hooks, etc.) and evaluate how SubFrame can leverage them to enforce context loading at session start. Currently CLAUDE.md instructs Claude to read STRUCTURE.json, tasks.json, and PROJECT_NOTES.md — but this is a soft directive. A startup hook could automatically dump key context or run find-module.js on init. Scope: (1) Research available hook types and trigger points. (2) Prototype a startup hook that auto-loads SubFrame context files. (3) Evaluate whether hooks can be bundled with SubFrame project initialization (frameProject.js / projectInit.js). (4) Document findings and recommended hook configurations in AGENTS.md or a new docs file.",
-        "steps": []
+        "context": "Session 2026-02-28 - CLAUDE.md rewrite and context loading discussion"
       },
       {
         "id": "task-m2",
@@ -524,14 +543,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "todos.json - mediumTerm",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-01-21T00:00:00.000Z",
         "updatedAt": "2026-03-02T23:37:55.328Z",
         "completedAt": "2026-03-02T23:37:55.328Z",
-        "description": "Show git status, diff in the UI",
-        "steps": []
+        "context": "todos.json - mediumTerm"
       },
       {
         "id": "task-m5",
@@ -539,14 +556,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "todos.json - mediumTerm",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
+        "createdAt": "2026-01-21T00:00:00Z",
         "updatedAt": "2026-02-28T22:28:41.152Z",
         "completedAt": "2026-02-28T22:28:41.152Z",
-        "description": "UI for configuring preferences",
-        "steps": []
+        "context": "todos.json - mediumTerm"
       },
       {
         "id": "task-mm7zjqv3-fx35",
@@ -554,14 +569,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T16:49:52.574Z",
         "updatedAt": "2026-03-01T22:48:07.617Z",
         "completedAt": "2026-03-01T22:48:07.617Z",
-        "description": "Currently, the Sub-Task automation (scripts/task.js CLI, scripts/hooks/*.js hooks, .claude/skills/sub-tasks/ skill, .claude/settings.json hook config) only exists in the SubFrame repo itself. Projects initialized via 'Initialize as SubFrame Project' get tasks.json and docs but not the automated tooling. Add an optional step to initializeProject() in projectInit.ts that deploys lightweight versions of: (1) scripts/task.js CLI script, (2) scripts/hooks/ session-start, prompt-submit, stop hooks, (3) .claude/settings.json hook wiring, (4) .claude/skills/sub-tasks/SKILL.md skill. Consider whether to copy files or generate from templates. Must not overwrite existing .claude/settings.json content (merge hook config).",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm7zjwhk-hsma",
@@ -569,14 +582,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T16:49:59.863Z",
         "updatedAt": "2026-03-01T22:48:09.377Z",
         "completedAt": "2026-03-01T22:48:09.377Z",
-        "description": "No uninit/cleanup flow exists. Add the ability to cleanly remove SubFrame from a project without breaking anything. Should remove: .subframe/ directory, AGENTS.md (if SubFrame-generated), CLAUDE.md/GEMINI.md backlinks (preserve user content), .githooks/ (if SubFrame-created), .claude/settings.json hook entries (if SubFrame-added), .claude/skills/sub-tasks/ (if deployed). Must be safe — warn before destructive actions, confirm with user, never delete user content. Could be a CLI command (node scripts/init.js --uninit) and/or a UI button in SubFrame app.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm7zk2rx-1xv1",
@@ -584,14 +595,12 @@
         "status": "completed",
         "priority": "low",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T16:50:08.012Z",
         "updatedAt": "2026-03-01T22:48:11.395Z",
         "completedAt": "2026-03-01T22:48:11.395Z",
-        "description": "Currently project detection is binary — isFrameProject() checks .subframe/config.json existence. Enhance to show richer status: (1) Which SubFrame components are present (config, tasks, structure, hooks, CLI, skill). (2) Visual indicator in project list showing init level (e.g., 'basic' vs 'full' with hooks). (3) Ability to see what's missing and optionally install missing components. Could be a status panel or info tooltip expansion in the project list UI.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm86zeqt-1eu3",
@@ -599,14 +608,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "ui",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T20:18:00.676Z",
         "updatedAt": "2026-03-02T23:37:55.462Z",
         "completedAt": "2026-03-02T23:37:55.462Z",
-        "description": "Create a clean UI/UX floating command palette triggered by Ctrl+/. Should allow quick access to actions, panel toggles, terminal commands, project switching, and settings. Inspired by VS Code's command palette but tailored to SubFrame's feature set.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8am1c5-orae",
@@ -614,14 +621,12 @@
         "status": "completed",
         "priority": "high",
         "category": "chore",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T21:59:35.236Z",
         "updatedAt": "2026-03-01T21:59:43.416Z",
         "completedAt": "2026-03-01T21:59:43.416Z",
-        "description": "Full session: (1) Audit all docs vs code, compare with Axiom-Portal patterns. (2) Populate docs-internal/ with ADRs, architecture, changelog, IPC ref. (3) Add Vitest test suite (36 tests), ESLint 9 + Prettier, GitHub Actions CI, pre-commit hook. (4) Update update-structure.js for TypeScript support (ESM imports, generics, path-segment exclusion). (5) Code review: fixed 13 issues (vitest ESM config, tsconfig.test.json, function regex generics, isExcluded path matching, frameConstants.js sync, IPC ref doc 93→112 channels, etc.).",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8csxn4-kz29",
@@ -629,14 +634,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T23:00:56.271Z",
         "updatedAt": "2026-03-02T23:43:05.054Z",
         "completedAt": "2026-03-02T23:43:05.054Z",
-        "description": "Command-palette-style overlay for saved/common prompts. Triggered by keyboard shortcut, fuzzy searches across title + content + tags, and pastes selected prompt into the active terminal via PTY write.\r\n\r\n**Core features:**\r\n- Overlay UI (Command palette pattern via shadcn Command component)\r\n- Fuzzy search across title, prompt content, and tags\r\n- Insert into active terminal on select (PTY write)\r\n- CRUD: add/edit/delete prompts from overlay + dedicated management view\r\n- Categories/tags for organization\r\n\r\n**Storage:**\r\n- Project-level: .subframe/prompts.json\r\n- Optional global: ~/.subframe/prompts.json (shared across projects)\r\n\r\n**Nice-to-have:**\r\n- Template variables ({{project}}, {{file}}) that resolve on insert\r\n- Import/export prompt collections\r\n- Usage frequency tracking for smart sorting",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8dolb0-zvz9",
@@ -644,14 +647,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T23:25:33.275Z",
         "updatedAt": "2026-03-01T23:34:57.197Z",
         "completedAt": "2026-03-01T23:34:57.197Z",
-        "description": "Replace textarea editor with CodeMirror 6. Full features: syntax highlighting, minimap, autocomplete, linting, find/replace, multi-cursor, code folding, bracket matching. Custom SubFrame dark theme. Update all docs.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8ehwc0-mesw",
@@ -659,14 +660,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T23:48:20.592Z",
         "updatedAt": "2026-03-02T00:08:11.211Z",
         "completedAt": "2026-03-02T00:08:11.211Z",
-        "description": "Add a preview/render mode to the editor for non-code files. Support: Markdown (rendered HTML), HTML/CSS (live preview), SVG (inline render), images (display with zoom/pan). Toggle between edit mode (CodeMirror) and preview mode. Architecture: preview renderer component that switches based on file type. Research needed: best markdown renderer (react-markdown vs marked vs mdx), HTML sandboxing (iframe vs shadow DOM), SVG inline rendering approach.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8ei8km-9wqa",
@@ -674,14 +673,12 @@
         "status": "completed",
         "priority": "high",
         "category": "research",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T23:48:36.454Z",
         "updatedAt": "2026-03-01T23:56:55.667Z",
         "completedAt": "2026-03-01T23:56:55.667Z",
-        "description": "Evaluate libraries for rendering file previews in SubFrame's editor dialog. Must work with React 19 + TypeScript + esbuild + Electron. Research: (1) Markdown: react-markdown, marked, remark/rehype, mdx — need GFM support, code block syntax highlighting (can reuse CM6/Shiki), math rendering; (2) HTML/CSS: iframe sandbox vs shadow DOM vs srcDoc approach — security considerations in Electron; (3) SVG: inline rendering via dangerouslySetInnerHTML vs react-svg vs object tag; (4) Images: native img tag with zoom/pan (react-zoom-pan-pinch or similar). Compare bundle size, React 19 compat, maintenance status. Recommend the best option for each file type.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8eiicg-cm1m",
@@ -689,14 +686,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T23:48:49.120Z",
         "updatedAt": "2026-03-02T00:08:11.284Z",
         "completedAt": "2026-03-02T00:08:11.284Z",
-        "description": "Add edit/preview toggle to the editor dialog for .md/.markdown files. When in preview mode, render markdown as styled HTML matching SubFrame's dark theme. Features: GFM (tables, task lists, strikethrough), syntax-highlighted code blocks, heading anchors, image rendering. Toggle button in editor header bar next to Save/Close. Preserve scroll position when toggling. Preview should be read-only scrollable container with SubFrame typography.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8eisz3-b2vh",
@@ -704,14 +699,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T23:49:02.895Z",
         "updatedAt": "2026-03-02T00:08:11.358Z",
         "completedAt": "2026-03-02T00:08:11.358Z",
-        "description": "Add preview mode for .html/.htm/.css files in the editor dialog. Render HTML in a sandboxed iframe (srcDoc approach) with live updates as the user edits. For CSS files, show a preview pane with sample HTML that applies the stylesheet. Security: sandbox attribute on iframe to prevent script execution unless user opts in. Match SubFrame's dark background around the preview frame.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8ej4y1-9vps",
@@ -719,14 +712,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-01",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T23:49:18.408Z",
         "updatedAt": "2026-03-02T00:08:11.428Z",
         "completedAt": "2026-03-02T00:08:11.428Z",
-        "description": "Add preview/display for SVG and image files (.svg, .png, .jpg, .gif, .webp, .bmp, .ico). SVGs: render inline with proper scaling, show source code toggle. Images: display with fit-to-container scaling, zoom/pan capability. For binary images, modify fileEditor.ts to return a base64 data URI or file:// path instead of text content. For SVGs (which are text), support both rendered view and source code editing.",
-        "steps": []
+        "context": "Session 2026-03-01"
       },
       {
         "id": "task-mm8ia8mw-1ofh",
@@ -734,14 +725,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T01:34:21.751Z",
         "updatedAt": "2026-03-02T01:34:32.734Z",
         "completedAt": "2026-03-02T01:34:32.734Z",
-        "description": "Live monitoring of Claude Code agent sessions in SubFrame. Ports & Adapters architecture: Claude Code PreToolUse/PostToolUse hooks write to .subframe/agent-state.json, main process watches via fs.watch, renderer displays via AgentStateView/AgentTimeline/SidebarAgentStatus. 4 new IPC channels, Ctrl+Shift+A shortcut, terminal navbar Agents button.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm8jqlru-8juf",
@@ -749,14 +738,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T02:15:04.889Z",
         "updatedAt": "2026-03-02T02:15:16.473Z",
         "completedAt": "2026-03-02T02:15:16.473Z",
-        "description": "Make /sub-tasks, /sub-docs, /sub-audit skills first-class deployable components — tracked by health panel, deployed during init, updatable, and cleanly removable on uninstall. Deployed versions use direct file manipulation instead of SubFrame-app-specific CLI.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9t5ajz-blb2",
@@ -764,14 +751,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:26:12.910Z",
         "updatedAt": "2026-03-02T23:26:22.803Z",
         "completedAt": "2026-03-02T23:26:22.803Z",
-        "description": "Detect existing project intelligence files, run AI analysis through visible terminal tab, import structured results into SubFrame spec files. Reusable runAnalysisInTerminal() pipeline.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9tf4l0-3s7o",
@@ -779,14 +764,12 @@
         "status": "completed",
         "priority": "low",
         "category": "feature",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:33:51.731Z",
         "updatedAt": "2026-03-03T00:00:13.308Z",
         "completedAt": "2026-03-03T00:00:13.308Z",
-        "description": "Implement self-updating via electron-updater. Check GitHub Releases for new versions, show in-app notification, one-click install. Use delta updates to minimize download size. This is the immediate solution — the transport abstraction sub-task covers the future CDN-loaded renderer approach for browser mode.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9tf4zx-0j72",
@@ -794,14 +777,12 @@
         "status": "completed",
         "priority": "low",
         "category": "feature",
-        "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:33:52.268Z",
         "updatedAt": "2026-03-02T23:46:17.290Z",
         "completedAt": "2026-03-02T23:46:17.290Z",
-        "description": "Show What's New dialog after updates. Surface changelog content from docs-internal/changelog.md or RELEASE_NOTES.md. Helps users discover new features after auto-update.",
-        "steps": []
+        "context": "Session 2026-03-02"
       },
       {
         "id": "task-mm9uh469-gki8",
@@ -809,14 +790,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "docs",
-        "context": "Session 2026-03-03",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-03T00:03:24.128Z",
         "updatedAt": "2026-03-03T00:08:31.069Z",
         "completedAt": "2026-03-03T00:08:31.069Z",
-        "description": "Rewrite getAgentsTemplate() in frameTemplates.ts and .js with correct YAML frontmatter format, hooks docs, skills docs, session start guidance, docs-internal reference, core working principle, and before-ending-work checklist. No SubFrame-internal references (scripts/task.js, find-module.js). Target ~350-400 lines.",
-        "steps": []
+        "context": "Session 2026-03-03"
       },
       {
         "id": "task-mmb8be8r-dssb",
@@ -824,14 +803,38 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-03",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-03T23:18:38.042Z",
         "updatedAt": "2026-03-03T23:28:48.673Z",
         "completedAt": "2026-03-03T23:28:48.673Z",
-        "description": "1. Show which AI tool will start based on settings (e.g., 'Start Claude Code' instead of generic 'Start AI') on the empty terminal state button in TerminalArea.tsx. Mirror the sidebar AI status display. 2. Review empty grid cell UX in TerminalGrid.tsx — consider whether the current Plus button is discoverable enough or needs enhancement.",
-        "steps": []
+        "context": "Session 2026-03-03"
+      },
+      {
+        "id": "task-mmcsn89b-ob9k",
+        "title": "Pipeline engine foundation",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T01:35:28.654Z",
+        "updatedAt": "2026-03-05T03:09:57.200Z",
+        "completedAt": "2026-03-05T03:09:57.200Z",
+        "context": "Session 2026-03-05"
+      },
+      {
+        "id": "task-mmcuszy6-iado",
+        "title": "Theme system with presets and custom themes",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T02:35:57.054Z",
+        "updatedAt": "2026-03-05T02:46:20.547Z",
+        "completedAt": "2026-03-05T02:46:20.547Z",
+        "context": "Session 2026-03-05"
       },
       {
         "id": "task-qol",
@@ -839,14 +842,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-02-28 - Spinoff from original repo, comprehensive QoL enhancements",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-02-28T21:00:00.000Z",
+        "createdAt": "2026-02-28T21:00:00Z",
         "updatedAt": "2026-03-01T22:58:25.849Z",
         "completedAt": "2026-03-01T22:58:25.849Z",
-        "description": "Comprehensive UI, QoL, and cross-platform improvements. (1) Project Renaming - double-click/right-click/F2 rename. (2) Customizable AI Start Command - editable per-tool via settings. (3) Windows Usage Bars - cross-platform OAuth from credentials file + Keychain fallback. (4) Settings Panel - 3 sections: General (auto-terminal toggle), AI Tool Config, Terminal. (5) Terminal UX - scroll-to-bottom button, lineHeight/letterSpacing fixes. (6) Windows Sessions Fix - encodeProjectPath handles backslashes/colons. (7) Tasks Panel - always loads on project change, fs.watch() real-time updates, refresh button, trailing-comma-tolerant JSON. (8) Windows Audit - replaced Unix shell commands in overviewManager with Node.js equivalents. (9) Sidebar Collapse - bottom collapse icon, expand tab when hidden, localStorage persistence. (10) Cross-platform Dev Tooling - scripts/dev.js, DEV_SETUP.bat + dev_setup.ps1. (11) Docs - README.md and QUICKSTART.md updated with Windows setup, commands, roadmap. (12) Startup Performance - splash window, in-app loading screen, two-phase renderer init (initCritical/initDeferred), window state persistence, debounced resize, D3 defer. (13) Sessions Panel Rewrite - scans .jsonl files instead of non-existent sessions-index.json, state dots (active/recent/inactive with pulse), split resume button with dropdown (default tool, claude, claude --continue, custom), HTML tag stripping, sessions tab first with icons. (14) Claude Panel Collapse - collapse arrow shrinks to 44px icon strip, click icons to expand, X to fully hide.",
-        "steps": []
+        "context": "Session 2026-02-28 - Spinoff from original repo, comprehensive QoL enhancements"
       },
       {
         "id": "task-react-ts-refactor",
@@ -854,14 +855,12 @@
         "status": "completed",
         "priority": "high",
         "category": "refactor",
-        "context": "Session 2026-03-01 - Major architecture evolution from vanilla JS to React + TypeScript. Full plan in PROJECT_NOTES.md.",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-01T20:00:00.000Z",
+        "createdAt": "2026-03-01T20:00:00Z",
         "updatedAt": "2026-03-01T22:58:25.740Z",
         "completedAt": "2026-03-01T22:58:25.740Z",
-        "description": "Complete refactor of SubFrame from vanilla JavaScript with imperative DOM manipulation to a modern React + TypeScript stack. This is a multi-phase effort covering the entire codebase.\r\n\r\n**Technology Stack:**\r\n- **React 19** — component architecture, hooks, Suspense for lazy-loaded panels\r\n- **TypeScript** (strict mode) — type safety across main, renderer, shared, and IPC layer\r\n- **Zustand** — lightweight global state (UI state: active panel, terminal IDs, sidebar width, view mode)\r\n- **TanStack Query** — IPC call caching, loading/error states, invalidation (file tree, sessions, tasks, overview)\r\n- **TanStack Table** — headless table for tasks list, sessions list with built-in sorting, filtering, column management\r\n- **shadcn/ui** — component library built on Radix UI primitives (buttons, modals/dialogs, tabs, dropdowns, tooltips, context menus, command palette, forms, toasts). Implies **Tailwind CSS** as the styling system.\r\n- **Tailwind CSS v4** — replaces the hand-written CSS files (variables.css, main.css, layout.css, panels.css, terminal.css, ui.css). SubFrame's warm-neutral + amber accent design tokens map to Tailwind theme config / shadcn CSS variables.\r\n- **Framer Motion** — declarative animations for panel open/close, modal transitions, list reorder, AnimatePresence for exit animations, layout animations for sidebar resize.\r\n- **esbuild** (kept) — already supports TSX natively, sub-second builds preserved.\r\n\r\n**Scope:**\r\n\r\n**Phase 1 — Foundation (TypeScript + Tailwind + Build)**\r\n- Add `tsconfig.json` configs (separate for main, renderer, shared) with strict mode\r\n- Update esbuild config for `.tsx` entry point and JSX transform\r\n- Install and configure Tailwind CSS v4 with PostCSS (esbuild plugin or separate step)\r\n- Initialize shadcn/ui (`npx shadcn@latest init`) — configure theme with SubFrame's warm-neutral palette (--background, --foreground, --accent mapped from current --bg-primary, --text-primary, --accent-primary #d4a574)\r\n- Add dependencies: `react`, `react-dom`, `zustand`, `@tanstack/react-query`, `@tanstack/react-table`, `framer-motion`, `tailwindcss`, `@types/react`, `@types/react-dom`, `@types/node`, `typescript`, plus shadcn peer deps (`class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`)\r\n- Convert `src/shared/ipcChannels.js` → `ipcChannels.ts` with typed channel map (backbone — every IPC call becomes type-safe)\r\n- Convert remaining shared modules: `frameConstants.ts`, `frameTemplates.ts`, `backlinkUtils.ts`, `projectInit.ts`\r\n- Create typed IPC utility: `typedInvoke<Channel>(...args): Promise<ReturnType>` for renderer, `typedHandle<Channel>(handler)` for main\r\n- Create TanStack Query wrapper hooks for IPC: `useIpcQuery(channel, args)` and `useIpcMutation(channel)`\r\n\r\n**Phase 2 — Main Process (TypeScript only, no React)**\r\n- Convert all 20 main process files from `.js` to `.ts`\r\n- Add interfaces for all manager modules (e.g., `ISettingsManager`, `IWorkspace`, `IPtyManager`)\r\n- Type all `ipcMain.handle` / `ipcMain.on` handlers with the typed IPC utility\r\n- Type node-pty instances, Electron BrowserWindow, and menu builders\r\n- Files: index.js, ptyManager.js, pty.js, workspace.js, settingsManager.js, tasksManager.js, pluginsManager.js, claudeSessionsManager.js, overviewManager.js, frameProject.js, fileTree.js, fileEditor.js, gitBranchesManager.js, githubManager.js, promptLogger.js, claudeUsageManager.js, aiToolManager.js, aiFilesManager.js, menu.js, dialogs.js\r\n\r\n**Phase 3 — Renderer: React + shadcn Components**\r\n- Replace `index.html` monolithic structure with a single `<div id='root'>` + React mount\r\n- Set up providers: `<QueryClientProvider>` (TanStack Query), Zustand stores (no provider needed)\r\n- Install shadcn components as needed: `button`, `dialog`, `tabs`, `dropdown-menu`, `context-menu`, `command`, `input`, `textarea`, `badge`, `tooltip`, `toast`/`sonner`, `separator`, `scroll-area`, `resizable` (for sidebar/panels), `sheet` (for mobile-style slide panels), `table`\r\n- Create React component tree:\r\n  - `<App>` — root layout with `<ResizablePanelGroup>` (shadcn resizable) for sidebar + main + right panel\r\n  - `<Sidebar>` — workspace `<DropdownMenu>`, project list, action `<Button>`s\r\n  - `<FileTree>` — recursive tree with expand/collapse via `<Collapsible>`, icons from `lucide-react`\r\n  - `<TerminalArea>` — `<Tabs>` (shadcn) for tab bar + terminal grid container\r\n  - `<Terminal>` — xterm.js wrapper with useEffect lifecycle, `<ContextMenu>` for right-click (shadcn)\r\n  - `<Editor>` — file editor as `<Dialog>` or `<Sheet>` overlay\r\n  - `<RightPanel>` — `<Tabs>` container for sub-panels\r\n  - `<TasksPanel>` — TanStack Table for task list with sorting/filtering, `<Dialog>` for add/edit modal with shadcn form components, `<Badge>` for status/priority\r\n  - `<SessionsPanel>` — TanStack Table for session list with sorting by date/status, split `<Button>` for resume\r\n  - `<PluginsPanel>` — plugin cards\r\n  - `<SettingsPanel>` — `<Dialog>` with `<Tabs>` sections (General, AI Tool, Terminal)\r\n  - `<OverviewPanel>` — dashboard cards with `<motion.div>` entry animations\r\n  - `<AIFilesPanel>` — status indicators + action `<Button>`s\r\n  - `<GithubPanel>` — PR/issue list\r\n  - `<ProjectListUI>` — project cards in sidebar\r\n  - `<AIToolSelector>` — `<DropdownMenu>` or `<Command>` palette for tool selection\r\n  - `<StructureMap>` — D3 visualization via useRef + useEffect (D3 manages its own DOM subtree)\r\n- Zustand stores: `useUIStore` (sidebar state, active panel, view mode), `useProjectStore` (active project, workspace), `useTerminalStore` (terminal IDs, active terminal, grid layout)\r\n- TanStack Query hooks: `useFileTree(projectPath)`, `useTasks(projectPath)`, `useSessions()`, `useOverview()`, `usePlugins()`, `useSettings()`\r\n- TanStack Table instances: `useTasksTable()` with column defs for title/status/priority/category/date + sorting + filtering, `useSessionsTable()` with column defs for title/date/branch/messages/state + sorting\r\n- Framer Motion: `<AnimatePresence>` for panel show/hide, `<motion.div>` with `layout` prop for sidebar resize, `<Reorder>` for draggable terminal tabs, staggered list animations for task/session entries\r\n\r\n**Phase 4 — Styles Migration (CSS → Tailwind)**\r\n- Delete hand-written CSS files: variables.css, main.css, layout.css, panels.css, terminal.css, ui.css\r\n- Map current design tokens to Tailwind theme:\r\n  - `--bg-primary: #0f0f10` → `--background` in shadcn theme\r\n  - `--bg-secondary: #1a1a1c` → `--card` / `--muted`\r\n  - `--accent-primary: #d4a574` → `--primary` (amber accent preserved)\r\n  - `--text-primary: #e8e6e3` → `--foreground`\r\n  - Spacing scale (`--space-xs` through `--space-xl`) → Tailwind spacing utilities\r\n  - Semantic colors (`--success`, `--warning`, `--error`) → custom Tailwind colors\r\n- Keep `xterm.css` (xterm.js's own stylesheet — not ours to replace)\r\n- Font setup: DM Sans + JetBrains Mono configured in Tailwind fontFamily\r\n- Dark mode: shadcn's `dark` class on root (SubFrame is dark-only, so hardcode this)\r\n\r\n**Phase 5 — Testing & Cleanup**\r\n- Remove all 20 vanilla renderer `.js` files\r\n- Remove dead HTML markup from index.html\r\n- Remove old CSS files (replaced by Tailwind + shadcn)\r\n- Verify all IPC channels work end-to-end with typed system\r\n- Test xterm.js lifecycle in React (mount, unmount, resize, fit)\r\n- Test TanStack Table sorting/filtering on tasks and sessions\r\n- Test all shadcn components render correctly in Electron (no browser-only APIs)\r\n- Test Framer Motion animations don't cause layout thrashing\r\n- Test all panel toggles, modals, keyboard shortcuts, context menus\r\n- Cross-platform verification (Windows + macOS)\r\n- Update esbuild scripts, dev.js, STRUCTURE.json\r\n- Update CLAUDE.md CSS Design System section to reference Tailwind + shadcn instead of variables.css\r\n\r\n**Key technical considerations:**\r\n- xterm.js in React requires careful lifecycle management — Terminal instance must be created in useEffect, disposed on unmount, and fit() called on resize via ResizeObserver\r\n- shadcn/ui in Electron: components are copied into the project (not a node_module), so no CDN or network dependency — works offline\r\n- Tailwind CSS in Electron: PostCSS build step integrates with esbuild via plugin or as a pre-build step\r\n- TanStack Table is headless — shadcn's `<Table>` component provides the styling, TanStack provides the logic (sorting, filtering, column visibility)\r\n- TanStack Query `queryClient.invalidateQueries(['fileTree'])` triggered by fs.watch events from main process = automatic UI refresh\r\n- Framer Motion `AnimatePresence` requires components to have `key` props and `exit` animations — plan component structure accordingly\r\n- node-pty stays server-side (main process) — only the IPC transport changes type signatures\r\n- Electron's contextBridge/preload pattern stays the same — React just calls the exposed API\r\n- The two-phase init (initCritical/initDeferred) maps to React.lazy + Suspense for deferred panels\r\n- D3.js coexists with React via useRef + useEffect (D3 manages its own DOM subtree within a ref'd container)\r\n\r\n**Dependency additions:**\r\n- Production: `react`, `react-dom`, `zustand`, `@tanstack/react-query`, `@tanstack/react-table`, `framer-motion`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`\r\n- Dev: `typescript`, `@types/react`, `@types/react-dom`, `@types/node`, `tailwindcss`, `postcss`, `autoprefixer`\r\n- shadcn components: installed via CLI into `src/renderer/components/ui/` (not a dependency — source code copied in)\r\n\r\n**Files affected:** Every file in src/renderer/ (20 files rewritten to TSX), every file in src/main/ (20 files converted to TS), every file in src/shared/ (6 files converted to TS), all 6 CSS files (deleted/replaced by Tailwind), index.html (simplified), package.json, esbuild config, plus new: tsconfig.json files, tailwind.config.ts, postcss.config.js, components.json (shadcn config), src/renderer/components/ui/ directory. ~52 files total affected.",
-        "steps": []
+        "context": "Session 2026-03-01 - Major architecture evolution from vanilla JS to React + TypeScript. Full plan in PROJECT_NOTES.md."
       },
       {
         "id": "task-s1",
@@ -869,14 +868,12 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "todos.json - shortTerm",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-01-21T00:00:00.000Z",
         "updatedAt": "2026-03-02T23:38:15.489Z",
         "completedAt": "2026-03-02T23:38:15.489Z",
-        "description": "When user clicks a file in the tree, display its contents in terminal",
-        "steps": []
+        "context": "todos.json - shortTerm"
       },
       {
         "id": "task-s3",
@@ -884,14 +881,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "todos.json - shortTerm",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
+        "createdAt": "2026-01-21T00:00:00Z",
         "updatedAt": "2026-02-28T22:28:37.588Z",
         "completedAt": "2026-02-28T22:28:37.588Z",
-        "description": "Basic file search functionality within project",
-        "steps": []
+        "context": "todos.json - shortTerm"
       },
       {
         "id": "task-s4",
@@ -899,14 +894,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "todos.json - shortTerm",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-21T00:00:00.000Z",
+        "createdAt": "2026-01-21T00:00:00Z",
         "updatedAt": "2026-02-28T22:28:39.754Z",
         "completedAt": "2026-02-28T22:28:39.754Z",
-        "description": "Allow users to drag and resize the sidebar width",
-        "steps": []
+        "context": "todos.json - shortTerm"
       },
       {
         "id": "task-s5",
@@ -914,14 +907,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "todos.json - shortTerm",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-01-21T00:00:00.000Z",
         "updatedAt": "2026-03-02T23:31:38.025Z",
         "completedAt": "2026-03-02T23:31:38.025Z",
-        "description": "Log prompts only when Claude is active",
-        "steps": []
+        "context": "todos.json - shortTerm"
       },
       {
         "id": "task-struct-desc",
@@ -929,14 +920,12 @@
         "status": "completed",
         "priority": "low",
         "category": "fix",
-        "context": "Session 2026-01-25 - Structure auto-update script",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-01-25T00:00:00.000Z",
         "updatedAt": "2026-03-02T23:30:23.064Z",
         "completedAt": "2026-03-02T23:30:23.064Z",
-        "description": "update-structure.js currently parses file descriptions as single letters. Fix extractDescription() to properly extract JSDoc comments and multi-line descriptions.",
-        "steps": []
+        "context": "Session 2026-01-25 - Structure auto-update script"
       },
       {
         "id": "task-struct-graph",
@@ -944,14 +933,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-01-25 - Token efficiency discussion",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-01-25T00:00:00.000Z",
         "updatedAt": "2026-03-02T23:30:55.370Z",
         "completedAt": "2026-03-02T23:30:55.370Z",
-        "description": "Add function call relationships to STRUCTURE.json (e.g., functionA calls functionB). This creates a dependency tree that helps Claude navigate code more efficiently.",
-        "steps": []
+        "context": "Session 2026-01-25 - Token efficiency discussion"
       },
       {
         "id": "task-subtask-enhancements",
@@ -959,14 +946,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-02-28 - Sub-Task system discussion and CLAUDE.md improvements",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T00:00:00.000Z",
         "updatedAt": "2026-03-02T23:38:15.612Z",
         "completedAt": "2026-03-02T23:38:15.612Z",
-        "description": "Multiple improvements to the Sub-Task system. (1) Schema: Add `blockedBy` / `dependsOn` array fields to the task schema, allowing sub-tasks to reference other sub-task IDs they depend on. Update taskSchema in tasks.json, AGENTS.md, CLAUDE.md, and frameTemplates.js. (2) UI - In-Progress visual distinction: The Sub-Tasks panel should visually distinguish `in_progress` sub-tasks from `pending` — e.g., highlighted border, accent color indicator, or a pulsing dot similar to active sessions. (3) UI - Sort by priority: Sub-tasks should sort by priority (high → medium → low) within each status group, so high-priority items surface first. (4) UI - Blocked indicator: If `blockedBy` is populated and those sub-tasks aren't completed, show a blocked badge/icon on the sub-task card. (5) Schema update in templates: Update frameTemplates.js getTasksTemplate() to include the new fields in taskSchema.\r\n(Bonus: Ability to pipe handwritten through AI to format properly per SubFrames task schema cleanly and appropriately without loss)",
-        "steps": []
+        "context": "Session 2026-02-28 - Sub-Task system discussion and CLAUDE.md improvements"
       },
       {
         "id": "task-subtask-ux",
@@ -974,14 +959,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-02-28 - Sub-Task system discussion",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-01T00:00:00.000Z",
         "updatedAt": "2026-03-02T23:38:15.361Z",
         "completedAt": "2026-03-02T23:38:15.361Z",
-        "description": "Comprehensive UX improvements to the Sub-Task system's UI. (1) Larger modal — increase max-width from 480px to ~640px, give description a proper resizable textarea. (2) Full schema support in modal — add fields for userRequest, acceptanceCriteria, and notes. These are required by the schema but currently only fillable via JSON. Make userRequest and acceptanceCriteria visible in edit mode but read-only for AI-populated content. (3) Detail/expand view — clicking a sub-task card opens a full detail view (inline expansion or larger modal) showing all fields including userRequest, acceptanceCriteria, notes, dates, and context. (4) Description truncation — cap card descriptions at 2-3 lines with expand/collapse toggle. (5) Search/filter by text — add a search input above the filter buttons to filter by title/description text. (6) Keyboard navigation — arrow keys to navigate cards, Enter to expand, 'n' to add new. (7) Send to Claude — button on detail view to copy sub-task context to clipboard or inject into terminal as a prompt. (8) Better validation — replace raw alert() with inline form validation and error styling.",
-        "steps": []
+        "context": "Session 2026-02-28 - Sub-Task system discussion"
       },
       {
         "id": "task-sysprompt",
@@ -989,14 +972,12 @@
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-01-25 - Task delegation feature",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-25T00:00:00.000Z",
+        "createdAt": "2026-01-25T00:00:00Z",
         "updatedAt": "2026-02-28T22:28:40.506Z",
         "completedAt": "2026-02-28T22:28:40.506Z",
-        "description": "Standardize all system-generated prompts (task delegation, automated commands) to English. Create a centralized prompt template system. frame projesinde oluşturulan içerideki dökümanlarımız, claude md, readme, projectnotes md dosyaları ingilizce olmalı. şu an bu projede bulunan içerik türkçeyse içerik anlamını kaybetmeden ingilizceye çevrilmeli. bundan sonra initialize edilen projelerde bu dosyalarda hazırladığımız direktifler ise ingilizce olarak gelmeli.",
-        "steps": []
+        "context": "Session 2026-01-25 - Task delegation feature"
       },
       {
         "id": "task-tasks-panel",
@@ -1004,19 +985,13 @@
         "status": "completed",
         "priority": "high",
         "category": "feature",
-        "context": "Session 2026-01-24 - Frame dokuman sistemi",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-01-24T16:00:00.000Z",
-        "updatedAt": "2026-01-24T16:30:00.000Z",
-        "completedAt": "2026-01-24T16:30:00.000Z",
-        "description": "Sag tarafta toggle edilebilen tasks paneli. Filtreleme, ekleme, duzenleme, silme, durum degistirme ozellikleri.",
-        "steps": []
+        "createdAt": "2026-01-24T16:00:00Z",
+        "updatedAt": "2026-01-24T16:30:00Z",
+        "completedAt": "2026-01-24T16:30:00Z",
+        "context": "Session 2026-01-24 - Frame dokuman sistemi"
       }
     ]
-  },
-  "metadata": {
-    "totalCreated": 65,
-    "totalCompleted": 43
   }
 }

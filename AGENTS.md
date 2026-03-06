@@ -87,6 +87,8 @@ SubFrame can configure project-level hooks that automate sub-task awareness. The
 
 These hooks ensure sub-task awareness even after context compaction. Hook configuration lives in `.claude/settings.json`.
 
+**Important:** Hook commands use `$(git rev-parse --show-toplevel)` to resolve paths from the repo root. This ensures hooks work correctly when the AI session's working directory is a subdirectory (e.g., `promo/`). Never use bare relative paths like `node .subframe/hooks/stop.js` — always anchor to the git root.
+
 ---
 
 ## Skills (Slash Commands)
@@ -118,7 +120,7 @@ id: task-abc12345
 title: Short and clear title (max 60 characters)
 status: pending | in_progress | completed
 priority: high | medium | low
-category: feature | fix | refactor | docs | test | chore
+category: feature | enhancement | bug | fix | refactor | research | docs | test | chore
 description: AI's detailed explanation — what, how, which files affected
 userRequest: User's original prompt/request — copy exactly
 acceptanceCriteria: When is this task done? Concrete testable criteria
