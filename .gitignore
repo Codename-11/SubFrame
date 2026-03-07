@@ -42,6 +42,7 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 
 # SubFrame temp/runtime files
+.subframe/agent-state.json
 .subframe/agent-state.json.tmp.*
 .subframe/tasks.json.pre-migration-backup
 
