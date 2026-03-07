@@ -61,6 +61,8 @@ interface TerminalTabBarProps {
   onOverviewToggle?: () => void;
   onTogglePanel?: (panel: 'tasks' | 'githubIssues' | 'agentState' | 'overview' | 'pipeline') => void;
   projectTerminals: TerminalInfo[];
+  /** Terminal IDs that overflow the grid (not visible in grid view) */
+  gridOverflowIds?: Set<string>;
 }
 
 export function TerminalTabBar({
@@ -69,6 +71,7 @@ export function TerminalTabBar({
   onOverviewToggle,
   onTogglePanel,
   projectTerminals,
+  gridOverflowIds,
 }: TerminalTabBarProps) {
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const viewMode = useTerminalStore((s) => s.viewMode);
@@ -93,8 +96,7 @@ export function TerminalTabBar({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  // Track which terminals have an active agent session
-  const [agentActive, setAgentActive] = useState<Map<string, boolean>>(new Map());
+  // (Agent active status tracked in useTerminalStore.claudeActive, updated by TerminalArea)
 
   // Load available shells
   useEffect(() => {
@@ -107,39 +109,6 @@ export function TerminalTabBar({
       ipcRenderer.removeListener(IPC.AVAILABLE_SHELLS_DATA, handler);
     };
   }, []);
-
-  // Listen for agent active/inactive status changes per terminal
-  useEffect(() => {
-    const handler = (_event: unknown, data: { terminalId: string; active: boolean }) => {
-      setAgentActive((prev) => {
-        const next = new Map(prev);
-        next.set(data.terminalId, data.active);
-        return next;
-      });
-
-      // Auto-rename tab on agent start (only if not user-renamed)
-      if (data.active) {
-        const terminal = terminalList.find((t) => t.id === data.terminalId);
-        if (terminal && terminal.nameSource !== 'user') {
-          // Fetch session name after a short delay to let the session register
-          setTimeout(async () => {
-            try {
-              const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, { terminalId: data.terminalId });
-              if (result.name) {
-                renameTerminal(data.terminalId, result.name, 'session');
-              }
-            } catch {
-              // Session may not be registered yet — that's fine
-            }
-          }, 3000);
-        }
-      }
-    };
-    ipcRenderer.on(IPC.CLAUDE_ACTIVE_STATUS, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC.CLAUDE_ACTIVE_STATUS, handler);
-    };
-  }, [terminalList, renameTerminal]);
 
   // Load Claude usage data (main process handles periodic polling via settings)
   useEffect(() => {
@@ -314,6 +283,10 @@ export function TerminalTabBar({
                     )}
 
                     <span className="relative z-10 flex items-center gap-1.5">
+                      {/* Agent active indicator */}
+                      {t.claudeActive && (
+                        <Bot className="h-3 w-3 text-success flex-shrink-0 animate-pulse" />
+                      )}
                       {renamingId === t.id ? (
                         <input
                           ref={renameInputRef}
@@ -331,7 +304,15 @@ export function TerminalTabBar({
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <span className="truncate max-w-[120px]">{t.name}</span>
+                        <>
+                          <span className="truncate max-w-[120px]">{t.name}</span>
+                          {gridOverflowIds?.has(t.id) && (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full bg-warning/70 flex-shrink-0"
+                              title="Not visible in grid — click to view"
+                            />
+                          )}
+                        </>
                       )}
 
                       <span

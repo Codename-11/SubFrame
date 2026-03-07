@@ -8,9 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Reuse idle terminal for agent**: Starting an agent (Ctrl+Shift+Enter / Play button) now reuses the active terminal if no agent is running, instead of always creating a new one. Configurable via Settings → General → "Reuse idle terminal for agent" (enabled by default)
+- **Agent status indicator in tabs**: Pulsing green bot icon appears in terminal tab bar and grid cells when an agent session is active
+- **Auto-rename terminal tabs**: Terminal tabs automatically rename to the agent session name when a session starts (respects user-renamed tabs)
+- **Agent Activity full-view**: Popout button on Agent Activity panel opens full-screen view with session list sidebar + detail timeline
+- **Multi-session agent panel**: Agent Activity panel now shows all active/recent sessions (up to 5) with clickable cards, not just the first active one
+- **Multi-session sidebar status**: Sidebar agent status widget shows count badge when multiple agents are active
+- **Session differentiation in full-view**: Session list items show relative timestamps ("2m ago"), active tool badges, step counts; detail pane shows session start time
+- **Jump to terminal from agent view**: Session cards and full-view detail pane show a terminal icon button that focuses the terminal running that agent session. Uses timestamp-based correlation between ptyManager detection and agent-state.json sessions
 - **Usage polling interval setting**: Configurable polling interval for Claude API usage data (Settings → General → Behavior), default 5 minutes, range 30s–10min
+- **Grid overflow auto-switch**: When in grid view with more terminals than grid cells, selecting an overflow terminal auto-switches to single view; selecting a grid terminal switches back. Overflow tabs get a warning dot indicator. Configurable via Settings → General → Behavior (enabled by default)
+- **Pipeline `with:` config system**: Per-step configuration on workflow YAML steps — `scope` (project/changes), `mode` (agent/print), `focus` (security/documentation/architecture/performance/testing), and custom `prompt` overrides
+- **Pipeline scope: project**: AI stages can now analyze entire codebase context (file tree, STRUCTURE.json, package.json, git log, key config files) instead of just git diffs
+- **Pipeline agent mode**: `mode: agent` spawns Claude in autonomous multi-turn mode with tool use for deep analysis; `mode: print` (default) uses fast single-turn mode
+- **Pipeline full-screen view**: Popout button in sidebar to open pipeline panel in full-screen mode (matching Tasks panel pattern)
+- **Pipeline Re-Run and Delete**: Re-run button to re-trigger the same workflow, Delete button to remove pipeline runs
+- **Docs Audit workflow template**: `docs-audit.yml` — checks STRUCTURE.json sync + AI documentation review with `scope: project, focus: documentation`
+- **Security Scan workflow template**: `security-scan.yml` — npm audit + AI security review with `scope: project, focus: security`
+- **Workflow Editor UI**: Visual workflow builder with drag-to-reorder steps, stage type autofill dropdown, AI config fields (scope/mode/focus/prompt), and YAML view toggle via CodeMirror. Create, edit, and delete workflows directly from the Pipeline panel
+
+### Changed
+- **Health Check workflow**: Now uses `scope: project` for describe/critique stages (audits whole codebase, not just recent diffs)
+- **Pipeline stage handlers**: All AI stages (test, describe, critique) now use configurable scope, mode, focus, and prompt via `with:` config
 
 ### Fixed
+- Pipeline critique/patches/log tabs showing no data (Radix Tabs breaking flex height chain — replaced with plain button tab bar)
+- Pipeline sidebar scroll not working (removed wrapper div breaking flex chain, matching TasksPanel flat layout pattern)
+- AI tool JSON envelope not unwrapped (Claude CLI `--output-format json` wraps in `{"type":"result","result":"..."}`)
+- Shell mangling of AI prompts with backticks/quotes (now piped via stdin instead of positional args)
+- Empty diff when baseSha === headSha on main branch (graceful skip with meaningful message)
 - Removed redundant renderer-side usage polling timer (main process already pushes updates)
 
 ## [0.1.0-beta.4] - 2026-03-05

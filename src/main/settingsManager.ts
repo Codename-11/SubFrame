@@ -19,6 +19,7 @@ interface DefaultSettings {
     showDotfiles: boolean;
     confirmBeforeClose: boolean;
     usagePollingInterval: number;
+    gridOverflowAutoSwitch: boolean;
   };
   aiTools: Record<string, unknown>;
   terminal: {
@@ -74,6 +75,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     showDotfiles: false,
     confirmBeforeClose: true,
     usagePollingInterval: 300,
+    gridOverflowAutoSwitch: true,
   },
   aiTools: {},
   terminal: {

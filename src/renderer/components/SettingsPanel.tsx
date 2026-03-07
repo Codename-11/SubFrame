@@ -124,6 +124,7 @@ export function SettingsPanel() {
   const confirmBeforeClose = (general.confirmBeforeClose !== false);
   const defaultProjectDir = (general.defaultProjectDir as string) || '';
   const usagePollingInterval = (general.usagePollingInterval as number) || 300;
+  const gridOverflowAutoSwitch = general.gridOverflowAutoSwitch !== false;
 
   function saveToggle(key: string, value: boolean) {
     updateSetting.mutate([{ key, value }]);
@@ -554,6 +555,20 @@ export function SettingsPanel() {
                         : `${usagePollingInterval}s`}
                     </span>
                   </div>
+                </div>
+
+                {/* Grid overflow auto-switch */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-text-primary">Grid overflow auto-switch</div>
+                    <div className="text-xs text-text-tertiary">Auto-switch to single view when selecting a terminal outside the grid, and back when selecting one inside</div>
+                  </div>
+                  <button
+                    onClick={() => saveToggle('general.gridOverflowAutoSwitch', !gridOverflowAutoSwitch)}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${gridOverflowAutoSwitch ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${gridOverflowAutoSwitch ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
                 </div>
               </div>
 

@@ -4,15 +4,18 @@
  * Full-view mode: session list + selected session timeline.
  */
 
-import { useState, useMemo } from 'react';
-import { Activity } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Activity, Maximize2, TerminalSquare } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { cn } from '../lib/utils';
 import { useAgentState } from '../hooks/useAgentState';
+import { useUIStore } from '../stores/useUIStore';
+import { useTerminalStore } from '../stores/useTerminalStore';
 import { AgentTimeline } from './AgentTimeline';
 import type { AgentSession, AgentSessionStatus } from '../../shared/agentStateTypes';
+import * as terminalRegistry from '../lib/terminalRegistry';
 
 interface AgentStateViewProps {
   isFullView?: boolean;
@@ -32,19 +35,34 @@ const STATUS_DOT: Record<AgentSessionStatus, string> = {
   completed: 'bg-text-tertiary',
 };
 
-function SessionCard({ session }: { session: AgentSession }) {
+function SessionCard({ session, hasTerminal, onJumpToTerminal }: {
+  session: AgentSession;
+  hasTerminal?: boolean;
+  onJumpToTerminal?: () => void;
+}) {
   return (
     <div className="bg-bg-secondary rounded-lg border border-border-subtle p-3 min-w-0">
       <div className="flex items-center justify-between gap-2 min-w-0">
         <span className="text-xs font-medium text-text-primary truncate min-w-0">
           {session.agentName || 'Claude'}
         </span>
-        <Badge
-          variant="secondary"
-          className={cn('text-[10px] capitalize', STATUS_STYLES[session.status])}
-        >
-          {session.status}
-        </Badge>
+        <div className="flex items-center gap-1 shrink-0">
+          {hasTerminal && onJumpToTerminal && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onJumpToTerminal(); }}
+              className="p-0.5 rounded text-text-muted hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer"
+              title="Jump to terminal"
+            >
+              <TerminalSquare className="h-3 w-3" />
+            </button>
+          )}
+          <Badge
+            variant="secondary"
+            className={cn('text-[10px] capitalize', STATUS_STYLES[session.status])}
+          >
+            {session.status}
+          </Badge>
+        </div>
       </div>
       {session.currentTool && (
         <div className="mt-1.5 min-w-0">
@@ -72,11 +90,20 @@ function SessionListItem({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const relativeTime = useMemo(() => {
+    if (!session.lastActivityAt) return '';
+    const diff = Date.now() - new Date(session.lastActivityAt).getTime();
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return `${Math.floor(diff / 86400000)}d ago`;
+  }, [session.lastActivityAt]);
+
   return (
     <button
       onClick={onClick}
       className={cn(
-        'w-full text-left px-3 py-2 transition-colors cursor-pointer',
+        'w-full text-left px-3 py-2.5 transition-colors cursor-pointer',
         isSelected ? 'bg-bg-hover/50 border-l-2 border-accent' : 'hover:bg-bg-hover/30 border-l-2 border-transparent',
       )}
     >
@@ -85,13 +112,20 @@ function SessionListItem({
         <span className="text-xs font-medium text-text-primary truncate min-w-0 flex-1">
           {session.agentName || 'Claude'}
         </span>
-        <span className="text-[10px] text-text-muted ml-auto shrink-0">
-          {session.steps.length}
+        <span className="text-[10px] text-text-muted shrink-0 tabular-nums">
+          {session.steps.length} steps
         </span>
       </div>
       {session.currentTool && (
-        <div className="mt-0.5 ml-4 text-[10px] text-text-tertiary truncate min-w-0">
-          {session.currentTool}
+        <div className="mt-1 ml-4">
+          <span className="bg-accent-subtle text-accent text-[10px] px-1.5 py-0.5 rounded">
+            {session.currentTool}
+          </span>
+        </div>
+      )}
+      {relativeTime && (
+        <div className="mt-0.5 ml-4 text-[10px] text-text-muted">
+          {relativeTime}
         </div>
       )}
     </button>
@@ -111,6 +145,7 @@ function EmptyState() {
 export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
   const { sessions, activeSession, isLoading } = useAgentState();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const terminals = useTerminalStore((s) => s.terminals);
 
   // In full-view, resolve the selected session (fallback to active)
   const selectedSession = useMemo<AgentSession | null>(() => {
@@ -122,6 +157,61 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
     return activeSession ?? sessions[0] ?? null;
   }, [isFullView, sessions, selectedSessionId, activeSession]);
 
+  const [selectedPanelSessionId, setSelectedPanelSessionId] = useState<string | null>(null);
+
+  // Find the terminal associated with a session and focus it
+  const jumpToTerminal = useCallback((sessionId: string) => {
+    const { terminals, setActiveTerminal } = useTerminalStore.getState();
+    for (const [, info] of terminals) {
+      if (info.claudeSessionId === sessionId) {
+        setActiveTerminal(info.id);
+        // Close full view if open, so the terminal is visible
+        if (isFullView) {
+          useUIStore.getState().setFullViewContent(null);
+        }
+        // Focus the xterm instance
+        setTimeout(() => {
+          const instance = terminalRegistry.get(info.id);
+          if (instance) instance.terminal.focus();
+        }, 50);
+        return;
+      }
+    }
+  }, [isFullView]);
+
+  // Check if a session has an associated terminal (reactive via terminals subscription)
+  const terminalBySession = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const [, info] of terminals) {
+      if (info.claudeSessionId) map.set(info.claudeSessionId, info.id);
+    }
+    return map;
+  }, [terminals]);
+
+  // Panel mode: show active/busy sessions first, then recent idle/completed (max 5), newest first
+  const panelSessions = useMemo(() => {
+    const byRecency = (a: AgentSession, b: AgentSession) => {
+      const ta = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
+      const tb = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
+      return tb - ta;
+    };
+    const active = sessions.filter((s) => s.status === 'active' || s.status === 'busy').sort(byRecency);
+    const inactive = sessions
+      .filter((s) => s.status !== 'active' && s.status !== 'busy')
+      .sort(byRecency)
+      .slice(0, Math.max(0, 5 - active.length));
+    return [...active, ...inactive];
+  }, [sessions]);
+
+  // Expanded session in panel mode: selected, or first active, or first in list
+  const expandedSession = useMemo(() => {
+    if (selectedPanelSessionId) {
+      const found = panelSessions.find((s) => s.sessionId === selectedPanelSessionId);
+      if (found) return found;
+    }
+    return panelSessions.find((s) => s.status === 'active' || s.status === 'busy') ?? panelSessions[0] ?? null;
+  }, [panelSessions, selectedPanelSessionId]);
+
   // ── Panel mode (sidebar right panel) ──────────────────────────────────────
   if (!isFullView) {
     return (
@@ -129,14 +219,23 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle shrink-0">
           <span className="text-xs font-medium text-text-secondary">Agent Activity</span>
-          {activeSession && (
-            <Badge
-              variant="secondary"
-              className={cn('text-[10px] capitalize', STATUS_STYLES[activeSession.status])}
+          <div className="flex items-center gap-1.5">
+            {panelSessions.filter(s => s.status === 'active' || s.status === 'busy').length > 0 && (
+              <Badge
+                variant="secondary"
+                className="text-[10px] bg-emerald-900/60 text-emerald-300"
+              >
+                {panelSessions.filter(s => s.status === 'active' || s.status === 'busy').length} active
+              </Badge>
+            )}
+            <button
+              onClick={() => { useUIStore.getState().setActivePanel(null); useUIStore.getState().setFullViewContent('agentState'); }}
+              className="p-1 rounded text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer"
+              title="Open full view"
             >
-              {activeSession.status}
-            </Badge>
-          )}
+              <Maximize2 size={14} />
+            </button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1 min-h-0">
@@ -149,12 +248,33 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
               <EmptyState />
             </div>
           ) : (
-            <div className="p-3 flex flex-col gap-3">
-              {activeSession && <SessionCard session={activeSession} />}
-              {activeSession && activeSession.steps.length > 0 && (
+            <div className="p-3 flex flex-col gap-2">
+              {/* Show active/busy sessions first, then recent ones */}
+              {panelSessions.map((session) => (
+                <button
+                  key={session.sessionId}
+                  onClick={() => setSelectedPanelSessionId(
+                    selectedPanelSessionId === session.sessionId ? null : session.sessionId
+                  )}
+                  className={cn(
+                    'w-full text-left transition-colors rounded-lg',
+                    selectedPanelSessionId === session.sessionId
+                      ? 'ring-1 ring-accent/30'
+                      : 'hover:bg-bg-hover/30'
+                  )}
+                >
+                  <SessionCard
+                    session={session}
+                    hasTerminal={terminalBySession.has(session.sessionId)}
+                    onJumpToTerminal={() => jumpToTerminal(session.sessionId)}
+                  />
+                </button>
+              ))}
+              {/* Timeline for selected session */}
+              {expandedSession && expandedSession.steps.length > 0 && (
                 <>
                   <Separator className="bg-border-subtle" />
-                  <AgentTimeline steps={activeSession.steps} compact />
+                  <AgentTimeline steps={expandedSession.steps} compact />
                 </>
               )}
             </div>
@@ -170,9 +290,19 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
       {/* Session list (left) */}
       <div className="w-[250px] border-r border-border-subtle flex flex-col shrink-0">
         <div className="px-3 py-2 border-b border-border-subtle shrink-0">
-          <span className="text-xs font-medium text-text-secondary">
-            {sessions.length} session{sessions.length !== 1 ? 's' : ''}
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-text-secondary">
+              {sessions.length} session{sessions.length !== 1 ? 's' : ''}
+            </span>
+            {sessions.filter(s => s.status === 'active' || s.status === 'busy').length > 0 && (
+              <Badge
+                variant="secondary"
+                className="text-[10px] bg-emerald-900/60 text-emerald-300"
+              >
+                {sessions.filter(s => s.status === 'active' || s.status === 'busy').length} active
+              </Badge>
+            )}
+          </div>
         </div>
         <ScrollArea className="flex-1 min-h-0">
           {sessions.length === 0 ? (
@@ -181,7 +311,17 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
             </div>
           ) : (
             <div className="flex flex-col">
-              {sessions.map((s) => (
+              {[...sessions]
+                .sort((a, b) => {
+                  // Active/busy first, then newest-to-oldest by lastActivityAt
+                  const aActive = a.status === 'active' || a.status === 'busy' ? 0 : 1;
+                  const bActive = b.status === 'active' || b.status === 'busy' ? 0 : 1;
+                  if (aActive !== bActive) return aActive - bActive;
+                  const ta = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
+                  const tb = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
+                  return tb - ta;
+                })
+                .map((s) => (
                 <SessionListItem
                   key={s.sessionId}
                   session={s}
@@ -215,9 +355,26 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
                   </span>
                 )}
               </div>
-              <span className="text-[10px] text-text-muted shrink-0">
-                {selectedSession.steps.length} step{selectedSession.steps.length !== 1 ? 's' : ''}
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] text-text-muted tabular-nums">
+                  {selectedSession.steps.length} step{selectedSession.steps.length !== 1 ? 's' : ''}
+                </span>
+                {selectedSession.startedAt && (
+                  <span className="text-[10px] text-text-muted">
+                    Started {new Date(selectedSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+                {terminalBySession.has(selectedSession.sessionId) && (
+                  <button
+                    onClick={() => jumpToTerminal(selectedSession.sessionId)}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer"
+                    title="Jump to terminal"
+                  >
+                    <TerminalSquare className="h-3 w-3" />
+                    <span>Terminal</span>
+                  </button>
+                )}
+              </div>
             </div>
             <ScrollArea className="flex-1 min-h-0">
               <div className="p-4">

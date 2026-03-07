@@ -34,6 +34,7 @@ const DEFAULT_POLLING_SECONDS = 300;
 
 let mainWindow: BrowserWindow | null = null;
 let pollingInterval: ReturnType<typeof setInterval> | null = null;
+let initialFetchTimeout: ReturnType<typeof setTimeout> | null = null;
 let cachedUsage: UsageData | null = null;
 
 /**
@@ -273,7 +274,8 @@ function startPolling(): void {
   const intervalMs = getPollingMs();
 
   // Initial fetch after a short delay
-  setTimeout(() => {
+  initialFetchTimeout = setTimeout(() => {
+    initialFetchTimeout = null;
     sendUsageToRenderer();
   }, 2000);
 
@@ -287,6 +289,10 @@ function startPolling(): void {
  * Stop polling
  */
 function stopPolling(): void {
+  if (initialFetchTimeout) {
+    clearTimeout(initialFetchTimeout);
+    initialFetchTimeout = null;
+  }
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;

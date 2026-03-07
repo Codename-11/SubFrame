@@ -16,11 +16,12 @@ import { TasksPanel } from './TasksPanel';
 import { StatsDetailView } from './StatsDetailView';
 import { DecisionsDetailView } from './DecisionsDetailView';
 import { PipelinePanel } from './PipelinePanel';
+import { AgentStateView } from './AgentStateView';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
-import { useAIToolConfig } from '../hooks/useSettings';
+import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedSend } from '../lib/ipc';
 import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
@@ -94,6 +95,7 @@ export function TerminalArea() {
   const setActiveTerminal = useTerminalStore((s) => s.setActiveTerminal);
   const setViewMode = useTerminalStore((s) => s.setViewMode);
   const renameTerminal = useTerminalStore((s) => s.renameTerminal);
+  const setClaudeActive = useTerminalStore((s) => s.setClaudeActive);
   const switchToProject = useTerminalStore((s) => s.switchToProject);
 
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
@@ -102,6 +104,7 @@ export function TerminalArea() {
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
   const toggleFullView = useUIStore((s) => s.toggleFullView);
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
+  const { settings } = useSettings();
   const { config: aiToolConfig } = useAIToolConfig();
   const aiToolName = aiToolConfig?.activeTool.name || 'AI Tool';
   const prevProjectRef = useRef<string | null>(null);
@@ -113,6 +116,22 @@ export function TerminalArea() {
   const projectTerminals = Array.from(terminals.values())
     .filter((t) => (t.projectPath || '') === normalizedPath)
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
+
+  // Grid overflow detection — when active terminal exceeds grid capacity,
+  // temporarily show it in single view instead of the grid
+  const gridLayout = useTerminalStore((s) => s.gridLayout);
+  const general = (settings?.general as Record<string, unknown>) ?? {};
+  const gridOverflowAutoSwitch = general.gridOverflowAutoSwitch !== false;
+  const gridMaxCells = (() => {
+    const m = gridLayout.match(/^(\d+)x(\d+)$/);
+    return m ? Number(m[1]) * Number(m[2]) : 4;
+  })();
+  const gridTerminalIds = new Set(projectTerminals.slice(0, gridMaxCells).map(t => t.id));
+  const activeIsOverflow = viewMode === 'grid'
+    && activeTerminalId != null
+    && projectTerminals.length > gridMaxCells
+    && !gridTerminalIds.has(activeTerminalId);
+  const showOverflowSingle = gridOverflowAutoSwitch && activeIsOverflow;
 
   // Create terminal helper (ref guard prevents double-clicks, with safety timeout)
   const creatingTerminal = useRef(false);
@@ -192,6 +211,34 @@ export function TerminalArea() {
       ipcRenderer.removeListener(IPC.TERMINAL_DESTROYED, handler);
     };
   }, [removeTerminal]);
+
+  // Listen for agent active status changes — update store + auto-rename tab
+  useEffect(() => {
+    const handler = (_event: unknown, data: { terminalId: string; active: boolean; sessionId?: string }) => {
+      setClaudeActive(data.terminalId, data.active, data.sessionId);
+
+      // Auto-rename tab when agent starts (skip user-renamed tabs)
+      if (data.active) {
+        const terminal = useTerminalStore.getState().terminals.get(data.terminalId);
+        if (terminal && terminal.nameSource !== 'user') {
+          setTimeout(async () => {
+            try {
+              const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, { terminalId: data.terminalId });
+              if (result.name) {
+                renameTerminal(data.terminalId, result.name, 'session');
+              }
+            } catch {
+              // Session may not be registered yet
+            }
+          }, 3000);
+        }
+      }
+    };
+    ipcRenderer.on(IPC.CLAUDE_ACTIVE_STATUS, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC.CLAUDE_ACTIVE_STATUS, handler);
+    };
+  }, [setClaudeActive, renameTerminal]);
 
   // Listen for menu-triggered close (dispatched from App.tsx menu handler)
   useEffect(() => {
@@ -444,6 +491,7 @@ export function TerminalArea() {
     stats: 'Repository Stats',
     decisions: 'Project Decisions',
     pipeline: 'Pipeline',
+    agentState: 'Agent Activity',
   };
   const fullViewTitle = fullViewContent ? fullViewTitles[fullViewContent] ?? '' : '';
 
@@ -455,6 +503,9 @@ export function TerminalArea() {
         onOverviewToggle={() => togglePanel('overview')}
         onTogglePanel={(panel) => togglePanel(panel)}
         projectTerminals={projectTerminals}
+        gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
+          ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
+          : undefined}
       />
 
       <div className="flex-1 min-h-0">
@@ -505,6 +556,9 @@ export function TerminalArea() {
                 )}
                 {fullViewContent === 'pipeline' && (
                   <PipelinePanel isFullView />
+                )}
+                {fullViewContent === 'agentState' && (
+                  <AgentStateView isFullView />
                 )}
               </ErrorBoundary>
             </div>
@@ -585,8 +639,8 @@ export function TerminalArea() {
               </div>
             </div>
           </div>
-        ) : viewMode === 'tabs' ? (
-          /* Single terminal — show only the active one */
+        ) : viewMode === 'tabs' || showOverflowSingle ? (
+          /* Single terminal — show only the active one (also used for grid overflow auto-switch) */
           activeTerminalId ? (
             <Terminal terminalId={activeTerminalId} />
           ) : null
