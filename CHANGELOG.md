@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Usage polling interval setting**: Configurable polling interval for Claude API usage data (Settings → General → Behavior), default 5 minutes, range 30s–10min
+
+### Fixed
+- Removed redundant renderer-side usage polling timer (main process already pushes updates)
+
 ## [0.1.0-beta.4] - 2026-03-05
 
 ### Added

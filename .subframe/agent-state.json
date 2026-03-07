@@ -2043,7 +2043,7 @@
     },
     {
       "sessionId": "f489ed7f-1388-46cb-80ff-1e03552376e1",
-      "status": "active",
+      "status": "idle",
       "steps": [
         {
           "id": "step-1772830897290-50",
@@ -2441,14 +2441,46 @@
           "id": "step-1772832474521-50",
           "label": "Stage all promo and docs changes",
           "toolName": "Bash",
-          "status": "running",
-          "startedAt": "2026-03-06T21:27:54.521Z"
+          "status": "completed",
+          "startedAt": "2026-03-06T21:27:54.521Z",
+          "completedAt": "2026-03-07T12:58:58.632Z"
         }
       ],
       "startedAt": "2026-03-06T13:31:10.578Z",
-      "lastActivityAt": "2026-03-06T21:27:54.521Z",
+      "lastActivityAt": "2026-03-06T21:27:54.521Z"
+    },
+    {
+      "sessionId": "12f2e313-2671-4f5c-9288-32a90a044ca2",
+      "status": "active",
+      "steps": [
+        {
+          "id": "step-1772888338632-0",
+          "label": "Editing TerminalTabBar.tsx",
+          "toolName": "Edit",
+          "status": "completed",
+          "startedAt": "2026-03-07T12:58:58.632Z",
+          "completedAt": "2026-03-07T12:58:58.883Z"
+        }
+      ],
+      "startedAt": "2026-03-07T12:58:58.632Z",
+      "lastActivityAt": "2026-03-07T12:58:58.883Z"
+    },
+    {
+      "sessionId": "93b3783a-421b-45d5-ab95-f3dfb2a1de61",
+      "status": "active",
+      "steps": [
+        {
+          "id": "step-1772888340044-0",
+          "label": "Resolve conflict and commit feature",
+          "toolName": "Bash",
+          "status": "running",
+          "startedAt": "2026-03-07T12:59:00.044Z"
+        }
+      ],
+      "startedAt": "2026-03-07T12:59:00.044Z",
+      "lastActivityAt": "2026-03-07T12:59:00.044Z",
       "currentTool": "Bash"
     }
   ],
-  "lastUpdated": "2026-03-06T21:27:54.521Z"
+  "lastUpdated": "2026-03-07T12:59:00.044Z"
 }

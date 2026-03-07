@@ -14,9 +14,11 @@ let settingsPath: string | null = null;
 interface DefaultSettings {
   general: {
     autoCreateTerminal: boolean;
+    reuseIdleTerminal: boolean;
     defaultProjectDir: string;
     showDotfiles: boolean;
     confirmBeforeClose: boolean;
+    usagePollingInterval: number;
   };
   aiTools: Record<string, unknown>;
   terminal: {
@@ -67,9 +69,11 @@ interface DefaultSettings {
 const DEFAULT_SETTINGS: DefaultSettings = {
   general: {
     autoCreateTerminal: false,
+    reuseIdleTerminal: true,
     defaultProjectDir: '',
     showDotfiles: false,
     confirmBeforeClose: true,
+    usagePollingInterval: 300,
   },
   aiTools: {},
   terminal: {
@@ -109,6 +113,9 @@ const DEFAULT_SETTINGS: DefaultSettings = {
 };
 
 let settings: Record<string, unknown> | null = null;
+
+type SettingChangeListener = (key: string, value: unknown) => void;
+const changeListeners: SettingChangeListener[] = [];
 
 /**
  * Initialize the settings manager
@@ -174,7 +181,23 @@ function updateSetting(keyPath: string, value: unknown): Record<string, unknown>
     mainWindow.webContents.send(IPC.SETTINGS_UPDATED, { key: keyPath, value, settings });
   }
 
+  // Notify main-process listeners
+  for (const listener of changeListeners) {
+    listener(keyPath, value);
+  }
+
   return settings as Record<string, unknown>;
+}
+
+/**
+ * Register a listener for setting changes (main-process only)
+ */
+function onSettingChange(listener: SettingChangeListener): () => void {
+  changeListeners.push(listener);
+  return () => {
+    const idx = changeListeners.indexOf(listener);
+    if (idx >= 0) changeListeners.splice(idx, 1);
+  };
 }
 
 /**
@@ -226,4 +249,4 @@ function setupIPC(): void {
   });
 }
 
-export { init, loadSettings, saveSettings, updateSetting, getSetting };
+export { init, loadSettings, saveSettings, updateSetting, getSetting, onSettingChange };

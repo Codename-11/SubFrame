@@ -22,6 +22,7 @@ import {
   Activity,
   LayoutDashboard,
   Workflow,
+  Bot,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -92,6 +93,9 @@ export function TerminalTabBar({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  // Track which terminals have an active agent session
+  const [agentActive, setAgentActive] = useState<Map<string, boolean>>(new Map());
+
   // Load available shells
   useEffect(() => {
     const handler = (_event: unknown, data: { shells: ShellInfo[]; success: boolean }) => {
@@ -104,7 +108,40 @@ export function TerminalTabBar({
     };
   }, []);
 
-  // Load Claude usage data
+  // Listen for agent active/inactive status changes per terminal
+  useEffect(() => {
+    const handler = (_event: unknown, data: { terminalId: string; active: boolean }) => {
+      setAgentActive((prev) => {
+        const next = new Map(prev);
+        next.set(data.terminalId, data.active);
+        return next;
+      });
+
+      // Auto-rename tab on agent start (only if not user-renamed)
+      if (data.active) {
+        const terminal = terminalList.find((t) => t.id === data.terminalId);
+        if (terminal && terminal.nameSource !== 'user') {
+          // Fetch session name after a short delay to let the session register
+          setTimeout(async () => {
+            try {
+              const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, { terminalId: data.terminalId });
+              if (result.name) {
+                renameTerminal(data.terminalId, result.name, 'session');
+              }
+            } catch {
+              // Session may not be registered yet — that's fine
+            }
+          }, 3000);
+        }
+      }
+    };
+    ipcRenderer.on(IPC.CLAUDE_ACTIVE_STATUS, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC.CLAUDE_ACTIVE_STATUS, handler);
+    };
+  }, [terminalList, renameTerminal]);
+
+  // Load Claude usage data (main process handles periodic polling via settings)
   useEffect(() => {
     const handler = (_event: unknown, data: any) => {
       // On error, preserve existing usage values if backend didn't
@@ -120,14 +157,8 @@ export function TerminalTabBar({
     ipcRenderer.on(IPC.CLAUDE_USAGE_DATA, handler);
     ipcRenderer.send(IPC.LOAD_CLAUDE_USAGE);
 
-    // Refresh every 60s
-    const interval = setInterval(() => {
-      ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE);
-    }, 60000);
-
     return () => {
       ipcRenderer.removeListener(IPC.CLAUDE_USAGE_DATA, handler);
-      clearInterval(interval);
     };
   }, []);
 

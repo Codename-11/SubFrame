@@ -119,9 +119,11 @@ export function SettingsPanel() {
 
   const general = (settings.general as Record<string, unknown>) || {};
   const autoCreateTerminal = (general.autoCreateTerminal as boolean) || false;
+  const reuseIdleTerminal = general.reuseIdleTerminal !== false; // default true
   const showDotfiles = (general.showDotfiles as boolean) || false;
   const confirmBeforeClose = (general.confirmBeforeClose !== false);
   const defaultProjectDir = (general.defaultProjectDir as string) || '';
+  const usagePollingInterval = (general.usagePollingInterval as number) || 300;
 
   function saveToggle(key: string, value: boolean) {
     updateSetting.mutate([{ key, value }]);
@@ -484,6 +486,20 @@ export function SettingsPanel() {
                   </button>
                 </div>
 
+                {/* Reuse idle terminal */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-text-primary">Reuse idle terminal for agent</div>
+                    <div className="text-xs text-text-tertiary">Start agent in the active terminal if no agent is running, instead of creating a new one</div>
+                  </div>
+                  <button
+                    onClick={() => saveToggle('general.reuseIdleTerminal', !reuseIdleTerminal)}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${reuseIdleTerminal ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${reuseIdleTerminal ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+
                 {/* Show dotfiles */}
                 <div className="flex items-center justify-between">
                   <div>
@@ -514,6 +530,30 @@ export function SettingsPanel() {
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${confirmBeforeClose ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
+                </div>
+
+                {/* Usage polling interval */}
+                <div>
+                  <div className="text-sm text-text-primary mb-1">Usage polling interval</div>
+                  <div className="text-xs text-text-tertiary mb-2">How often to check Claude API usage (30s – 10min). Lower values may trigger rate limits.</div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={30}
+                      max={600}
+                      step={30}
+                      value={usagePollingInterval}
+                      onChange={(e) => {
+                        updateSetting.mutate([{ key: 'general.usagePollingInterval', value: Number(e.target.value) }]);
+                      }}
+                      className="flex-1 accent-accent"
+                    />
+                    <span className="text-xs text-text-secondary w-14 text-right tabular-nums">
+                      {usagePollingInterval >= 60
+                        ? `${Math.floor(usagePollingInterval / 60)}m${usagePollingInterval % 60 ? ` ${usagePollingInterval % 60}s` : ''}`
+                        : `${usagePollingInterval}s`}
+                    </span>
+                  </div>
                 </div>
               </div>
 

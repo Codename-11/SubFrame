@@ -10,6 +10,7 @@ import * as os from 'os';
 import * as https from 'https';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
+import { getSetting, onSettingChange } from './settingsManager';
 
 interface UsageWindow {
   utilization: number;
@@ -28,9 +29,22 @@ interface CredentialsData {
   accessToken?: string;
 }
 
+/** Default polling interval in seconds (5 minutes) */
+const DEFAULT_POLLING_SECONDS = 300;
+
 let mainWindow: BrowserWindow | null = null;
 let pollingInterval: ReturnType<typeof setInterval> | null = null;
 let cachedUsage: UsageData | null = null;
+
+/**
+ * Read the configured polling interval from settings (in seconds), clamped to 30–600.
+ */
+function getPollingMs(): number {
+  const raw = getSetting('general.usagePollingInterval');
+  const seconds = typeof raw === 'number' ? raw : DEFAULT_POLLING_SECONDS;
+  const clamped = Math.max(30, Math.min(600, seconds));
+  return clamped * 1000;
+}
 
 /**
  * Initialize the module with window reference
@@ -39,6 +53,13 @@ function init(window: BrowserWindow): void {
   mainWindow = window;
   // Start polling when window is ready
   startPolling();
+
+  // Restart polling when the interval setting changes
+  onSettingChange((key) => {
+    if (key === 'general.usagePollingInterval') {
+      restartPolling();
+    }
+  });
 }
 
 /**
@@ -242,11 +263,14 @@ async function sendUsageToRenderer(retries = 2, delay = 5000): Promise<void> {
 }
 
 /**
- * Start periodic polling for usage updates
+ * Start periodic polling for usage updates.
+ * Reads interval from settings (general.usagePollingInterval).
  */
-function startPolling(interval: number = 60000): void {
+function startPolling(): void {
   // Stop any existing polling
   stopPolling();
+
+  const intervalMs = getPollingMs();
 
   // Initial fetch after a short delay
   setTimeout(() => {
@@ -256,7 +280,7 @@ function startPolling(interval: number = 60000): void {
   // Start periodic updates
   pollingInterval = setInterval(() => {
     sendUsageToRenderer();
-  }, interval);
+  }, intervalMs);
 }
 
 /**
@@ -267,6 +291,13 @@ function stopPolling(): void {
     clearInterval(pollingInterval);
     pollingInterval = null;
   }
+}
+
+/**
+ * Restart polling (called when the setting changes)
+ */
+function restartPolling(): void {
+  startPolling();
 }
 
 /**
@@ -284,6 +315,7 @@ function setupIPC(ipcMain: IpcMain): void {
     const usage = await fetchUsage();
     event.sender.send(IPC.CLAUDE_USAGE_DATA, usage);
   });
+
 }
 
 /**
@@ -294,4 +326,4 @@ function cleanup(): void {
   mainWindow = null;
 }
 
-export { init, setupIPC, cleanup, fetchUsage, startPolling, stopPolling };
+export { init, setupIPC, cleanup, fetchUsage, startPolling, stopPolling, restartPolling };

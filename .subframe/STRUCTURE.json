@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-06",
+  "lastUpdated": "2026-03-07",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -605,7 +605,8 @@
         "cleanup",
         "fetchUsage",
         "startPolling",
-        "stopPolling"
+        "stopPolling",
+        "restartPolling"
       ],
       "depends": [
         "child_process",
@@ -613,42 +614,52 @@
         "path",
         "os",
         "https",
-        "shared/ipcChannels"
+        "shared/ipcChannels",
+        "settingsManager"
       ],
       "functions": {
+        "getPollingMs": {
+          "line": 42,
+          "purpose": "Read the configured polling interval from settings (in seconds), clamped to 30–600.",
+          "calls": [
+            "getSetting"
+          ]
+        },
         "init": {
-          "line": 38,
+          "line": 52,
           "params": [
             "window"
           ],
           "purpose": "Initialize the module with window reference",
           "calls": [
+            "onSettingChange",
+            "restartPolling",
             "startPolling"
           ]
         },
         "extractToken": {
-          "line": 47,
+          "line": 68,
           "params": [
             "credentials"
           ],
           "purpose": "Extract access token from a parsed credentials object"
         },
         "getTokenFromCredentialsFile": {
-          "line": 60,
+          "line": 81,
           "purpose": "Read OAuth token from the Claude credentials file (~/.claude/.credentials.json)",
           "calls": [
             "extractToken"
           ]
         },
         "getTokenFromKeychain": {
-          "line": 77,
+          "line": 98,
           "purpose": "Read OAuth token from macOS Keychain",
           "calls": [
             "extractToken"
           ]
         },
         "getOAuthToken": {
-          "line": 97,
+          "line": 118,
           "purpose": "Get OAuth token using platform-appropriate method",
           "calls": [
             "getTokenFromCredentialsFile",
@@ -656,14 +667,14 @@
           ]
         },
         "fetchUsage": {
-          "line": 126,
+          "line": 147,
           "purpose": "Fetch usage data from Claude OAuth API",
           "calls": [
             "getOAuthToken"
           ]
         },
         "sendUsageToRenderer": {
-          "line": 232,
+          "line": 253,
           "params": [
             "retries",
             "delay"
@@ -674,22 +685,27 @@
           ]
         },
         "startPolling": {
-          "line": 247,
-          "params": [
-            "interval"
-          ],
-          "purpose": "Start periodic polling for usage updates",
+          "line": 269,
+          "purpose": "Reads interval from settings (general.usagePollingInterval).",
           "calls": [
+            "getPollingMs",
             "sendUsageToRenderer",
             "stopPolling"
           ]
         },
         "stopPolling": {
-          "line": 265,
+          "line": 289,
           "purpose": "Stop polling"
         },
+        "restartPolling": {
+          "line": 299,
+          "purpose": "Restart polling (called when the setting changes)",
+          "calls": [
+            "startPolling"
+          ]
+        },
         "setupIPC": {
-          "line": 275,
+          "line": 306,
           "params": [
             "ipcMain"
           ],
@@ -699,14 +715,14 @@
           ]
         },
         "cleanup": {
-          "line": 292,
+          "line": 324,
           "purpose": "Cleanup on app quit",
           "calls": [
             "stopPolling"
           ]
         }
       },
-      "loc": 298,
+      "loc": 330,
       "ipc": {
         "listens": [
           "LOAD_CLAUDE_USAGE",
@@ -1936,11 +1952,13 @@
           ],
           "purpose": "Ensure the workflows directory exists, seeding with default workflow if empty.",
           "calls": [
-            "getHealthCheckWorkflow"
+            "getDocsAuditWorkflow",
+            "getHealthCheckWorkflow",
+            "getSecurityScanWorkflow"
           ]
         },
         "persistRuns": {
-          "line": 112,
+          "line": 114,
           "params": [
             "projectPath"
           ],
@@ -1950,7 +1968,7 @@
           ]
         },
         "loadPersistedRuns": {
-          "line": 134,
+          "line": 136,
           "params": [
             "projectPath"
           ],
@@ -1960,7 +1978,7 @@
           ]
         },
         "execAsync": {
-          "line": 159,
+          "line": 161,
           "params": [
             "cmd",
             "cwd: string"
@@ -1968,7 +1986,7 @@
           "purpose": "Run a shell command and return stdout."
         },
         "topologicalSortJobs": {
-          "line": 177,
+          "line": 179,
           "params": [
             "jobs",
             "{ name?: string; needs?: string[]; steps: WorkflowStep[] }>"
@@ -1976,14 +1994,14 @@
           "purpose": "Returns an ordered array of [jobId, WorkflowJob] pairs."
         },
         "stepToStageType": {
-          "line": 228,
+          "line": 230,
           "params": [
             "step"
           ],
           "purpose": "Map a workflow step's `uses` value to a StageType."
         },
         "buildRun": {
-          "line": 241,
+          "line": 243,
           "params": [
             "workflow",
             "projectPath",
@@ -2001,7 +2019,7 @@
           ]
         },
         "executeRun": {
-          "line": 302,
+          "line": 304,
           "params": [
             "runCtx",
             "workflow"
@@ -2019,7 +2037,7 @@
           ]
         },
         "shouldRequireApproval": {
-          "line": 496,
+          "line": 499,
           "params": [
             "stage",
             "artifacts"
@@ -2027,21 +2045,21 @@
           "purpose": "Determine if a stage should pause for approval."
         },
         "waitForApproval": {
-          "line": 508,
+          "line": 511,
           "params": [
             "runCtx"
           ],
           "purpose": "Returns true if approved, false if rejected."
         },
         "init": {
-          "line": 531,
+          "line": 534,
           "params": [
             "window"
           ],
           "purpose": "Initialize the pipeline manager."
         },
         "setupIPC": {
-          "line": 538,
+          "line": 541,
           "params": [
             "ipcMain"
           ],
@@ -2064,7 +2082,7 @@
           ]
         },
         "watchWorkflows": {
-          "line": 736,
+          "line": 759,
           "params": [
             "projectPath"
           ],
@@ -2074,10 +2092,10 @@
           ]
         },
         "unwatchWorkflows": {
-          "line": 757
+          "line": 780
         },
         "startPipelineFromTrigger": {
-          "line": 772,
+          "line": 795,
           "params": [
             "projectPath",
             "workflowId",
@@ -2095,7 +2113,7 @@
           ]
         },
         "watchPrePushTrigger": {
-          "line": 830,
+          "line": 853,
           "params": [
             "projectPath"
           ],
@@ -2106,10 +2124,10 @@
           ]
         },
         "unwatchPrePushTrigger": {
-          "line": 865
+          "line": 888
         }
       },
-      "loc": 882,
+      "loc": 905,
       "ipc": {
         "listens": [
           "PIPELINE_LIST_WORKFLOWS",
@@ -2118,6 +2136,7 @@
           "PIPELINE_APPROVE_STAGE",
           "PIPELINE_REJECT_STAGE",
           "PIPELINE_APPLY_PATCH",
+          "PIPELINE_DELETE_RUN",
           "PIPELINE_LIST_RUNS",
           "PIPELINE_GET_RUN",
           "WATCH_PIPELINE",
@@ -2151,14 +2170,14 @@
       ],
       "functions": {
         "uid": {
-          "line": 46,
+          "line": 48,
           "purpose": "─── Utilities ───────────────────────────────────────────────────────────────"
         },
         "now": {
-          "line": 50
+          "line": 52
         },
         "execAsyncWithEnv": {
-          "line": 57,
+          "line": 59,
           "params": [
             "cmd",
             "opts",
@@ -2167,7 +2186,7 @@
           "purpose": "Run a shell command with custom env and return stdout/stderr."
         },
         "execAsync": {
-          "line": 85,
+          "line": 87,
           "params": [
             "cmd",
             "opts: { cwd: string; signal?: AbortSignal }"
@@ -2175,32 +2194,80 @@
           "purpose": "Run a shell command and return stdout/stderr."
         },
         "getDiff": {
-          "line": 115,
+          "line": 118,
           "params": [
             "ctx"
           ],
-          "purpose": "Get the diff between baseSha and headSha.",
+          "purpose": "Returns empty string if no diff available (callers should handle this).",
+          "calls": [
+            "execAsync"
+          ]
+        },
+        "getProjectContext": {
+          "line": 149,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Returns a structured markdown string with file tree, structure, package info, etc.",
           "calls": [
             "execAsync"
           ]
         },
         "spawnAITool": {
-          "line": 138,
+          "line": 217,
           "params": [
             "ctx",
             "prompt: string"
           ],
-          "purpose": "Spawn the AI tool CLI with a prompt and parse JSON from stdout."
+          "purpose": "so callers receive the actual AI response text.",
+          "calls": [
+            "spawnAIToolRaw"
+          ]
+        },
+        "spawnAIToolRaw": {
+          "line": 243,
+          "params": [
+            "ctx",
+            "prompt: string"
+          ],
+          "purpose": "backticks, quotes, and other special characters in prompts."
+        },
+        "spawnAIToolAgent": {
+          "line": 301,
+          "params": [
+            "ctx",
+            "prompt: string"
+          ],
+          "purpose": "but dramatically better for deep audits. Returns the final output text."
+        },
+        "dispatchAITool": {
+          "line": 370,
+          "params": [
+            "ctx",
+            "prompt"
+          ],
+          "purpose": "- mode: 'print' (default) → spawnAITool (single-turn, fast, cheap)",
+          "calls": [
+            "spawnAITool",
+            "spawnAIToolAgent"
+          ]
+        },
+        "getContextForScope": {
+          "line": 384,
+          "params": [
+            "ctx"
+          ],
+          "purpose": "Returns empty string if no context available."
         },
         "parseJSONFromOutput": {
-          "line": 189,
+          "line": 398,
           "params": [
             "output"
           ],
           "purpose": "The output may contain markdown fences or other wrapping."
         },
         "runLintStage": {
-          "line": 231,
+          "line": 440,
           "params": [
             "ctx"
           ],
@@ -2215,7 +2282,7 @@
           ]
         },
         "parseLintOutput": {
-          "line": 321,
+          "line": 530,
           "params": [
             "output",
             "stageId"
@@ -2227,7 +2294,7 @@
           ]
         },
         "runTestStage": {
-          "line": 348,
+          "line": 557,
           "params": [
             "ctx"
           ],
@@ -2241,7 +2308,7 @@
           ]
         },
         "runDescribeStage": {
-          "line": 410,
+          "line": 619,
           "params": [
             "ctx"
           ],
@@ -2255,7 +2322,7 @@
           ]
         },
         "runCritiqueStage": {
-          "line": 472,
+          "line": 681,
           "params": [
             "ctx"
           ],
@@ -2269,7 +2336,7 @@
           ]
         },
         "runFreezeStage": {
-          "line": 590,
+          "line": 799,
           "params": [
             "ctx"
           ],
@@ -2280,7 +2347,7 @@
           ]
         },
         "runPushStage": {
-          "line": 618,
+          "line": 827,
           "params": [
             "ctx"
           ],
@@ -2292,7 +2359,7 @@
           ]
         },
         "runCreatePrStage": {
-          "line": 682,
+          "line": 891,
           "params": [
             "ctx"
           ],
@@ -2304,7 +2371,7 @@
           ]
         },
         "runCustomStage": {
-          "line": 759,
+          "line": 968,
           "params": [
             "ctx",
             "step",
@@ -2313,14 +2380,14 @@
           "purpose": "Executes the `run:` shell command or `uses:` script from a workflow step."
         },
         "getStageHandler": {
-          "line": 860,
+          "line": 1069,
           "params": [
             "stageType"
           ],
           "purpose": "Resolve a stage type string to its handler function."
         }
       },
-      "loc": 872
+      "loc": 1081
     },
     "main/pipelineWorkflowParser": {
       "file": "src\\main\\pipelineWorkflowParser.ts",
@@ -2330,7 +2397,9 @@
         "listWorkflows",
         "getDefaultWorkflow",
         "getTaskVerificationWorkflow",
-        "getHealthCheckWorkflow"
+        "getHealthCheckWorkflow",
+        "getDocsAuditWorkflow",
+        "getSecurityScanWorkflow"
       ],
       "depends": [
         "fs",
@@ -2358,7 +2427,7 @@
           ]
         }
       },
-      "loc": 96
+      "loc": 98
     },
     "main/pluginsManager": {
       "file": "src\\main\\pluginsManager.ts",
@@ -2881,7 +2950,8 @@
         "loadSettings",
         "saveSettings",
         "updateSetting",
-        "getSetting"
+        "getSetting",
+        "onSettingChange"
       ],
       "depends": [
         "electron",
@@ -2891,7 +2961,7 @@
       ],
       "functions": {
         "init": {
-          "line": 116,
+          "line": 121,
           "params": [
             "window",
             "app"
@@ -2903,18 +2973,18 @@
           ]
         },
         "loadSettings": {
-          "line": 126,
+          "line": 131,
           "purpose": "Load settings from file",
           "calls": [
             "deepMerge"
           ]
         },
         "saveSettings": {
-          "line": 145,
+          "line": 150,
           "purpose": "Save settings to file"
         },
         "updateSetting": {
-          "line": 158,
+          "line": 163,
           "params": [
             "keyPath",
             "value"
@@ -2924,15 +2994,22 @@
             "saveSettings"
           ]
         },
+        "onSettingChange": {
+          "line": 193,
+          "params": [
+            "listener"
+          ],
+          "purpose": "Register a listener for setting changes (main-process only)"
+        },
         "getSetting": {
-          "line": 183,
+          "line": 204,
           "params": [
             "keyPath"
           ],
           "purpose": "Get a setting by key path"
         },
         "deepMerge": {
-          "line": 198,
+          "line": 219,
           "params": [
             "target",
             "unknown>",
@@ -2942,14 +3019,14 @@
           "purpose": "Deep merge two objects"
         },
         "setupIPC": {
-          "line": 219,
+          "line": 240,
           "purpose": "Setup IPC handlers",
           "calls": [
             "updateSetting"
           ]
         }
       },
-      "loc": 230,
+      "loc": 251,
       "ipc": {
         "listens": [
           "LOAD_SETTINGS",
@@ -4448,28 +4525,28 @@
         "framer-motion",
         "ui/button",
         "ui/scroll-area",
-        "ui/tabs",
         "lib/utils",
         "hooks/usePipeline",
+        "stores/useUIStore",
         "PipelineTimeline"
       ],
       "functions": {
         "formatRelativeTime": {
-          "line": 49,
+          "line": 53,
           "params": [
             "dateString"
           ],
           "purpose": "─── Utilities ───────────────────────────────────────────────────────────────"
         },
         "StatusBadge": {
-          "line": 87,
+          "line": 91,
           "params": [
             "{ status }"
           ],
           "purpose": "─── Sub-components ──────────────────────────────────────────────────────────"
         },
         "RunListItem": {
-          "line": 98,
+          "line": 102,
           "params": [
             "{\r\n  run",
             "isSelected",
@@ -4478,44 +4555,44 @@
           ]
         },
         "OverviewTab": {
-          "line": 146,
+          "line": 150,
           "params": [
             "{ run",
             "onStageClick }"
           ]
         },
         "ArtifactCard": {
-          "line": 180,
+          "line": 184,
           "params": [
             "{ artifact }"
           ]
         },
         "ContentArtifactCard": {
-          "line": 193,
+          "line": 197,
           "params": [
             "{ artifact }"
           ]
         },
         "CommentArtifactCard": {
-          "line": 206,
+          "line": 210,
           "params": [
             "{ artifact }"
           ]
         },
         "PatchArtifactSummary": {
-          "line": 228,
+          "line": 232,
           "params": [
             "{ artifact }"
           ]
         },
         "CritiqueView": {
-          "line": 253,
+          "line": 257,
           "params": [
             "{ run }"
           ]
         },
         "PatchReview": {
-          "line": 296,
+          "line": 300,
           "params": [
             "{\r\n  run",
             "onApplyPatch",
@@ -4523,7 +4600,7 @@
           ]
         },
         "PipelineLogView": {
-          "line": 363,
+          "line": 367,
           "params": [
             "{\r\n  run",
             "logs",
@@ -4533,13 +4610,13 @@
           ]
         },
         "PipelinePanel": {
-          "line": 435,
+          "line": 448,
           "params": [
             "{ isFullView"
           ]
         }
       },
-      "loc": 720
+      "loc": 789
     },
     "renderer/components/PipelineTimeline": {
       "file": "src\\renderer\\components\\PipelineTimeline.tsx",
@@ -4995,7 +5072,7 @@
           ]
         }
       },
-      "loc": 1144
+      "loc": 1169
     },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
@@ -5704,7 +5781,7 @@
           ]
         },
         "UsageItem": {
-          "line": 602,
+          "line": 596,
           "params": [
             "{ label",
             "utilization",
@@ -5712,13 +5789,13 @@
           ]
         },
         "ResetTime": {
-          "line": 625,
+          "line": 619,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 644,
+      "loc": 638,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -5727,7 +5804,6 @@
         "emits": [
           "GET_AVAILABLE_SHELLS",
           "LOAD_CLAUDE_USAGE",
-          "REFRESH_CLAUDE_USAGE",
           "REFRESH_CLAUDE_USAGE"
         ]
       }
@@ -6140,14 +6216,14 @@
           ]
         },
         "usePipelineWorkflows": {
-          "line": 152,
+          "line": 165,
           "purpose": "Query hook for available workflow definitions.",
           "calls": [
             "typedInvoke"
           ]
         },
         "usePipelineProgress": {
-          "line": 175,
+          "line": 188,
           "params": [
             "runId"
           ],
@@ -6157,7 +6233,7 @@
           ]
         }
       },
-      "loc": 204,
+      "loc": 217,
       "ipc": {
         "listens": [
           "PIPELINE_RUNS_DATA"
@@ -7167,6 +7243,8 @@
         "getDefaultReviewWorkflow",
         "getTaskVerifyWorkflow",
         "getHealthCheckWorkflow",
+        "getDocsAuditWorkflow",
+        "getSecurityScanWorkflow",
         "AGENTS_TEMPLATE_VERSION"
       ],
       "depends": [
@@ -7446,9 +7524,15 @@
         },
         "getHealthCheckWorkflow": {
           "line": 2344
+        },
+        "getDocsAuditWorkflow": {
+          "line": 2371
+        },
+        "getSecurityScanWorkflow": {
+          "line": 2392
         }
       },
-      "loc": 2365
+      "loc": 2412
     },
     "shared/ipcChannels": {
       "file": "src\\shared\\ipcChannels.ts",
@@ -7460,7 +7544,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1124
+      "loc": 1128
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
