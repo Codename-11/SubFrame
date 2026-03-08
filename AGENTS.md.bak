@@ -401,9 +401,9 @@ When changing user-facing labels or terminology:
 
 ## Versioning & Releases
 
-**Format:** [SemVer](https://semver.org/) — `MAJOR.MINOR.PATCH[-prerelease]`
-- Pre-release: `0.1.0-beta.1`, `0.1.0-beta.2`, etc.
-- Stable: `1.0.0`, `1.1.0`, etc.
+**Format:** [SemVer](https://semver.org/) with `-beta` suffix until stable — `MAJOR.MINOR.PATCH-beta`
+- Pre-release (beta): `0.2.0-beta`, `0.2.1-beta`, `0.3.0-beta`, etc.
+- Stable: `1.0.0`, `1.1.0`, etc. (major version 1+ drops `-beta`)
 
 **Conventional Commits drive version bumps:**
 

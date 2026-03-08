@@ -40,15 +40,18 @@ Working tree clean?
 ### Step 1: Determine Version
 
 Parse the argument:
-- `patch`, `minor`, `major` — bump the corresponding segment of the current version (strip any pre-release suffix first)
-- `x.y.z` or `x.y.z-prerelease` (explicit) — use as-is, validate it's greater than current
+- `patch` — bump PATCH, keep `-beta` suffix (e.g., `0.2.0-beta` → `0.2.1-beta`)
+- `minor` — bump MINOR, reset PATCH, keep `-beta` suffix (e.g., `0.2.1-beta` → `0.3.0-beta`)
+- `major` — bump MAJOR, reset MINOR+PATCH, **drop `-beta`** to produce first stable release (e.g., `0.3.0-beta` → `1.0.0`)
+- `stable` — strip `-beta` suffix without changing version numbers (e.g., `0.3.0-beta` → `0.3.0`)
+- `x.y.z` or `x.y.z-beta` (explicit) — use as-is, validate it's greater than current
 - No argument — analyze the commits since last tag and recommend a bump:
-  - Any `feat!`, `fix!`, or `BREAKING CHANGE` -> MAJOR
+  - Any `feat!`, `fix!`, or `BREAKING CHANGE` -> MAJOR (goes stable)
   - Any `feat` -> MINOR
   - Only `fix`/`docs`/`perf`/`chore`/`refactor` -> PATCH
   - Ask the user to confirm before proceeding
 
-**Pre-release versions:** Supported via explicit version (e.g., `0.2.0-beta.1`). When bumping `patch`/`minor`/`major`, the pre-release suffix is stripped to produce a clean release.
+**Beta versioning scheme:** All `0.x.y` versions use the `-beta` suffix (no numeric counter). The `-beta` suffix is preserved on `patch`/`minor` bumps and only dropped when going stable via `major` or `stable`.
 
 ### Step 2: Update package.json
 

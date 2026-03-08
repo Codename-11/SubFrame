@@ -172,16 +172,17 @@ When changing any of these, update **all** locations that reference them:
 
 **Note:** Template schema versions in `frameTemplates.ts` (STRUCTURE.json `"1.0"`, tasks.json `"1.2"`, config.json `"1.0"`) are **file format versions**, not the app version — they evolve independently.
 
-**Format:** [SemVer](https://semver.org/) with pre-release tags — `MAJOR.MINOR.PATCH[-prerelease]`
-- Pre-release: `0.1.0-beta.1`, `0.1.0-beta.2`, etc.
-- Stable: `1.0.0`, `1.1.0`, etc.
+**Format:** [SemVer](https://semver.org/) with `-beta` suffix until stable — `MAJOR.MINOR.PATCH-beta`
+- Pre-release (beta): `0.2.0-beta`, `0.2.1-beta`, `0.3.0-beta`, etc.
+- Stable: `1.0.0`, `1.1.0`, etc. (major version 1+ drops `-beta`)
 
 **Bumping version — use the `/release` skill:**
 ```bash
-/release patch              # 0.1.0-beta.1 → 0.1.1
-/release minor              # 0.1.0 → 0.2.0
-/release major              # 0.9.0 → 1.0.0
-/release 0.2.0-beta.1       # Explicit version with pre-release tag
+/release patch              # 0.2.0-beta → 0.2.1-beta
+/release minor              # 0.2.1-beta → 0.3.0-beta
+/release major              # 0.3.0-beta → 1.0.0 (stable)
+/release stable             # 0.3.0-beta → 0.3.0 (strip beta)
+/release 0.4.0-beta         # Explicit version
 ```
 
 The `/release` skill handles the full workflow: version bump, `docs/index.md` sync, `RELEASE_NOTES.md` generation, commit, and git tag. See `.claude/skills/release/SKILL.md` for details.
