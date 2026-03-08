@@ -143,6 +143,21 @@
   z-index: 9999;
 }
 
+/* ── xterm.js decoration layer — ensure above WebGL/Canvas renderers ── */
+.xterm .xterm-decoration-container {
+  z-index: 6 !important;
+  pointer-events: none;
+}
+
+/* User message marker — left border highlight (applied via JS onRender) */
+/* Position/size managed by xterm inline styles — color set dynamically via JS */
+.xterm .xterm-decoration-container .xterm-user-message-marker {
+  width: 4px !important;
+  border-radius: 0 2px 2px 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
 /* Green pulse animation for active project dots */
 @keyframes pulse-green {
   0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.5); }

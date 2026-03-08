@@ -21,6 +21,7 @@ interface DefaultSettings {
     usagePollingInterval: number;
     gridOverflowAutoSwitch: boolean;
     highlightUserMessages: boolean;
+    userMessageColor: string;
   };
   aiTools: Record<string, unknown>;
   terminal: {
@@ -78,6 +79,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     usagePollingInterval: 300,
     gridOverflowAutoSwitch: true,
     highlightUserMessages: true,
+    userMessageColor: '#ff6eb4',
   },
   aiTools: {},
   terminal: {

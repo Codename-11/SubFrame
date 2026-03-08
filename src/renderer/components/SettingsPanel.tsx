@@ -146,6 +146,7 @@ export function SettingsPanel() {
   const usagePollingInterval = (general.usagePollingInterval as number) || 300;
   const gridOverflowAutoSwitch = general.gridOverflowAutoSwitch !== false;
   const highlightUserMessages = general.highlightUserMessages !== false; // default true
+  const userMessageColor = (general.userMessageColor as string) || '#ff6eb4';
 
   function saveToggle(key: string, value: boolean) {
     updateSetting.mutate([{ key, value }]);
@@ -598,12 +599,23 @@ export function SettingsPanel() {
                     <div className="text-sm text-text-primary">Highlight user messages</div>
                     <div className="text-xs text-text-tertiary">Mark your messages in agent sessions with a left border and enable scroll-to-last-message navigation</div>
                   </div>
-                  <button
-                    onClick={() => saveToggle('general.highlightUserMessages', !highlightUserMessages)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${highlightUserMessages ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${highlightUserMessages ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {highlightUserMessages && (
+                      <input
+                        type="color"
+                        value={userMessageColor}
+                        onChange={(e) => updateSetting.mutate([{ key: 'general.userMessageColor', value: e.target.value }])}
+                        className="w-7 h-5 rounded cursor-pointer border border-border-subtle bg-transparent"
+                        title="Message border color"
+                      />
+                    )}
+                    <button
+                      onClick={() => saveToggle('general.highlightUserMessages', !highlightUserMessages)}
+                      className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${highlightUserMessages ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${highlightUserMessages ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
                 </div>
               </div>
 

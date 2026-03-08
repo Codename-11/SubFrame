@@ -169,6 +169,7 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
     fontSize: options?.fontSize ?? 14,
     fontFamily: options?.fontFamily ?? "'JetBrainsMono Nerd Font', 'CaskaydiaCove Nerd Font', 'FiraCode Nerd Font', 'JetBrains Mono', 'SF Mono', Consolas, monospace",
     theme: TERMINAL_THEME,
+    allowProposedApi: true,
     allowTransparency: false,
     scrollback: options?.scrollback ?? 10000,
     lineHeight: options?.lineHeight ?? 1.1,
@@ -280,12 +281,13 @@ export function get(id: string): TerminalInstance | null {
  * Register a user message marker at the terminal's current cursor position.
  * Creates an xterm marker + optional left-border decoration.
  */
-export function addUserMessageMarker(id: string, showDecoration: boolean): IMarker | null {
+export function addUserMessageMarker(id: string, showDecoration: boolean, color = '#ff6eb4'): IMarker | null {
   const entry = registry.get(id);
   if (!entry) return null;
 
   const terminal = entry.terminal;
-  const marker = terminal.registerMarker(0);
+  // Offset -1: cursor has already moved to the next line by the time onData fires
+  const marker = terminal.registerMarker(-1);
   if (!marker) return null;
 
   let decoration: IDecoration | undefined;
@@ -293,12 +295,21 @@ export function addUserMessageMarker(id: string, showDecoration: boolean): IMark
     decoration = terminal.registerDecoration({
       marker,
       anchor: 'left',
-      overviewRulerOptions: { color: '#d4a574', position: 'left' },
+      width: 1,
+      height: 1,
+      overviewRulerOptions: { color, position: 'left' },
     });
     if (decoration) {
       decoration.onRender((el) => {
-        el.style.cssText =
-          'width: 3px; height: 100%; background: rgba(212, 165, 116, 0.5); border-radius: 1px; pointer-events: none;';
+        // Set individual properties — DO NOT use cssText (it wipes xterm's
+        // top/left/width/height positioning, making the element invisible)
+        el.classList.add('xterm-user-message-marker');
+        el.style.width = '4px';
+        el.style.background = color;
+        el.style.borderRadius = '0 2px 2px 0';
+        el.style.boxShadow = `0 0 6px ${color}66, 2px 0 10px ${color}33`;
+        el.style.pointerEvents = 'none';
+        el.style.zIndex = '6';
       });
     }
   }

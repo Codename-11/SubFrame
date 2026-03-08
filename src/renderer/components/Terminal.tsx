@@ -77,6 +77,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   // User message tracking
   const generalSettings = (settings?.general as Record<string, unknown>) || {};
   const highlightUserMessages = generalSettings.highlightUserMessages !== false;
+  const userMessageColor = (generalSettings.userMessageColor as string) || '#ff6eb4';
   const claudeActive = useTerminalStore((s) => s.terminals.get(terminalId)?.claudeActive ?? false);
   const [userMessageCount, setUserMessageCount] = useState(0);
   const inputBufferRef = useRef('');
@@ -142,10 +143,8 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         const typed = inputBufferRef.current.trim();
         inputBufferRef.current = '';
         // Check activity at submit time (not at listener setup time)
-        console.log('[UserMsg] Enter pressed — typed:', JSON.stringify(typed), 'active:', wasRecentlyActiveRef.current, 'claudeActive:', claudeActive);
         if (typed.length > 0 && wasRecentlyActiveRef.current) {
-          const marker = terminalRegistry.addUserMessageMarker(terminalId, true);
-          console.log('[UserMsg] Marker created:', marker ? `line=${marker.line}` : 'FAILED');
+          terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor);
         }
       } else if (data === '\x7f' || data === '\b') {
         // Backspace
@@ -293,6 +292,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
 
       // Copy: Ctrl+C when there is a selection (otherwise let SIGINT go through)
       if (modKey && key === 'c' && !event.shiftKey && terminal.hasSelection()) {
+        event.preventDefault();
         clipboard.writeText(terminal.getSelection());
         terminal.clearSelection();
         return false;
@@ -300,6 +300,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
 
       // Paste: Ctrl+V (manual paste via electron clipboard)
       if (modKey && key === 'v' && !event.shiftKey) {
+        event.preventDefault();
         const text = clipboard.readText();
         if (text) terminal.paste(text);
         return false;
