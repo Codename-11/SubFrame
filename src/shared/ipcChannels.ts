@@ -711,6 +711,8 @@ export interface OnboardingProgressEvent {
   phase: 'detecting' | 'gathering' | 'analyzing' | 'parsing' | 'importing' | 'done' | 'error';
   message: string;
   progress: number;
+  /** Set once the analysis terminal is created, so the renderer can focus it immediately */
+  terminalId?: string;
 }
 
 /** Result of importing onboarding analysis */

@@ -423,6 +423,17 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
   const terminalId = ptyManager.createTerminal(projectPath, projectPath, bashShell);
   console.log(`[Onboarding] Created analysis terminal ${terminalId} for ${projectPath} (shell: ${bashShell || 'default'})`);
 
+  // Immediately notify renderer of the terminalId so "View Terminal" works during analysis
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
+      projectPath,
+      phase: 'analyzing',
+      message: 'AI analysis terminal ready',
+      progress: 55,
+      terminalId,
+    } satisfies OnboardingProgressEvent);
+  }
+
   return new Promise<string>((resolve, reject) => {
     let resolved = false;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -823,6 +834,12 @@ function setupIPC(ipcMain: IpcMain): void {
   // ── RUN_ONBOARDING_ANALYSIS (handle) ─────────────────────────────────────
   ipcMain.handle(IPC.RUN_ONBOARDING_ANALYSIS, async (_event, projectPath: string) => {
     try {
+      // Re-entrancy guard — prevent duplicate analyses for the same project
+      if (activeAnalyses.has(projectPath)) {
+        const existing = activeAnalyses.get(projectPath)!;
+        return { terminalId: existing.terminalId };
+      }
+
       // Phase: detecting
       sendProgress(projectPath, 'detecting', 'Scanning for project intelligence files...', 10);
       const detection = detectProjectIntelligence(projectPath);
@@ -934,6 +951,10 @@ function setupIPC(ipcMain: IpcMain): void {
             100,
           );
         }
+
+        // Clean up cached results and active analysis entry after successful import
+        analysisResultsCache.delete(payload.projectPath);
+        activeAnalyses.delete(payload.projectPath);
 
         return result;
       } catch (err) {

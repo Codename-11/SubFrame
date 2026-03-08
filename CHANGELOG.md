@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **AI Analysis re-run**: SubFrame Health panel now has "AI Analysis" button to re-run onboarding analysis on already-initialized projects
+
+### Fixed
+- **Onboarding not triggered after init**: Project initialization created `.subframe/` files but never opened the AI analysis wizard — now dispatches `start-onboarding` event to open OnboardingDialog
+- **"View Terminal" unavailable during analysis**: Terminal ID was only delivered after analysis completed — now sent via progress event immediately when terminal is created
+- **Orphaned analysis terminals**: Closing the onboarding dialog during analysis now properly cancels the running analysis and kills the terminal
+- **Dialog auto-close on import**: OnboardingDialog now closes automatically after applying selected results
+
 ## [0.2.1-beta] - 2026-03-08
 
 ### Added

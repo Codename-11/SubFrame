@@ -1640,25 +1640,25 @@
           ]
         },
         "parseAnalysisResponse": {
-          "line": 510,
+          "line": 521,
           "params": [
             "raw"
           ],
           "purpose": "Looks for the first ```json ... ``` block."
         },
         "generateTaskId": {
-          "line": 557,
+          "line": 568,
           "purpose": "Generate a short unique-ish task ID."
         },
         "getExistingTaskTitles": {
-          "line": 566,
+          "line": 577,
           "params": [
             "projectPath"
           ],
           "purpose": "Get existing task titles from .subframe/tasks/ to avoid duplicates."
         },
         "importResults": {
-          "line": 593,
+          "line": 604,
           "params": [
             "projectPath",
             "results",
@@ -1671,14 +1671,14 @@
           ]
         },
         "init": {
-          "line": 797,
+          "line": 808,
           "params": [
             "window"
           ],
           "purpose": "Initialize the onboarding manager with a window reference."
         },
         "setupIPC": {
-          "line": 804,
+          "line": 815,
           "params": [
             "ipcMain"
           ],
@@ -1697,7 +1697,7 @@
           ]
         }
       },
-      "loc": 974,
+      "loc": 995,
       "ipc": {
         "listens": [
           "DETECT_PROJECT_INTELLIGENCE",
@@ -1706,6 +1706,7 @@
           "CANCEL_ONBOARDING_ANALYSIS"
         ],
         "emits": [
+          "ONBOARDING_PROGRESS",
           "ONBOARDING_PROGRESS"
         ]
       }
@@ -2995,7 +2996,7 @@
       ],
       "functions": {
         "init": {
-          "line": 127,
+          "line": 129,
           "params": [
             "window",
             "app"
@@ -3007,18 +3008,18 @@
           ]
         },
         "loadSettings": {
-          "line": 137,
+          "line": 139,
           "purpose": "Load settings from file",
           "calls": [
             "deepMerge"
           ]
         },
         "saveSettings": {
-          "line": 156,
+          "line": 158,
           "purpose": "Save settings to file"
         },
         "updateSetting": {
-          "line": 169,
+          "line": 171,
           "params": [
             "keyPath",
             "value"
@@ -3029,21 +3030,21 @@
           ]
         },
         "onSettingChange": {
-          "line": 199,
+          "line": 201,
           "params": [
             "listener"
           ],
           "purpose": "Register a listener for setting changes (main-process only)"
         },
         "getSetting": {
-          "line": 210,
+          "line": 212,
           "params": [
             "keyPath"
           ],
           "purpose": "Get a setting by key path"
         },
         "deepMerge": {
-          "line": 225,
+          "line": 227,
           "params": [
             "target",
             "unknown>",
@@ -3053,14 +3054,14 @@
           "purpose": "Deep merge two objects"
         },
         "setupIPC": {
-          "line": 246,
+          "line": 248,
           "purpose": "Setup IPC handlers",
           "calls": [
             "updateSetting"
           ]
         }
       },
-      "loc": 257,
+      "loc": 259,
       "ipc": {
         "listens": [
           "LOAD_SETTINGS",
@@ -3918,13 +3919,14 @@
         "ThemeProvider",
         "stores/useUIStore",
         "stores/useProjectStore",
+        "stores/useTerminalStore",
         "hooks/useOnboarding",
         "hooks/useSettings",
         "../shared/ipcChannels"
       ],
       "functions": {
         "App": {
-          "line": 30,
+          "line": 31,
           "purpose": "Keyboard shortcuts are wired here to match the original app.",
           "calls": [
             "useAIToolConfig",
@@ -3932,7 +3934,7 @@
           ]
         }
       },
-      "loc": 291,
+      "loc": 306,
       "ipc": {
         "listens": [
           "MENU_TOGGLE_SIDEBAR",
@@ -4363,7 +4365,7 @@
           "purpose": "── Component ────────────────────────────────────────────────────────────────"
         },
         "ReviewSection": {
-          "line": 497,
+          "line": 503,
           "params": [
             "{\r\n  checked",
             "onCheckedChange",
@@ -4375,14 +4377,14 @@
           "purpose": "── ReviewSection helper ─────────────────────────────────────────────────────"
         },
         "PriorityBadge": {
-          "line": 534,
+          "line": 540,
           "params": [
             "{ priority }"
           ],
           "purpose": "── PriorityBadge helper ─────────────────────────────────────────────────────"
         }
       },
-      "loc": 552
+      "loc": 558
     },
     "renderer/components/OverviewPanel": {
       "file": "src\\renderer\\components\\OverviewPanel.tsx",
@@ -4716,27 +4718,29 @@
         "ui/button",
         "ui/scroll-area",
         "lib/utils",
+        "lib/promptUtils",
         "hooks/usePlugins",
         "react",
         "sonner"
       ],
       "functions": {
         "getCategoryIcon": {
-          "line": 25,
+          "line": 26,
           "params": [
             "category"
           ]
         },
         "PluginsPanel": {
-          "line": 42,
+          "line": 43,
           "calls": [
             "cn",
             "getCategoryIcon",
+            "sendCommandToTerminal",
             "usePlugins"
           ]
         }
       },
-      "loc": 219
+      "loc": 215
     },
     "renderer/components/previews/HtmlPreview": {
       "file": "src\\renderer\\components\\previews\\HtmlPreview.tsx",
@@ -5033,19 +5037,20 @@
         "ui/scroll-area",
         "lib/utils",
         "sonner",
+        "lib/promptUtils",
         "hooks/useSessions",
         "hooks/useSettings",
         "stores/useProjectStore"
       ],
       "functions": {
         "formatRelativeTime": {
-          "line": 42,
+          "line": 37,
           "params": [
             "dateString"
           ]
         },
         "RenameInput": {
-          "line": 68,
+          "line": 63,
           "params": [
             "{\r\n  initial",
             "onSubmit",
@@ -5054,7 +5059,7 @@
           ]
         },
         "SegmentTimeline": {
-          "line": 108,
+          "line": 103,
           "params": [
             "{\r\n  segments",
             "showAll",
@@ -5064,20 +5069,21 @@
           ]
         },
         "SessionsPanel": {
-          "line": 190,
+          "line": 185,
           "calls": [
             "cn",
             "deleteAllSessions",
             "deleteSession",
             "formatRelativeTime",
             "renameSession",
+            "sendCommandToTerminal",
             "useAIToolConfig",
             "useSessions",
             "useSettings"
           ]
         }
       },
-      "loc": 541
+      "loc": 525
     },
     "renderer/components/SettingsPanel": {
       "file": "src\\renderer\\components\\SettingsPanel.tsx",
@@ -5117,7 +5123,7 @@
           ]
         }
       },
-      "loc": 1252
+      "loc": 1264
     },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
@@ -5159,26 +5165,26 @@
           ]
         },
         "GitStatusBar": {
-          "line": 539,
+          "line": 541,
           "calls": [
             "useGitStatus"
           ]
         },
         "CollapsedGitStatus": {
-          "line": 564,
+          "line": 566,
           "calls": [
             "cn",
             "useGitStatus"
           ]
         },
         "GitBranchIcon": {
-          "line": 605,
+          "line": 607,
           "params": [
             "{ className }"
           ]
         }
       },
-      "loc": 613,
+      "loc": 615,
       "ipc": {
         "listens": [
           "IS_FRAME_PROJECT_RESULT",
@@ -5230,29 +5236,29 @@
         "ui/badge",
         "previews/MarkdownPreview",
         "lib/utils",
-        "sonner"
+        "lib/promptUtils"
       ],
       "functions": {
         "HealthBadge": {
-          "line": 26,
+          "line": 19,
           "params": [
             "{ status }"
           ]
         },
         "SkillCard": {
-          "line": 43,
+          "line": 36,
           "params": [
             "{ skill }"
           ]
         },
         "SkillsPanel": {
-          "line": 130,
+          "line": 119,
           "calls": [
             "useSkills"
           ]
         }
       },
-      "loc": 178
+      "loc": 167
     },
     "renderer/components/StatsDetailView": {
       "file": "src\\renderer\\components\\StatsDetailView.tsx",
@@ -5457,7 +5463,7 @@
           ]
         }
       },
-      "loc": 436
+      "loc": 450
     },
     "renderer/components/TaskGraph": {
       "file": "src\\renderer\\components\\TaskGraph.tsx",
@@ -5698,14 +5704,14 @@
           ]
         },
         "Terminal": {
-          "line": 49,
+          "line": 50,
           "params": [
             "{ terminalId",
             "className }"
           ]
         }
       },
-      "loc": 563,
+      "loc": 579,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -6328,7 +6334,7 @@
           ]
         }
       },
-      "loc": 129
+      "loc": 134
     },
     "renderer/hooks/useOverview": {
       "file": "src\\renderer\\hooks\\useOverview.ts",
@@ -6916,6 +6922,7 @@
         "createBlankPrompt",
         "resolveTemplateVariables",
         "insertPromptIntoTerminal",
+        "sendCommandToTerminal",
         "copyPromptToClipboard",
         "parseTags",
         "sortPrompts",
@@ -6926,27 +6933,28 @@
         "sonner",
         "ipc",
         "../shared/ipcChannels",
-        "stores/useUIStore"
+        "stores/useUIStore",
+        "stores/useTerminalStore"
       ],
       "functions": {
         "generatePromptId": {
-          "line": 23
+          "line": 24
         },
         "createBlankPrompt": {
-          "line": 28,
+          "line": 29,
           "calls": [
             "generatePromptId"
           ]
         },
         "resolveTemplateVariables": {
-          "line": 43,
+          "line": 44,
           "params": [
             "content",
             "projectPath: string | null"
           ]
         },
         "insertPromptIntoTerminal": {
-          "line": 62,
+          "line": 63,
           "params": [
             "prompt",
             "activeTerminalId",
@@ -6958,27 +6966,37 @@
             "typedSend"
           ]
         },
+        "sendCommandToTerminal": {
+          "line": 82,
+          "params": [
+            "command"
+          ],
+          "purpose": "Returns true if the command was sent successfully.",
+          "calls": [
+            "typedSend"
+          ]
+        },
         "copyPromptToClipboard": {
-          "line": 78,
+          "line": 93,
           "params": [
             "prompt"
           ]
         },
         "parseTags": {
-          "line": 84,
+          "line": 99,
           "params": [
             "input"
           ]
         },
         "sortPrompts": {
-          "line": 95,
+          "line": 110,
           "params": [
             "prompts",
             "mode"
           ]
         }
       },
-      "loc": 110
+      "loc": 125
     },
     "renderer/lib/terminalRegistry": {
       "file": "src\\renderer\\lib\\terminalRegistry.ts",
@@ -7040,7 +7058,7 @@
           ]
         },
         "attach": {
-          "line": 222,
+          "line": 223,
           "params": [
             "id",
             "container"
@@ -7048,7 +7066,7 @@
           "purpose": "Moves the holder div (which contains the xterm DOM tree) into the container."
         },
         "detach": {
-          "line": 237,
+          "line": 238,
           "params": [
             "id"
           ],
@@ -7058,29 +7076,30 @@
           ]
         },
         "dispose": {
-          "line": 248,
+          "line": 249,
           "params": [
             "id"
           ],
           "purpose": "Only call when the user explicitly closes a terminal."
         },
         "has": {
-          "line": 270,
+          "line": 271,
           "params": [
             "id"
           ]
         },
         "get": {
-          "line": 275,
+          "line": 276,
           "params": [
             "id"
           ]
         },
         "addUserMessageMarker": {
-          "line": 283,
+          "line": 284,
           "params": [
             "id",
-            "showDecoration"
+            "showDecoration",
+            "color"
           ],
           "purpose": "Creates an xterm marker + optional left-border decoration.",
           "calls": [
@@ -7088,19 +7107,19 @@
           ]
         },
         "getUserMessageMarkers": {
-          "line": 323,
+          "line": 334,
           "params": [
             "id"
           ]
         },
         "clearUserMessageMarkers": {
-          "line": 328,
+          "line": 339,
           "params": [
             "id"
           ]
         }
       },
-      "loc": 337,
+      "loc": 348,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -7746,7 +7765,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1144
+      "loc": 1146
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",

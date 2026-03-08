@@ -7,7 +7,7 @@ import { useState } from 'react';
 import {
   RefreshCw, CheckCircle, XCircle, AlertTriangle,
   ChevronDown, ChevronRight, Loader2, Trash2, Eye,
-  ArrowUpCircle,
+  ArrowUpCircle, Sparkles,
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -192,6 +192,20 @@ export function SubFrameHealthPanel() {
           )}
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (projectPath) {
+                window.dispatchEvent(new CustomEvent('start-onboarding', { detail: { projectPath } }));
+              }
+            }}
+            className="h-7 px-2 text-xs gap-1 cursor-pointer"
+            title="Run AI analysis to populate STRUCTURE.json, PROJECT_NOTES, and tasks"
+          >
+            <Sparkles size={13} />
+            AI Analysis
+          </Button>
           {outdatedIds.length > 0 && (
             <Button
               size="sm"

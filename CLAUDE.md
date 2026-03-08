@@ -27,7 +27,7 @@ React 19, TypeScript (strict), Zustand (state), TanStack Query (IPC caching), Ta
 ### Key Modules
 
 **Main process** — each manager has `init()` + `setupIPC()`:
-`ptyManager` `tasksManager` `pluginsManager` `claudeSessionsManager` `aiToolManager` `aiFilesManager` `settingsManager` `gitBranchesManager` `overviewManager` `agentStateManager` `skillsManager` `promptsManager` `updaterManager` `pipelineManager` `workspace` `frameProject`
+`ptyManager` `tasksManager` `pluginsManager` `claudeSessionsManager` `aiToolManager` `aiFilesManager` `settingsManager` `gitBranchesManager` `overviewManager` `agentStateManager` `skillsManager` `promptsManager` `updaterManager` `pipelineManager` `onboardingManager` `workspace` `frameProject`
 **Utilities**: `taskMarkdownParser` (parse/serialize task .md files with YAML frontmatter) `pipelineWorkflowParser` (YAML workflow parsing) `pipelineStages` (built-in stage handlers)
 **Theme**: `themeTypes` (shared theme tokens, presets, CSS mapping)
 

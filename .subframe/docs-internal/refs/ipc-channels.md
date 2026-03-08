@@ -237,8 +237,17 @@ Channels marked ⚠ are defined in the `IPC` constant but not yet in `IPCHandleM
 |---------|---------|---------|
 | `LOAD_SKILLS` | handle | Load available Claude Code skills from .claude/skills/ |
 
+### Onboarding (5 channels)
+| Channel | Pattern | Purpose |
+|---------|---------|---------|
+| `DETECT_PROJECT_INTELLIGENCE` | handle | Scan project for existing config/docs files |
+| `RUN_ONBOARDING_ANALYSIS` | handle | Run AI analysis pipeline on detected project intelligence (returns `{ terminalId }`) |
+| `IMPORT_ONBOARDING_RESULTS` | handle | Import selected analysis results into SubFrame project files |
+| `CANCEL_ONBOARDING_ANALYSIS` | send | Cancel an in-progress analysis and kill its terminal |
+| `ONBOARDING_PROGRESS` | event | Progress updates during analysis — `OnboardingProgressEvent { projectPath, phase, message, progress, terminalId? }` |
+
 ---
 
-**Total: 123 channels** (33 handle, 48 send, 35 event, 7 untyped/legacy)
+**Total: 128 channels** (36 handle, 49 send, 36 event, 7 untyped/legacy)
 
 *Regenerated from `ipcChannels.ts` — keep this reference in sync when adding/removing channels.*

@@ -15,6 +15,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { ThemeProvider } from './ThemeProvider';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useTerminalStore } from '../stores/useTerminalStore';
 
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useAIToolConfig } from '../hooks/useSettings';
@@ -186,6 +187,18 @@ export function App() {
     };
   }, []);
 
+  // Listen for onboarding trigger after project init
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.projectPath) {
+        onboarding.detect(detail.projectPath);
+      }
+    };
+    window.addEventListener('start-onboarding', handler);
+    return () => window.removeEventListener('start-onboarding', handler);
+  }, [onboarding]);
+
   // Compute sidebar pixel width for CSS
   const resolvedSidebarWidth =
     sidebarState === 'hidden' ? 0 : sidebarState === 'collapsed' ? 54 : sidebarWidth;
@@ -280,7 +293,9 @@ export function App() {
         onCancel={() => { if (currentProjectPath) onboarding.cancel(currentProjectPath); }}
         onViewTerminal={() => {
           if (onboarding.terminalId) {
+            // Close right panel and switch to the analysis terminal
             useUIStore.getState().setActivePanel(null);
+            useTerminalStore.getState().setActiveTerminal(onboarding.terminalId);
           }
         }}
       />

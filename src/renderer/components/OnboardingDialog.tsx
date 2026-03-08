@@ -153,10 +153,15 @@ export function OnboardingDialog({
   const dialogMaxWidth = step === 'review' ? 'sm:max-w-2xl' : 'sm:max-w-lg';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      // If closing during analysis, cancel to avoid orphaned terminals
+      if (!nextOpen && isAnalyzing) {
+        onCancel();
+      }
+      onOpenChange(nextOpen);
+    }}>
       <DialogContent
         className={cn(dialogMaxWidth, 'bg-bg-primary border-border-subtle')}
-        showCloseButton={step !== 'analyze'}
       >
         {/* ── Step 1: Detection Summary ─────────────────────────────────── */}
         {step === 'detect' && detection && (
@@ -230,7 +235,7 @@ export function OnboardingDialog({
               >
                 Skip
               </Button>
-              <Button size="sm" onClick={onAnalyze}>
+              <Button size="sm" onClick={onAnalyze} disabled={isAnalyzing}>
                 Analyze with {aiToolName}
               </Button>
             </DialogFooter>
@@ -475,6 +480,7 @@ export function OnboardingDialog({
                 onClick={() => {
                   onImport(selections);
                   toast.success('Project intelligence imported');
+                  onOpenChange(false);
                 }}
                 disabled={
                   !selections.structure &&

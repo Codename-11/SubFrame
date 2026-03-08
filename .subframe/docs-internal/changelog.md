@@ -6,6 +6,26 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Onboarding Flow Fixes (2026-03-07)
+
+#### Init → Onboarding Connection
+- **Sidebar.tsx**: Dispatches `start-onboarding` CustomEvent with `{ projectPath }` after successful SubFrame init
+- **App.tsx**: Listens for `start-onboarding` event, calls `onboarding.detect(projectPath)` to open the OnboardingDialog
+- **SubFrameHealthPanel.tsx**: Added "AI Analysis" button (Sparkles icon) to re-run onboarding analysis on already-initialized projects
+
+#### Terminal ID Early Delivery
+- **ipcChannels.ts**: Added optional `terminalId` field to `OnboardingProgressEvent` interface
+- **onboardingManager.ts**: Sends `terminalId` via `ONBOARDING_PROGRESS` event immediately after terminal creation in `runAnalysisInTerminal()` — no longer blocked behind the full pipeline handle response
+- **useOnboarding.ts**: Captures `terminalId` from progress events (not just mutation response), enabling "View Terminal" button during analysis
+- **App.tsx**: `onViewTerminal` now calls `useTerminalStore.getState().setActiveTerminal(terminalId)` to focus the analysis terminal
+
+#### Safety & Cleanup
+- **Re-entrancy guard**: `RUN_ONBOARDING_ANALYSIS` returns existing `terminalId` if analysis is already running for the same project
+- **Dialog close cancels**: Closing OnboardingDialog (X button) during analysis now calls `onCancel()` to kill the terminal — prevents orphaned processes
+- **Analyze button disabled**: "Analyze with {aiToolName}" button disabled while `isAnalyzing` is true
+- **Post-import cleanup**: `IMPORT_ONBOARDING_RESULTS` handler now deletes `analysisResultsCache` and `activeAnalyses` entries after import
+- **Auto-close on import**: Dialog closes automatically after "Apply Selected"
+
 ### Terminal Agent UX Enhancements (2026-03-07)
 
 #### Reuse Idle Terminal for Agent Start

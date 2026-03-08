@@ -104,6 +104,8 @@ export function Sidebar() {
         if (data.success) {
           setIsFrameProject(true);
           toast.success('Project initialized as SubFrame project');
+          // Trigger the onboarding dialog to analyze the project with AI
+          window.dispatchEvent(new CustomEvent('start-onboarding', { detail: { projectPath: data.projectPath } }));
         } else {
           toast.error('Failed to initialize project');
         }

@@ -37,6 +37,11 @@ export function useOnboarding() {
     useCallback((data: OnboardingProgressEvent) => {
       setProgress(data);
 
+      // Capture terminalId as soon as it arrives (sent during 'analyzing' phase)
+      if (data.terminalId) {
+        setTerminalId(data.terminalId);
+      }
+
       if (data.phase === 'done') {
         setIsAnalyzing(false);
         // The 'done' phase message contains the stringified analysis results
