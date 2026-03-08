@@ -28,16 +28,11 @@ import {
 } from './ui/alert-dialog';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
+import { sendCommandToTerminal } from '../lib/promptUtils';
 import { useSessions } from '../hooks/useSessions';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { useProjectStore } from '../stores/useProjectStore';
 import type { ClaudeSession, SessionSegment } from '../../shared/ipcChannels';
-
-declare global {
-  interface Window {
-    terminalSendCommand?: (command: string) => void;
-  }
-}
 
 function formatRelativeTime(dateString: string | undefined): string {
   if (!dateString) return '';
@@ -214,10 +209,7 @@ export function SessionsPanel() {
   function resumeSession(session: ClaudeSession, command?: string) {
     const cmd = command ?? defaultStartCommand;
     const target = session.sessionId;
-    const fullCommand = `${cmd} --resume ${target}`;
-    if (typeof window.terminalSendCommand === 'function') {
-      window.terminalSendCommand(fullCommand);
-    }
+    sendCommandToTerminal(`${cmd} --resume ${target}`);
   }
 
   function handleRename(session: ClaudeSession, name: string) {
@@ -412,11 +404,7 @@ export function SessionsPanel() {
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
-                            onClick={() => {
-                              if (typeof window.terminalSendCommand === 'function') {
-                                window.terminalSendCommand(`${defaultStartCommand} --continue`);
-                              }
-                            }}
+                            onClick={() => sendCommandToTerminal(`${defaultStartCommand} --continue`)}
                             className="text-xs cursor-pointer"
                           >
                             <Play size={12} className="mr-1.5 opacity-0" />
@@ -469,11 +457,7 @@ export function SessionsPanel() {
                           showAll={showAllSegments}
                           onToggleShowAll={() => setShowAllSegments(prev => !prev)}
                           onResume={(seg) => {
-                            const cmd = defaultStartCommand;
-                            const fullCommand = `${cmd} --resume ${seg.sessionId}`;
-                            if (typeof window.terminalSendCommand === 'function') {
-                              window.terminalSendCommand(fullCommand);
-                            }
+                            sendCommandToTerminal(`${defaultStartCommand} --resume ${seg.sessionId}`);
                           }}
                         />
                       </motion.div>

@@ -8,6 +8,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '../lib/utils';
+import { sendCommandToTerminal } from '../lib/promptUtils';
 import { usePlugins } from '../hooks/usePlugins';
 import { useState, useMemo } from 'react';
 import type { Plugin } from '../../shared/ipcChannels';
@@ -71,13 +72,8 @@ export function PluginsPanel() {
   }
 
   function handleInstall(pluginName: string) {
-    // Send install command to terminal if available
-    const win = window as unknown as { terminalSendCommand?: (cmd: string) => void };
-    if (typeof win.terminalSendCommand === 'function') {
-      win.terminalSendCommand(`claude plugin install ${pluginName}`);
+    if (sendCommandToTerminal(`claude plugin install ${pluginName}`)) {
       toast.info(`Installing ${pluginName}...`);
-    } else {
-      toast.info(`Run: claude plugin install ${pluginName}`);
     }
   }
 

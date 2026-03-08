@@ -13,15 +13,8 @@ import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
 import { MarkdownPreview } from './previews/MarkdownPreview';
 import { cn } from '../lib/utils';
-import { toast } from 'sonner';
+import { sendCommandToTerminal } from '../lib/promptUtils';
 import type { SkillInfo } from '../../shared/ipcChannels';
-
-/** Type the global terminalSendCommand helper */
-declare global {
-  interface Window {
-    terminalSendCommand?: (command: string) => void;
-  }
-}
 
 function HealthBadge({ status }: { status: SkillInfo['healthStatus'] }) {
   if (!status) return null;
@@ -45,11 +38,7 @@ function SkillCard({ skill }: { skill: SkillInfo }) {
 
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (typeof window.terminalSendCommand === 'function') {
-      window.terminalSendCommand(skill.command);
-    } else {
-      toast.warning('No active terminal', { description: 'Open a terminal first.' });
-    }
+    sendCommandToTerminal(skill.command);
   };
 
   return (

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { typedSend } from './ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { useUIStore } from '../stores/useUIStore';
+import { useTerminalStore } from '../stores/useTerminalStore';
 import type { SavedPrompt } from '../../shared/ipcChannels';
 
 /** Template variables available in prompt content */
@@ -71,6 +72,20 @@ export function insertPromptIntoTerminal(
   const text = resolveTemplateVariables(prompt.content, projectPath);
   typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: text });
   toast.success('Inserted into terminal');
+  return true;
+}
+
+/**
+ * Send a command string to the active terminal and execute it.
+ * Returns true if the command was sent successfully.
+ */
+export function sendCommandToTerminal(command: string): boolean {
+  const { activeTerminalId } = useTerminalStore.getState();
+  if (!activeTerminalId) {
+    toast.warning('No active terminal', { description: 'Open a terminal first.' });
+    return false;
+  }
+  typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: command + '\r' });
   return true;
 }
 
