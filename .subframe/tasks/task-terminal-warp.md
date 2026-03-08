@@ -1,14 +1,14 @@
 ---
 id: task-terminal-warp
 title: Warp-style terminal UX improvements
-status: in_progress
+status: completed
 priority: high
 category: feature
 blockedBy: []
 blocks: []
 createdAt: '2026-02-28T23:00:00.000Z'
-updatedAt: '2026-03-07T13:43:32.751Z'
-completedAt: '2026-03-02T23:38:15.743Z'
+updatedAt: '2026-03-08T02:31:08.401Z'
+completedAt: '2026-03-08T02:31:08.401Z'
 context: Session 2026-02-28 - Terminal UX modernization
 ---
 Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).

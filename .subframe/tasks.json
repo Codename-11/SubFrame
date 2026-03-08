@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-08T01:14:55.675Z",
+  "lastUpdated": "2026-03-08T02:31:08.404Z",
   "tasks": {
     "pending": [
       {
@@ -480,40 +480,7 @@
         "steps": []
       }
     ],
-    "inProgress": [
-      {
-        "id": "task-mmgcol2f-bs7y",
-        "title": "Pipeline workflow editor UI with visual builder and YAML view",
-        "status": "in_progress",
-        "priority": "high",
-        "category": "feature",
-        "context": "Session 2026-03-07",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-07T13:19:42.758Z",
-        "updatedAt": "2026-03-07T13:20:01.637Z",
-        "completedAt": null,
-        "description": "Add a workflow editor to PipelinePanel with: 1) Visual builder — step list with add/remove/reorder, autofill for uses: (lint/test/describe/critique/freeze/push), with: config fields (scope, mode, focus, prompt), run: command input, approval/continue-on-error toggles. 2) YAML view — CodeMirror editor with YAML syntax highlighting, toggle between visual and YAML. 3) Save/create/delete workflows via IPC. 4) New workflow dialog with template presets. Modern UI with animations matching SubFrame design system.",
-        "userRequest": "Edit pipelines via UI with enhanced building flow, autofill, modern UI features, YAML view via CodeMirror",
-        "steps": []
-      },
-      {
-        "id": "task-terminal-warp",
-        "title": "Warp-style terminal UX improvements",
-        "status": "in_progress",
-        "priority": "high",
-        "category": "feature",
-        "context": "Session 2026-02-28 - Terminal UX modernization",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-02-28T23:00:00.000Z",
-        "updatedAt": "2026-03-07T13:43:32.751Z",
-        "completedAt": "2026-03-02T23:38:15.743Z",
-        "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
-        "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
-        "steps": []
-      }
-    ],
+    "inProgress": [],
     "completed": [
       {
         "id": "task-1772722916748-m562u62l7",
@@ -540,6 +507,20 @@
         "createdAt": "2026-03-05T15:02:59.366Z",
         "updatedAt": "2026-03-06T01:35:03.343Z",
         "completedAt": "2026-03-06T01:35:03.343Z",
+        "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1772931003433-4ceksawud",
+        "title": "Spellcheck in all UI textfields",
+        "status": "completed",
+        "priority": "high",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-08T00:50:03.433Z",
+        "updatedAt": "2026-03-08T01:14:55.672Z",
+        "completedAt": "2026-03-08T01:14:55.672Z",
         "description": "",
         "steps": []
       },
@@ -1096,6 +1077,22 @@
         "steps": []
       },
       {
+        "id": "task-mmgcol2f-bs7y",
+        "title": "Pipeline workflow editor UI with visual builder and YAML view",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-07",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-07T13:19:42.758Z",
+        "updatedAt": "2026-03-08T02:31:08.181Z",
+        "completedAt": "2026-03-08T02:31:08.181Z",
+        "description": "Add a workflow editor to PipelinePanel with: 1) Visual builder — step list with add/remove/reorder, autofill for uses: (lint/test/describe/critique/freeze/push), with: config fields (scope, mode, focus, prompt), run: command input, approval/continue-on-error toggles. 2) YAML view — CodeMirror editor with YAML syntax highlighting, toggle between visual and YAML. 3) Save/create/delete workflows via IPC. 4) New workflow dialog with template presets. Modern UI with animations matching SubFrame design system.",
+        "userRequest": "Edit pipelines via UI with enhanced building flow, autofill, modern UI features, YAML view via CodeMirror",
+        "steps": []
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -1282,17 +1279,19 @@
         "steps": []
       },
       {
-        "id": "task-1772931003433-4ceksawud",
-        "title": "Spellcheck in all UI textfields",
+        "id": "task-terminal-warp",
+        "title": "Warp-style terminal UX improvements",
         "status": "completed",
         "priority": "high",
-        "category": "enhancement",
+        "category": "feature",
+        "context": "Session 2026-02-28 - Terminal UX modernization",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-08T00:50:03.433Z",
-        "updatedAt": "2026-03-08T01:14:55.672Z",
-        "completedAt": "2026-03-08T01:14:55.672Z",
-        "description": "",
+        "createdAt": "2026-02-28T23:00:00.000Z",
+        "updatedAt": "2026-03-08T02:31:08.401Z",
+        "completedAt": "2026-03-08T02:31:08.401Z",
+        "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
+        "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
         "steps": []
       }
     ]
