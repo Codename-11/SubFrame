@@ -28,6 +28,25 @@ const APP_VERSION = require('../../../package.json').version;
 
 const BUILTIN_TOOL_IDS = new Set(['claude', 'codex', 'gemini']);
 
+const DEFAULT_FONT = "'JetBrainsMono Nerd Font', 'CaskaydiaCove Nerd Font', 'FiraCode Nerd Font', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace";
+
+/** Nerd Font families to probe — the font-family name as installed on disk. */
+const NERD_FONTS = [
+  'JetBrainsMono Nerd Font',
+  'CaskaydiaCove Nerd Font',
+  'FiraCode Nerd Font',
+  'Hack Nerd Font',
+  'MesloLGS Nerd Font',
+];
+
+function detectNerdFont(): string | null {
+  if (typeof document === 'undefined') return null;
+  for (const font of NERD_FONTS) {
+    if (document.fonts.check(`12px "${font}"`)) return font;
+  }
+  return null;
+}
+
 export function SettingsPanel() {
   const settingsOpen = useUIStore((s) => s.settingsOpen);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
@@ -41,7 +60,8 @@ export function SettingsPanel() {
   const [scrollback, setScrollback] = useState(10000);
 
   // Terminal settings
-  const [fontFamily, setFontFamily] = useState("'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace");
+  const [nerdFontDetected] = useState(() => detectNerdFont());
+  const [fontFamily, setFontFamily] = useState(DEFAULT_FONT);
   const [lineHeight, setLineHeight] = useState(1.2);
   const [cursorBlink, setCursorBlink] = useState(true);
   const [cursorStyle, setCursorStyle] = useState('bar');
@@ -51,7 +71,7 @@ export function SettingsPanel() {
 
   // Editor settings
   const [editorFontSize, setEditorFontSize] = useState(12);
-  const [editorFontFamily, setEditorFontFamily] = useState("'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace");
+  const [editorFontFamily, setEditorFontFamily] = useState(DEFAULT_FONT);
   const [editorWordWrap, setEditorWordWrap] = useState(false);
   const [editorMinimap, setEditorMinimap] = useState(false);
   const [editorLineNumbers, setEditorLineNumbers] = useState(true);
@@ -81,7 +101,7 @@ export function SettingsPanel() {
     const terminal = (settings.terminal as Record<string, unknown>) || {};
     setFontSize((terminal.fontSize as number) || 14);
     setScrollback((terminal.scrollback as number) || 10000);
-    setFontFamily((terminal.fontFamily as string) || "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace");
+    setFontFamily((terminal.fontFamily as string) || DEFAULT_FONT);
     setLineHeight((terminal.lineHeight as number) || 1.2);
     setCursorBlink(terminal.cursorBlink !== false);
     setCursorStyle((terminal.cursorStyle as string) || 'bar');
@@ -91,7 +111,7 @@ export function SettingsPanel() {
 
     const editor = (settings.editor as Record<string, unknown>) || {};
     setEditorFontSize((editor.fontSize as number) || 12);
-    setEditorFontFamily((editor.fontFamily as string) || "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace");
+    setEditorFontFamily((editor.fontFamily as string) || DEFAULT_FONT);
     setEditorWordWrap((editor.wordWrap as boolean) || false);
     setEditorMinimap((editor.minimap as boolean) || false);
     setEditorLineNumbers(editor.lineNumbers !== false);
@@ -676,6 +696,24 @@ export function SettingsPanel() {
                     onChange={(e) => setFontFamily(e.target.value)}
                     className="bg-bg-deep border-border-subtle text-sm"
                   />
+                  {nerdFontDetected ? (
+                    <p className="text-xs text-success mt-1 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Nerd Font detected: {nerdFontDetected}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-text-tertiary mt-1">
+                      For Oh My Posh / Starship icons, install a{' '}
+                      <a
+                        href="https://www.nerdfonts.com/font-downloads"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        Nerd Font
+                      </a>
+                      {' '}(e.g. JetBrainsMono Nerd Font)
+                    </p>
+                  )}
                 </div>
               </div>
 

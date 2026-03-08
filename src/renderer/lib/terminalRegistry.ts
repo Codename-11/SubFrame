@@ -167,7 +167,7 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
     cursorBlink: options?.cursorBlink ?? true,
     cursorStyle: options?.cursorStyle ?? 'bar',
     fontSize: options?.fontSize ?? 14,
-    fontFamily: options?.fontFamily ?? "'JetBrains Mono', 'SF Mono', Consolas, monospace",
+    fontFamily: options?.fontFamily ?? "'JetBrainsMono Nerd Font', 'CaskaydiaCove Nerd Font', 'FiraCode Nerd Font', 'JetBrains Mono', 'SF Mono', Consolas, monospace",
     theme: TERMINAL_THEME,
     allowTransparency: false,
     scrollback: options?.scrollback ?? 10000,

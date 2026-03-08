@@ -83,7 +83,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   terminal: {
     fontSize: 14,
     scrollback: 10000,
-    fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+    fontFamily: "'JetBrainsMono Nerd Font', 'CaskaydiaCove Nerd Font', 'FiraCode Nerd Font', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
     lineHeight: 1.2,
     cursorBlink: true,
     cursorStyle: 'bar',
@@ -97,7 +97,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     theme: 'subframe-dark',
     wordWrap: false,
     fontSize: 12,
-    fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+    fontFamily: "'JetBrainsMono Nerd Font', 'CaskaydiaCove Nerd Font', 'FiraCode Nerd Font', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
     lineNumbers: true,
     bracketMatching: true,
     tabSize: 2,
