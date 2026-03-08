@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-07",
+  "lastUpdated": "2026-03-08",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -1413,31 +1413,33 @@
           ]
         },
         "setupAllIPC": {
-          "line": 270,
+          "line": 274,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 319,
+          "line": 323,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 330,
+          "line": 334,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 369,
+      "loc": 373,
       "ipc": {
         "listens": [
           "GET_RELEASE_NOTES",
           "TERMINAL_INPUT"
         ],
-        "emits": []
+        "emits": [
+          "WORKSPACE_UPDATED"
+        ]
       }
     },
     "main/menu": {
@@ -2993,7 +2995,7 @@
       ],
       "functions": {
         "init": {
-          "line": 125,
+          "line": 127,
           "params": [
             "window",
             "app"
@@ -3005,18 +3007,18 @@
           ]
         },
         "loadSettings": {
-          "line": 135,
+          "line": 137,
           "purpose": "Load settings from file",
           "calls": [
             "deepMerge"
           ]
         },
         "saveSettings": {
-          "line": 154,
+          "line": 156,
           "purpose": "Save settings to file"
         },
         "updateSetting": {
-          "line": 167,
+          "line": 169,
           "params": [
             "keyPath",
             "value"
@@ -3027,21 +3029,21 @@
           ]
         },
         "onSettingChange": {
-          "line": 197,
+          "line": 199,
           "params": [
             "listener"
           ],
           "purpose": "Register a listener for setting changes (main-process only)"
         },
         "getSetting": {
-          "line": 208,
+          "line": 210,
           "params": [
             "keyPath"
           ],
           "purpose": "Get a setting by key path"
         },
         "deepMerge": {
-          "line": 223,
+          "line": 225,
           "params": [
             "target",
             "unknown>",
@@ -3051,14 +3053,14 @@
           "purpose": "Deep merge two objects"
         },
         "setupIPC": {
-          "line": 244,
+          "line": 246,
           "purpose": "Setup IPC handlers",
           "calls": [
             "updateSetting"
           ]
         }
       },
-      "loc": 255,
+      "loc": 257,
       "ipc": {
         "listens": [
           "LOAD_SETTINGS",
@@ -4846,7 +4848,7 @@
       ],
       "functions": {
         "ProjectList": {
-          "line": 42,
+          "line": 41,
           "purpose": "Supports keyboard navigation (Arrow Up/Down, Enter, F2, Escape) and inline rename.",
           "calls": [
             "sortProjects",
@@ -4854,7 +4856,7 @@
           ]
         },
         "ProjectCard": {
-          "line": 290,
+          "line": 288,
           "params": [
             "{\r\n  project",
             "isActive",
@@ -4873,13 +4875,13 @@
           ]
         },
         "sortProjects": {
-          "line": 426,
+          "line": 424,
           "params": [
             "list"
           ]
         }
       },
-      "loc": 436,
+      "loc": 434,
       "ipc": {
         "listens": [],
         "emits": [
@@ -5101,9 +5103,13 @@
         "framer-motion"
       ],
       "functions": {
+        "detectNerdFont": {
+          "line": 42
+        },
         "SettingsPanel": {
-          "line": 31,
+          "line": 50,
           "calls": [
+            "detectNerdFont",
             "getThemeById",
             "typedInvoke",
             "useAIToolConfig",
@@ -5111,7 +5117,7 @@
           ]
         }
       },
-      "loc": 1199
+      "loc": 1252
     },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
@@ -5188,23 +5194,25 @@
     },
     "renderer/components/SidebarAgentStatus": {
       "file": "src\\renderer\\components\\SidebarAgentStatus.tsx",
-      "description": "SidebarAgentStatus — Tiny status widget for the sidebar footer area. Shows a pulsing dot + current tool name when an agent session is active.",
+      "description": "SidebarAgentStatus — Tiny status widget for the sidebar footer area. Shows a pulsing dot + current tool name when an agent session is active. Adapts to collapsed sidebar: shows icon + dot + count badge with tooltip.",
       "exports": [
         "SidebarAgentStatus"
       ],
       "depends": [
+        "lucide-react",
         "hooks/useAgentState",
-        "stores/useUIStore"
+        "stores/useUIStore",
+        "ui/tooltip"
       ],
       "functions": {
         "SidebarAgentStatus": {
-          "line": 9,
+          "line": 12,
           "calls": [
             "useAgentState"
           ]
         }
       },
-      "loc": 45
+      "loc": 87
     },
     "renderer/components/SkillsPanel": {
       "file": "src\\renderer\\components\\SkillsPanel.tsx",
@@ -5626,14 +5634,14 @@
           ]
         },
         "TaskDetail": {
-          "line": 1145,
+          "line": 1144,
           "params": [
             "{ task",
             "updateTask }"
           ]
         }
       },
-      "loc": 1213,
+      "loc": 1212,
       "ipc": {
         "listens": [],
         "emits": [
@@ -5678,24 +5686,26 @@
         "hooks/useTerminal",
         "lib/ipc",
         "../shared/ipcChannels",
-        "hooks/useSettings"
+        "hooks/useSettings",
+        "stores/useTerminalStore",
+        "lib/terminalRegistry"
       ],
       "functions": {
         "stripAnsi": {
-          "line": 25,
+          "line": 27,
           "params": [
             "str"
           ]
         },
         "Terminal": {
-          "line": 47,
+          "line": 49,
           "params": [
             "{ terminalId",
             "className }"
           ]
         }
       },
-      "loc": 445,
+      "loc": 563,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -6037,11 +6047,11 @@
         "WorkspaceSelector"
       ],
       "depends": [
-        "lib/ipc",
         "react",
         "lucide-react",
         "stores/useProjectStore",
         "hooks/useIpc",
+        "lib/ipc",
         "../shared/ipcChannels",
         "sonner"
       ],
@@ -6058,11 +6068,12 @@
         "AddProjectButton": {
           "line": 287,
           "calls": [
+            "typedInvoke",
             "typedSend"
           ]
         }
       },
-      "loc": 369
+      "loc": 364
     },
     "renderer/hooks/useAgentState": {
       "file": "src\\renderer\\hooks\\useAgentState.ts",
@@ -6973,12 +6984,16 @@
       "file": "src\\renderer\\lib\\terminalRegistry.ts",
       "description": "Persistent terminal instance registry. Decouples xterm.js Terminal lifecycle from React component mount/unmount.",
       "exports": [
+        "onMarkerChange",
         "getOrCreate",
         "attach",
         "detach",
         "dispose",
         "has",
-        "get"
+        "get",
+        "addUserMessageMarker",
+        "getUserMessageMarkers",
+        "clearUserMessageMarkers"
       ],
       "depends": [
         "xterm",
@@ -6990,17 +7005,30 @@
         "../shared/ipcChannels"
       ],
       "functions": {
+        "onMarkerChange": {
+          "line": 90,
+          "params": [
+            "id",
+            "cb"
+          ]
+        },
+        "notifyMarkerChange": {
+          "line": 97,
+          "params": [
+            "id"
+          ]
+        },
         "getHolderRoot": {
-          "line": 90
+          "line": 112
         },
         "loadGpuRenderer": {
-          "line": 101,
+          "line": 123,
           "params": [
             "terminal"
           ]
         },
         "getOrCreate": {
-          "line": 138,
+          "line": 160,
           "params": [
             "id",
             "options"
@@ -7012,7 +7040,7 @@
           ]
         },
         "attach": {
-          "line": 200,
+          "line": 222,
           "params": [
             "id",
             "container"
@@ -7020,7 +7048,7 @@
           "purpose": "Moves the holder div (which contains the xterm DOM tree) into the container."
         },
         "detach": {
-          "line": 215,
+          "line": 237,
           "params": [
             "id"
           ],
@@ -7030,26 +7058,49 @@
           ]
         },
         "dispose": {
-          "line": 226,
+          "line": 248,
           "params": [
             "id"
           ],
           "purpose": "Only call when the user explicitly closes a terminal."
         },
         "has": {
-          "line": 241,
+          "line": 270,
           "params": [
             "id"
           ]
         },
         "get": {
-          "line": 246,
+          "line": 275,
+          "params": [
+            "id"
+          ]
+        },
+        "addUserMessageMarker": {
+          "line": 283,
+          "params": [
+            "id",
+            "showDecoration"
+          ],
+          "purpose": "Creates an xterm marker + optional left-border decoration.",
+          "calls": [
+            "notifyMarkerChange"
+          ]
+        },
+        "getUserMessageMarkers": {
+          "line": 323,
+          "params": [
+            "id"
+          ]
+        },
+        "clearUserMessageMarkers": {
+          "line": 328,
           "params": [
             "id"
           ]
         }
       },
-      "loc": 249,
+      "loc": 337,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -8683,7 +8734,7 @@
       {
         "module": "renderer/components/SidebarAgentStatus",
         "file": "src\\renderer\\components\\SidebarAgentStatus.tsx",
-        "description": "SidebarAgentStatus — Tiny status widget for the sidebar footer area. Shows a pulsing dot + current tool name when an agent session is active."
+        "description": "SidebarAgentStatus — Tiny status widget for the sidebar footer area. Shows a pulsing dot + current tool name when an agent session is active. Adapts to collapsed sidebar: shows icon + dot + count badge with tooltip."
       }
     ],
     "skills": [
