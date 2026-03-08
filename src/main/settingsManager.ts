@@ -20,6 +20,7 @@ interface DefaultSettings {
     confirmBeforeClose: boolean;
     usagePollingInterval: number;
     gridOverflowAutoSwitch: boolean;
+    highlightUserMessages: boolean;
   };
   aiTools: Record<string, unknown>;
   terminal: {
@@ -76,6 +77,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     confirmBeforeClose: true,
     usagePollingInterval: 300,
     gridOverflowAutoSwitch: true,
+    highlightUserMessages: true,
   },
   aiTools: {},
   terminal: {

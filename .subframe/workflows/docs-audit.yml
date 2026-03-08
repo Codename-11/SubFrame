@@ -1,0 +1,17 @@
+name: docs-audit
+on:
+  manual: true
+
+jobs:
+  audit:
+    name: Documentation Audit
+    steps:
+      - name: Structure Sync
+        run: npm run structure && git diff --exit-code .subframe/STRUCTURE.json
+        continue-on-error: true
+      - name: Documentation Review
+        uses: critique
+        with:
+          scope: project
+          focus: documentation
+          prompt: "Audit project documentation. Check if CLAUDE.md, CHANGELOG.md, and STRUCTURE.json are accurate and complete. Identify missing docs, outdated sections, and inconsistencies between documented and actual behavior."

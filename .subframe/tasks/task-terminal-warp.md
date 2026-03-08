@@ -7,7 +7,7 @@ category: feature
 blockedBy: []
 blocks: []
 createdAt: '2026-02-28T23:00:00.000Z'
-updatedAt: '2026-03-03T00:01:32.623Z'
+updatedAt: '2026-03-07T13:43:32.751Z'
 completedAt: '2026-03-02T23:38:15.743Z'
 context: Session 2026-02-28 - Terminal UX modernization
 ---
@@ -15,6 +15,8 @@ Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to cl
 
 ## Notes
 [2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)
+[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps
+[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.
 
 ## Notes
 Current stack: xterm.js 5.3.0 + node-pty 1.0.0 + xterm-addon-fit 0.8.0. Key handler is in terminalManager.js attachCustomKeyEventHandler. Warp uses its own Rust-based renderer — we stay on xterm.js but match the UX patterns.

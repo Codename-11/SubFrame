@@ -14,7 +14,6 @@ import type {
   PipelineStage,
   ContentArtifact,
   CommentArtifact,
-  PatchArtifact,
   ArtifactSeverity,
 } from '../shared/ipcChannels';
 
@@ -31,6 +30,8 @@ export interface StageContext {
   aiTool: string;
   abortSignal: AbortSignal;
   emit: (log: string) => void;
+  /** Per-step config from workflow `with:` — scope, mode, focus, prompt, etc. */
+  stepConfig: Record<string, string>;
 }
 
 export interface StageResult {
@@ -111,41 +112,150 @@ function execAsync(
 
 /**
  * Get the diff between baseSha and headSha.
+ * Returns empty string if no diff available (callers should handle this).
  */
 async function getDiff(ctx: StageContext): Promise<string> {
   const cwd = ctx.worktreePath || ctx.projectPath;
-  try {
-    const { stdout } = await execAsync(
-      `git diff ${ctx.baseSha}...${ctx.headSha}`,
-      { cwd, signal: ctx.abortSignal }
-    );
-    return stdout;
-  } catch (err) {
-    // Fallback: diff against HEAD~1 if shas are invalid
-    ctx.emit(`Warning: git diff failed, falling back to HEAD diff`);
+
+  // Try the explicit base...head range (only if they differ)
+  if (ctx.baseSha && ctx.headSha && ctx.baseSha !== ctx.headSha) {
     try {
-      const { stdout } = await execAsync('git diff HEAD~1', { cwd, signal: ctx.abortSignal });
-      return stdout;
+      const { stdout } = await execAsync(
+        `git diff ${ctx.baseSha}...${ctx.headSha}`,
+        { cwd, signal: ctx.abortSignal }
+      );
+      if (stdout.trim()) return stdout;
     } catch {
-      return '';
+      ctx.emit('Warning: git diff base...head failed');
     }
   }
+
+  // Fallback: last commit
+  try {
+    const { stdout } = await execAsync('git diff HEAD~1', { cwd, signal: ctx.abortSignal });
+    if (stdout.trim()) return stdout;
+  } catch {
+    // noop
+  }
+
+  return '';
+}
+
+/**
+ * Assemble project-level context for scope: project stages.
+ * Returns a structured markdown string with file tree, structure, package info, etc.
+ */
+async function getProjectContext(ctx: StageContext): Promise<string> {
+  const cwd = ctx.worktreePath || ctx.projectPath;
+  const parts: string[] = [];
+
+  // 1. File tree (git-tracked files)
+  try {
+    const { stdout } = await execAsync('git ls-files', { cwd, signal: ctx.abortSignal });
+    const files = stdout.trim();
+    // Truncate very large file trees
+    parts.push(`## File Tree\n\`\`\`\n${files.slice(0, 5000)}\n\`\`\``);
+    ctx.emit(`Project context: ${files.split('\n').length} tracked files`);
+  } catch {
+    ctx.emit('Warning: could not read file tree');
+  }
+
+  // 2. STRUCTURE.json (compact module/IPC map)
+  const structurePath = path.join(ctx.projectPath, '.subframe', 'STRUCTURE.json');
+  if (fs.existsSync(structurePath)) {
+    try {
+      const structure = fs.readFileSync(structurePath, 'utf8');
+      parts.push(`## Project Structure (STRUCTURE.json)\n\`\`\`json\n${structure.slice(0, 8000)}\n\`\`\``);
+    } catch { /* skip */ }
+  }
+
+  // 3. package.json summary
+  const pkgPath = path.join(ctx.projectPath, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      const summary = {
+        name: pkg.name,
+        version: pkg.version,
+        scripts: pkg.scripts,
+        dependencies: Object.keys(pkg.dependencies || {}),
+        devDependencies: Object.keys(pkg.devDependencies || {}),
+      };
+      parts.push(`## Package Info\n\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\``);
+    } catch { /* skip */ }
+  }
+
+  // 4. Recent git log
+  try {
+    const { stdout } = await execAsync('git log --oneline -20', { cwd, signal: ctx.abortSignal });
+    if (stdout.trim()) {
+      parts.push(`## Recent Commits (last 20)\n\`\`\`\n${stdout.trim()}\n\`\`\``);
+    }
+  } catch { /* skip */ }
+
+  // 5. Key config files (truncated)
+  const keyFiles = ['CLAUDE.md', 'tsconfig.json', 'eslint.config.mjs', '.eslintrc.js', 'CHANGELOG.md'];
+  for (const file of keyFiles) {
+    const filePath = path.join(ctx.projectPath, file);
+    if (fs.existsSync(filePath)) {
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        parts.push(`## ${file}\n\`\`\`\n${content.slice(0, 3000)}\n\`\`\``);
+      } catch { /* skip */ }
+    }
+  }
+
+  return parts.join('\n\n');
 }
 
 /**
  * Spawn the AI tool CLI with a prompt and parse JSON from stdout.
+ * Unwraps the Claude CLI JSON envelope ({"type":"result","result":"..."})
+ * so callers receive the actual AI response text.
  */
 async function spawnAITool(
   ctx: StageContext,
   prompt: string
 ): Promise<string> {
+  const raw = await spawnAIToolRaw(ctx, prompt);
+
+  // Claude CLI with --output-format json wraps the response in an envelope:
+  // {"type":"result","subtype":"success","result":"<actual content>", ...}
+  // Unwrap the envelope so downstream parsers see the real content.
+  try {
+    const envelope = JSON.parse(raw);
+    if (envelope && typeof envelope === 'object' && 'result' in envelope && typeof envelope.result === 'string') {
+      return envelope.result;
+    }
+  } catch {
+    // Not valid JSON envelope — return raw output as-is
+  }
+
+  return raw;
+}
+
+/**
+ * Raw AI tool spawner — returns stdout verbatim.
+ * Pipes the prompt via stdin to avoid shell escaping issues with
+ * backticks, quotes, and other special characters in prompts.
+ */
+function spawnAIToolRaw(
+  ctx: StageContext,
+  prompt: string
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const cwd = ctx.worktreePath || ctx.projectPath;
-    const child = spawn(ctx.aiTool, ['--print', '--output-format', 'json', prompt], {
+    // Deliver prompt via stdin (no positional arg) to avoid shell mangling
+    // of backticks, quotes, and special characters in the prompt text.
+    const child = spawn(ctx.aiTool, ['--print', '--output-format', 'json'], {
       cwd,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
       shell: true,
     });
+
+    // Write prompt to stdin and close — CLI reads from stdin when no positional prompt given
+    child.stdin.write(prompt);
+    child.stdin.end();
 
     let stdout = '';
     let stderr = '';
@@ -180,6 +290,104 @@ async function spawnAITool(
       child.kill('SIGTERM');
     }, { once: true });
   });
+}
+
+/**
+ * Spawn the AI tool in agent mode (no --print) — allows the AI to use tools,
+ * read files, and explore the codebase autonomously. Slower and more expensive
+ * but dramatically better for deep audits. Returns the final output text.
+ */
+async function spawnAIToolAgent(
+  ctx: StageContext,
+  prompt: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const cwd = ctx.worktreePath || ctx.projectPath;
+    ctx.emit('Spawning AI agent (autonomous mode)...');
+
+    // Agent mode: no --print, uses --output-format json for structured output.
+    // The AI can use all its built-in tools (Read, Grep, Glob, Bash, etc.)
+    const child = spawn(ctx.aiTool, ['--output-format', 'json', '--verbose'], {
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: true,
+    });
+
+    // Deliver prompt via stdin
+    child.stdin.write(prompt);
+    child.stdin.end();
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (data: Buffer) => {
+      const chunk = data.toString();
+      stdout += chunk;
+    });
+
+    child.stderr.on('data', (data: Buffer) => {
+      const chunk = data.toString();
+      stderr += chunk;
+      for (const line of chunk.split('\n').filter(Boolean)) {
+        ctx.emit(line);
+      }
+    });
+
+    child.on('close', (code) => {
+      if (ctx.abortSignal.aborted) {
+        reject(new Error('Aborted'));
+      } else if (code !== 0) {
+        reject(new Error(`AI agent exited with code ${code}: ${stderr}`));
+      } else {
+        // Unwrap envelope if present
+        try {
+          const envelope = JSON.parse(stdout);
+          if (envelope && typeof envelope === 'object' && 'result' in envelope && typeof envelope.result === 'string') {
+            resolve(envelope.result);
+            return;
+          }
+        } catch {
+          // Not JSON envelope
+        }
+        resolve(stdout);
+      }
+    });
+
+    child.on('error', reject);
+
+    ctx.abortSignal.addEventListener('abort', () => {
+      child.kill('SIGTERM');
+    }, { once: true });
+  });
+}
+
+/**
+ * Dispatch to the appropriate AI tool mode based on stepConfig.mode.
+ * - mode: 'agent' → spawnAIToolAgent (autonomous, multi-turn, uses tools)
+ * - mode: 'print' (default) → spawnAITool (single-turn, fast, cheap)
+ */
+async function dispatchAITool(ctx: StageContext, prompt: string): Promise<string> {
+  const mode = ctx.stepConfig.mode || 'print';
+  if (mode === 'agent') {
+    return spawnAIToolAgent(ctx, prompt);
+  }
+  return spawnAITool(ctx, prompt);
+}
+
+/**
+ * Get the appropriate context string based on stepConfig.scope.
+ * - scope: 'project' → full project context
+ * - scope: 'changes' (default) → git diff
+ * Returns empty string if no context available.
+ */
+async function getContextForScope(ctx: StageContext): Promise<{ context: string; label: string }> {
+  const scope = ctx.stepConfig.scope || 'changes';
+  if (scope === 'project') {
+    const context = await getProjectContext(ctx);
+    return { context, label: 'project' };
+  }
+  const diff = await getDiff(ctx);
+  return { context: diff, label: 'changes' };
 }
 
 /**
@@ -263,7 +471,7 @@ export async function runLintStage(ctx: StageContext): Promise<StageResult> {
       fs.writeFileSync(lintScriptPath, lintCommand, 'utf8');
       ctx.emit(`Discovered and cached lint command: ${lintCommand}`);
       logs.push(`Discovered lint command: ${lintCommand}`);
-    } catch (err) {
+    } catch {
       lintCommand = 'npm run lint';
       ctx.emit(`AI discovery failed, using default: ${lintCommand}`);
       logs.push(`AI discovery failed, defaulting to: ${lintCommand}`);
@@ -342,8 +550,28 @@ function parseLintOutput(output: string, stageId: string): CommentArtifact[] {
 }
 
 /**
+ * Build a focus instruction from stepConfig.focus if present.
+ * Supported values: security, documentation, architecture, performance, testing, or custom text.
+ */
+function buildFocusInstruction(ctx: StageContext): string {
+  const focus = ctx.stepConfig.focus;
+  if (!focus) return '';
+
+  const focusMap: Record<string, string> = {
+    security: 'Focus primarily on security concerns: injection vulnerabilities, auth issues, data exposure, unsafe operations, dependency risks.',
+    documentation: 'Focus primarily on documentation quality: missing/outdated docs, unclear comments, API documentation gaps, README accuracy.',
+    architecture: 'Focus primarily on architecture: design patterns, separation of concerns, module coupling, scalability, maintainability.',
+    performance: 'Focus primarily on performance: bottlenecks, unnecessary allocations, N+1 queries, caching opportunities, algorithm efficiency.',
+    testing: 'Focus primarily on testing: missing test coverage, edge cases, test quality, flaky test patterns, assertion completeness.',
+  };
+
+  return focusMap[focus] || `Focus primarily on: ${focus}`;
+}
+
+/**
  * Test Stage
- * Spawns AI tool with diff context to run/evaluate tests.
+ * Spawns AI tool with context to run/evaluate tests.
+ * Respects stepConfig: scope, mode, focus, prompt.
  */
 export async function runTestStage(ctx: StageContext): Promise<StageResult> {
   const logs: string[] = [];
@@ -352,13 +580,25 @@ export async function runTestStage(ctx: StageContext): Promise<StageResult> {
   ctx.emit('Starting test stage...');
   logs.push('Starting test stage');
 
-  const diff = await getDiff(ctx);
+  const { context, label } = await getContextForScope(ctx);
 
-  const prompt = `You are reviewing code changes for a project. Here is the diff:
+  if (!context.trim()) {
+    ctx.emit(`No ${label} context available — skipping test stage`);
+    logs.push(`Skipped: no ${label} context`);
+    return { status: 'skipped', artifacts, logs };
+  }
 
-\`\`\`diff
-${diff.slice(0, 8000)}
-\`\`\`
+  ctx.emit(`Test stage using ${label} context (${Math.round(context.length / 1024)}KB)`);
+  logs.push(`Context scope: ${label}`);
+
+  const focusInstruction = buildFocusInstruction(ctx);
+  const customPrompt = ctx.stepConfig.prompt;
+
+  const prompt = customPrompt || `You are reviewing a ${label === 'project' ? 'project codebase' : 'set of code changes'}. Here is the context:
+
+${label === 'changes' ? `\`\`\`diff\n${context.slice(0, 8000)}\n\`\`\`` : context.slice(0, 12000)}
+
+${focusInstruction}
 
 Run the project's test suite and evaluate the results. Respond with ONLY a JSON object:
 {
@@ -368,7 +608,7 @@ Run the project's test suite and evaluate the results. Respond with ONLY a JSON 
 }`;
 
   try {
-    const output = await spawnAITool(ctx, prompt);
+    const output = await dispatchAITool(ctx, prompt);
     const parsed = parseJSONFromOutput(output) as {
       verdict?: string;
       summary?: string;
@@ -405,7 +645,8 @@ Run the project's test suite and evaluate the results. Respond with ONLY a JSON 
 
 /**
  * Describe Stage
- * Computes diff and spawns AI tool for PR description.
+ * Spawns AI tool for PR description or project overview.
+ * Respects stepConfig: scope, mode, focus, prompt.
  */
 export async function runDescribeStage(ctx: StageContext): Promise<StageResult> {
   const logs: string[] = [];
@@ -414,13 +655,47 @@ export async function runDescribeStage(ctx: StageContext): Promise<StageResult> 
   ctx.emit('Starting describe stage...');
   logs.push('Starting describe stage');
 
-  const diff = await getDiff(ctx);
+  const { context, label } = await getContextForScope(ctx);
 
-  const prompt = `You are generating a pull request description for the following changes. Analyze the diff and write a clear, concise PR description in markdown format.
+  if (!context.trim()) {
+    ctx.emit(`No ${label} context available — skipping describe stage`);
+    logs.push(`Skipped: no ${label} context`);
+    return { status: 'skipped', artifacts, logs };
+  }
+
+  ctx.emit(`Describe stage using ${label} context (${Math.round(context.length / 1024)}KB)`);
+  logs.push(`Context scope: ${label}`);
+
+  const focusInstruction = buildFocusInstruction(ctx);
+  const customPrompt = ctx.stepConfig.prompt;
+
+  const isProject = label === 'project';
+
+  const prompt = customPrompt || (isProject
+    ? `You are generating a project overview/health description. Analyze the project context and write a clear summary.
+
+${context.slice(0, 15000)}
+
+${focusInstruction}
+
+Write a project description with:
+- Project purpose and architecture summary
+- Key technologies and patterns used
+- Current state assessment (health, tech debt, test coverage)
+- Notable strengths and areas for improvement
+
+Respond with ONLY a JSON object:
+{
+  "title": "Project overview title (max 70 chars)",
+  "body": "Full markdown project description"
+}`
+    : `You are generating a pull request description for the following changes. Analyze the diff and write a clear, concise PR description in markdown format.
 
 \`\`\`diff
-${diff.slice(0, 12000)}
+${context.slice(0, 12000)}
 \`\`\`
+
+${focusInstruction}
 
 Write a PR description with:
 - A brief summary (1-2 sentences)
@@ -432,26 +707,26 @@ Respond with ONLY a JSON object:
 {
   "title": "PR title (max 70 chars)",
   "body": "Full markdown PR description"
-}`;
+}`);
 
   try {
-    const output = await spawnAITool(ctx, prompt);
+    const output = await dispatchAITool(ctx, prompt);
     const parsed = parseJSONFromOutput(output) as {
       title?: string;
       body?: string;
     } | null;
 
-    const title = parsed?.title || 'Changes';
+    const title = parsed?.title || (isProject ? 'Project Overview' : 'Changes');
     const body = parsed?.body || output;
 
-    ctx.emit(`Generated PR description: ${title}`);
+    ctx.emit(`Generated description: ${title}`);
     logs.push(`Generated description: ${title}`);
 
     artifacts.push({
       id: uid(),
       type: 'content',
       stageId: ctx.stage.id,
-      title: `PR: ${title}`,
+      title: isProject ? title : `PR: ${title}`,
       body,
       createdAt: now(),
     });
@@ -466,8 +741,9 @@ Respond with ONLY a JSON object:
 
 /**
  * Critique Stage
- * Computes diff, spawns AI tool for code review.
+ * Spawns AI tool for code review (diff or project-level).
  * Produces CommentArtifact[] for inline comments and ContentArtifact for summary.
+ * Respects stepConfig: scope, mode, focus, prompt.
  */
 export async function runCritiqueStage(ctx: StageContext): Promise<StageResult> {
   const logs: string[] = [];
@@ -476,13 +752,56 @@ export async function runCritiqueStage(ctx: StageContext): Promise<StageResult> 
   ctx.emit('Starting critique stage...');
   logs.push('Starting critique stage');
 
-  const diff = await getDiff(ctx);
+  const { context, label } = await getContextForScope(ctx);
 
-  const prompt = `You are performing a thorough code review on the following diff. Identify bugs, security issues, style problems, and suggest improvements.
+  if (!context.trim()) {
+    ctx.emit(`No ${label} context available — skipping critique stage`);
+    logs.push(`Skipped: no ${label} context`);
+    return { status: 'skipped', artifacts, logs };
+  }
+
+  ctx.emit(`Critique stage using ${label} context (${Math.round(context.length / 1024)}KB)`);
+  logs.push(`Context scope: ${label}`);
+
+  const focusInstruction = buildFocusInstruction(ctx);
+  const customPrompt = ctx.stepConfig.prompt;
+  const isProject = label === 'project';
+
+  const prompt = customPrompt || (isProject
+    ? `You are performing a thorough audit of this project. Review the project context below and identify issues, risks, and improvements.
+
+${context.slice(0, 15000)}
+
+${focusInstruction || 'Identify bugs, security issues, architectural problems, missing documentation, and suggest improvements.'}
+
+Respond with ONLY a JSON object:
+{
+  "summary": "Overall audit summary with key findings",
+  "comments": [
+    {
+      "file": "path/to/file.ts",
+      "line": 1,
+      "message": "Description of issue or suggestion",
+      "severity": "error" | "warning" | "info" | "suggestion",
+      "category": "bug" | "security" | "style" | "performance" | "documentation" | "architecture" | "suggestion"
+    }
+  ],
+  "patches": [
+    {
+      "title": "Fix description",
+      "explanation": "Why this fix is needed",
+      "diff": "unified diff content or suggested code",
+      "files": ["path/to/file.ts"]
+    }
+  ]
+}`
+    : `You are performing a thorough code review on the following diff. Identify bugs, security issues, style problems, and suggest improvements.
 
 \`\`\`diff
-${diff.slice(0, 12000)}
+${context.slice(0, 12000)}
 \`\`\`
+
+${focusInstruction}
 
 Respond with ONLY a JSON object:
 {
@@ -505,10 +824,10 @@ Respond with ONLY a JSON object:
       "files": ["path/to/file.ts"]
     }
   ]
-}`;
+}`);
 
   try {
-    const output = await spawnAITool(ctx, prompt);
+    const output = await dispatchAITool(ctx, prompt);
     const parsed = parseJSONFromOutput(output) as {
       summary?: string;
       comments?: Array<{
@@ -570,7 +889,7 @@ Respond with ONLY a JSON object:
       id: uid(),
       type: 'content',
       stageId: ctx.stage.id,
-      title: 'Code Review Summary',
+      title: isProject ? 'Project Audit Summary' : 'Code Review Summary',
       body: summary,
       createdAt: now(),
     });
@@ -647,8 +966,15 @@ export async function runPushStage(ctx: StageContext): Promise<StageResult> {
     ctx.emit(`Pushing branch: ${branch}`);
     logs.push(`Pushing branch: ${branch}`);
 
+    // Validate branch name to prevent shell injection
+    if (!/^[a-zA-Z0-9._/-]+$/.test(branch)) {
+      ctx.emit(`Push aborted: invalid branch name "${branch}"`);
+      logs.push(`Aborted: invalid branch name`);
+      return { status: 'failed', artifacts, logs };
+    }
+
     const { stdout, stderr } = await execAsync(
-      `git push -u origin ${branch}`,
+      `git push -u origin -- ${branch}`,
       { cwd, signal: ctx.abortSignal }
     );
 
@@ -723,14 +1049,30 @@ export async function runCreatePrStage(ctx: StageContext): Promise<StageResult> 
       return { status: 'completed', artifacts, logs };
     }
 
-    // Escape the title and body for shell
-    const escapedTitle = prTitle.replace(/"/g, '\\"');
-    const escapedBody = prBody.replace(/"/g, '\\"');
+    // Write PR body to temp file to avoid shell injection via body content
+    const tmpBodyFile = path.join(cwd, '.subframe-pr-body.tmp');
+    try {
+      fs.writeFileSync(tmpBodyFile, prBody, 'utf8');
+    } catch {
+      ctx.emit('Failed to write temp PR body file');
+      logs.push('Failed to write temp PR body file');
+      return { status: 'failed', artifacts, logs };
+    }
 
-    const { stdout: prUrl } = await execAsync(
-      `gh pr create --title "${escapedTitle}" --body "${escapedBody}"`,
-      { cwd, signal: ctx.abortSignal }
-    );
+    // Validate title (no shell metacharacters)
+    const safeTitle = prTitle.replace(/[`$"\\]/g, '');
+
+    let prUrl: string;
+    try {
+      const { stdout } = await execAsync(
+        `gh pr create --title "${safeTitle}" --body-file "${tmpBodyFile}"`,
+        { cwd, signal: ctx.abortSignal }
+      );
+      prUrl = stdout;
+    } finally {
+      // Clean up temp file
+      try { fs.unlinkSync(tmpBodyFile); } catch { /* ignore */ }
+    }
 
     ctx.emit(`PR created: ${prUrl.trim()}`);
     logs.push(`PR created: ${prUrl.trim()}`);

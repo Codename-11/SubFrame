@@ -6,6 +6,125 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Terminal Agent UX Enhancements (2026-03-07)
+
+#### Reuse Idle Terminal for Agent Start
+- **Sidebar.startAITool()**: Now checks if the active terminal has no agent running before creating a new one; sends command to existing idle terminal instead
+- **New IPC**: `IS_TERMINAL_CLAUDE_ACTIVE` invoke channel — renderer can query per-terminal agent status from ptyManager
+- **New setting**: `general.reuseIdleTerminal` (default: `true`) — toggle in Settings > General > Startup
+- **Files**: `ipcChannels.ts`, `ptyManager.ts`, `Sidebar.tsx`, `settingsManager.ts`, `SettingsPanel.tsx`
+
+#### Agent Status Broadcasting & Tab UX
+- **ptyManager.broadcastClaudeStatus()**: Emits `CLAUDE_ACTIVE_STATUS` on active↔inactive transitions (previously defined but never sent)
+- **TerminalArea**: Listens for `CLAUDE_ACTIVE_STATUS`, updates `useTerminalStore.claudeActive` per terminal
+- **Auto-rename**: On agent start, fetches session name via `GET_TERMINAL_SESSION_NAME` and renames tab (skips user-renamed tabs)
+- **Bot icon**: Pulsing green `Bot` icon shown in tab bar and grid cell headers when agent is active
+- **Store**: Added `claudeActive?: boolean` to `TerminalInfo` and `setClaudeActive()` action
+- **Files**: `ptyManager.ts`, `TerminalArea.tsx`, `TerminalTabBar.tsx`, `TerminalGrid.tsx`, `useTerminalStore.ts`
+
+#### Agent Activity Full-View & Multi-Session Enhancements
+- **Full-view support**: Added `'agentState'` to `FullViewContent` type in `useUIStore`, rendering in `TerminalArea`, and popout `Maximize2` button in `AgentStateView` panel header
+- **Multi-session panel mode**: Panel shows up to 5 sessions (active first, then recent idle/completed) as clickable `SessionCard` buttons with ring highlight; timeline shows for selected/first-active session
+- **Multi-session sidebar**: `SidebarAgentStatus` now filters to all active/busy sessions, shows count badge when >1, shows tool/name for single session
+- **Session list enhancements (full-view)**: `SessionListItem` shows relative time ("2m ago"), current tool badge, step count with label; header shows active count badge
+- **Detail pane**: Shows session start time in header
+- **Files**: `useUIStore.ts`, `TerminalArea.tsx`, `AgentStateView.tsx`, `SidebarAgentStatus.tsx`
+
+#### Session↔Terminal Correlation ("Jump to Terminal")
+- **ptyManager.correlateSession()**: When a terminal transitions to claude-active, reads `agent-state.json` for the terminal's project, finds the most recently active unclaimed session by `lastActivityAt` timestamp
+- **terminalSessionMap**: `Map<terminalId, sessionId>` maintained in ptyManager, cleaned up on terminal exit
+- **CLAUDE_ACTIVE_STATUS payload**: Extended with optional `sessionId` field
+- **useTerminalStore**: Added `claudeSessionId?: string` to `TerminalInfo`, set/cleared by `setClaudeActive()`
+- **AgentStateView**: `jumpToTerminal(sessionId)` finds terminal by `claudeSessionId`, focuses it, closes full-view if open
+- **UI**: `TerminalSquare` icon button on `SessionCard` (panel mode) and detail pane header (full-view mode) — only appears when a terminal correlation exists
+- **Files**: `ptyManager.ts`, `ipcChannels.ts`, `useTerminalStore.ts`, `TerminalArea.tsx`, `AgentStateView.tsx`
+
+### Pipeline Feature Overhaul (2026-03-07)
+
+#### Configurable `with:` System
+- **WorkflowStep.with**: Added `with?: Record<string, string>` to `ipcChannels.ts` WorkflowStep interface
+- **StageContext.stepConfig**: Plumbed through from workflow YAML → pipelineManager → stage handlers
+- **Supported keys**: `scope` (project|changes), `mode` (agent|print), `focus` (security|documentation|architecture|performance|testing|custom), `prompt` (full override)
+- **Files**: `ipcChannels.ts`, `pipelineManager.ts`, `pipelineStages.ts`
+
+#### Project-Level Context (`scope: project`)
+- **getProjectContext()**: Assembles ~25KB context from git-tracked file tree (5KB), STRUCTURE.json (8KB), package.json summary, last 20 commits, key config files (CLAUDE.md, tsconfig, eslint, CHANGELOG — 3KB each)
+- **getContextForScope()**: Routes to `getProjectContext()` or `getDiff()` based on `stepConfig.scope`
+- Graceful skip with log message when no context available (empty diff or empty project)
+
+#### Agent Mode (`mode: agent`)
+- **spawnAIToolAgent()**: Spawns Claude CLI without `--print`, allowing autonomous multi-turn tool use (Read, Grep, Bash, etc.)
+- **dispatchAITool()**: Routes to agent or print mode based on `stepConfig.mode`
+- Uses `--output-format json --verbose` for structured output with progress logging
+- Dramatically better for deep audits but slower/more expensive than print mode
+
+#### Focus-Aware Prompts
+- **buildFocusInstruction()**: Maps `stepConfig.focus` to specific review instructions
+- All three AI stages (test, describe, critique) now adapt prompts for project vs changes scope
+- Custom `stepConfig.prompt` fully overrides default prompt when set
+
+#### Stage Handler Rewrites
+- **runTestStage**: Uses `getContextForScope()` + `dispatchAITool()`, adapts for project/changes
+- **runDescribeStage**: Project scope → "project overview/health description"; changes scope → "PR description"
+- **runCritiqueStage**: Project scope → "thorough audit"; changes scope → "diff code review". Both produce comments + patches + summary
+
+#### Claude CLI Fixes
+- **Envelope unwrapping**: `spawnAITool()` now strips `{"type":"result","result":"..."}` wrapper from `--output-format json` output
+- **Stdin prompt delivery**: `spawnAIToolRaw()` pipes prompt via `child.stdin.write()` instead of shell arg to avoid backtick/quote mangling
+- **Simplified getDiff()**: Removed aggressive HEAD~5 progressive fallback; simple baseSha...headSha with HEAD~1 fallback
+
+#### UI Improvements (PipelinePanel.tsx)
+- **Scroll fix**: Replaced Radix Tabs (TabsList/TabsTrigger/TabsContent) with plain button tab bar + direct ScrollArea child — Radix Tabs injected `gap-2` and conditional mounting that broke the flex height chain
+- **Sidebar scroll fix**: Removed wrapper `<div>` around runDetail so it's a direct flex child (matching TasksPanel flat layout)
+- **Full-screen popout**: Maximize2 icon button in sidebar toolbar, calls `closeRightPanel()` then `setFullViewContent('pipeline')`
+- **Re-run button**: RotateCcw icon, re-triggers the same workflowId with `trigger: 'manual'`
+- **Delete button**: Trash2 icon, calls new `PIPELINE_DELETE_RUN` IPC channel
+- **Log fallback**: PipelineLogView merges real-time events with persisted `stage.logs`
+
+#### New IPC Channel
+- **PIPELINE_DELETE_RUN** (`pipeline-delete-run`): Handle channel, accepts `{ runId, projectPath }`, cancels active run if needed, removes from allRuns map, persists to runs.json
+
+#### New Workflow Templates
+- **health-check.yml**: Updated — describe + critique now use `scope: project`, critique has `focus: architecture`
+- **docs-audit.yml**: New — `npm run structure` sync check + critique with `scope: project, focus: documentation`
+- **security-scan.yml**: New — `npm audit` + critique with `scope: project, focus: security`
+- **Seeding**: `ensureWorkflowsDir()` in pipelineManager writes all three templates on first run
+
+#### Hook (usePipeline.ts)
+- Added `deleteRun` mutation with stable ref pattern (matching existing mutations)
+- Clears `selectedRunId` when deleting the selected run
+- Added `saveWorkflow` and `deleteWorkflow` mutations to `usePipelineWorkflows()` with query invalidation on success
+
+#### Workflow Editor UI (WorkflowEditor.tsx)
+- **Visual builder mode**: Workflow name, triggers (manual/push), job management, step cards with Framer Motion `Reorder` drag-to-reorder
+- **Step cards**: Expand/collapse, stage type dropdown autofill (lint/test/describe/critique/freeze/push/create-pr/custom), `run:` command input, continue-on-error/approval toggles, timeout
+- **AI config section**: Contextual for AI stages — scope (changes/project), mode (print/agent), focus (with datalist autofill), custom prompt
+- **YAML mode**: CodeMirror 6 with YAML syntax, lazy-loaded via dynamic imports
+- **Template presets**: Health Check, Docs Audit, Security Scan, Code Review, Blank
+- **Form ↔ YAML**: Form→YAML is automatic on mode switch. **YAML→Form is intentionally one-way** — editing raw YAML and switching to form mode won't parse changes back (would require full YAML→state parser; users who edit YAML are expected to stay in YAML mode)
+- **Delete confirmation**: AlertDialog confirmation before workflow delete
+- **Dirty indicator**: `*` in dialog title when modified
+- **Files**: `WorkflowEditor.tsx` (new), `PipelinePanel.tsx` (integration)
+
+#### IPC Channels (Workflow CRUD)
+- **PIPELINE_SAVE_WORKFLOW**: Validates filename (`.yml`, no path separators, no `..`), parses content via `parseWorkflow()`, writes to workflows dir
+- **PIPELINE_DELETE_WORKFLOW**: Validates filename, deletes workflow file
+- **WorkflowDefinition.filename**: New optional field, set by `listWorkflows()` — ensures edit doesn't create duplicate files when `name` differs from filename
+
+#### Security Fixes
+- **Shell injection in runPushStage**: Branch name validated with `^[a-zA-Z0-9._/-]+$` regex + `--` arg separator before `git push`
+- **Shell injection in runCreatePrStage**: PR body written to temp file and passed via `--body-file` instead of shell interpolation; title sanitized (backticks, `$`, `"`, `\` stripped)
+- **YAML injection in stateToYaml**: Added `yamlQuote()` helper that single-quotes values with special YAML chars (`:`, `#`, `{`, `[`, etc.) and YAML keywords (`true`, `false`, `null`, `yes`, `no`, etc.)
+
+#### Reliability Fixes
+- **Stage timeout enforcement**: `pipelineManager.ts` now wraps stage execution in `Promise.race()` with configurable timeout (default 600s, reads `step.timeout` from YAML). Prevents `spawnAIToolAgent()` from hanging indefinitely
+- **Double refetch prevention**: Removed explicit `refetchWorkflows()` calls from PipelinePanel save/delete handlers; relies solely on TanStack Query `onSuccess` invalidation in the hook
+- **Workflow seeding fix**: `ensureWorkflowsDir()` changed from one-shot directory creation to per-file idempotent seeding — new built-in workflows appear automatically for existing projects
+
+#### Tests
+- **pipelineWorkflowParser.test.ts** (11 tests): YAML parsing, validation errors, `with:` config preservation (JS reserved word round-trip), push triggers, job dependencies, run commands
+- **workflowEditorUtils.test.ts** (12 tests): `yamlQuote` special chars/keywords/escaping, YAML serialization round-trip via `parseWorkflow()`, prompt with colons/quotes, approval options
+
 ### Terminal Grid & Usage Element Improvements (2026-03-05)
 
 #### Terminal Grid Drag-to-Swap

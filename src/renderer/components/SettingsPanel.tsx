@@ -125,6 +125,7 @@ export function SettingsPanel() {
   const defaultProjectDir = (general.defaultProjectDir as string) || '';
   const usagePollingInterval = (general.usagePollingInterval as number) || 300;
   const gridOverflowAutoSwitch = general.gridOverflowAutoSwitch !== false;
+  const highlightUserMessages = general.highlightUserMessages !== false; // default true
 
   function saveToggle(key: string, value: boolean) {
     updateSetting.mutate([{ key, value }]);
@@ -568,6 +569,20 @@ export function SettingsPanel() {
                     className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${gridOverflowAutoSwitch ? 'bg-accent' : 'bg-bg-tertiary'}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${gridOverflowAutoSwitch ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+
+                {/* Highlight user messages */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-text-primary">Highlight user messages</div>
+                    <div className="text-xs text-text-tertiary">Mark your messages in agent sessions with a left border and enable scroll-to-last-message navigation</div>
+                  </div>
+                  <button
+                    onClick={() => saveToggle('general.highlightUserMessages', !highlightUserMessages)}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${highlightUserMessages ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${highlightUserMessages ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
                   </button>
                 </div>
               </div>

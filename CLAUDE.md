@@ -32,7 +32,7 @@ React 19, TypeScript (strict), Zustand (state), TanStack Query (IPC caching), Ta
 **Theme**: `themeTypes` (shared theme tokens, presets, CSS mapping)
 
 **Renderer** — React components in `src/renderer/components/`:
-`App` `Sidebar` `ProjectList` `WorkspaceSelector` `Terminal` `TerminalArea` `TerminalGrid` `TerminalTabBar` `FileTree` `Editor` `RightPanel` `TasksPanel` `TaskTimeline` `TaskGraph` `TaskKanban` `SessionsPanel` `PluginsPanel` `SettingsPanel` `OverviewPanel` `StatsDetailView` `DecisionsDetailView` `GithubPanel` `AIFilesPanel` `AIToolSelector` `StructureMap` `SubFrameHealthPanel` `AgentStateView` `AgentTimeline` `SidebarAgentStatus` `SkillsPanel` `KeyboardShortcuts` `HistoryPanel` `CommandPalette` `PromptLibrary` `WhatsNew` `UpdateNotification` `OnboardingDialog` `ErrorBoundary` `PipelinePanel` `PipelineTimeline`
+`App` `Sidebar` `ProjectList` `WorkspaceSelector` `Terminal` `TerminalArea` `TerminalGrid` `TerminalTabBar` `FileTree` `Editor` `RightPanel` `TasksPanel` `TaskTimeline` `TaskGraph` `TaskKanban` `SessionsPanel` `PluginsPanel` `SettingsPanel` `OverviewPanel` `StatsDetailView` `DecisionsDetailView` `GithubPanel` `AIFilesPanel` `AIToolSelector` `StructureMap` `SubFrameHealthPanel` `AgentStateView` `AgentTimeline` `SidebarAgentStatus` `SkillsPanel` `KeyboardShortcuts` `HistoryPanel` `CommandPalette` `PromptLibrary` `WhatsNew` `UpdateNotification` `OnboardingDialog` `ErrorBoundary` `PipelinePanel` `PipelineTimeline` `WorkflowEditor`
 **Previews** (in `src/renderer/components/previews/`): `MarkdownPreview` `HtmlPreview` `ImagePreview`
 **Theme**: `ThemeProvider` (runtime CSS variable injection from settings, feature toggle data-attributes)
 

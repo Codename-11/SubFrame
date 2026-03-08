@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
 import { FRAME_WORKFLOWS_DIR } from '../shared/frameConstants';
-import { getDefaultReviewWorkflow, getTaskVerifyWorkflow, getHealthCheckWorkflow as getHealthCheckTemplate } from '../shared/frameTemplates';
+import { getDefaultReviewWorkflow, getTaskVerifyWorkflow, getHealthCheckWorkflow as getHealthCheckTemplate, getDocsAuditWorkflow as getDocsAuditTemplate, getSecurityScanWorkflow as getSecurityScanTemplate } from '../shared/frameTemplates';
 import type { WorkflowDefinition } from '../shared/ipcChannels';
 
 /**
@@ -80,6 +80,7 @@ export function listWorkflows(projectPath: string): WorkflowDefinition[] {
     try {
       const content = fs.readFileSync(filePath, 'utf8');
       const workflow = parseWorkflow(content);
+      workflow.filename = file;
       workflows.push(workflow);
     } catch (err) {
       console.error(`Error parsing workflow ${filePath}:`, (err as Error).message);
@@ -93,3 +94,5 @@ export function listWorkflows(projectPath: string): WorkflowDefinition[] {
 export const getDefaultWorkflow = getDefaultReviewWorkflow;
 export const getTaskVerificationWorkflow = getTaskVerifyWorkflow;
 export const getHealthCheckWorkflow = getHealthCheckTemplate;
+export const getDocsAuditWorkflow = getDocsAuditTemplate;
+export const getSecurityScanWorkflow = getSecurityScanTemplate;

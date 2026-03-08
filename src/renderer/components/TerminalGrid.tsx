@@ -5,7 +5,7 @@
  */
 
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { X, Maximize2, Minimize2, Plus, GripVertical } from 'lucide-react';
+import { X, Maximize2, Minimize2, Plus, GripVertical, Bot } from 'lucide-react';
 import { Terminal } from './Terminal';
 import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore';
 
@@ -274,7 +274,7 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
           const isActive = t.id === activeTerminalId;
           return (
             <div
-              key={`slot-${index}`}
+              key={t.id}
               className={`relative flex flex-col min-h-0 min-w-0 bg-bg-deep transition-opacity duration-150
                           ${isActive ? 'ring-1 ring-accent/30' : ''}
                           ${isDragSource ? 'opacity-40' : ''}
@@ -296,6 +296,7 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
                   className="flex items-center gap-1 min-w-0 flex-1 px-2 h-full cursor-grab active:cursor-grabbing"
                 >
                   <GripVertical className="h-3 w-3 text-text-muted flex-shrink-0" />
+                  {t.claudeActive && <Bot className="h-3 w-3 text-success flex-shrink-0 animate-pulse" />}
                   <span className="text-[10px] text-text-tertiary truncate">{t.name}</span>
                 </div>
                 <div className="flex items-center flex-shrink-0 pr-1">
@@ -353,7 +354,7 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
         // Empty cell
         return (
           <div
-            key={`slot-${index}`}
+            key={`empty-${index}`}
             className={`relative flex flex-col min-h-0 min-w-0 bg-bg-deep
                         ${isDragOver ? 'ring-2 ring-accent/60' : ''}`}
             onDragOver={(e) => handleDragOver(e, index)}

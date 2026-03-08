@@ -108,6 +108,15 @@ export function usePipeline() {
       typedInvoke(IPC.PIPELINE_APPLY_PATCH, { runId: vars.runId, patchId: vars.patchId }),
   });
 
+  const deleteRun = useMutation({
+    mutationFn: (runId: string) => {
+      if (!projectPath) return Promise.reject(new Error('No project'));
+      // Clear selection if deleting the selected run
+      if (runId === selectedRunId) setSelectedRunId(null);
+      return typedInvoke(IPC.PIPELINE_DELETE_RUN, { runId, projectPath });
+    },
+  });
+
   // Stable mutation refs — prevents cascading re-renders when
   // mutation state transitions (idle→pending→success→idle) create new objects.
   const startPipelineRef = useRef(startPipeline.mutate);
@@ -120,6 +129,8 @@ export function usePipeline() {
   rejectStageRef.current = rejectStage.mutate;
   const applyPatchRef = useRef(applyPatch.mutate);
   applyPatchRef.current = applyPatch.mutate;
+  const deleteRunRef = useRef(deleteRun.mutate);
+  deleteRunRef.current = deleteRun.mutate;
 
   // Stable wrappers that delegate to refs — intentionally empty deps
   const stableMutations = useMemo(() => ({
@@ -128,6 +139,7 @@ export function usePipeline() {
     approveStage:   { mutate: (...args: Parameters<typeof approveStage.mutate>) => approveStageRef.current(...args) },
     rejectStage:    { mutate: (...args: Parameters<typeof rejectStage.mutate>) => rejectStageRef.current(...args) },
     applyPatch:     { mutate: (...args: Parameters<typeof applyPatch.mutate>) => applyPatchRef.current(...args) },
+    deleteRun:      { mutate: (...args: Parameters<typeof deleteRun.mutate>) => deleteRunRef.current(...args) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
@@ -143,6 +155,7 @@ export function usePipeline() {
     approveStage: stableMutations.approveStage,
     rejectStage: stableMutations.rejectStage,
     applyPatch: stableMutations.applyPatch,
+    deleteRun: stableMutations.deleteRun,
   };
 }
 
@@ -151,6 +164,7 @@ export function usePipeline() {
  */
 export function usePipelineWorkflows() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
+  const queryClient = useQueryClient();
 
   const query = useQuery<WorkflowDefinition[]>({
     queryKey: ['pipeline-workflows', projectPath],
@@ -162,10 +176,28 @@ export function usePipelineWorkflows() {
     staleTime: 60_000, // Workflows change infrequently
   });
 
+  const saveWorkflow = useMutation({
+    mutationFn: (vars: { filename: string; content: string }) => {
+      if (!projectPath) return Promise.reject(new Error('No project'));
+      return typedInvoke(IPC.PIPELINE_SAVE_WORKFLOW, { projectPath, filename: vars.filename, content: vars.content });
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['pipeline-workflows', projectPath] }); },
+  });
+
+  const deleteWorkflow = useMutation({
+    mutationFn: (filename: string) => {
+      if (!projectPath) return Promise.reject(new Error('No project'));
+      return typedInvoke(IPC.PIPELINE_DELETE_WORKFLOW, { projectPath, filename });
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['pipeline-workflows', projectPath] }); },
+  });
+
   return {
     workflows: query.data ?? [],
     isLoading: query.isLoading,
     refetch: query.refetch,
+    saveWorkflow,
+    deleteWorkflow,
   };
 }
 

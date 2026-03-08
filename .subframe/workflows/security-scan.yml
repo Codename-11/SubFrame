@@ -1,0 +1,17 @@
+name: security-scan
+on:
+  manual: true
+
+jobs:
+  scan:
+    name: Security Scan
+    steps:
+      - name: Dependency Audit
+        run: npm audit --audit-level=moderate 2>&1 || true
+        continue-on-error: true
+      - name: Security Review
+        uses: critique
+        with:
+          scope: project
+          focus: security
+          prompt: "Security audit of this codebase. Check for hardcoded secrets, injection vectors, exposed environment variables, authentication gaps, insecure dependencies, and OWASP top 10 vulnerabilities."

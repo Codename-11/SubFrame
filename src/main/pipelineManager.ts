@@ -12,7 +12,6 @@ import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import type {
   PipelineRun,
-  PipelineRunStatus,
   PipelineJob,
   PipelineStage,
   PipelineArtifact,
@@ -23,7 +22,7 @@ import type {
   PipelineProgressEvent,
 } from '../shared/ipcChannels';
 import { FRAME_PIPELINES_DIR, FRAME_WORKFLOWS_DIR } from '../shared/frameConstants';
-import { listWorkflows, parseWorkflow, getDefaultWorkflow, getTaskVerificationWorkflow, getHealthCheckWorkflow } from './pipelineWorkflowParser';
+import { listWorkflows, parseWorkflow, getDefaultWorkflow, getTaskVerificationWorkflow, getHealthCheckWorkflow, getDocsAuditWorkflow, getSecurityScanWorkflow } from './pipelineWorkflowParser';
 import {
   getStageHandler,
   runCustomStage,
@@ -98,10 +97,20 @@ function ensureWorkflowsDir(projectPath: string): string {
   const dir = path.join(projectPath, FRAME_WORKFLOWS_DIR);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
-    // Seed with default workflows
-    fs.writeFileSync(path.join(dir, 'review.yml'), getDefaultWorkflow(), 'utf8');
-    fs.writeFileSync(path.join(dir, 'task-verify.yml'), getTaskVerificationWorkflow(), 'utf8');
-    fs.writeFileSync(path.join(dir, 'health-check.yml'), getHealthCheckWorkflow(), 'utf8');
+  }
+  // Seed any missing built-in workflows (safe to call repeatedly)
+  const builtins: [string, () => string][] = [
+    ['review.yml', getDefaultWorkflow],
+    ['task-verify.yml', getTaskVerificationWorkflow],
+    ['health-check.yml', getHealthCheckWorkflow],
+    ['docs-audit.yml', getDocsAuditWorkflow],
+    ['security-scan.yml', getSecurityScanWorkflow],
+  ];
+  for (const [filename, getTemplate] of builtins) {
+    const filePath = path.join(dir, filename);
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, getTemplate(), 'utf8');
+    }
   }
   return dir;
 }
@@ -370,25 +379,42 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
             stage.logs.push(log);
             emitProgress(run.id, stage.id, log);
           },
+          stepConfig: step?.with ?? {},
         };
 
         try {
-          let result;
+          // Enforce stage timeout (default: 10 minutes, configurable via step.timeout)
+          const timeoutMs = (step?.timeout ?? 600) * 1000;
+          let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutHandle = setTimeout(() => {
+              abortController.abort();
+              reject(new Error(`Stage timed out after ${Math.round(timeoutMs / 1000)}s`));
+            }, timeoutMs);
+          });
 
-          if (stage.type === 'custom' && step) {
-            result = await runCustomStage(ctx, {
-              run: step.run,
-              uses: step.uses,
-              env: step.env,
-            });
-          } else {
-            const handler = getStageHandler(stage.type);
-            if (!handler) {
-              ctx.emit(`Unknown stage type: ${stage.type}`);
-              result = { status: 'failed' as const, artifacts: [], logs: [`Unknown stage type: ${stage.type}`] };
+          let result;
+          const stagePromise = (async () => {
+            if (stage.type === 'custom' && step) {
+              return runCustomStage(ctx, {
+                run: step.run,
+                uses: step.uses,
+                env: step.env,
+              });
             } else {
-              result = await handler(ctx);
+              const handler = getStageHandler(stage.type);
+              if (!handler) {
+                ctx.emit(`Unknown stage type: ${stage.type}`);
+                return { status: 'failed' as const, artifacts: [], logs: [`Unknown stage type: ${stage.type}`] };
+              }
+              return handler(ctx);
             }
+          })();
+
+          try {
+            result = await Promise.race([stagePromise, timeoutPromise]);
+          } finally {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
           }
 
           stage.status = result.status;
@@ -695,6 +721,67 @@ function setupIPC(ipcMain: IpcMain): void {
       } catch (err) {
         return { success: false, error: (err as Error).message };
       }
+    }
+  );
+
+  ipcMain.handle(
+    IPC.PIPELINE_DELETE_RUN,
+    async (_event, payload: { runId: string; projectPath: string }) => {
+      // Cancel if active
+      const runCtx = activeRuns.get(payload.runId);
+      if (runCtx) {
+        runCtx.abortController.abort();
+        if (runCtx.approvalResolve) {
+          runCtx.approvalResolve(false);
+        }
+        activeRuns.delete(payload.runId);
+      }
+
+      allRuns.delete(payload.runId);
+      persistRuns(payload.projectPath);
+      broadcastRunsList(payload.projectPath);
+      return { success: true };
+    }
+  );
+
+  ipcMain.handle(
+    IPC.PIPELINE_SAVE_WORKFLOW,
+    async (_event, payload: { projectPath: string; filename: string; content: string }) => {
+      const { projectPath, filename, content } = payload;
+
+      // Validate filename
+      if (!filename.endsWith('.yml') || /[/\\]/.test(filename) || filename.includes('..')) {
+        return { success: false, error: 'Invalid filename: must end in .yml and contain no path separators' };
+      }
+
+      // Validate YAML content parses as a valid workflow
+      try {
+        parseWorkflow(content);
+      } catch (err) {
+        return { success: false, error: (err as Error).message };
+      }
+
+      const dir = ensureWorkflowsDir(projectPath);
+      fs.writeFileSync(path.join(dir, filename), content, 'utf8');
+      return { success: true };
+    }
+  );
+
+  ipcMain.handle(
+    IPC.PIPELINE_DELETE_WORKFLOW,
+    async (_event, payload: { projectPath: string; filename: string }) => {
+      const { projectPath, filename } = payload;
+
+      // Validate filename
+      if (!filename.endsWith('.yml') || /[/\\]/.test(filename) || filename.includes('..')) {
+        return { success: false, error: 'Invalid filename: must end in .yml and contain no path separators' };
+      }
+
+      const filePath = path.join(projectPath, FRAME_WORKFLOWS_DIR, filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      return { success: true };
     }
   );
 

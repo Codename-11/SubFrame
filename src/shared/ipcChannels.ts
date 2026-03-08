@@ -78,6 +78,7 @@ export const IPC = {
   GET_AVAILABLE_SHELLS: 'get-available-shells',
   AVAILABLE_SHELLS_DATA: 'available-shells-data',
   CLAUDE_ACTIVE_STATUS: 'claude-active-status',
+  IS_TERMINAL_CLAUDE_ACTIVE: 'is-terminal-claude-active',
   GET_TERMINAL_SESSION_NAME: 'get-terminal-session-name',
 
   // Tasks Panel
@@ -215,6 +216,9 @@ export const IPC = {
   PIPELINE_APPROVE_STAGE: 'pipeline-approve-stage',
   PIPELINE_REJECT_STAGE: 'pipeline-reject-stage',
   PIPELINE_APPLY_PATCH: 'pipeline-apply-patch',
+  PIPELINE_DELETE_RUN: 'pipeline-delete-run',
+  PIPELINE_SAVE_WORKFLOW: 'pipeline-save-workflow',
+  PIPELINE_DELETE_WORKFLOW: 'pipeline-delete-workflow',
   PIPELINE_PROGRESS: 'pipeline-progress',
   PIPELINE_RUN_UPDATED: 'pipeline-run-updated',
   PIPELINE_RUNS_DATA: 'pipeline-runs-data',
@@ -840,6 +844,8 @@ export interface WorkflowStep {
   'continue-on-error'?: boolean;
   timeout?: number;
   env?: Record<string, string>;
+  /** Per-step configuration passed to stage handlers (scope, mode, focus, prompt, etc.) */
+  with?: Record<string, string>;
 }
 
 export interface WorkflowJob {
@@ -850,6 +856,8 @@ export interface WorkflowJob {
 
 export interface WorkflowDefinition {
   name: string;
+  /** On-disk filename (e.g. "health-check.yml"). Set by listWorkflows. */
+  filename?: string;
   on: {
     push?: { branches?: string[]; 'branches-ignore'?: string[] };
     manual?: boolean;
@@ -921,6 +929,9 @@ export interface IPCHandleMap {
   [IPC.DELETE_CLAUDE_SESSION]: { args: [payload: { projectPath: string; sessionId: string; slug: string }]; return: boolean };
   [IPC.DELETE_ALL_CLAUDE_SESSIONS]: { args: [projectPath: string]; return: { deleted: number } };
 
+  // Terminal Agent Status
+  [IPC.IS_TERMINAL_CLAUDE_ACTIVE]: { args: [terminalId: string]; return: boolean };
+
   // Terminal Session Name
   [IPC.GET_TERMINAL_SESSION_NAME]: { args: [payload: { terminalId: string }]; return: { name: string | null } };
 
@@ -952,6 +963,15 @@ export interface IPCHandleMap {
   [IPC.PIPELINE_APPROVE_STAGE]: { args: [payload: { runId: string; stageId: string }]; return: { success: boolean } };
   [IPC.PIPELINE_REJECT_STAGE]: { args: [payload: { runId: string; stageId: string }]; return: { success: boolean } };
   [IPC.PIPELINE_APPLY_PATCH]: { args: [payload: { runId: string; patchId: string }]; return: { success: boolean; error?: string } };
+  [IPC.PIPELINE_DELETE_RUN]: { args: [payload: { runId: string; projectPath: string }]; return: { success: boolean } };
+  [IPC.PIPELINE_SAVE_WORKFLOW]: {
+    args: [payload: { projectPath: string; filename: string; content: string }];
+    return: { success: boolean; error?: string };
+  };
+  [IPC.PIPELINE_DELETE_WORKFLOW]: {
+    args: [payload: { projectPath: string; filename: string }];
+    return: { success: boolean; error?: string };
+  };
 }
 
 // ─── Send Map (ipcRenderer.send → ipcMain.on) ───────────────────────────────
@@ -1064,7 +1084,7 @@ export interface IPCEventMap {
   [IPC.TERMINAL_DESTROYED]: { terminalId: string; exitCode: number };
   [IPC.TERMINAL_OUTPUT_ID]: { terminalId: string; data: string };
   [IPC.AVAILABLE_SHELLS_DATA]: { shells: ShellInfo[]; success: boolean; error?: string };
-  [IPC.CLAUDE_ACTIVE_STATUS]: { terminalId: string; active: boolean };
+  [IPC.CLAUDE_ACTIVE_STATUS]: { terminalId: string; active: boolean; sessionId?: string };
   [IPC.TASKS_DATA]: TasksPayload;
   [IPC.TASK_UPDATED]: { projectPath: string; taskId: string; action: string; success: boolean; error?: string };
   [IPC.PLUGINS_DATA]: Plugin[];

@@ -21,6 +21,11 @@ import {
   ThumbsUp,
   ThumbsDown,
   Check,
+  Maximize2,
+  RotateCcw,
+  Trash2,
+  Pencil,
+  Plus,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
@@ -30,10 +35,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+
 import { cn } from '../lib/utils';
 import { usePipeline, usePipelineWorkflows, usePipelineProgress } from '../hooks/usePipeline';
+import { useUIStore } from '../stores/useUIStore';
 import { PipelineTimeline } from './PipelineTimeline';
+import { WorkflowEditorDialog } from './WorkflowEditor';
+import { toast } from 'sonner';
 import type {
   PipelineRun,
   PipelineRunStatus,
@@ -42,6 +50,7 @@ import type {
   CommentArtifact,
   PatchArtifact,
   ArtifactSeverity,
+  WorkflowDefinition,
 } from '../../shared/ipcChannels';
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -359,7 +368,7 @@ function PatchReview({
   );
 }
 
-/** Log tab — shows real-time log output per stage */
+/** Log tab — shows real-time log output per stage, falling back to persisted stage.logs */
 function PipelineLogView({
   run,
   logs,
@@ -384,8 +393,17 @@ function PipelineLogView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run.id, initialStageId]);
 
-  const stageLog = selectedStageId ? (logs[selectedStageId] ?? []) : [];
   const selectedStage = allStages.find((s) => s.id === selectedStageId);
+
+  // Merge real-time logs with persisted stage.logs (deduplicated)
+  const stageLog = useMemo(() => {
+    const realTime = selectedStageId ? (logs[selectedStageId] ?? []) : [];
+    const persisted = selectedStage?.logs ?? [];
+    // If we have real-time logs, prefer those (they're the live stream)
+    if (realTime.length > 0) return realTime;
+    // Otherwise fall back to persisted logs from the run data
+    return persisted;
+  }, [selectedStageId, logs, selectedStage]);
 
   return (
     <div className="space-y-2">
@@ -409,7 +427,7 @@ function PipelineLogView({
       </div>
 
       {/* Log output */}
-      <div className="bg-bg-deep rounded border border-border-subtle p-2 min-h-[120px] max-h-[300px] overflow-auto">
+      <div className="bg-bg-deep rounded border border-border-subtle p-2 min-h-[120px] overflow-auto">
         {stageLog.length > 0 ? (
           <pre className="text-[10px] text-text-secondary font-mono whitespace-pre-wrap">
             {stageLog.join('\n')}
@@ -444,13 +462,61 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
     approveStage,
     rejectStage,
     applyPatch,
+    deleteRun,
   } = usePipeline();
 
-  const { workflows } = usePipelineWorkflows();
+  const { workflows, saveWorkflow, deleteWorkflow } = usePipelineWorkflows();
   const { logs } = usePipelineProgress(selectedRunId);
+  const setFullViewContent = useUIStore((s) => s.setFullViewContent);
+  const closeRightPanel = useUIStore((s) => s.closeRightPanel);
 
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Workflow editor dialog state
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingWorkflow, setEditingWorkflow] = useState<WorkflowDefinition | null>(null);
+  const [editingFilename, setEditingFilename] = useState<string | null>(null);
+
+  const handleEditWorkflow = (workflow: WorkflowDefinition) => {
+    setEditingWorkflow(workflow);
+    setEditingFilename(workflow.filename ?? `${workflow.name}.yml`);
+    setEditorOpen(true);
+  };
+
+  const handleNewWorkflow = () => {
+    setEditingWorkflow(null);
+    setEditingFilename(null);
+    setEditorOpen(true);
+  };
+
+  const handleSaveWorkflow = (filename: string, content: string) => {
+    saveWorkflow.mutate(
+      { filename, content },
+      {
+        onSuccess: (result) => {
+          if (result.success) {
+            toast.success(`Workflow saved: ${filename}`);
+            setEditorOpen(false);
+            // Refetch handled by onSuccess invalidation in the hook
+          } else {
+            toast.error(`Save failed: ${result.error ?? 'Unknown error'}`);
+          }
+        },
+        onError: (err) => toast.error(`Save failed: ${(err as Error).message}`),
+      },
+    );
+  };
+
+  const handleDeleteWorkflow = (filename: string) => {
+    deleteWorkflow.mutate(filename, {
+      onSuccess: () => {
+        toast.success(`Workflow deleted: ${filename}`);
+        // Refetch handled by onSuccess invalidation in the hook
+      },
+      onError: (err) => toast.error(`Delete failed: ${(err as Error).message}`),
+    });
+  };
 
   const activeWorkflow = selectedWorkflowId
     ? workflows.find((w) => w.name === selectedWorkflowId)
@@ -474,6 +540,16 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
   const handleRejectStage = (stageId: string) => {
     if (!selectedRunId) return;
     rejectStage.mutate({ runId: selectedRunId, stageId });
+  };
+
+  const handleRerunPipeline = () => {
+    if (!selectedRun) return;
+    startPipeline.mutate({ workflowId: selectedRun.workflowId, trigger: 'manual' });
+  };
+
+  const handleDeleteRun = () => {
+    if (!selectedRunId) return;
+    deleteRun.mutate(selectedRunId);
   };
 
   const handleApplyPatch = (patchId: string) => {
@@ -534,7 +610,44 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Edit active workflow */}
+      {activeWorkflow && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-1.5 text-text-tertiary hover:text-accent"
+          onClick={() => handleEditWorkflow(activeWorkflow)}
+          title="Edit workflow"
+        >
+          <Pencil size={12} />
+        </Button>
+      )}
+
+      {/* New workflow */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-1.5 text-text-tertiary hover:text-accent"
+        onClick={handleNewWorkflow}
+        title="New workflow"
+      >
+        <Plus size={12} />
+      </Button>
+
       <div className="flex-1" />
+
+      {/* Full-view popout (side-panel only) */}
+      {!isFullView && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => { closeRightPanel(); setFullViewContent('pipeline'); }}
+          className="h-7 px-2 text-text-tertiary hover:text-accent cursor-pointer shrink-0"
+          title="Open full view (Ctrl+Shift+Y)"
+        >
+          <Maximize2 size={14} />
+        </Button>
+      )}
 
       {/* Run pipeline button */}
       <Button
@@ -575,9 +688,9 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
   );
 
   const runDetail = selectedRun ? (
-    <div className="flex flex-col flex-1 min-w-0">
+    <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
       {/* Run header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border-subtle">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border-subtle shrink-0">
         <StatusBadge status={selectedRun.status} />
         <span className="text-xs font-medium text-text-primary truncate">
           {selectedRun.workflowId}
@@ -629,61 +742,94 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
             Cancel
           </Button>
         )}
+
+        {/* Re-run + Delete for finished runs */}
+        {(selectedRun.status === 'completed' || selectedRun.status === 'failed' || selectedRun.status === 'cancelled') && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[10px] gap-1 text-accent hover:text-accent"
+              onClick={handleRerunPipeline}
+              title="Re-run this workflow"
+            >
+              <RotateCcw size={10} />
+              Re-run
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[10px] gap-1 text-text-tertiary hover:text-error"
+              onClick={handleDeleteRun}
+              title="Delete this run"
+            >
+              <Trash2 size={10} />
+            </Button>
+          </>
+        )}
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList variant="line" className="px-3 border-b border-border-subtle">
-          <TabsTrigger value="overview" className="text-[11px] h-7 px-2 data-[state=active]:text-accent">
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="critique" className="text-[11px] h-7 px-2 data-[state=active]:text-accent">
-            Critique
-          </TabsTrigger>
-          <TabsTrigger value="patches" className="text-[11px] h-7 px-2 data-[state=active]:text-accent">
-            Patches
-          </TabsTrigger>
-          <TabsTrigger value="log" className="text-[11px] h-7 px-2 data-[state=active]:text-accent">
-            Log
-          </TabsTrigger>
-        </TabsList>
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 px-3 border-b border-border-subtle shrink-0">
+        {(['overview', 'critique', 'patches', 'log'] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              'text-[11px] h-7 px-2 capitalize transition-colors relative',
+              activeTab === tab
+                ? 'text-accent after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-accent'
+                : 'text-text-secondary hover:text-text-primary'
+            )}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
 
-        <ScrollArea className="flex-1">
-          <div className="p-3">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.15 }}
-              >
-                <TabsContent value="overview" className="mt-0">
-                  <OverviewTab run={selectedRun} onStageClick={handleStageClick} />
-                </TabsContent>
-                <TabsContent value="critique" className="mt-0">
-                  <CritiqueView run={selectedRun} />
-                </TabsContent>
-                <TabsContent value="patches" className="mt-0">
-                  <PatchReview run={selectedRun} onApplyPatch={handleApplyPatch} />
-                </TabsContent>
-                <TabsContent value="log" className="mt-0">
-                  <PipelineLogView run={selectedRun} logs={logs} initialStageId={logStageId} />
-                </TabsContent>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </ScrollArea>
-      </Tabs>
+      {/* Scrollable tab content */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-3">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15 }}
+            >
+              {activeTab === 'overview' && (
+                <OverviewTab run={selectedRun} onStageClick={handleStageClick} />
+              )}
+              {activeTab === 'critique' && (
+                <CritiqueView run={selectedRun} />
+              )}
+              {activeTab === 'patches' && (
+                <PatchReview run={selectedRun} onApplyPatch={handleApplyPatch} />
+              )}
+              {activeTab === 'log' && (
+                <PipelineLogView run={selectedRun} logs={logs} initialStageId={logStageId} />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </ScrollArea>
     </div>
-  ) : (
-    <div className="flex flex-col items-center justify-center flex-1 py-12 gap-2">
-      <Workflow size={24} className="text-text-muted" />
-      <p className="text-xs text-text-muted">Select a run to view details</p>
-    </div>
-  );
+  ) : null;
 
   // ─── Layout ─────────────────────────────────────────────────────────────
+
+  const workflowEditorDialog = (
+    <WorkflowEditorDialog
+      open={editorOpen}
+      onOpenChange={setEditorOpen}
+      editingWorkflow={editingWorkflow}
+      editingFilename={editingFilename}
+      onSave={handleSaveWorkflow}
+      onDelete={handleDeleteWorkflow}
+    />
+  );
 
   if (isFullView) {
     return (
@@ -693,27 +839,37 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
           <ScrollArea className="w-[240px] border-r border-border-subtle">
             {runList}
           </ScrollArea>
-          {runDetail}
+          {runDetail ?? (
+            <div className="flex flex-col items-center justify-center flex-1 py-12 gap-2">
+              <Workflow size={24} className="text-text-muted" />
+              <p className="text-xs text-text-muted">Select a run to view details</p>
+            </div>
+          )}
         </div>
+        {workflowEditorDialog}
       </div>
     );
   }
 
-  // Side panel mode — single column
+  // Side panel mode — single column, no nested scroll areas
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {toolbar}
-      <ScrollArea className="flex-1">
-        {/* Run list */}
-        {runList}
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Run list — shrink to fit, scrollable if many runs */}
+        <div className="flex-shrink-0 max-h-[40%] overflow-y-auto border-b border-border-subtle">
+          {runList}
+        </div>
 
-        {/* Run detail below */}
-        {selectedRun && (
-          <div className="border-t border-border-subtle">
-            {runDetail}
+        {/* Run detail — takes remaining space (direct flex child for unbroken height chain) */}
+        {runDetail ?? (
+          <div className="flex flex-col items-center justify-center flex-1 py-12 gap-2">
+            <Workflow size={24} className="text-text-muted" />
+            <p className="text-xs text-text-muted">Select a run to view details</p>
           </div>
         )}
-      </ScrollArea>
+      </div>
+      {workflowEditorDialog}
     </div>
   );
 }

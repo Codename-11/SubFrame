@@ -2358,7 +2358,54 @@ jobs:
         continue-on-error: true
       - name: Architecture Review
         uses: describe
+        with:
+          scope: project
       - name: Code Quality Review
         uses: critique
+        with:
+          scope: project
+          focus: architecture
+`;
+}
+
+export function getDocsAuditWorkflow(): string {
+  return `name: docs-audit
+on:
+  manual: true
+
+jobs:
+  audit:
+    name: Documentation Audit
+    steps:
+      - name: Structure Sync
+        run: npm run structure && git diff --exit-code .subframe/STRUCTURE.json
+        continue-on-error: true
+      - name: Documentation Review
+        uses: critique
+        with:
+          scope: project
+          focus: documentation
+          prompt: "Audit project documentation. Check if CLAUDE.md, CHANGELOG.md, and STRUCTURE.json are accurate and complete. Identify missing docs, outdated sections, and inconsistencies between documented and actual behavior."
+`;
+}
+
+export function getSecurityScanWorkflow(): string {
+  return `name: security-scan
+on:
+  manual: true
+
+jobs:
+  scan:
+    name: Security Scan
+    steps:
+      - name: Dependency Audit
+        run: npm audit --audit-level=moderate 2>&1 || true
+        continue-on-error: true
+      - name: Security Review
+        uses: critique
+        with:
+          scope: project
+          focus: security
+          prompt: "Security audit of this codebase. Check for hardcoded secrets, injection vectors, exposed environment variables, authentication gaps, insecure dependencies, and OWASP top 10 vulnerabilities."
 `;
 }

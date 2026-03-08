@@ -6,7 +6,7 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowDown, Copy, ClipboardPaste, MousePointerClick, Trash2, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, ClipboardPaste, MousePointerClick, Trash2, Search, X, MessageSquare } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -18,6 +18,8 @@ import { useTerminal } from '../hooks/useTerminal';
 import { typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { useSettings } from '../hooks/useSettings';
+import { useTerminalStore } from '../stores/useTerminalStore';
+import * as terminalRegistry from '../lib/terminalRegistry';
 
 const { ipcRenderer, clipboard } = require('electron');
 
@@ -71,6 +73,13 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const renderDisposableRef = useRef<{ dispose: () => void } | null>(null);
 
+  // User message tracking
+  const generalSettings = (settings?.general as Record<string, unknown>) || {};
+  const highlightUserMessages = generalSettings.highlightUserMessages !== false;
+  const claudeActive = useTerminalStore((s) => s.terminals.get(terminalId)?.claudeActive ?? false);
+  const [userMessageCount, setUserMessageCount] = useState(0);
+  const inputBufferRef = useRef('');
+
   // Capture IPC output for overlay display (terminal.write handled by registry)
   useEffect(() => {
     const handler = (_event: unknown, payload: { terminalId: string; data: string }) => {
@@ -92,6 +101,38 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       ipcRenderer.removeListener(IPC.TERMINAL_OUTPUT_ID, handler);
     };
   }, [terminalId]);
+
+  // Track user messages — detect Enter during active agent sessions
+  useEffect(() => {
+    if (!highlightUserMessages || !claudeActive) {
+      inputBufferRef.current = '';
+      return;
+    }
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+
+    const disposable = terminal.onData((data: string) => {
+      // Accumulate input to detect non-empty submissions
+      if (data === '\r' || data === '\n') {
+        const typed = inputBufferRef.current.trim();
+        inputBufferRef.current = '';
+        if (typed.length > 0) {
+          terminalRegistry.addUserMessageMarker(terminalId, true);
+          setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
+        }
+      } else if (data === '\x7f' || data === '\b') {
+        // Backspace
+        inputBufferRef.current = inputBufferRef.current.slice(0, -1);
+      } else if (data.length === 1 && data >= ' ') {
+        inputBufferRef.current += data;
+      } else if (data.length > 1 && !data.startsWith('\x1b')) {
+        // Pasted text
+        inputBufferRef.current += data;
+      }
+    });
+
+    return () => disposable.dispose();
+  }, [highlightUserMessages, claudeActive, terminalId, terminalRef]);
 
   // Wire xterm input → IPC and resize → IPC
   useEffect(() => {
@@ -128,6 +169,16 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       resizeDisposable.dispose();
     };
   }, [terminalId, terminalRef, fitAddonRef]);
+
+  // Reset overlay state when terminal changes (e.g. grid slot swap)
+  useEffect(() => {
+    setShowScrollBtn(false);
+    setRecentOutput([]);
+    outputBufferRef.current = '';
+    inputBufferRef.current = '';
+    // Sync marker count from registry (markers persist on the xterm instance)
+    setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
+  }, [terminalId]);
 
   // Scroll-to-bottom tracking via xterm viewport DOM element
   useEffect(() => {
@@ -176,7 +227,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         renderDisposableRef.current = null;
       }
     };
-  }, [containerRef, terminalRef]);
+  }, [containerRef, terminalRef, terminalId]);
 
   // Custom key handler: Ctrl+C copy, Ctrl+V paste, Shift+Enter newline, Ctrl+F search
   useEffect(() => {
@@ -256,6 +307,32 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     setRecentOutput([]);
     outputBufferRef.current = '';
   }, [terminalRef]);
+
+  // Scroll to the last user message marker
+  const handleScrollToLastMessage = useCallback(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    const markers = terminalRegistry.getUserMessageMarkers(terminalId);
+    if (markers.length === 0) return;
+
+    // Find the last non-disposed marker
+    const viewport = containerRef.current?.querySelector('.xterm-viewport');
+    const currentScrollLine = viewport
+      ? Math.floor((viewport.scrollTop / viewport.scrollHeight) * (terminal.buffer.active.length))
+      : terminal.buffer.active.baseY + terminal.buffer.active.cursorY;
+
+    // Find the nearest marker above current scroll position, or the last one
+    let target = markers[markers.length - 1];
+    for (let i = markers.length - 1; i >= 0; i--) {
+      const markerLine = markers[i].marker.line;
+      if (markerLine < currentScrollLine - 1) {
+        target = markers[i];
+        break;
+      }
+    }
+
+    terminal.scrollToLine(Math.max(0, target.marker.line - 2));
+  }, [terminalRef, terminalId, containerRef]);
 
   // Search helpers
   const handleSearchNext = useCallback(() => {
@@ -377,6 +454,31 @@ export function Terminal({ terminalId, className }: TerminalProps) {
                   <span>Click to scroll to bottom</span>
                 </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Scroll-to-last-message button — visible when scrolled up and messages exist */}
+          <AnimatePresence>
+            {showScrollBtn && highlightUserMessages && userMessageCount > 0 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleScrollToLastMessage();
+                }}
+                className={`absolute right-4 z-20 flex h-8 items-center gap-1.5 px-2.5
+                           rounded-full bg-bg-elevated border border-border-subtle
+                           text-text-secondary hover:text-accent hover:border-accent/60
+                           transition-all shadow-lg cursor-pointer
+                           ${recentOutput.length > 0 ? 'bottom-36' : 'bottom-14'}`}
+                title="Scroll to last message"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+                <MessageSquare className="h-3 w-3" />
+              </motion.button>
             )}
           </AnimatePresence>
 

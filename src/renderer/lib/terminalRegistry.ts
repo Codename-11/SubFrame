@@ -11,7 +11,7 @@
  */
 
 import { IPC } from '../../shared/ipcChannels';
-import type { Terminal } from 'xterm';
+import type { Terminal, IMarker, IDecoration } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import type { SearchAddon } from 'xterm-addon-search';
 
@@ -78,9 +78,15 @@ export interface TerminalOptions {
   copyOnSelect?: boolean;
 }
 
+export interface UserMessageMarker {
+  marker: IMarker;
+  decoration?: IDecoration;
+}
+
 interface RegistryEntry extends TerminalInstance {
   holderDiv: HTMLDivElement;
   ipcCleanup: () => void;
+  userMessageMarkers: UserMessageMarker[];
 }
 
 const registry = new Map<string, RegistryEntry>();
@@ -188,7 +194,7 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
   ipcRenderer.on(IPC.TERMINAL_OUTPUT_ID, handler);
   const ipcCleanup = () => ipcRenderer.removeListener(IPC.TERMINAL_OUTPUT_ID, handler);
 
-  const entry: RegistryEntry = { terminal, fitAddon, searchAddon, holderDiv, ipcCleanup };
+  const entry: RegistryEntry = { terminal, fitAddon, searchAddon, holderDiv, ipcCleanup, userMessageMarkers: [] };
   registry.set(id, entry);
   return entry;
 }
@@ -245,4 +251,59 @@ export function has(id: string): boolean {
 /** Get an existing instance (returns null if not found) */
 export function get(id: string): TerminalInstance | null {
   return registry.get(id) ?? null;
+}
+
+/**
+ * Register a user message marker at the terminal's current cursor position.
+ * Creates an xterm marker + optional left-border decoration.
+ */
+export function addUserMessageMarker(id: string, showDecoration: boolean): IMarker | null {
+  const entry = registry.get(id);
+  if (!entry) return null;
+
+  const terminal = entry.terminal;
+  const marker = terminal.registerMarker(0);
+  if (!marker) return null;
+
+  let decoration: IDecoration | undefined;
+  if (showDecoration) {
+    decoration = terminal.registerDecoration({
+      marker,
+      anchor: 'left',
+      overviewRulerOptions: { color: '#d4a574', position: 'left' },
+    });
+    if (decoration) {
+      decoration.onRender((el) => {
+        el.style.cssText =
+          'width: 3px; height: 100%; background: rgba(212, 165, 116, 0.5); border-radius: 1px; pointer-events: none;';
+      });
+    }
+  }
+
+  const umm: UserMessageMarker = { marker, decoration };
+  entry.userMessageMarkers.push(umm);
+
+  // Clean up disposed markers (scrolled out of scrollback)
+  marker.onDispose(() => {
+    const idx = entry.userMessageMarkers.indexOf(umm);
+    if (idx >= 0) entry.userMessageMarkers.splice(idx, 1);
+  });
+
+  return marker;
+}
+
+/** Get all user message markers for a terminal */
+export function getUserMessageMarkers(id: string): UserMessageMarker[] {
+  return registry.get(id)?.userMessageMarkers ?? [];
+}
+
+/** Clear all user message markers for a terminal */
+export function clearUserMessageMarkers(id: string): void {
+  const entry = registry.get(id);
+  if (!entry) return;
+  for (const umm of entry.userMessageMarkers) {
+    umm.decoration?.dispose();
+    umm.marker.dispose();
+  }
+  entry.userMessageMarkers = [];
 }

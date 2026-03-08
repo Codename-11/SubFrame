@@ -14,5 +14,10 @@ jobs:
         continue-on-error: true
       - name: Architecture Review
         uses: describe
+        with:
+          scope: project
       - name: Code Quality Review
         uses: critique
+        with:
+          scope: project
+          focus: architecture

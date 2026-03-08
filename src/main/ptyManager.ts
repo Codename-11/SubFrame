@@ -10,6 +10,7 @@ import { execSync } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import * as promptLogger from './promptLogger';
+import * as agentStateManager from './agentStateManager';
 import { getSetting } from './settingsManager';
 
 interface PTYInstance {
@@ -58,6 +59,65 @@ const CLAUDE_PATTERNS: RegExp[] = [
   /\bThinking\.\.\./,
 ];
 
+/** Maps terminalId → sessionId for jump-to-terminal correlation */
+const terminalSessionMap = new Map<string, string>();
+
+/**
+ * When a terminal becomes claude-active, try to correlate it with
+ * the most recently active session in agent-state.json.
+ */
+function correlateSession(terminalId: string): string | undefined {
+  const instance = ptyInstances.get(terminalId);
+  if (!instance?.projectPath) return undefined;
+
+  try {
+    const state = agentStateManager.loadAgentState(instance.projectPath);
+    if (!state.sessions.length) return undefined;
+
+    // Sessions already claimed by other terminals
+    const claimed = new Set<string>();
+    for (const [tid, sid] of terminalSessionMap) {
+      if (tid !== terminalId) claimed.add(sid);
+    }
+
+    // Find the most recently active unclaimed session
+    const candidates = state.sessions
+      .filter((s) => (s.status === 'active' || s.status === 'busy') && !claimed.has(s.sessionId))
+      .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime());
+
+    return candidates[0]?.sessionId;
+  } catch {
+    return undefined;
+  }
+}
+
+function broadcastClaudeStatus(terminalId: string, active: boolean): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  let sessionId: string | undefined;
+  if (active) {
+    sessionId = correlateSession(terminalId);
+    if (sessionId) {
+      terminalSessionMap.set(terminalId, sessionId);
+    } else if (!terminalSessionMap.has(terminalId)) {
+      // Session may not be written yet — retry once after hooks have had time to fire
+      setTimeout(() => {
+        if (!terminalSessionMap.has(terminalId)) {
+          const retryId = correlateSession(terminalId);
+          if (retryId && mainWindow && !mainWindow.isDestroyed()) {
+            terminalSessionMap.set(terminalId, retryId);
+            mainWindow.webContents.send(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active: true, sessionId: retryId });
+          }
+        }
+      }, 5000);
+    }
+  } else {
+    terminalSessionMap.delete(terminalId);
+  }
+
+  mainWindow.webContents.send(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active, sessionId });
+}
+
 function detectClaudeOutput(terminalId: string, data: string): void {
   // Append to rolling buffer
   let buf = (CLAUDE_OUTPUT_BUFFERS.get(terminalId) || '') + data;
@@ -77,16 +137,21 @@ function detectClaudeOutput(terminalId: string, data: string): void {
   const existing = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
   if (existing) clearTimeout(existing);
 
-  // Mark active
+  // Broadcast on transition to active
+  const wasActive = instance.claudeActive;
   instance.claudeActive = true;
+  if (!wasActive) {
+    broadcastClaudeStatus(terminalId, true);
+  }
 
   // Schedule inactive transition
   CLAUDE_TIMEOUT_HANDLES.set(
     terminalId,
     setTimeout(() => {
       const inst = ptyInstances.get(terminalId);
-      if (inst) {
+      if (inst && inst.claudeActive) {
         inst.claudeActive = false;
+        broadcastClaudeStatus(terminalId, false);
       }
       CLAUDE_TIMEOUT_HANDLES.delete(terminalId);
     }, CLAUDE_INACTIVE_DELAY)
@@ -259,8 +324,9 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
   ptyProcess.onExit(({ exitCode }) => {
     console.log(`Terminal ${terminalId} exited:`, exitCode);
     ptyInstances.delete(terminalId);
-    // Clean up Claude detection state
+    // Clean up Claude detection + session correlation state
     CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+    terminalSessionMap.delete(terminalId);
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
     if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -417,6 +483,11 @@ function setupIPC(ipcMain: IpcMain): void {
   // Destroy terminal
   ipcMain.on(IPC.TERMINAL_DESTROY, (_event, terminalId: string) => {
     destroyTerminal(terminalId);
+  });
+
+  // Query whether Claude is active in a specific terminal
+  ipcMain.handle(IPC.IS_TERMINAL_CLAUDE_ACTIVE, (_event, terminalId: string) => {
+    return isClaudeActive(terminalId);
   });
 
   // Input to specific terminal — only log prompts when Claude is active

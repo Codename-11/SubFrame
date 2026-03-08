@@ -37,8 +37,10 @@ import { WorkspaceSelector } from './WorkspaceSelector';
 import { FileTree } from './FileTree';
 import { IPC } from '../../shared/ipcChannels';
 import type { AITool } from '../../shared/ipcChannels';
+import { typedInvoke } from '../lib/ipc';
 import { getLogoSVG } from '../../shared/logoSVG';
 import { SidebarAgentStatus } from './SidebarAgentStatus';
+import { useTerminalStore } from '../stores/useTerminalStore';
 import { useGitStatus } from '../hooks/useGithub';
 import { toast } from 'sonner';
 
@@ -138,7 +140,7 @@ export function Sidebar() {
     [isCollapsed, setSidebarState]
   );
 
-  // Start an AI tool in a new terminal
+  // Start an AI tool — reuses the active terminal if no agent is running, otherwise creates a new one
   const startAITool = useCallback(
     async (tool?: AITool) => {
       if (!currentProjectPath || startingClaude.current) return;
@@ -152,12 +154,32 @@ export function Sidebar() {
         // Get start command — use active tool's command (or custom override from settings)
         const config = await ipcRenderer.invoke(IPC.GET_AI_TOOL_CONFIG);
         const activeTool = config?.activeTool as AITool | undefined;
-        // Check for custom command override in settings
         const settings = await ipcRenderer.invoke(IPC.LOAD_SETTINGS);
         const aiToolSettings = (settings?.aiTools as Record<string, Record<string, string>>) || {};
         const customCmd = aiToolSettings[activeTool?.id || 'claude']?.customCommand;
         const startCommand = customCmd || activeTool?.command || 'claude';
 
+        // Check if we can reuse the active terminal (idle — no agent running)
+        const reuseIdle = settings?.general?.reuseIdleTerminal !== false; // default true
+        if (reuseIdle) {
+          const { activeTerminalId, terminals } = useTerminalStore.getState();
+          const activeInfo = activeTerminalId ? terminals.get(activeTerminalId) : null;
+          const isCurrentProject = activeInfo && (activeInfo.projectPath || '') === currentProjectPath;
+
+          if (activeTerminalId && isCurrentProject) {
+            const isAgentRunning = await typedInvoke(IPC.IS_TERMINAL_CLAUDE_ACTIVE, activeTerminalId);
+            if (!isAgentRunning) {
+              // Reuse existing idle terminal — just send the command
+              ipcRenderer.send(IPC.TERMINAL_INPUT_ID, {
+                terminalId: activeTerminalId,
+                data: startCommand + '\r',
+              });
+              return;
+            }
+          }
+        }
+
+        // No reusable terminal — create a new one
         const handler = (_event: unknown, data: { terminalId?: string; success: boolean }) => {
           if (data.success && data.terminalId) {
             setTimeout(() => {
