@@ -578,7 +578,7 @@ function CollapsedGitStatus() {
       <Tooltip>
         <TooltipTrigger asChild>
           <button
-            onClick={() => togglePanel('githubIssues')}
+            onClick={() => togglePanel('gitChanges')}
             className="relative p-2 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
             aria-label={`Git: ${summary}`}
           >
