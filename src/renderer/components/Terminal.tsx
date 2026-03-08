@@ -79,6 +79,9 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const claudeActive = useTerminalStore((s) => s.terminals.get(terminalId)?.claudeActive ?? false);
   const [userMessageCount, setUserMessageCount] = useState(0);
   const inputBufferRef = useRef('');
+  // Grace period: keep tracking user input for 60s after claudeActive goes false
+  // (users often take >8s to compose messages while Claude waits at its prompt)
+  const wasRecentlyActiveRef = useRef(false);
 
   // Capture IPC output for overlay display (terminal.write handled by registry)
   useEffect(() => {
@@ -102,9 +105,24 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     };
   }, [terminalId]);
 
-  // Track user messages — detect Enter during active agent sessions
+  // Track claudeActive with a grace period so input listener survives prompt wait
   useEffect(() => {
-    if (!highlightUserMessages || !claudeActive) {
+    if (claudeActive) {
+      wasRecentlyActiveRef.current = true;
+      return;
+    }
+    // After claudeActive goes false, keep grace period for 60s
+    // (Claude's prompt detection timeout is 8s, but users may take much longer to type)
+    const timeout = setTimeout(() => {
+      wasRecentlyActiveRef.current = false;
+    }, 60_000);
+    return () => clearTimeout(timeout);
+  }, [claudeActive]);
+
+  // Track user messages — detect Enter during agent sessions (with grace period)
+  // Listener stays alive while setting is enabled; checks activity at submit time
+  useEffect(() => {
+    if (!highlightUserMessages) {
       inputBufferRef.current = '';
       return;
     }
@@ -116,7 +134,8 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       if (data === '\r' || data === '\n') {
         const typed = inputBufferRef.current.trim();
         inputBufferRef.current = '';
-        if (typed.length > 0) {
+        // Check activity at submit time (not at listener setup time)
+        if (typed.length > 0 && wasRecentlyActiveRef.current) {
           terminalRegistry.addUserMessageMarker(terminalId, true);
         }
       } else if (data === '\x7f' || data === '\b') {
@@ -131,7 +150,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     });
 
     return () => disposable.dispose();
-  }, [highlightUserMessages, claudeActive, terminalId, terminalRef]);
+  }, [highlightUserMessages, terminalId, terminalRef]);
 
   // Wire xterm input → IPC and resize → IPC
   useEffect(() => {
