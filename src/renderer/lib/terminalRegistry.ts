@@ -83,6 +83,22 @@ export interface UserMessageMarker {
   decoration?: IDecoration;
 }
 
+// Listeners notified when markers change (add/dispose) — keyed by terminal ID
+const markerChangeListeners = new Map<string, Set<() => void>>();
+
+/** Subscribe to marker count changes for a terminal. Returns unsubscribe function. */
+export function onMarkerChange(id: string, cb: () => void): () => void {
+  let set = markerChangeListeners.get(id);
+  if (!set) { set = new Set(); markerChangeListeners.set(id, set); }
+  set.add(cb);
+  return () => { set!.delete(cb); if (set!.size === 0) markerChangeListeners.delete(id); };
+}
+
+function notifyMarkerChange(id: string): void {
+  const set = markerChangeListeners.get(id);
+  if (set) for (const cb of set) cb();
+}
+
 interface RegistryEntry extends TerminalInstance {
   holderDiv: HTMLDivElement;
   ipcCleanup: () => void;
@@ -233,6 +249,13 @@ export function dispose(id: string): void {
   const entry = registry.get(id);
   if (!entry) return;
 
+  // Clean up user message markers before disposing terminal
+  for (const umm of entry.userMessageMarkers) {
+    umm.decoration?.dispose();
+  }
+  entry.userMessageMarkers = [];
+  markerChangeListeners.delete(id);
+
   entry.ipcCleanup();
   try {
     entry.terminal.dispose();
@@ -282,11 +305,15 @@ export function addUserMessageMarker(id: string, showDecoration: boolean): IMark
 
   const umm: UserMessageMarker = { marker, decoration };
   entry.userMessageMarkers.push(umm);
+  notifyMarkerChange(id);
 
   // Clean up disposed markers (scrolled out of scrollback)
   marker.onDispose(() => {
     const idx = entry.userMessageMarkers.indexOf(umm);
-    if (idx >= 0) entry.userMessageMarkers.splice(idx, 1);
+    if (idx >= 0) {
+      entry.userMessageMarkers.splice(idx, 1);
+      notifyMarkerChange(id);
+    }
   });
 
   return marker;

@@ -118,7 +118,6 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         inputBufferRef.current = '';
         if (typed.length > 0) {
           terminalRegistry.addUserMessageMarker(terminalId, true);
-          setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
         }
       } else if (data === '\x7f' || data === '\b') {
         // Backspace
@@ -178,6 +177,13 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     inputBufferRef.current = '';
     // Sync marker count from registry (markers persist on the xterm instance)
     setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
+  }, [terminalId]);
+
+  // Subscribe to marker count changes (covers both add and scrollback-dispose)
+  useEffect(() => {
+    return terminalRegistry.onMarkerChange(terminalId, () => {
+      setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
+    });
   }, [terminalId]);
 
   // Scroll-to-bottom tracking via xterm viewport DOM element
@@ -315,24 +321,22 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     const markers = terminalRegistry.getUserMessageMarkers(terminalId);
     if (markers.length === 0) return;
 
-    // Find the last non-disposed marker
-    const viewport = containerRef.current?.querySelector('.xterm-viewport');
-    const currentScrollLine = viewport
-      ? Math.floor((viewport.scrollTop / viewport.scrollHeight) * (terminal.buffer.active.length))
-      : terminal.buffer.active.baseY + terminal.buffer.active.cursorY;
+    // Use xterm's buffer viewportY (top visible line in scrollback) for accurate position
+    const buf = terminal.buffer.active;
+    const topVisibleLine = buf.viewportY;
 
-    // Find the nearest marker above current scroll position, or the last one
+    // Find the nearest marker above the top of the viewport, or the last one
     let target = markers[markers.length - 1];
     for (let i = markers.length - 1; i >= 0; i--) {
       const markerLine = markers[i].marker.line;
-      if (markerLine < currentScrollLine - 1) {
+      if (markerLine < topVisibleLine) {
         target = markers[i];
         break;
       }
     }
 
     terminal.scrollToLine(Math.max(0, target.marker.line - 2));
-  }, [terminalRef, terminalId, containerRef]);
+  }, [terminalRef, terminalId]);
 
   // Search helpers
   const handleSearchNext = useCallback(() => {
