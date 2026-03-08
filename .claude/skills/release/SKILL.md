@@ -62,6 +62,8 @@ Update the `"version"` field in `package.json` to the new version string. This i
 Update these version strings to match the new version:
 1. **`docs/index.md`** — the `"softwareVersion"` field in the Schema.org JSON-LD structured data (in the frontmatter `head` array)
 2. **`docs/.vitepress/theme/components/NavBar.vue`** — the `logo-version` span text (e.g., `Latest: v0.2.0`)
+3. **`README.md`** — the version in the footer `<strong>` tag
+4. **`promo/src/ui/SidebarMock.tsx`** — the version string in the sidebar mock UI
 
 ### Step 4: Update CHANGELOG.md
 
@@ -81,6 +83,8 @@ Stage exactly these files:
 - `package.json`
 - `docs/index.md`
 - `docs/.vitepress/theme/components/NavBar.vue`
+- `README.md`
+- `promo/src/ui/SidebarMock.tsx`
 - `CHANGELOG.md`
 - `RELEASE_NOTES.md`
 
