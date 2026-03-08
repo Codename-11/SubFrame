@@ -312,7 +312,7 @@ function uninstallSubFrame(projectPath: string, options: UninstallOptions): Unin
 
   // 2. Remove .githooks SubFrame files
   if (options.removeGitHooks) {
-    const hookFiles = ['pre-commit', 'update-structure.js'];
+    const hookFiles = ['pre-commit', 'pre-push', 'update-structure.js'];
     const hooksDirPath = path.join(projectPath, GITHOOKS_DIR);
 
     for (const file of hookFiles) {
@@ -382,7 +382,7 @@ function uninstallSubFrame(projectPath: string, options: UninstallOptions): Unin
 
   // 5. Optionally remove Claude Code skills
   if (options.removeClaudeSkills) {
-    for (const skillDir of ['sub-tasks', 'sub-docs', 'sub-audit']) {
+    for (const skillDir of ['sub-tasks', 'sub-docs', 'sub-audit', 'onboard']) {
       const skillPath = path.join(projectPath, '.claude', 'skills', skillDir);
       if (fs.existsSync(skillPath)) {
         if (perform) {

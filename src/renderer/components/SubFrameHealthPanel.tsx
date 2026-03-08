@@ -86,7 +86,7 @@ const UNINSTALL_OPTIONS: Array<{ key: keyof Omit<UninstallOptions, 'dryRun'>; la
   { key: 'removeGitHooks', label: 'Remove Git hooks', description: 'pre-commit hook installed by SubFrame' },
   { key: 'removeBacklinks', label: 'Remove backlinks', description: 'SubFrame backlink blocks from CLAUDE.md, GEMINI.md' },
   { key: 'removeAgentsMd', label: 'Remove AGENTS.md', description: 'The AGENTS.md file managed by SubFrame' },
-  { key: 'removeClaudeSkills', label: 'Remove Claude skills', description: '/sub-tasks, /sub-docs, /sub-audit from .claude/skills/' },
+  { key: 'removeClaudeSkills', label: 'Remove Claude skills', description: '/sub-tasks, /sub-docs, /sub-audit, /onboard from .claude/skills/' },
 ];
 
 // ── Simple checkbox (no shadcn Checkbox available) ──
