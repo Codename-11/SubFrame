@@ -1074,7 +1074,6 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                   placeholder="## Steps\n- [ ] Step one\n\n## Acceptance Criteria\n..."
                   rows={16}
                   className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-2 text-xs text-text-primary font-mono resize-y focus:outline-none focus:ring-1 focus:ring-accent leading-relaxed"
-                  spellCheck={false}
                 />
               </div>
             )}

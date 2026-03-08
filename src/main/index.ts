@@ -161,7 +161,8 @@ function createWindow(): BrowserWindow {
     show: false,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
+      spellcheck: true
     },
     backgroundColor: '#0f0f10',
     title: 'SubFrame'

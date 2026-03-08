@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-08T01:09:05.033Z",
+  "lastUpdated": "2026-03-08T01:14:55.675Z",
   "tasks": {
     "pending": [
       {
@@ -135,20 +135,6 @@
         "updatedAt": "2026-03-08T00:49:39.470Z",
         "completedAt": null,
         "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
-        "steps": []
-      },
-      {
-        "id": "task-1772931003433-4ceksawud",
-        "title": "Spellcheck in all UI textfields",
-        "status": "pending",
-        "priority": "high",
-        "category": "enhancement",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-08T00:50:03.433Z",
-        "updatedAt": "2026-03-08T00:50:03.433Z",
-        "completedAt": null,
-        "description": "",
         "steps": []
       },
       {
@@ -529,6 +515,20 @@
       }
     ],
     "completed": [
+      {
+        "id": "task-1772722916748-m562u62l7",
+        "title": "Left Sidebar 'Add Projects' via add new folder doesn't add to workspace",
+        "status": "completed",
+        "priority": "high",
+        "category": "bug",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T15:01:56.748Z",
+        "updatedAt": "2026-03-08T01:09:05.030Z",
+        "completedAt": "2026-03-08T01:09:05.030Z",
+        "description": "The left sidebar 'Add Projects' discovery overlay doesn't allow refresh or when user adds project to workspace via Add Folder (File Explorer) nothing happens. Adding from 'Discovered' does work.",
+        "steps": []
+      },
       {
         "id": "task-1772722979366-6otdbdyb2",
         "title": "Add 'Enhancement' catagory for Sub-Tasks",
@@ -1282,17 +1282,17 @@
         "steps": []
       },
       {
-        "id": "task-1772722916748-m562u62l7",
-        "title": "Left Sidebar 'Add Projects' via add new folder doesn't add to workspace",
+        "id": "task-1772931003433-4ceksawud",
+        "title": "Spellcheck in all UI textfields",
         "status": "completed",
         "priority": "high",
-        "category": "bug",
+        "category": "enhancement",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-05T15:01:56.748Z",
-        "updatedAt": "2026-03-08T01:09:05.030Z",
-        "completedAt": "2026-03-08T01:09:05.030Z",
-        "description": "The left sidebar 'Add Projects' discovery overlay doesn't allow refresh or when user adds project to workspace via Add Folder (File Explorer) nothing happens. Adding from 'Discovered' does work.",
+        "createdAt": "2026-03-08T00:50:03.433Z",
+        "updatedAt": "2026-03-08T01:14:55.672Z",
+        "completedAt": "2026-03-08T01:14:55.672Z",
+        "description": "",
         "steps": []
       }
     ]
