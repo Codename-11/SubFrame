@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2-beta] - 2026-03-08
+
 ### Added
 - **AI Analysis re-run**: SubFrame Health panel now has "AI Analysis" button to re-run onboarding analysis on already-initialized projects
 
@@ -15,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"View Terminal" unavailable during analysis**: Terminal ID was only delivered after analysis completed — now sent via progress event immediately when terminal is created
 - **Orphaned analysis terminals**: Closing the onboarding dialog during analysis now properly cancels the running analysis and kills the terminal
 - **Dialog auto-close on import**: OnboardingDialog now closes automatically after applying selected results
+- **Uninstall missing artifacts**: `pre-push` git hook and `onboard` Claude skill now properly cleaned up during uninstall
+- **Terminal copy/paste double-fire**: Fixed xterm decoration API and duplicate event handling
+- **Terminal render storm**: Throttled output overlay and scroll button setState to reduce re-renders during rapid PTY output
+- **Session/Skills/Plugins commands not executing**: Replaced dead `window.terminalSendCommand` with working `sendCommandToTerminal()` utility
 
 ## [0.2.1-beta] - 2026-03-08
 

@@ -5811,7 +5811,7 @@
           ]
         }
       },
-      "loc": 388
+      "loc": 387
     },
     "renderer/components/TerminalTabBar": {
       "file": "src\\renderer\\components\\TerminalTabBar.tsx",

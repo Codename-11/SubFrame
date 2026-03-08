@@ -1,21 +1,24 @@
-Bug fix release addressing workspace management, sidebar UX, and spellcheck support.
+# v0.2.2-beta
 
-## What's Changed
+## Highlights
 
-### Features
-- **Spellcheck App-Wide** - Enabled Chromium spellcheck across all text inputs and textareas
-- **Collapsed Sidebar Agent Badge** - Agent status shows Bot icon + pulse dot + count badge with tooltip when sidebar is collapsed
+**Onboarding flow fully wired** — Initializing a project now opens the AI analysis wizard automatically. Terminal ID is delivered immediately so "View Terminal" works during analysis. Closing the dialog mid-analysis properly cancels and cleans up.
 
-### Bug Fixes
-- **Add Folder Not Working** - "Select Folder..." dialog opened the native picker but never added the project to the workspace — now correctly persists and refreshes the project list
-- **Auto-Select New Project** - Projects added via folder picker are now automatically selected in the sidebar
-- **Sidebar Git Icon Target** - Collapsed git status icon now opens the Changes tab instead of Issues
-- **WorkspaceSelector Re-Render** - Fixed `require()` inside component body causing useEffect to re-fire every render
-- **IPC Type Mismatch** - Fixed `WORKSPACE_UPDATED` channel type declaration to match actual payload shape
+**Terminal stability** — Fixed copy/paste double-fire, throttled render-heavy output/scroll tracking, and wired up session/skill/plugin commands that were silently failing.
 
-### Documentation
-- **README Promo Video** - Replaced `<video>` tag (not rendered by GitHub) with user-attachments URL for inline playback
+**Uninstall parity** — De-init now removes all artifacts that init creates, including `pre-push` hook and `onboard` skill.
 
----
+## What's New
 
-> This is a beta release. Expect rough edges — please report issues on GitHub.
+- **AI Analysis re-run**: SubFrame Health panel has an "AI Analysis" button to re-run onboarding analysis on already-initialized projects
+
+## Bug Fixes
+
+- Onboarding not triggered after project init
+- "View Terminal" unavailable during AI analysis (terminal ID delivered too late)
+- Orphaned analysis terminals when closing dialog mid-analysis
+- OnboardingDialog not closing after applying results
+- Uninstall missing `pre-push` git hook and `onboard` Claude skill
+- Terminal copy/paste double-fire and xterm decoration API
+- Terminal render storm during rapid PTY output
+- Session/Skills/Plugins panel commands not executing (`window.terminalSendCommand` was never defined)
