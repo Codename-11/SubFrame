@@ -351,12 +351,17 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
           );
         }
 
-        // Empty cell
+        // Empty cell — entire area is clickable to create a terminal
         return (
           <div
             key={`empty-${index}`}
-            className={`relative flex flex-col min-h-0 min-w-0 bg-bg-deep
+            className={`relative flex flex-col min-h-0 min-w-0 bg-bg-deep cursor-pointer
+                        hover:bg-bg-primary/50 transition-colors group
                         ${isDragOver ? 'ring-2 ring-accent/60' : ''}`}
+            onClick={() => {
+              pendingSlotRef.current = index;
+              onCreateTerminal();
+            }}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
@@ -364,21 +369,15 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
             <div className="flex items-center h-6 px-2 bg-bg-secondary border-b border-border-subtle flex-shrink-0">
               <span className="text-[10px] text-text-muted">Empty</span>
             </div>
-            <button
-              onClick={() => {
-                pendingSlotRef.current = index;
-                onCreateTerminal();
-              }}
-              className="flex-1 flex flex-col items-center justify-center gap-2 cursor-pointer
-                         text-text-muted hover:text-accent transition-colors group"
-            >
+            <div className="flex-1 flex flex-col items-center justify-center gap-2
+                            text-text-muted group-hover:text-accent transition-colors">
               <div className="w-10 h-10 rounded-full border border-dashed border-border-subtle
                               group-hover:border-accent/40 flex items-center justify-center transition-colors">
                 <Plus className="w-5 h-5" />
               </div>
               <span className="text-xs">New Terminal</span>
               <span className="text-[10px] text-text-muted">Ctrl+Shift+T</span>
-            </button>
+            </div>
           </div>
         );
       })}
