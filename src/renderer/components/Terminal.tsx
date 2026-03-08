@@ -40,6 +40,7 @@ function stripAnsi(str: string): string {
 }
 
 const OUTPUT_BUFFER_MAX = 4096;
+const SCROLL_THROTTLE_MS = 100;
 
 interface TerminalProps {
   terminalId: string;
@@ -84,24 +85,30 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const wasRecentlyActiveRef = useRef(false);
 
   // Capture IPC output for overlay display (terminal.write handled by registry)
+  // Throttled: accumulate data in ref, flush to state at most every 100ms
   useEffect(() => {
+    let outputFlushTimer: ReturnType<typeof setTimeout> | null = null;
     const handler = (_event: unknown, payload: { terminalId: string; data: string }) => {
       if (payload.terminalId === terminalId) {
-        // Rolling output buffer for overlay
         outputBufferRef.current += payload.data;
         if (outputBufferRef.current.length > OUTPUT_BUFFER_MAX) {
           outputBufferRef.current = outputBufferRef.current.slice(-OUTPUT_BUFFER_MAX);
         }
-
-        // Extract last 5 non-empty lines
-        const clean = stripAnsi(outputBufferRef.current);
-        const lines = clean.split('\n').filter((l) => l.trim().length > 0);
-        setRecentOutput(lines.slice(-5));
+        // Throttle setState to avoid render storm during rapid output
+        if (!outputFlushTimer) {
+          outputFlushTimer = setTimeout(() => {
+            outputFlushTimer = null;
+            const clean = stripAnsi(outputBufferRef.current);
+            const lines = clean.split('\n').filter((l) => l.trim().length > 0);
+            setRecentOutput(lines.slice(-5));
+          }, SCROLL_THROTTLE_MS);
+        }
       }
     };
     ipcRenderer.on(IPC.TERMINAL_OUTPUT_ID, handler);
     return () => {
       ipcRenderer.removeListener(IPC.TERMINAL_OUTPUT_ID, handler);
+      if (outputFlushTimer) clearTimeout(outputFlushTimer);
     };
   }, [terminalId]);
 
@@ -135,8 +142,10 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         const typed = inputBufferRef.current.trim();
         inputBufferRef.current = '';
         // Check activity at submit time (not at listener setup time)
+        console.log('[UserMsg] Enter pressed — typed:', JSON.stringify(typed), 'active:', wasRecentlyActiveRef.current, 'claudeActive:', claudeActive);
         if (typed.length > 0 && wasRecentlyActiveRef.current) {
-          terminalRegistry.addUserMessageMarker(terminalId, true);
+          const marker = terminalRegistry.addUserMessageMarker(terminalId, true);
+          console.log('[UserMsg] Marker created:', marker ? `line=${marker.line}` : 'FAILED');
         }
       } else if (data === '\x7f' || data === '\b') {
         // Backspace
@@ -215,14 +224,19 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     let viewport: HTMLElement | null = null;
     let pollTimer: ReturnType<typeof setTimeout>;
 
+    let scrollThrottleTimer: ReturnType<typeof setTimeout> | null = null;
     const updateScroll = () => {
-      if (!viewport) return;
-      const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2;
-      setShowScrollBtn(!atBottom);
-      if (atBottom) {
-        setRecentOutput([]);
-        outputBufferRef.current = '';
-      }
+      if (!viewport || scrollThrottleTimer) return;
+      scrollThrottleTimer = setTimeout(() => {
+        scrollThrottleTimer = null;
+        if (!viewport) return;
+        const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2;
+        setShowScrollBtn(!atBottom);
+        if (atBottom) {
+          setRecentOutput([]);
+          outputBufferRef.current = '';
+        }
+      }, SCROLL_THROTTLE_MS);
     };
 
     const attach = () => {
@@ -244,6 +258,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
 
     return () => {
       clearTimeout(pollTimer);
+      if (scrollThrottleTimer) clearTimeout(scrollThrottleTimer);
       if (viewport) {
         viewport.removeEventListener('scroll', updateScroll);
       }
