@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1-beta] - 2026-03-08
+
+### Added
+- **Spellcheck app-wide**: Enabled Chromium spellcheck across all text inputs and textareas via `webPreferences.spellcheck`
+- **Collapsed sidebar agent badge**: Agent status in collapsed sidebar now shows Bot icon + pulse dot + count badge with tooltip (matches git status pattern)
+- **Auto-select folder-picked project**: Projects added via "Select Folder" dialog are now auto-selected in the project list
+
+### Fixed
+- **Add Folder not adding to workspace**: "Select Folder..." dialog opened the native picker but never called `workspace.addProject()` — project was silently lost
+- **WORKSPACE_UPDATED type mismatch**: IPC channel declared `WorkspaceProject[]` but always sent `{ projects, workspaceName }` — fixed type contract
+- **Collapsed sidebar git icon**: Now opens Changes tab instead of Issues tab
+- **WorkspaceSelector re-render loop**: Replaced `require()` inside component body with static import, fixing useEffect dependency instability
+- **Remove project double-fire**: Removed dead `removeLoading` state that cleared synchronously before async IPC response
+- **README promo video**: Replaced `<video>` tag (stripped by GitHub) with user-attachments URL for inline playback
+
 ## [0.2.0-beta] - 2026-03-08
 
 ### Added
@@ -134,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.0-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.1-beta...HEAD
+[0.2.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.0-beta...v0.2.1-beta
 [0.2.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.4...v0.2.0-beta
 [0.1.0-beta.4]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.3...v0.1.0-beta.4
 [0.1.0-beta.3]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.2...v0.1.0-beta.3
