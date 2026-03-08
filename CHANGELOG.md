@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-beta] - 2026-03-08
+
 ### Added
 - **Reuse idle terminal for agent**: Starting an agent (Ctrl+Shift+Enter / Play button) now reuses the active terminal if no agent is running, instead of always creating a new one. Configurable via Settings → General → "Reuse idle terminal for agent" (enabled by default)
 - **Agent status indicator in tabs**: Pulsing green bot icon appears in terminal tab bar and grid cells when an agent session is active
@@ -28,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Workflow Editor UI**: Visual workflow builder with drag-to-reorder steps, stage type autofill dropdown, AI config fields (scope/mode/focus/prompt), and YAML view toggle via CodeMirror. Create, edit, and delete workflows directly from the Pipeline panel
 - **User message highlights**: Detects user messages during agent sessions and marks them with a subtle amber left-border decoration and scrollbar indicator. Configurable via Settings → General → Behavior (enabled by default)
 - **Scroll to last message**: Navigation button appears when scrolled up during agent sessions — click to jump back through your messages. Uses xterm markers for accurate, scrollback-safe positioning
+- **Nerd Font auto-detection**: Default font stack now prefers Nerd Font variants (JetBrainsMono, CaskaydiaCove, FiraCode, Hack, MesloLGS). Settings panel shows a green checkmark if a Nerd Font is detected, or a link to nerdfonts.com if not. Zero-config: icons from Oh My Posh / Starship just work when a Nerd Font is installed
 
 ### Changed
 - **Health Check workflow**: Now uses `scope: project` for describe/critique stages (audits whole codebase, not just recent diffs)
@@ -131,7 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.4...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.0-beta...HEAD
+[0.2.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.4...v0.2.0-beta
 [0.1.0-beta.4]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.3...v0.1.0-beta.4
 [0.1.0-beta.3]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.2...v0.1.0-beta.3
 [0.1.0-beta.2]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.1...v0.1.0-beta.2

@@ -22,8 +22,8 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React" />
   <img src="https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white" alt="Electron" />
   <img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white" alt="macOS" />
-  <img src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black" alt="Linux" />
+  <img src="https://img.shields.io/badge/macOS-coming%20soon-555?logo=apple&logoColor=white" alt="macOS — coming soon" />
+  <img src="https://img.shields.io/badge/Linux-coming%20soon-555?logo=linux&logoColor=white" alt="Linux — coming soon" />
 </p>
 
 <p align="center">
@@ -40,7 +40,9 @@
   </video>
 </p>
 
-A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). SubFrame wraps your existing AI tools in a structured workspace — persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions. Cross-platform: Windows, macOS, and Linux.
+A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). SubFrame wraps your existing AI tools in a structured workspace — persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions.
+
+> **Platform support:** Currently tested and released for **Windows**. macOS and Linux builds are generated but **untested** — community testing and feedback welcome. See [Installation](#installation) for platform-specific prerequisites.
 
 > SubFrame builds upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozhan](https://github.com/kaanozhan), extended with React 19, TypeScript, and a modernized architecture.
 
@@ -214,6 +216,8 @@ Initializing a workspace creates a standard set of files your AI tools read auto
 
 ## Installation
 
+> **Note:** Pre-built releases are currently available for **Windows** only. macOS and Linux builds are produced by CI but have not been tested — if you try them, please [report any issues](https://github.com/Codename-11/SubFrame/issues).
+
 ### Prerequisites
 - **Node.js 18+** and npm
 - **Python** + **C++ Build Tools** (for `node-pty` native compilation):
@@ -311,5 +315,5 @@ SubFrame is built upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozha
 ---
 
 <p align="center">
-  <strong>v0.1.0-beta.4</strong> · Public beta — <a href="https://github.com/Codename-11/SubFrame/issues">feedback welcome</a> · <a href="https://sub-frame.dev">sub-frame.dev</a>
+  <strong>v0.2.0-beta</strong> · Public beta — <a href="https://github.com/Codename-11/SubFrame/issues">feedback welcome</a> · <a href="https://sub-frame.dev">sub-frame.dev</a>
 </p>
