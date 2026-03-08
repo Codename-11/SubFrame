@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docs Audit workflow template**: `docs-audit.yml` — checks STRUCTURE.json sync + AI documentation review with `scope: project, focus: documentation`
 - **Security Scan workflow template**: `security-scan.yml` — npm audit + AI security review with `scope: project, focus: security`
 - **Workflow Editor UI**: Visual workflow builder with drag-to-reorder steps, stage type autofill dropdown, AI config fields (scope/mode/focus/prompt), and YAML view toggle via CodeMirror. Create, edit, and delete workflows directly from the Pipeline panel
+- **User message highlights**: Detects user messages during agent sessions and marks them with a subtle amber left-border decoration and scrollbar indicator. Configurable via Settings → General → Behavior (enabled by default)
+- **Scroll to last message**: Navigation button appears when scrolled up during agent sessions — click to jump back through your messages. Uses xterm markers for accurate, scrollback-safe positioning
 
 ### Changed
 - **Health Check workflow**: Now uses `scope: project` for describe/critique stages (audits whole codebase, not just recent diffs)
@@ -38,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shell mangling of AI prompts with backticks/quotes (now piped via stdin instead of positional args)
 - Empty diff when baseSha === headSha on main branch (graceful skip with meaningful message)
 - Removed redundant renderer-side usage polling timer (main process already pushes updates)
+- Terminal grid slot swap losing scrollbar and scroll overlay (React keyed by slot index instead of terminal ID, causing stale DOM reuse — now keys by terminal ID so React moves DOM nodes correctly)
+- Scroll tracking effect not re-attaching after grid swap (`containerRef`/`terminalRef` deps are stable ref objects — added `terminalId` to dependency array)
 
 ## [0.1.0-beta.4] - 2026-03-05
 
