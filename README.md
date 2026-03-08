@@ -34,11 +34,7 @@
 
 > **This project is under active development and in public beta.** We're looking for early adopters to test, break things, and help shape the direction of SubFrame. If you run into issues or have ideas, [open an issue](https://github.com/Codename-11/SubFrame/issues) — every report helps.
 
-<p align="center">
-  <video src="https://sub-frame.dev/assets/promo.mp4" width="720" controls muted playsinline>
-    Your browser does not support the video tag. <a href="https://sub-frame.dev/assets/promo.mp4">Watch the promo video</a>.
-  </video>
-</p>
+https://github.com/user-attachments/assets/75837799-2a38-42ff-917b-885946c27184
 
 A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). SubFrame wraps your existing AI tools in a structured workspace — persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions.
 
