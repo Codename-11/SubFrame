@@ -285,11 +285,6 @@ export function WorkspaceSelector() {
 
 /** Add project button with dropdown for Browse / Create / Discovered */
 function AddProjectButton() {
-  const { typedSend, typedInvoke: localInvoke } = require('../lib/ipc') as {
-    typedSend: typeof import('../lib/ipc').typedSend;
-    typedInvoke: typeof import('../lib/ipc').typedInvoke;
-  };
-
   const projects = useProjectStore((s) => s.projects);
   const [discovered, setDiscovered] = useState<WorkspaceListEntry[]>([]);
   const [open, setOpen] = useState(false);
@@ -300,13 +295,13 @@ function AddProjectButton() {
     let cancelled = false;
     (async () => {
       try {
-        const settings = await localInvoke(IPC.LOAD_SETTINGS);
+        const settings = await typedInvoke(IPC.LOAD_SETTINGS);
         const dir = (settings?.general as Record<string, unknown>)?.defaultProjectDir as string;
         if (!dir) {
           setDiscovered([]);
           return;
         }
-        const scanned = await localInvoke(IPC.SCAN_PROJECT_DIR, dir);
+        const scanned = await typedInvoke(IPC.SCAN_PROJECT_DIR, dir);
         if (cancelled) return;
         // Filter out projects already in the workspace
         const existing = new Set(projects.map((p) => p.path));
@@ -317,7 +312,7 @@ function AddProjectButton() {
       }
     })();
     return () => { cancelled = true; };
-  }, [open, projects, localInvoke]);
+  }, [open, projects]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>

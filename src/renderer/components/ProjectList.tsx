@@ -3,7 +3,6 @@ import {
   FolderOpen,
   X,
   Plus,
-  Loader2,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -49,7 +48,7 @@ export function ProjectList() {
 
   // Dialog state for remove confirmation
   const [removeTarget, setRemoveTarget] = useState<{ path: string; name: string } | null>(null);
-  const [removeLoading, setRemoveLoading] = useState(false);
+
 
   // Keyboard navigation state
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -99,11 +98,11 @@ export function ProjectList() {
     }
   });
 
-  useIPCEvent<WorkspaceData | WorkspaceProject[]>(IPC.WORKSPACE_UPDATED, (data) => {
-    const list = data && 'projects' in data ? data.projects : (data as WorkspaceProject[]);
+  useIPCEvent<{ projects: WorkspaceProject[]; workspaceName: string }>(IPC.WORKSPACE_UPDATED, (data) => {
+    const list = data && 'projects' in data ? data.projects : (data as unknown as WorkspaceProject[]);
     updateProjects(list);
-    if (data && 'workspaceName' in data && typeof (data as any).workspaceName === 'string') {
-      setWorkspaceName((data as any).workspaceName);
+    if (data && 'workspaceName' in data && typeof data.workspaceName === 'string') {
+      setWorkspaceName(data.workspaceName);
     }
   });
 
@@ -122,6 +121,9 @@ export function ProjectList() {
     [projects, setProject]
   );
 
+  // Auto-select project added via folder picker dialog
+  useIPCEvent<string>(IPC.PROJECT_SELECTED, handleSelect);
+
   const handleRemove = useCallback(
     (projectPath: string, projectName: string) => {
       setRemoveTarget({ path: projectPath, name: projectName });
@@ -130,8 +132,7 @@ export function ProjectList() {
   );
 
   const confirmRemove = useCallback(() => {
-    if (!removeTarget || removeLoading) return;
-    setRemoveLoading(true);
+    if (!removeTarget) return;
     typedSend(IPC.REMOVE_PROJECT_FROM_WORKSPACE, removeTarget.path);
     if (removeTarget.path === currentProjectPath) {
       const other = projects.find((p) => p.path !== removeTarget.path);
@@ -141,9 +142,8 @@ export function ProjectList() {
         setProject(null);
       }
     }
-    setRemoveLoading(false);
     setRemoveTarget(null);
-  }, [removeTarget, removeLoading, currentProjectPath, projects, handleSelect, setProject]);
+  }, [removeTarget, currentProjectPath, projects, handleSelect, setProject]);
 
   // Inline rename handlers
   const startInlineRename = useCallback((projectPath: string, currentName: string) => {
@@ -273,10 +273,8 @@ export function ProjectList() {
             <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-error text-white hover:bg-error/80 cursor-pointer"
-              disabled={removeLoading}
               onClick={confirmRemove}
             >
-              {removeLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>

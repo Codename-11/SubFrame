@@ -1078,7 +1078,7 @@ export interface IPCEventMap {
   [IPC.TOGGLE_HISTORY_PANEL]: void;
   [IPC.RUN_COMMAND]: string; // command
   [IPC.WORKSPACE_DATA]: WorkspaceData;
-  [IPC.WORKSPACE_UPDATED]: WorkspaceProject[];
+  [IPC.WORKSPACE_UPDATED]: { projects: WorkspaceProject[]; workspaceName: string };
   [IPC.TERMINAL_OUTPUT]: string; // data
   [IPC.TERMINAL_CREATED]: { terminalId?: string; success: boolean; error?: string };
   [IPC.TERMINAL_DESTROYED]: { terminalId: string; exitCode: number };

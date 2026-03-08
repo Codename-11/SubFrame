@@ -189,6 +189,9 @@ function createWindow(): BrowserWindow {
   menu.init(mainWindow, app, aiToolManager);
   dialogs.init(mainWindow, (projectPath: string) => {
     pty.setProjectPath(projectPath);
+    workspace.addProject(projectPath);
+    const result = workspace.getProjectsWithScanned();
+    mainWindow!.webContents.send(IPC.WORKSPACE_UPDATED, result);
   });
   initModulesWithWindow(mainWindow);
 

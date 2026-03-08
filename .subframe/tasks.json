@@ -1,32 +1,13 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking index (SubFrame's task system)",
+    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-07",
+    "lastUpdated": "2026-03-08",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-07T23:56:24.907Z",
-  "taskSchema": {
-    "_comment": "This schema shows the expected structure for each task",
-    "id": "unique-id (task-xxx format)",
-    "title": "Short actionable title (max 60 chars)",
-    "description": "Claude's detailed explanation - what, how, which files affected",
-    "userRequest": "Original user prompt/request - copy verbatim",
-    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
-    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
-    "status": "pending | in_progress | completed",
-    "priority": "high | medium | low",
-    "category": "feature | fix | refactor | docs | test",
-    "context": "Session date and context",
-    "blockedBy": "Array of task IDs this task is blocked by",
-    "blocks": "Array of task IDs this task blocks",
-    "steps": "Array of { label, completed } step objects",
-    "createdAt": "ISO timestamp",
-    "updatedAt": "ISO timestamp",
-    "completedAt": "ISO timestamp | null"
-  },
+  "lastUpdated": "2026-03-08T01:09:05.033Z",
   "tasks": {
     "pending": [
       {
@@ -57,20 +38,6 @@
             "label": "Split priority into its own column in Sub-Tasks table view"
           }
         ]
-      },
-      {
-        "id": "task-1772722916748-m562u62l7",
-        "title": "Left Sidebar 'Add Projects' via add new folder doesn't add to workspace",
-        "status": "pending",
-        "priority": "high",
-        "category": "bug",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-05T15:01:56.748Z",
-        "updatedAt": "2026-03-05T15:01:56.748Z",
-        "completedAt": null,
-        "description": "The left sidebar 'Add Projects' discovery overlay doesn't allow refresh or when user adds project to workspace via Add Folder (File Explorer) nothing happens. Adding from 'Discovered' does work.",
-        "steps": []
       },
       {
         "id": "task-1772723006337-9hz8gve8s",
@@ -152,6 +119,34 @@
         "blocks": [],
         "createdAt": "2026-03-07T23:56:24.890Z",
         "updatedAt": "2026-03-07T23:56:24.890Z",
+        "completedAt": null,
+        "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1772930979470-cx0ermf3t",
+        "title": "Plugin/Integrations system?",
+        "status": "pending",
+        "priority": "medium",
+        "category": "research",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-08T00:49:39.470Z",
+        "updatedAt": "2026-03-08T00:49:39.470Z",
+        "completedAt": null,
+        "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
+        "steps": []
+      },
+      {
+        "id": "task-1772931003433-4ceksawud",
+        "title": "Spellcheck in all UI textfields",
+        "status": "pending",
+        "priority": "high",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-08T00:50:03.433Z",
+        "updatedAt": "2026-03-08T00:50:03.433Z",
         "completedAt": null,
         "description": "",
         "steps": []
@@ -1285,11 +1280,21 @@
         "completedAt": "2026-01-24T16:30:00.000Z",
         "description": "Sag tarafta toggle edilebilen tasks paneli. Filtreleme, ekleme, duzenleme, silme, durum degistirme ozellikleri.",
         "steps": []
+      },
+      {
+        "id": "task-1772722916748-m562u62l7",
+        "title": "Left Sidebar 'Add Projects' via add new folder doesn't add to workspace",
+        "status": "completed",
+        "priority": "high",
+        "category": "bug",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T15:01:56.748Z",
+        "updatedAt": "2026-03-08T01:09:05.030Z",
+        "completedAt": "2026-03-08T01:09:05.030Z",
+        "description": "The left sidebar 'Add Projects' discovery overlay doesn't allow refresh or when user adds project to workspace via Add Folder (File Explorer) nothing happens. Adding from 'Discovered' does work.",
+        "steps": []
       }
     ]
-  },
-  "metadata": {
-    "totalCreated": 81,
-    "totalCompleted": 49
   }
 }
