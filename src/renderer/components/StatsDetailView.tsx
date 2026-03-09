@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { RefreshCw, BarChart3, GitBranch, FileCode, Code, Circle, CheckCircle2, Loader2 } from 'lucide-react';
+import { RefreshCw, BarChart3, GitBranch, FileCode, Code, Circle, CheckCircle2, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '../lib/utils';
 import { useOverview } from '../hooks/useOverview';
 import { useGitBranches } from '../hooks/useGithub';
-import type { DayActivity } from '../../shared/ipcChannels';
+import type { DayActivity, GitBranch as GitBranchType } from '../../shared/ipcChannels';
 
 function formatNumber(num: number): string {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -97,38 +97,9 @@ export function StatsDetailView() {
                     <InfoRow label="Last Commit" value={git.lastCommit} />
                   </div>
 
-                  {/* Branch listing */}
+                  {/* Branch listing — grouped by remote */}
                   {branches.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-border-subtle">
-                      <h4 className="text-[10px] font-medium text-text-tertiary uppercase tracking-wider mb-2">Branches</h4>
-                      <div className="space-y-1">
-                        {branches.filter(b => !b.isRemote).map((branch) => {
-                          const isMain = branch.name === 'main' || branch.name === 'master';
-                          const isActive = branch.name === currentBranch;
-                          return (
-                            <div key={branch.name} className="flex items-center gap-2 text-xs">
-                              {isActive ? (
-                                <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
-                              ) : (
-                                <Circle size={12} className="text-text-muted shrink-0" />
-                              )}
-                              <span className={cn(
-                                'font-mono truncate',
-                                isActive ? 'text-text-primary font-medium' : 'text-text-secondary'
-                              )}>
-                                {branch.name}
-                              </span>
-                              {isMain && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0">default</span>
-                              )}
-                              {isActive && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">active</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <BranchGroups branches={branches} currentBranch={currentBranch} />
                   )}
                 </div>
               )}
@@ -409,6 +380,155 @@ function CommitActivityChart({ activity }: { activity: Record<string, DayActivit
             />
           </AreaChart>
         </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// ─── Branch Groups ────────────────────────────────────────────────────────────
+
+/** Max branches shown per group before "show more" truncation */
+const BRANCH_GROUP_LIMIT = 8;
+
+interface BranchGroupsProps {
+  branches: GitBranchType[];
+  currentBranch?: string;
+}
+
+function BranchGroups({ branches, currentBranch }: BranchGroupsProps) {
+  // Group branches: local (remote=null), then by remote name
+  const groups = useMemo(() => {
+    const map = new Map<string, GitBranchType[]>();
+    for (const b of branches) {
+      const key = b.remote ?? 'local';
+      const list = map.get(key) ?? [];
+      list.push(b);
+      map.set(key, list);
+    }
+    // Sort: local first, then origin, then alphabetical
+    const sorted = [...map.entries()].sort(([a], [b]) => {
+      if (a === 'local') return -1;
+      if (b === 'local') return 1;
+      if (a === 'origin') return -1;
+      if (b === 'origin') return 1;
+      return a.localeCompare(b);
+    });
+    return sorted;
+  }, [branches]);
+
+  // Default collapsed state: upstream+ remotes start collapsed
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  // Auto-collapse newly discovered remote groups (preserves user-toggled state)
+  useEffect(() => {
+    setCollapsed(prev => {
+      const next = { ...prev };
+      let changed = false;
+      for (const [key] of groups) {
+        if (key !== 'local' && key !== 'origin' && !(key in next)) {
+          next[key] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [groups]);
+
+  // Track which groups have "show more" expanded
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const toggleCollapse = (key: string) =>
+    setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const toggleExpand = (key: string) =>
+    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+
+  return (
+    <div className="mt-4 pt-3 border-t border-border-subtle">
+      <h4 className="text-[10px] font-medium text-text-tertiary uppercase tracking-wider mb-2">Branches</h4>
+      <div className="space-y-2">
+        {groups.map(([groupKey, groupBranches]) => {
+          const isCollapsed = !!collapsed[groupKey];
+          const isExpanded = !!expanded[groupKey];
+          const label = groupKey === 'local' ? 'Local' : groupKey;
+          const needsTruncation = groupBranches.length > BRANCH_GROUP_LIMIT;
+          const visibleBranches = isExpanded || !needsTruncation
+            ? groupBranches
+            : groupBranches.slice(0, BRANCH_GROUP_LIMIT);
+          const hiddenCount = groupBranches.length - BRANCH_GROUP_LIMIT;
+
+          return (
+            <div key={groupKey}>
+              {/* Group header — clickable to collapse/expand */}
+              <button
+                onClick={() => toggleCollapse(groupKey)}
+                className="flex items-center gap-1.5 w-full text-left group cursor-pointer mb-1"
+              >
+                {isCollapsed ? (
+                  <ChevronRight size={12} className="text-text-muted shrink-0" />
+                ) : (
+                  <ChevronDown size={12} className="text-text-muted shrink-0" />
+                )}
+                <span className="text-[10px] font-medium text-text-tertiary uppercase tracking-wider">
+                  {label}
+                </span>
+                <span className="text-[10px] text-text-muted">
+                  ({groupBranches.length})
+                </span>
+              </button>
+
+              {/* Branch list */}
+              {!isCollapsed && (
+                <div className="space-y-1 ml-3.5">
+                  {visibleBranches.map((branch) => {
+                    const displayName = branch.remote
+                      ? branch.name.replace(`${branch.remote}/`, '')
+                      : branch.name;
+                    const isMain = displayName === 'main' || displayName === 'master';
+                    const isActive = branch.name === currentBranch;
+                    return (
+                      <div key={branch.name} className="flex items-center gap-2 text-xs">
+                        {isActive ? (
+                          <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                        ) : (
+                          <Circle size={12} className="text-text-muted shrink-0" />
+                        )}
+                        <span className={cn(
+                          'font-mono truncate',
+                          isActive ? 'text-text-primary font-medium' : 'text-text-secondary'
+                        )}>
+                          {displayName}
+                        </span>
+                        {isMain && !branch.remote && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0">default</span>
+                        )}
+                        {isActive && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">active</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {needsTruncation && !isExpanded && (
+                    <button
+                      onClick={() => toggleExpand(groupKey)}
+                      className="text-[10px] text-accent hover:text-accent/80 cursor-pointer pl-5"
+                    >
+                      +{hiddenCount} more...
+                    </button>
+                  )}
+                  {needsTruncation && isExpanded && (
+                    <button
+                      onClick={() => toggleExpand(groupKey)}
+                      className="text-[10px] text-accent hover:text-accent/80 cursor-pointer pl-5"
+                    >
+                      Show less
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -97,7 +97,7 @@ export function App() {
       // Ctrl/Cmd+Shift+G — Toggle GitHub panel
       if (modKey && e.shiftKey && key === 'g') {
         e.preventDefault();
-        togglePanel('githubIssues');
+        togglePanel('gitChanges');
       }
 
       // Ctrl/Cmd+Shift+H — Toggle history panel

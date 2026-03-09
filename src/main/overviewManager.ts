@@ -297,79 +297,111 @@ async function loadStats(projectPath: string): Promise<StatsResult> {
   }
 }
 
-/** Source extensions to count */
-const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
+/** Source extensions to count — covers major language ecosystems */
+const SOURCE_EXTENSIONS = new Set([
+  // Web / JS ecosystem
+  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte',
+  // Styles
+  '.css', '.scss', '.less', '.sass',
+  // Systems
+  '.rs', '.go', '.c', '.cpp', '.cc', '.h', '.hpp',
+  // JVM
+  '.java', '.kt', '.scala',
+  // .NET
+  '.cs', '.fs',
+  // Scripting
+  '.py', '.rb', '.php', '.lua', '.sh',
+  // Mobile
+  '.swift', '.dart',
+  // Markup (source-adjacent)
+  '.html',
+]);
+
+/** Directories to skip when scanning without git */
+const SKIP_DIRS = new Set([
+  'node_modules', '.git', 'dist', 'build', '.next', '.nuxt', '.output',
+  'target', 'vendor', '__pycache__', '.venv', 'venv', 'coverage', '.cache',
+  '.turbo', '.parcel-cache', 'out', '.svelte-kit', 'bower_components',
+]);
 
 /**
- * Recursively find files matching extensions (cross-platform)
+ * Get source files using `git ls-files` (fast, respects .gitignore).
+ * Falls back to recursive filesystem scan if not a git repo.
  */
-function findFilesRecursive(dir: string, extensions: string[] = SOURCE_EXTENSIONS): string[] {
+async function getSourceFiles(projectPath: string): Promise<string[]> {
+  // Try git ls-files first — fast and respects .gitignore
+  try {
+    const { stdout } = await new Promise<{ stdout: string }>((resolve, reject) => {
+      exec(
+        'git ls-files --cached',
+        { cwd: projectPath, maxBuffer: 10 * 1024 * 1024 },
+        (err, stdout) => err ? reject(err) : resolve({ stdout }),
+      );
+    });
+    return stdout.split('\n')
+      .filter(f => f && SOURCE_EXTENSIONS.has(path.extname(f).toLowerCase()))
+      .map(f => path.join(projectPath, f));
+  } catch {
+    // Not a git repo — fall back to recursive scan
+  }
+  return findFilesRecursive(projectPath);
+}
+
+/**
+ * Recursively find source files from project root (non-git fallback).
+ */
+function findFilesRecursive(dir: string): string[] {
   let results: string[] = [];
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
-        results = results.concat(findFilesRecursive(fullPath, extensions));
-      } else if (entry.isFile() && extensions.some(ext => entry.name.endsWith(ext))) {
-        results.push(fullPath);
+      if (entry.isDirectory() && !SKIP_DIRS.has(entry.name)) {
+        results = results.concat(findFilesRecursive(path.join(dir, entry.name)));
+      } else if (entry.isFile() && SOURCE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+        results.push(path.join(dir, entry.name));
       }
     }
-  } catch (_err) {
+  } catch {
     // Skip directories we can't read
   }
   return results;
 }
 
 /**
- * Count lines of code in src directory (cross-platform)
+ * Count lines of code across all source files in the project.
  */
-function countLinesOfCode(projectPath: string): Promise<LinesOfCode> {
-  return new Promise((resolve) => {
-    const srcPath = path.join(projectPath, 'src');
-
-    if (!fs.existsSync(srcPath)) {
-      resolve({ total: 0, byExtension: {} });
-      return;
-    }
-
-    try {
-      const files = findFilesRecursive(srcPath);
-      let total = 0;
-      const byExtension: Record<string, number> = {};
-      for (const file of files) {
-        const ext = path.extname(file).slice(1); // 'ts', 'tsx', 'js', etc.
+async function countLinesOfCode(projectPath: string): Promise<LinesOfCode> {
+  try {
+    const files = await getSourceFiles(projectPath);
+    let total = 0;
+    const byExtension: Record<string, number> = {};
+    for (const file of files) {
+      try {
+        const ext = path.extname(file).slice(1); // 'ts', 'tsx', 'rs', etc.
         const content = fs.readFileSync(file, 'utf8');
         const lines = content.split('\n').length;
         total += lines;
         byExtension[ext] = (byExtension[ext] || 0) + lines;
+      } catch {
+        // Skip unreadable files
       }
-      resolve({ total, byExtension });
-    } catch (_err) {
-      resolve({ total: 0, byExtension: {} });
     }
-  });
+    return { total, byExtension };
+  } catch {
+    return { total: 0, byExtension: {} };
+  }
 }
 
 /**
- * Count files in src directory (cross-platform)
+ * Count source files in the project.
  */
-function countFiles(projectPath: string): Promise<{ total: number }> {
-  return new Promise((resolve) => {
-    const srcPath = path.join(projectPath, 'src');
-
-    if (!fs.existsSync(srcPath)) {
-      resolve({ total: 0 });
-      return;
-    }
-
-    try {
-      const files = findFilesRecursive(srcPath);
-      resolve({ total: files.length });
-    } catch (_err) {
-      resolve({ total: 0 });
-    }
-  });
+async function countFiles(projectPath: string): Promise<{ total: number }> {
+  try {
+    const files = await getSourceFiles(projectPath);
+    return { total: files.length };
+  } catch {
+    return { total: 0 };
+  }
 }
 
 /**

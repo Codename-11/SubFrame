@@ -1,6 +1,10 @@
 /**
  * Claude Usage Manager Module
- * Fetches Claude Code usage data from OAuth API and provides periodic updates
+ * Fetches Claude Code usage data from OAuth API and provides periodic updates.
+ *
+ * Polling is OFF by default (usagePollingInterval = 0). When enabled, uses
+ * exponential backoff on consecutive failures and notifies the renderer to
+ * suggest disabling polling after persistent errors.
  */
 
 import { execSync } from 'child_process';
@@ -22,6 +26,7 @@ interface UsageData {
   sevenDay: UsageWindow | null;
   lastUpdated: string;
   error: string | null;
+  persistentFailure?: boolean;
 }
 
 interface CredentialsData {
@@ -29,20 +34,30 @@ interface CredentialsData {
   accessToken?: string;
 }
 
-/** Default polling interval in seconds (5 minutes) */
-const DEFAULT_POLLING_SECONDS = 300;
+/** Base polling interval when backoff is not active (from settings) */
+const BASE_BACKOFF_MS = 30_000;
+/** Maximum backoff cap: 8 minutes */
+const MAX_BACKOFF_MS = 480_000;
+/** After this many consecutive failures, flag persistentFailure to the UI */
+const PERSISTENT_FAILURE_THRESHOLD = 5;
 
 let mainWindow: BrowserWindow | null = null;
-let pollingInterval: ReturnType<typeof setInterval> | null = null;
+let pollingTimeout: ReturnType<typeof setTimeout> | null = null;
 let initialFetchTimeout: ReturnType<typeof setTimeout> | null = null;
 let cachedUsage: UsageData | null = null;
 
+/** Exponential backoff state */
+let consecutiveFailures = 0;
+let currentBackoffMs = 0;
+
 /**
- * Read the configured polling interval from settings (in seconds), clamped to 30–600.
+ * Read the configured polling interval from settings (in seconds).
+ * Returns 0 when polling is disabled, otherwise clamped to 30–600.
  */
 function getPollingMs(): number {
   const raw = getSetting('general.usagePollingInterval');
-  const seconds = typeof raw === 'number' ? raw : DEFAULT_POLLING_SECONDS;
+  const seconds = typeof raw === 'number' ? raw : 0;
+  if (seconds === 0) return 0; // Disabled
   const clamped = Math.max(30, Math.min(600, seconds));
   return clamped * 1000;
 }
@@ -52,12 +67,23 @@ function getPollingMs(): number {
  */
 function init(window: BrowserWindow): void {
   mainWindow = window;
-  // Start polling when window is ready
-  startPolling();
 
-  // Restart polling when the interval setting changes
+  // Always fetch once on startup regardless of polling setting
+  initialFetchTimeout = setTimeout(() => {
+    initialFetchTimeout = null;
+    sendUsageToRenderer();
+  }, 2000);
+
+  // Start periodic polling only if enabled
+  const intervalMs = getPollingMs();
+  if (intervalMs > 0) {
+    scheduleNextPoll(intervalMs);
+  }
+
+  // React to setting changes
   onSettingChange((key) => {
     if (key === 'general.usagePollingInterval') {
+      resetBackoff();
       restartPolling();
     }
   });
@@ -249,40 +275,81 @@ function fetchUsage(): Promise<UsageData> {
 }
 
 /**
- * Send usage data to renderer, with retry on transient errors (429, network)
+ * Reset exponential backoff state (on success or setting change)
  */
-async function sendUsageToRenderer(retries = 2, delay = 5000): Promise<void> {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-
-  const usage = await fetchUsage();
-  mainWindow.webContents.send(IPC.CLAUDE_USAGE_DATA, usage);
-
-  // Retry on transient errors if we have no cached data yet
-  if (usage.error && !cachedUsage && retries > 0) {
-    setTimeout(() => sendUsageToRenderer(retries - 1, delay * 2), delay);
-  }
+function resetBackoff(): void {
+  consecutiveFailures = 0;
+  currentBackoffMs = 0;
 }
 
 /**
- * Start periodic polling for usage updates.
- * Reads interval from settings (general.usagePollingInterval).
+ * Compute next backoff delay: doubles from base up to MAX_BACKOFF_MS
+ */
+function computeBackoff(baseMs: number): number {
+  if (consecutiveFailures === 0) return baseMs;
+  const backoff = Math.min(baseMs * Math.pow(2, consecutiveFailures), MAX_BACKOFF_MS);
+  return backoff;
+}
+
+/**
+ * Send usage data to renderer. Tracks consecutive failures for backoff.
+ */
+async function sendUsageToRenderer(): Promise<void> {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  const usage = await fetchUsage();
+
+  if (usage.error) {
+    consecutiveFailures++;
+    console.log(`Claude usage: fetch failed (${consecutiveFailures} consecutive): ${usage.error}`);
+
+    // Flag persistent failure after threshold
+    if (consecutiveFailures >= PERSISTENT_FAILURE_THRESHOLD) {
+      usage.persistentFailure = true;
+    }
+  } else {
+    resetBackoff();
+  }
+
+  mainWindow.webContents.send(IPC.CLAUDE_USAGE_DATA, usage);
+}
+
+/**
+ * Schedule the next polling fetch with backoff-aware delay.
+ * Uses setTimeout (not setInterval) so each cycle can adjust its delay.
+ */
+function scheduleNextPoll(baseMs: number): void {
+  if (pollingTimeout) {
+    clearTimeout(pollingTimeout);
+    pollingTimeout = null;
+  }
+
+  const delay = computeBackoff(baseMs);
+  currentBackoffMs = delay;
+
+  pollingTimeout = setTimeout(async () => {
+    pollingTimeout = null;
+    await sendUsageToRenderer();
+
+    // Continue polling only if still enabled
+    const intervalMs = getPollingMs();
+    if (intervalMs > 0) {
+      scheduleNextPoll(intervalMs);
+    }
+  }, delay);
+}
+
+/**
+ * Start periodic polling for usage updates (only when enabled).
+ * Uses setTimeout chains with exponential backoff instead of fixed setInterval.
  */
 function startPolling(): void {
-  // Stop any existing polling
   stopPolling();
 
   const intervalMs = getPollingMs();
+  if (intervalMs === 0) return; // Polling disabled
 
-  // Initial fetch after a short delay
-  initialFetchTimeout = setTimeout(() => {
-    initialFetchTimeout = null;
-    sendUsageToRenderer();
-  }, 2000);
-
-  // Start periodic updates
-  pollingInterval = setInterval(() => {
-    sendUsageToRenderer();
-  }, intervalMs);
+  scheduleNextPoll(intervalMs);
 }
 
 /**
@@ -293,9 +360,9 @@ function stopPolling(): void {
     clearTimeout(initialFetchTimeout);
     initialFetchTimeout = null;
   }
-  if (pollingInterval) {
-    clearInterval(pollingInterval);
-    pollingInterval = null;
+  if (pollingTimeout) {
+    clearTimeout(pollingTimeout);
+    pollingTimeout = null;
   }
 }
 
@@ -303,7 +370,14 @@ function stopPolling(): void {
  * Restart polling (called when the setting changes)
  */
 function restartPolling(): void {
-  startPolling();
+  stopPolling();
+
+  const intervalMs = getPollingMs();
+  if (intervalMs > 0) {
+    // Fetch immediately on re-enable, then schedule
+    sendUsageToRenderer();
+    scheduleNextPoll(intervalMs);
+  }
 }
 
 /**
@@ -316,12 +390,15 @@ function setupIPC(ipcMain: IpcMain): void {
     event.sender.send(IPC.CLAUDE_USAGE_DATA, usage);
   });
 
-  // Handle manual refresh request
+  // Handle manual refresh — always works regardless of polling setting
   ipcMain.on(IPC.REFRESH_CLAUDE_USAGE, async (event) => {
+    resetBackoff(); // Manual refresh clears backoff state
     const usage = await fetchUsage();
+    if (!usage.error) {
+      resetBackoff();
+    }
     event.sender.send(IPC.CLAUDE_USAGE_DATA, usage);
   });
-
 }
 
 /**

@@ -24,6 +24,8 @@ interface BranchInfo {
   message: string;
   isRemote: boolean;
   isCurrent: boolean;
+  /** Remote name (e.g. "origin", "upstream") or null for local branches */
+  remote: string | null;
 }
 
 interface BranchesResult {
@@ -177,6 +179,13 @@ async function loadBranches(projectPath: string): Promise<BranchesResult> {
     // Get current branch
     const { stdout: currentBranch } = await execGit('git branch --show-current', projectPath);
 
+    // Get known remote names so we can classify branches correctly
+    let remoteNames: string[] = [];
+    try {
+      const { stdout: remotesOutput } = await execGit('git remote', projectPath);
+      remoteNames = remotesOutput.split('\n').filter(Boolean);
+    } catch { /* no remotes */ }
+
     // Get all branches with details
     const { stdout: branchOutput } = await execGit(
       'git branch -a --format="%(refname:short)|%(objectname:short)|%(committerdate:relative)|%(subject)"',
@@ -188,14 +197,16 @@ async function loadBranches(projectPath: string): Promise<BranchesResult> {
       .map(line => {
         const [name, commit, date, ...messageParts] = line.split('|');
         const message = messageParts.join('|');
-        const isRemote = name.startsWith('origin/');
+        // Detect remote by matching against known remote names (origin, upstream, etc.)
+        const remote = remoteNames.find(r => name.startsWith(r + '/')) ?? null;
         return {
           name,
           commit: commit || '',
           date: date || '',
           message: message || '',
-          isRemote,
-          isCurrent: name === currentBranch
+          isRemote: remote !== null,
+          isCurrent: name === currentBranch,
+          remote,
         };
       })
       // Filter out HEAD pointer
@@ -226,10 +237,19 @@ async function switchBranch(projectPath: string, branchName: string): Promise<Op
   }
 
   try {
-    // Handle remote branches - create local tracking branch
+    // Handle remote branches — strip any remote prefix (origin/, upstream/, etc.)
     let targetBranch = branchName;
-    if (branchName.startsWith('origin/')) {
-      targetBranch = branchName.replace('origin/', '');
+    const slashIdx = branchName.indexOf('/');
+    if (slashIdx > 0) {
+      // Check if prefix matches a known remote
+      try {
+        const { stdout: remotesOut } = await execGit('git remote', projectPath);
+        const remotes = remotesOut.split('\n').filter(Boolean);
+        const prefix = branchName.substring(0, slashIdx);
+        if (remotes.includes(prefix)) {
+          targetBranch = branchName.substring(slashIdx + 1);
+        }
+      } catch { /* no remotes — treat as local branch name */ }
     }
 
     await execGit(`git checkout "${targetBranch}"`, projectPath);

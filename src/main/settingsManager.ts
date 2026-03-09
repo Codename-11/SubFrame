@@ -76,7 +76,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     defaultProjectDir: '',
     showDotfiles: false,
     confirmBeforeClose: true,
-    usagePollingInterval: 300,
+    usagePollingInterval: 0,
     gridOverflowAutoSwitch: true,
     highlightUserMessages: true,
     userMessageColor: '#ff6eb4',

@@ -143,7 +143,7 @@ export function SettingsPanel() {
   const showDotfiles = (general.showDotfiles as boolean) || false;
   const confirmBeforeClose = (general.confirmBeforeClose !== false);
   const defaultProjectDir = (general.defaultProjectDir as string) || '';
-  const usagePollingInterval = (general.usagePollingInterval as number) || 300;
+  const usagePollingInterval = (general.usagePollingInterval as number) || 0;
   const gridOverflowAutoSwitch = general.gridOverflowAutoSwitch !== false;
   const highlightUserMessages = general.highlightUserMessages !== false; // default true
   const userMessageColor = (general.userMessageColor as string) || '#ff6eb4';
@@ -555,28 +555,42 @@ export function SettingsPanel() {
                   </button>
                 </div>
 
-                {/* Usage polling interval */}
+                {/* Usage auto-polling */}
                 <div>
-                  <div className="text-sm text-text-primary mb-1">Usage polling interval</div>
-                  <div className="text-xs text-text-tertiary mb-2">How often to check Claude API usage (30s – 10min). Lower values may trigger rate limits.</div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={30}
-                      max={600}
-                      step={30}
-                      value={usagePollingInterval}
-                      onChange={(e) => {
-                        updateSetting.mutate([{ key: 'general.usagePollingInterval', value: Number(e.target.value) }]);
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <div className="text-sm text-text-primary">Auto-poll usage</div>
+                      <div className="text-xs text-text-tertiary">Periodically check Claude API usage. Off = on-demand only (click to refresh).</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        updateSetting.mutate([{ key: 'general.usagePollingInterval', value: usagePollingInterval === 0 ? 300 : 0 }]);
                       }}
-                      className="flex-1 accent-accent"
-                    />
-                    <span className="text-xs text-text-secondary w-14 text-right tabular-nums">
-                      {usagePollingInterval >= 60
-                        ? `${Math.floor(usagePollingInterval / 60)}m${usagePollingInterval % 60 ? ` ${usagePollingInterval % 60}s` : ''}`
-                        : `${usagePollingInterval}s`}
-                    </span>
+                      className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${usagePollingInterval > 0 ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${usagePollingInterval > 0 ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                    </button>
                   </div>
+                  {usagePollingInterval > 0 && (
+                    <div className="flex items-center gap-3 mt-2">
+                      <input
+                        type="range"
+                        min={30}
+                        max={600}
+                        step={30}
+                        value={usagePollingInterval}
+                        onChange={(e) => {
+                          updateSetting.mutate([{ key: 'general.usagePollingInterval', value: Number(e.target.value) }]);
+                        }}
+                        className="flex-1 accent-accent"
+                      />
+                      <span className="text-xs text-text-secondary w-14 text-right tabular-nums">
+                        {usagePollingInterval >= 60
+                          ? `${Math.floor(usagePollingInterval / 60)}m${usagePollingInterval % 60 ? ` ${usagePollingInterval % 60}s` : ''}`
+                          : `${usagePollingInterval}s`}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Grid overflow auto-switch */}

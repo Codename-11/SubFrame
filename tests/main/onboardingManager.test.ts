@@ -114,8 +114,16 @@ describe('parseAnalysisResponse', () => {
     const { result, error } = parseAnalysisResponse(raw);
     expect(result).toBeNull();
     expect(error).toBeDefined();
-    // Should mention rate limit in some form
-    expect(error!.toLowerCase()).toMatch(/rate limit|no json/i);
+    expect(error!.toLowerCase()).toContain('rate limit');
+  });
+
+  it('does not false-positive on rate limit in status text', () => {
+    // Status bar text like "current: 0% | weekly: 25%" should NOT trigger rate limit
+    const raw = 'current: 0% | weekly: 25% | resets 9:00pm\nNo useful output here.';
+    const { result, error } = parseAnalysisResponse(raw);
+    expect(result).toBeNull();
+    expect(error).toBeDefined();
+    expect(error!.toLowerCase()).not.toContain('rate limit');
   });
 
   it('detects permission denied error patterns', () => {
@@ -126,17 +134,29 @@ describe('parseAnalysisResponse', () => {
   });
 
   it('detects API key error patterns', () => {
-    const raw = 'Invalid API key provided. Please check your configuration.';
+    const raw = 'Error: Invalid API key provided. Please check your configuration.';
     const { result, error } = parseAnalysisResponse(raw);
     expect(result).toBeNull();
     expect(error).toBeDefined();
+  });
+
+  it('extracts raw JSON without markdown fences', () => {
+    const json = JSON.stringify(mockAnalysisResult());
+    // No ```json fences — just raw JSON with surrounding text
+    const raw = 'Here is the analysis:\n' + json + '\nDone.';
+
+    const { result, error } = parseAnalysisResponse(raw);
+    expect(error).toBeUndefined();
+    expect(result).not.toBeNull();
+    expect(result!.structure.description).toBe('A test project');
+    expect(result!.suggestedTasks).toHaveLength(2);
   });
 
   it('returns error when no JSON code block found', () => {
     const raw = 'This is just plain text with no JSON block at all.';
     const { result, error } = parseAnalysisResponse(raw);
     expect(result).toBeNull();
-    expect(error).toContain('json');
+    expect(error).toContain('JSON');
   });
 
   it('returns error for invalid JSON inside code block', () => {

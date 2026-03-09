@@ -1,13 +1,32 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
+    "purpose": "Sub-Task tracking index (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
     "lastUpdated": "2026-03-09",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-09T00:22:31.494Z",
+  "lastUpdated": "2026-03-09T23:29:28.805Z",
+  "taskSchema": {
+    "_comment": "This schema shows the expected structure for each task",
+    "id": "unique-id (task-xxx format)",
+    "title": "Short actionable title (max 60 chars)",
+    "description": "Claude's detailed explanation - what, how, which files affected",
+    "userRequest": "Original user prompt/request - copy verbatim",
+    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
+    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
+    "status": "pending | in_progress | completed",
+    "priority": "high | medium | low",
+    "category": "feature | fix | refactor | docs | test",
+    "context": "Session date and context",
+    "blockedBy": "Array of task IDs this task is blocked by",
+    "blocks": "Array of task IDs this task blocks",
+    "steps": "Array of { label, completed } step objects",
+    "createdAt": "ISO timestamp",
+    "updatedAt": "ISO timestamp",
+    "completedAt": "ISO timestamp | null"
+  },
   "tasks": {
     "pending": [
       {
@@ -135,6 +154,20 @@
         "updatedAt": "2026-03-08T00:49:39.470Z",
         "completedAt": null,
         "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
+        "steps": []
+      },
+      {
+        "id": "task-1773098968783-j6j17jgu2",
+        "title": "Fix Terminal Slot Retention",
+        "status": "pending",
+        "priority": "medium",
+        "category": "bug",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-09T23:29:28.783Z",
+        "updatedAt": "2026-03-09T23:29:28.783Z",
+        "completedAt": null,
+        "description": "Terminals seem to prefer their original slot as if we swap views or change grid layouts, termina's end up reordering back to their original order.",
         "steps": []
       },
       {
@@ -1312,5 +1345,9 @@
         "steps": []
       }
     ]
+  },
+  "metadata": {
+    "totalCreated": 85,
+    "totalCompleted": 53
   }
 }

@@ -452,18 +452,21 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
   const shellPromptFile = toUnixPath(promptFile);
   const shellResultFile = toUnixPath(resultFile);
 
-  // Claude: interactive mode — streams output live in the PTY, captured by ptyManager.
-  //   Completion detected from PTY output (✻ marker). No sentinel file needed.
-  // Others: pipe mode — non-interactive, output captured by tee to a result file.
-  //   Completion detected by sentinel file polling.
+  // All tools use print/pipe mode — output captured by tee to a result file,
+  // completion detected by sentinel file polling.
+  // Claude uses -p (print mode) for clean text output and automatic exit.
   const isClaudeTool = tool.id === 'claude';
   let shellCommand: string;
 
   switch (tool.id) {
     case 'claude': {
       const skipFlag = '--dangerously-skip-permissions';
-      const claudeCmd = command.includes(skipFlag) ? command : `${command} ${skipFlag}`;
-      shellCommand = `${claudeCmd} "Read the analysis prompt from ${shellPromptFile} and follow ALL instructions in it exactly. Output ONLY the JSON code block as specified in the prompt file. Do NOT create, edit, or delete any files."`;
+      let claudeCmd = command;
+      // Use word-boundary checks to avoid matching substrings (e.g. --api-provider containing -p)
+      const hasFlag = (cmd: string, flag: string) => new RegExp(`(^|\\s)${flag.replace(/-/g, '\\-')}(\\s|$)`).test(cmd);
+      if (!hasFlag(claudeCmd, skipFlag)) claudeCmd += ` ${skipFlag}`;
+      if (!hasFlag(claudeCmd, '-p') && !hasFlag(claudeCmd, '--print')) claudeCmd += ` -p`;
+      shellCommand = `${claudeCmd} "Read the analysis prompt from ${shellPromptFile} and follow ALL instructions in it exactly. Output ONLY the JSON code block as specified in the prompt file. Do NOT create, edit, or delete any files." 2>&1 | tee "${shellResultFile}"; echo "${DONE_MARKER}"`;
       break;
     }
     case 'codex':
@@ -499,26 +502,19 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
   };
   sendProgress('AI analysis started', 50);
 
-  // Start capturing PTY output for Claude (interactive mode)
-  if (isClaudeTool) {
-    ptyManager.startCapturing(terminalId);
-  }
-
-  // Hoisted timer refs so cleanup() can clear them
+  // Hoisted timer ref so cleanup() can clear it (trust prompt retry)
   let claudeRetryTimer: ReturnType<typeof setInterval> | null = null;
-  let claudeSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
   return new Promise<{ raw: string; terminalId: string }>((resolve, reject) => {
     let resolved = false;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    // Cleanup — temp files, ALL timers, output handler. Does NOT call stopCapturing.
+    // Cleanup — temp files, ALL timers, output handler.
     const cleanup = () => {
       if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
-      if (claudeSettleTimer) { clearTimeout(claudeSettleTimer); claudeSettleTimer = null; }
       activeAnalyses.delete(projectPath);
       ptyManager.removeOutputHandler(terminalId);
       try { fs.unlinkSync(promptFile); } catch { /* ignore */ }
@@ -537,7 +533,6 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
     const fail = (err: Error) => {
       if (resolved) return;
       resolved = true;
-      if (isClaudeTool) ptyManager.stopCapturing(terminalId);
       cleanup();
       (err as any).terminalId = terminalId;
       reject(err);
@@ -556,107 +551,64 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
       fail(new Error(`Analysis timed out after ${timeoutMs / 1000} seconds`));
     }, timeoutMs);
 
-    // ── Claude: PTY-based session tracking ─────────────────────────
-    // Detect completion directly from PTY output instead of sentinel files.
-    // States: waiting → active (Claude started) → responding (JSON seen) → done (✻ seen)
+    // ── Claude: trust prompt handler (safety net) ────────────────────
+    // In -p mode the trust prompt may not appear, but handle it just in case.
     if (isClaudeTool) {
       let trustConfirmed = false;
       let menuReady = false;
-      let seenJsonContent = false;
-      let completionDetected = false;
-      let completionAt = 0;
 
       ptyManager.addOutputHandler(terminalId, (data) => {
-        if (resolved) return;
+        if (resolved || trustConfirmed) return;
         const stripped = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
 
-        // ── Trust prompt auto-response ───────────────────────────────
-        if (!trustConfirmed) {
-          if (!menuReady && /enter to confirm/i.test(stripped)) {
-            menuReady = true;
-            console.log('[Onboarding] Trust prompt menu detected, sending Enter');
-            sendProgress('Accepting directory trust prompt...', 52);
-            let attempts = 0;
-            claudeRetryTimer = setInterval(() => {
-              if (trustConfirmed || attempts >= 10) {
-                if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
-                return;
-              }
-              attempts++;
-              ptyManager.writeToTerminal(terminalId, '\r');
-            }, 500);
-          }
-          if (menuReady && !/trust|folder|directory|security|confirm|cancel|exit/i.test(stripped) && stripped.trim().length > 5) {
-            trustConfirmed = true;
-            if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
-            console.log('[Onboarding] Trust prompt accepted');
-          }
+        if (!menuReady && /enter to confirm/i.test(stripped)) {
+          menuReady = true;
+          console.log('[Onboarding] Trust prompt menu detected, sending Enter');
+          sendProgress('Accepting directory trust prompt...', 52);
+          let attempts = 0;
+          claudeRetryTimer = setInterval(() => {
+            if (trustConfirmed || attempts >= 10) {
+              if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
+              return;
+            }
+            attempts++;
+            ptyManager.writeToTerminal(terminalId, '\r');
+          }, 500);
         }
-
-        // ── Session state tracking ───────────────────────────────────
-        // Active: Claude is generating output
-        if (!seenJsonContent && /"structure"\s*:/.test(stripped)) {
-          seenJsonContent = true;
-          sendProgress('AI is generating analysis...', 65);
-        }
-
-        // Done: Claude Code shows ✻ (U+273B) in completion summary after response.
-        // Only trigger after seeing JSON content to avoid false positives.
-        if (!completionDetected && seenJsonContent && /\u273B/.test(data)) {
-          completionDetected = true;
-          completionAt = Date.now();
-          console.log('[Onboarding] Claude response complete (✻ detected)');
-          sendProgress('AI response received, reading output...', 80);
-
-          // Let output settle for 2s, then read capture buffer and resolve.
-          claudeSettleTimer = setTimeout(() => resolveFromCapture(), 2000);
-        }
-
-        // If more output arrives after ✻, reset settle timer (up to 10s max)
-        if (completionDetected && claudeSettleTimer) {
-          if (Date.now() - completionAt < 10_000) {
-            clearTimeout(claudeSettleTimer);
-            claudeSettleTimer = setTimeout(() => resolveFromCapture(), 2000);
-          }
-          // else: max settle time exceeded, let the existing timer fire
+        if (menuReady && !/trust|folder|directory|security|confirm|cancel|exit/i.test(stripped) && stripped.trim().length > 5) {
+          trustConfirmed = true;
+          if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
+          console.log('[Onboarding] Trust prompt accepted');
         }
       });
-
-      const resolveFromCapture = () => {
-        claudeSettleTimer = null;
-        const result = ptyManager.stopCapturing(terminalId);
-        // Send /exit to clean up the Claude REPL (fire-and-forget)
-        try { ptyManager.writeToTerminal(terminalId, '/exit\r'); } catch { /* terminal may be gone */ }
-        finish(result);
-      };
-
-    } else {
-      // ── Non-Claude: sentinel file polling ──────────────────────────
-      const sentinelFile = resultFile + '.done';
-      const shellSentinelFile = toUnixPath(sentinelFile);
-
-      const sentinelCommand = shellCommand.replace(
-        `echo "${DONE_MARKER}"`,
-        `echo "${DONE_MARKER}" && echo done > "${shellSentinelFile}"`,
-      );
-      if (sentinelCommand === shellCommand) {
-        console.error('[Onboarding] WARNING: Sentinel injection failed. Analysis may hang until timeout.');
-      }
-      // Override shellCommand for non-Claude (sent below)
-      shellCommand = sentinelCommand;
-
-      pollTimer = setInterval(() => {
-        if (resolved) return;
-        try {
-          if (fs.existsSync(sentinelFile)) {
-            let result = '';
-            try { result = fs.readFileSync(resultFile, 'utf8'); } catch { result = ''; }
-            try { fs.unlinkSync(sentinelFile); } catch { /* ignore */ }
-            finish(result);
-          }
-        } catch { /* ignore polling errors */ }
-      }, 500);
     }
+
+    // ── Sentinel file polling (all tools) ──────────────────────────
+    const sentinelFile = resultFile + '.done';
+    const shellSentinelFile = toUnixPath(sentinelFile);
+
+    const sentinelCommand = shellCommand.replace(
+      `echo "${DONE_MARKER}"`,
+      `echo "${DONE_MARKER}" && echo done > "${shellSentinelFile}"`,
+    );
+    if (sentinelCommand === shellCommand) {
+      fail(new Error('Internal error: sentinel injection failed — DONE_MARKER not found in command template.'));
+      return;
+    }
+    shellCommand = sentinelCommand;
+
+    pollTimer = setInterval(() => {
+      if (resolved) return;
+      try {
+        if (fs.existsSync(sentinelFile)) {
+          let result = '';
+          try { result = fs.readFileSync(resultFile, 'utf8'); } catch { result = ''; }
+          try { fs.unlinkSync(sentinelFile); } catch { /* ignore */ }
+          sendProgress('AI response received, reading output...', 80);
+          finish(result);
+        }
+      } catch { /* ignore polling errors */ }
+    }, 500);
 
     // Send the command to the terminal
     console.log(`[Onboarding] Sending analysis command to terminal ${terminalId}`);
@@ -686,34 +638,69 @@ function parseAnalysisResponse(raw: string): { result: OnboardingAnalysisResult 
       '',
     );
 
-    // Check for common error patterns in the raw output before parsing
-    const lowerCleaned = cleaned.toLowerCase();
-    const errorPatterns: Array<{ pattern: string; label: string }> = [
-      { pattern: 'rate limit', label: 'Rate limit exceeded' },
-      { pattern: 'permission denied', label: 'Permission denied' },
-      { pattern: 'not found', label: 'Command or resource not found' },
-      { pattern: 'unauthorized', label: 'Authentication failed (unauthorized)' },
-      { pattern: 'api key', label: 'API key issue detected' },
-      { pattern: 'econnrefused', label: 'Connection refused' },
-      { pattern: 'timeout', label: 'Request timed out' },
-    ];
-    const detectedError = errorPatterns.find((ep) => lowerCleaned.includes(ep.pattern));
+    // Try to extract JSON: first from ```json fences, then raw JSON object
+    let jsonText: string | null = null;
 
-    const match = cleaned.match(/```json\s*([\s\S]*?)```/);
-    if (!match) {
+    // Strategy 1: Markdown-fenced JSON block
+    const fenceMatch = cleaned.match(/```json\s*([\s\S]*?)```/);
+    if (fenceMatch) {
+      jsonText = fenceMatch[1].trim();
+    }
+
+    // Strategy 2: Raw JSON object starting with { "structure": (no fences)
+    if (!jsonText) {
+      const rawMatch = cleaned.match(/(\{\s*"structure"\s*:\s*\{[\s\S]*)/);
+      if (rawMatch) {
+        // Find the balanced closing brace, skipping braces inside JSON strings
+        const text = rawMatch[1];
+        let depth = 0;
+        let end = -1;
+        let inString = false;
+        let escaped = false;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (escaped) { escaped = false; continue; }
+          if (ch === '\\' && inString) { escaped = true; continue; }
+          if (ch === '"') { inString = !inString; continue; }
+          if (inString) continue;
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) { end = i + 1; break; }
+          }
+        }
+        if (end > 0) {
+          jsonText = text.substring(0, end);
+        }
+      }
+    }
+
+    if (!jsonText) {
+      // Check for common error patterns only when no JSON was found
+      const lowerCleaned = cleaned.toLowerCase();
+      const errorPatterns: Array<{ pattern: RegExp; label: string }> = [
+        { pattern: /rate limit(ed| exceeded| error)/i, label: 'Rate limit exceeded' },
+        { pattern: /permission denied/i, label: 'Permission denied' },
+        { pattern: /command not found/i, label: 'Command not found' },
+        { pattern: /unauthorized/i, label: 'Authentication failed (unauthorized)' },
+        { pattern: /invalid.*api.?key|api.?key.*invalid/i, label: 'API key issue detected' },
+        { pattern: /econnrefused/i, label: 'Connection refused' },
+        { pattern: /timed?\s*out/i, label: 'Request timed out' },
+      ];
+      const detectedError = errorPatterns.find((ep) => ep.pattern.test(lowerCleaned));
+
       const preview = cleaned.trim().substring(0, 300);
-      let error = 'No ```json block found in AI response.';
+      let error = 'No JSON found in AI response.';
       if (detectedError) {
         error += ` ${detectedError.label} — check the terminal for details.`;
       } else {
         error += ' Use "View Terminal" to inspect the raw output.';
       }
-      // Log preview locally for debugging but don't send to renderer (may contain credentials)
       console.error(`[Onboarding] ${error} Raw output preview: "${preview}"`);
       return { result: null, error };
     }
 
-    const parsed = JSON.parse(match[1].trim());
+    const parsed = JSON.parse(jsonText);
 
     // Validate minimum structure
     if (!parsed.structure && !parsed.projectNotes && !parsed.suggestedTasks) {

@@ -8,6 +8,7 @@
  *   - Overview → full-view (handled by TerminalArea, not here)
  */
 
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ListTodo,
@@ -29,6 +30,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { cn } from '../lib/utils';
@@ -60,8 +62,8 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   tasks:           { id: 'tasks',           label: 'Sub-Tasks',  icon: ListTodo,       shortcut: 'Ctrl+Shift+S' },
   sessions:        { id: 'sessions',        label: 'Sessions',   icon: MessageSquare },
   plugins:         { id: 'plugins',         label: 'Plugins',    icon: Puzzle,         shortcut: 'Ctrl+Shift+X' },
-  gitChanges:      { id: 'gitChanges',      label: 'Changes',    icon: FileDiff },
-  githubIssues:    { id: 'githubIssues',    label: 'Issues',     icon: CircleDot,      shortcut: 'Ctrl+Shift+G' },
+  gitChanges:      { id: 'gitChanges',      label: 'Changes',    icon: FileDiff,       shortcut: 'Ctrl+Shift+G' },
+  githubIssues:    { id: 'githubIssues',    label: 'Issues',     icon: CircleDot },
   githubPRs:       { id: 'githubPRs',       label: 'PRs',        icon: GitPullRequest },
   githubBranches:  { id: 'githubBranches',  label: 'Branches',   icon: GitBranch },
   githubWorktrees: { id: 'githubWorktrees', label: 'Worktrees',  icon: FolderGit2 },
@@ -80,19 +82,29 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
  * Solo panels: array of 1 (no tab bar, just title header).
  * Grouped panels: array of N (shows tab bar with those tabs).
  */
-const PANEL_GROUPS: PanelId[][] = [
-  ['tasks'],                                                              // Solo — Sub-Tasks
-  ['agentState', 'sessions', 'history', 'prompts', 'skills', 'plugins'],    // Group — Agent hub
-  ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees'],    // Group — GitHub hub
-  ['overview'],                                                           // Solo — Overview
-  ['aiFiles'],                                                            // Solo — AI Files
-  ['subframeHealth'],                                                     // Solo — SubFrame Health
-  ['pipeline'],                                                            // Solo — Pipeline
+interface PanelGroup {
+  panels: PanelId[];
+  label: string;
+}
+
+const PANEL_GROUPS: PanelGroup[] = [
+  { panels: ['tasks'],                                                                      label: 'Sub-Tasks' },
+  { panels: ['agentState', 'sessions', 'history', 'prompts', 'skills', 'plugins'],          label: 'Agent' },
+  { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees'], label: 'GitHub' },
+  { panels: ['overview'],                                                                   label: 'Overview' },
+  { panels: ['aiFiles'],                                                                    label: 'AI Files' },
+  { panels: ['subframeHealth'],                                                             label: 'Health' },
+  { panels: ['pipeline'],                                                                   label: 'Pipeline' },
 ];
 
 /** Find which group a panel belongs to */
 function getGroup(panelId: PanelId): PanelId[] {
-  return PANEL_GROUPS.find((g) => g.includes(panelId)) || [panelId];
+  return PANEL_GROUPS.find((g) => g.panels.includes(panelId))?.panels || [panelId];
+}
+
+/** Find group index for a panel */
+function getGroupIndex(panelId: PanelId): number {
+  return PANEL_GROUPS.findIndex((g) => g.panels.includes(panelId));
 }
 
 const panelComponents: Record<PanelId, React.ComponentType> = {
@@ -122,14 +134,16 @@ export function RightPanel() {
   const rightPanelWidth = useUIStore((s) => s.rightPanelWidth);
   const setRightPanelWidth = useUIStore((s) => s.setRightPanelWidth);
   const closeRightPanel = useUIStore((s) => s.closeRightPanel);
+  const [expandedDrawer, setExpandedDrawer] = useState<number | null>(null);
 
   if (!activePanel) return null;
 
   const group = getGroup(activePanel);
   const isSolo = group.length === 1;
   const activeDef = ALL_PANELS[activePanel];
+  const activeGroupIdx = getGroupIndex(activePanel);
 
-  // ── Collapsed: vertical icon strip showing only current group's icons ───
+  // ── Collapsed: vertical icon strip with drawer groups ──────────────────
   if (rightPanelCollapsed) {
     return (
       <div className="flex flex-col items-center bg-bg-primary h-full w-full border-l border-border-subtle">
@@ -144,29 +158,105 @@ export function RightPanel() {
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none flex flex-col items-center gap-1 py-1">
-          {group.map((panelId) => {
-            const def = ALL_PANELS[panelId];
-            const Icon = def.icon;
-            const isActive = activePanel === panelId;
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none flex flex-col items-center gap-0.5 py-1 w-full px-1">
+          {PANEL_GROUPS.map((pg, groupIdx) => {
+            const isMulti = pg.panels.length > 1;
+            const groupContainsActive = groupIdx === activeGroupIdx;
+            const isDrawerOpen = expandedDrawer === groupIdx;
+            const representativePanel = pg.panels[0];
+            const RepIcon = ALL_PANELS[representativePanel].icon;
+
+            if (!isMulti) {
+              // Solo group — single icon, click to expand
+              const def = ALL_PANELS[representativePanel];
+              return (
+                <button
+                  key={groupIdx}
+                  onClick={() => {
+                    setActivePanel(representativePanel);
+                    setRightPanelCollapsed(false);
+                    setExpandedDrawer(null);
+                  }}
+                  className={cn(
+                    'p-2 rounded transition-colors cursor-pointer flex-shrink-0',
+                    groupContainsActive
+                      ? 'text-accent bg-accent-subtle'
+                      : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
+                  )}
+                  title={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+                  aria-label={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+                >
+                  <RepIcon size={16} />
+                </button>
+              );
+            }
+
+            // Multi-panel group — icon with drawer toggle
             return (
-              <button
-                key={panelId}
-                onClick={() => {
-                  setActivePanel(panelId);
-                  setRightPanelCollapsed(false);
-                }}
-                className={cn(
-                  'p-2 rounded transition-colors cursor-pointer flex-shrink-0',
-                  isActive
-                    ? 'text-accent bg-accent-subtle'
-                    : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
-                )}
-                title={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
-                aria-label={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
-              >
-                <Icon size={16} />
-              </button>
+              <div key={groupIdx} className="w-full flex flex-col items-center">
+                <button
+                  onClick={() => setExpandedDrawer(isDrawerOpen ? null : groupIdx)}
+                  className={cn(
+                    'p-2 rounded transition-colors cursor-pointer flex-shrink-0 relative',
+                    groupContainsActive
+                      ? 'text-accent bg-accent-subtle'
+                      : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
+                  )}
+                  title={pg.label}
+                  aria-label={pg.label}
+                >
+                  <RepIcon size={16} />
+                  <ChevronDown
+                    size={8}
+                    className={cn(
+                      'absolute -bottom-0.5 left-1/2 -translate-x-1/2 transition-transform duration-150',
+                      isDrawerOpen ? 'rotate-180' : '',
+                      groupContainsActive ? 'text-accent/60' : 'text-text-muted'
+                    )}
+                  />
+                </button>
+
+                {/* Drawer: sub-panel icons */}
+                <AnimatePresence>
+                  {isDrawerOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.15, ease: 'easeInOut' }}
+                      className="overflow-hidden w-full"
+                    >
+                      <div className="flex flex-col items-center gap-0.5 py-1 mx-1 border-l border-border-subtle ml-3">
+                        {pg.panels.map((panelId) => {
+                          const def = ALL_PANELS[panelId];
+                          const Icon = def.icon;
+                          const isActive = activePanel === panelId;
+                          return (
+                            <button
+                              key={panelId}
+                              onClick={() => {
+                                setActivePanel(panelId);
+                                setRightPanelCollapsed(false);
+                                setExpandedDrawer(null);
+                              }}
+                              className={cn(
+                                'p-1.5 rounded transition-colors cursor-pointer flex-shrink-0',
+                                isActive
+                                  ? 'text-accent bg-accent-subtle'
+                                  : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
+                              )}
+                              title={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+                              aria-label={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+                            >
+                              <Icon size={14} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             );
           })}
         </div>

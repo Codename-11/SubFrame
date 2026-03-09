@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   Workflow,
   Bot,
+  Loader2,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -51,6 +52,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { IPC } from '../../shared/ipcChannels';
 import type { ShellInfo } from '../../shared/ipcChannels';
 import { typedInvoke } from '../lib/ipc';
+import { useSettings } from '../hooks/useSettings';
 import * as terminalRegistry from '../lib/terminalRegistry';
 
 const { ipcRenderer } = require('electron');
@@ -59,7 +61,7 @@ interface TerminalTabBarProps {
   onCreateTerminal: (shell?: string) => void;
   onCloseTerminal: (id: string) => void;
   onOverviewToggle?: () => void;
-  onTogglePanel?: (panel: 'tasks' | 'githubIssues' | 'agentState' | 'overview' | 'pipeline') => void;
+  onTogglePanel?: (panel: 'tasks' | 'gitChanges' | 'agentState' | 'overview' | 'pipeline') => void;
   projectTerminals: TerminalInfo[];
   /** Terminal IDs that overflow the grid (not visible in grid view) */
   gridOverflowIds?: Set<string>;
@@ -83,9 +85,11 @@ export function TerminalTabBar({
   const setGridLayout = useTerminalStore((s) => s.setGridLayout);
   const toggleFullView = useUIStore((s) => s.toggleFullView);
   const fullViewContent = useUIStore((s) => s.fullViewContent);
+  const { updateSetting } = useSettings();
 
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [usageData, setUsageData] = useState<UsageData | null>(null);
+  const [usageFetching, setUsageFetching] = useState(false);
   const [panelLabelsExpanded, setPanelLabelsExpanded] = useState(
     () => localStorage.getItem('terminal-panel-labels') !== 'collapsed'
   );
@@ -113,6 +117,7 @@ export function TerminalTabBar({
   // Load Claude usage data (main process handles periodic polling via settings)
   useEffect(() => {
     const handler = (_event: unknown, data: any) => {
+      setUsageFetching(false);
       // On error, preserve existing usage values if backend didn't
       if (data?.error && !(data.fiveHour || data.sevenDay)) {
         setUsageData(prev => prev?.fiveHour || prev?.sevenDay
@@ -124,12 +129,36 @@ export function TerminalTabBar({
       }
     };
     ipcRenderer.on(IPC.CLAUDE_USAGE_DATA, handler);
+    setUsageFetching(true);
     ipcRenderer.send(IPC.LOAD_CLAUDE_USAGE);
 
     return () => {
       ipcRenderer.removeListener(IPC.CLAUDE_USAGE_DATA, handler);
     };
   }, []);
+
+  // Show toast on persistent usage polling failures with option to disable
+  const persistentFailureShown = useRef(false);
+  useEffect(() => {
+    if (usageData?.persistentFailure && !persistentFailureShown.current) {
+      persistentFailureShown.current = true;
+      toast.warning('Usage polling is failing repeatedly', {
+        description: 'The Claude API usage endpoint is unreachable. You can disable auto-polling and refresh manually instead.',
+        duration: 15000,
+        action: {
+          label: 'Disable polling',
+          onClick: () => {
+            updateSetting.mutate([{ key: 'general.usagePollingInterval', value: 0 }]);
+            toast.success('Usage auto-polling disabled');
+          },
+        },
+      });
+    }
+    // Reset flag when errors clear
+    if (usageData && !usageData.error) {
+      persistentFailureShown.current = false;
+    }
+  }, [usageData?.persistentFailure, usageData?.error]);
 
   // Focus rename input when renaming starts
   useEffect(() => {
@@ -357,25 +386,35 @@ export function TerminalTabBar({
       </div>
 
       {/* Context usage bars — collapsed by default, weekly expands on hover */}
-      {usageData && (usageData.fiveHour || usageData.sevenDay || usageData.error) && (
+      {(usageFetching || (usageData && (usageData.fiveHour || usageData.sevenDay || usageData.error))) && (
         <div
           className={`group/usage flex items-center gap-2 px-2 py-0.5 bg-bg-tertiary border border-border-subtle
                      rounded-md cursor-pointer hover:bg-bg-hover hover:border-border-default transition-all
-                     flex-shrink-0 mr-1 overflow-hidden ${usageData.error && usageData.fiveHour ? 'opacity-80' : ''}`}
-          onClick={() => ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE)}
-          title={usageData.error
-            ? `${usageData.error}\n${usageData.error.includes('429') ? 'Rate limited by Anthropic API — will retry automatically' : usageData.error.includes('401') ? 'OAuth token may be expired — re-authenticate Claude Code' : usageData.error.includes('No OAuth') ? 'No OAuth token found — sign in to Claude Code first' : 'Temporary error'}${usageData.fiveHour ? '\nShowing cached data' : ''}\nClick to retry now`
-            : 'Click to refresh'}
+                     flex-shrink-0 mr-1 overflow-hidden ${usageData?.error && usageData.fiveHour ? 'opacity-80' : ''}`}
+          onClick={() => {
+            if (!usageFetching) {
+              setUsageFetching(true);
+              ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE);
+            }
+          }}
+          title={usageFetching
+            ? 'Fetching usage data…'
+            : usageData?.error
+              ? `${usageData.error}\n${usageData.error.includes('429') ? 'Rate limited by Anthropic API — will retry automatically' : usageData.error.includes('401') ? 'OAuth token may be expired — re-authenticate Claude Code' : usageData.error.includes('No OAuth') ? 'No OAuth token found — sign in to Claude Code first' : 'Temporary error'}${usageData.fiveHour ? '\nShowing cached data' : ''}\nClick to retry now`
+              : 'Click to refresh'}
         >
-          {usageData.error && (
+          {usageFetching && (
+            <Loader2 className="h-3 w-3 text-text-tertiary animate-spin flex-shrink-0" />
+          )}
+          {!usageFetching && usageData?.error && (
             <span className="h-1.5 w-1.5 rounded-full bg-warning flex-shrink-0 animate-pulse" title={usageData.fiveHour ? 'Stale data' : 'Unavailable'} />
           )}
-          {usageData.fiveHour ? (
+          {usageData?.fiveHour ? (
             <UsageItem label="Session" utilization={usageData.fiveHour.utilization} resetsAt={usageData.fiveHour.resetsAt} />
-          ) : usageData.error && (
+          ) : usageData?.error && (
             <span className="text-[10px] text-text-secondary whitespace-nowrap">Usage unavailable</span>
           )}
-          {usageData.sevenDay && (
+          {usageData?.sevenDay && (
             <div className="max-w-0 opacity-0 overflow-hidden transition-all duration-300 ease-in-out
                             group-hover/usage:max-w-[160px] group-hover/usage:opacity-100 group-hover/usage:ml-1">
               <UsageItem label="Weekly" utilization={usageData.sevenDay.utilization} resetsAt={usageData.sevenDay.resetsAt} />
@@ -495,7 +534,7 @@ export function TerminalTabBar({
             {([
               { id: 'tasks' as const, label: 'Sub-Tasks', icon: ListTodo, shortcut: 'Ctrl+Shift+S' },
               { id: 'agentState' as const, label: 'Agent', icon: Activity, shortcut: 'Ctrl+Shift+A' },
-              { id: 'githubIssues' as const, label: 'GitHub', icon: Github, shortcut: 'Ctrl+Shift+G' },
+              { id: 'gitChanges' as const, label: 'GitHub', icon: Github, shortcut: 'Ctrl+Shift+G' },
               { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
             ] as const).map((panel) => {
               const Icon = panel.icon;
@@ -608,6 +647,7 @@ interface UsageData {
   sevenDay: UsageWindow | null;
   lastUpdated?: string;
   error?: string | null;
+  persistentFailure?: boolean;
 }
 
 /** A single usage row: LABEL [BAR] PERCENT (RESET) */

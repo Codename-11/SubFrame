@@ -361,6 +361,8 @@ export interface GitBranch {
   message: string;
   isRemote: boolean;
   isCurrent: boolean;
+  /** Remote name (e.g. "origin", "upstream") or null for local branches */
+  remote: string | null;
 }
 
 /** Git branches result wrapper */
@@ -643,6 +645,8 @@ export interface ClaudeUsageData {
   sevenDay: { utilization: number; resetsAt: string | null } | null;
   lastUpdated: string;
   error: string | null;
+  /** Set after consecutive polling failures — suggests user disable polling */
+  persistentFailure?: boolean;
 }
 
 /** Shell info */
