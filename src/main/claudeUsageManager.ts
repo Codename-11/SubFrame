@@ -34,8 +34,6 @@ interface CredentialsData {
   accessToken?: string;
 }
 
-/** Base polling interval when backoff is not active (from settings) */
-const BASE_BACKOFF_MS = 30_000;
 /** Maximum backoff cap: 8 minutes */
 const MAX_BACKOFF_MS = 480_000;
 /** After this many consecutive failures, flag persistentFailure to the UI */
@@ -48,7 +46,6 @@ let cachedUsage: UsageData | null = null;
 
 /** Exponential backoff state */
 let consecutiveFailures = 0;
-let currentBackoffMs = 0;
 
 /**
  * Read the configured polling interval from settings (in seconds).
@@ -279,7 +276,6 @@ function fetchUsage(): Promise<UsageData> {
  */
 function resetBackoff(): void {
   consecutiveFailures = 0;
-  currentBackoffMs = 0;
 }
 
 /**
@@ -325,7 +321,6 @@ function scheduleNextPoll(baseMs: number): void {
   }
 
   const delay = computeBackoff(baseMs);
-  currentBackoffMs = delay;
 
   pollingTimeout = setTimeout(async () => {
     pollingTimeout = null;

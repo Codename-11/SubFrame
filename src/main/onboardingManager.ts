@@ -559,6 +559,7 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
 
       ptyManager.addOutputHandler(terminalId, (data) => {
         if (resolved || trustConfirmed) return;
+        // eslint-disable-next-line no-control-regex
         const stripped = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
 
         if (!menuReady && /enter to confirm/i.test(stripped)) {
