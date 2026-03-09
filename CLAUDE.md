@@ -127,11 +127,12 @@ Project-level hooks in `.claude/settings.json` automate sub-task awareness:
 
 After significant work (code changes, architecture decisions, new tooling), verify the SubFrame system is in sync:
 
-1. **Sub-Task** — Was this work tracked? `node scripts/task.js list` → create/complete as needed
-2. **PROJECT_NOTES.md** — Any decisions worth preserving? Ask the user
-3. **Changelog** — Does `CHANGELOG.md` (keepachangelog) have entries under `[Unreleased]`? Also update `.subframe/docs-internal/changelog.md` for detailed internal notes
-4. **STRUCTURE.json** — Source files changed? `npm run structure` (also handled by pre-commit hook)
-5. **CLAUDE.md** — Did the architecture table, modules list, or build commands change?
+1. **Quality gates** — Run `npm run check` (typecheck + lint + test) **before every commit/push**. Fix all errors before proceeding — warnings are acceptable, errors are not.
+2. **Sub-Task** — Was this work tracked? `node scripts/task.js list` → create/complete as needed
+3. **PROJECT_NOTES.md** — Any decisions worth preserving? Ask the user
+4. **Changelog** — Does `CHANGELOG.md` (keepachangelog) have entries under `[Unreleased]`? Also update `.subframe/docs-internal/changelog.md` for detailed internal notes
+5. **STRUCTURE.json** — Source files changed? `npm run structure` (also handled by pre-commit hook)
+6. **CLAUDE.md** — Did the architecture table, modules list, or build commands change?
 
 The Stop hook will flag untracked work automatically (modified `src/` files with no in-progress sub-task).
 
