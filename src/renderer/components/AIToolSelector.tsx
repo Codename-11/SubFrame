@@ -44,9 +44,13 @@ export function AIToolSelector({ onToolChange, compact = false }: AIToolSelector
 
   const handleSelectTool = useCallback(
     async (toolId: string) => {
-      await setToolMutation.mutateAsync([toolId]);
-      refetch();
-      onToolChange?.(toolId);
+      try {
+        await setToolMutation.mutateAsync([toolId]);
+        refetch();
+        onToolChange?.(toolId);
+      } catch (err) {
+        console.error('[AIToolSelector] Failed to switch tool:', err);
+      }
     },
     [setToolMutation, refetch, onToolChange]
   );

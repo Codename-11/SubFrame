@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { TerminalArea } from './TerminalArea';
@@ -17,9 +17,12 @@ import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
 
+import { cn } from '../lib/utils';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useAIToolConfig } from '../hooks/useSettings';
 import { IPC } from '../../shared/ipcChannels';
+import { typedSend } from '../lib/ipc';
+import type { UninstallResult } from '../../shared/ipcChannels';
 
 const { ipcRenderer } = require('electron');
 
@@ -45,7 +48,27 @@ export function App() {
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
   const selectAdjacentProject = useProjectStore((s) => s.selectAdjacentProject);
   const onboarding = useOnboarding();
+  const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
+  const [isRollingBack, setIsRollingBack] = useState(false);
   const { config: aiToolConfig } = useAIToolConfig();
+  // Guard: prevents auto-reopen from fighting with user's explicit close
+  const userDismissedAnalysisRef = useRef(false);
+
+  // Listen for uninstall result (rollback from onboarding dialog)
+  const onboardingResetRef = useRef(onboarding.reset);
+  onboardingResetRef.current = onboarding.reset;
+
+  useEffect(() => {
+    const handler = (_event: unknown, data: { projectPath: string; result: UninstallResult | null; error?: string }) => {
+      setIsRollingBack(false);
+      if (data.result?.success) {
+        setOnboardingDialogOpen(false);
+        onboardingResetRef.current();
+      }
+    };
+    ipcRenderer.on(IPC.SUBFRAME_UNINSTALLED, handler);
+    return () => { ipcRenderer.removeListener(IPC.SUBFRAME_UNINSTALLED, handler); };
+  }, []);
 
   // Keyboard shortcuts — matching original src/renderer/index.js
   const handleKeyDown = useCallback(
@@ -192,12 +215,28 @@ export function App() {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.projectPath) {
-        onboarding.detect(detail.projectPath);
+        onboarding.detect(detail.projectPath).catch(() => {
+          // Error already captured in hook state
+        });
+        setOnboardingDialogOpen(true);
       }
     };
     window.addEventListener('start-onboarding', handler);
     return () => window.removeEventListener('start-onboarding', handler);
   }, [onboarding]);
+
+  // Auto-open dialog when detection completes (e.g. from SubFrame Health "AI Analysis" button)
+  useEffect(() => {
+    if (onboarding.detection) setOnboardingDialogOpen(true);
+  }, [onboarding.detection]);
+
+  // Re-open dialog when analysis results arrive (e.g. after user clicked "Open Terminal")
+  // Only auto-reopens if the user hasn't explicitly dismissed it
+  useEffect(() => {
+    if (onboarding.analysisResult && !onboardingDialogOpen && !userDismissedAnalysisRef.current) {
+      setOnboardingDialogOpen(true);
+    }
+  }, [onboarding.analysisResult, onboardingDialogOpen]);
 
   // Compute sidebar pixel width for CSS
   const resolvedSidebarWidth =
@@ -225,6 +264,43 @@ export function App() {
       <div className="flex flex-1 min-w-0">
         {/* Terminal area — always present, takes remaining space */}
         <div className="flex-1 min-w-0 flex flex-col bg-bg-deep">
+          {/* Analysis banner — shown when dialog is closed but analysis is active, errored, or results are ready */}
+          {!onboardingDialogOpen && (onboarding.isAnalyzing || onboarding.error || (onboarding.analysisResult && !onboarding.importResult)) && (
+            <div className={cn(
+              "flex items-center gap-2 px-3 py-1.5 border-b shrink-0",
+              onboarding.error ? "bg-error/10 border-error/20" : "bg-accent/10 border-accent/20"
+            )}>
+              {onboarding.isAnalyzing ? (
+                <>
+                  <div className="size-3 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                  <span className="text-xs text-text-secondary">
+                    AI analysis running...
+                  </span>
+                </>
+              ) : onboarding.error ? (
+                <>
+                  <span className="size-2 rounded-full bg-error" />
+                  <span className="text-xs text-text-secondary">
+                    Analysis failed
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="size-2 rounded-full bg-success" />
+                  <span className="text-xs text-text-secondary">
+                    Analysis complete — ready to review
+                  </span>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => { userDismissedAnalysisRef.current = false; setOnboardingDialogOpen(true); }}
+                className="ml-auto text-xs text-accent hover:text-accent/80 font-medium transition-colors"
+              >
+                {onboarding.isAnalyzing ? 'View Progress' : onboarding.error ? 'View Error' : 'Review Results'}
+              </button>
+            </div>
+          )}
           <div id="terminal-container-react" className="flex-1 min-h-0">
             <ErrorBoundary name="Terminal"><TerminalArea /></ErrorBoundary>
           </div>
@@ -275,22 +351,53 @@ export function App() {
 
       {/* Onboarding dialog for project intelligence */}
       <OnboardingDialog
-        open={onboarding.detection !== null}
-        onOpenChange={(open) => { if (!open) onboarding.reset(); }}
+        open={onboardingDialogOpen}
+        onOpenChange={(open) => {
+          setOnboardingDialogOpen(open);
+          // Track explicit user dismissal to prevent auto-reopen bounce
+          if (!open && onboarding.analysisResult) userDismissedAnalysisRef.current = true;
+          // Full-reset only when closing and analysis isn't running
+          if (!open && !onboarding.isAnalyzing) onboarding.reset();
+        }}
         detection={onboarding.detection}
         analysisResult={onboarding.analysisResult}
         progress={onboarding.progress}
         terminalId={onboarding.terminalId}
         isAnalyzing={onboarding.isAnalyzing}
+        isImporting={onboarding.isImporting}
         error={onboarding.error}
+        importResult={onboarding.importResult}
         aiToolName={aiToolConfig?.activeTool.name || 'Claude Code'}
-        onAnalyze={() => { if (currentProjectPath) onboarding.analyze(currentProjectPath); }}
+        onAnalyze={(options) => { if (currentProjectPath) { userDismissedAnalysisRef.current = false; onboarding.analyze(currentProjectPath, options); } }}
+        onPreviewPrompt={(options) => currentProjectPath ? onboarding.previewPrompt(currentProjectPath, options) : Promise.resolve({ prompt: '', contextSize: 0 })}
+        onBrowseFiles={(type) => currentProjectPath ? onboarding.browseFiles(currentProjectPath, type) : Promise.resolve([])}
+        onRetry={() => onboarding.retry()}
         onImport={(selections) => {
           if (currentProjectPath && onboarding.analysisResult) {
             onboarding.importResults(currentProjectPath, onboarding.analysisResult, selections);
           }
         }}
         onCancel={() => { if (currentProjectPath) onboarding.cancel(currentProjectPath); }}
+        onRollback={() => {
+          if (currentProjectPath) {
+            setIsRollingBack(true);
+            // Cancel any running analysis first
+            if (onboarding.isAnalyzing) onboarding.cancel(currentProjectPath);
+            typedSend(IPC.UNINSTALL_SUBFRAME, {
+              projectPath: currentProjectPath,
+              options: {
+                removeClaudeHooks: true,
+                removeGitHooks: true,
+                removeBacklinks: true,
+                removeAgentsMd: true,
+                removeClaudeSkills: true,
+                removeSubframeDir: true,
+                dryRun: false,
+              },
+            });
+          }
+        }}
+        isRollingBack={isRollingBack}
         onViewTerminal={() => {
           if (onboarding.terminalId) {
             // Close right panel and switch to the analysis terminal

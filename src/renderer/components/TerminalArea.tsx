@@ -172,19 +172,21 @@ export function TerminalArea() {
   useEffect(() => {
     const handler = (
       _event: unknown,
-      data: { terminalId?: string; success: boolean; error?: string }
+      data: { terminalId?: string; success: boolean; error?: string; projectPath?: string; name?: string; background?: boolean }
     ) => {
-      // Clear safety timeout and guard
-      clearTimeout((creatingTerminal as any)._safetyTimeout);
-      creatingTerminal.current = false;
+      // Only clear the user-initiated creation guard for non-background terminals
+      if (!data.background) {
+        clearTimeout((creatingTerminal as any)._safetyTimeout);
+        creatingTerminal.current = false;
+      }
 
       if (data.success && data.terminalId) {
         terminalCounterRef.current += 1;
         addTerminal({
           id: data.terminalId,
-          name: `Terminal ${terminalCounterRef.current}`,
-          projectPath: currentProjectPath ?? '',
-          isActive: true,
+          name: data.name || `Terminal ${terminalCounterRef.current}`,
+          projectPath: data.projectPath || currentProjectPath || '',
+          isActive: !data.background,
         });
       } else if (data.error) {
         toast.error(`Failed to create terminal: ${data.error}`);

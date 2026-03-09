@@ -191,6 +191,8 @@ export const IPC = {
   IMPORT_ONBOARDING_RESULTS: 'import-onboarding-results',
   CANCEL_ONBOARDING_ANALYSIS: 'cancel-onboarding-analysis',
   ONBOARDING_PROGRESS: 'onboarding-progress',
+  GET_ONBOARDING_PROMPT_PREVIEW: 'get-onboarding-prompt-preview',
+  BROWSE_ONBOARDING_FILES: 'browse-onboarding-files',
 
   // Prompt Library
   LOAD_PROMPTS: 'load-prompts',
@@ -708,7 +710,7 @@ export interface OnboardingAnalysisResult {
 /** Progress event during onboarding analysis */
 export interface OnboardingProgressEvent {
   projectPath: string;
-  phase: 'detecting' | 'gathering' | 'analyzing' | 'parsing' | 'importing' | 'done' | 'error';
+  phase: 'detecting' | 'gathering' | 'analyzing' | 'parsing' | 'importing' | 'imported' | 'done' | 'error';
   message: string;
   progress: number;
   /** Set once the analysis terminal is created, so the renderer can focus it immediately */
@@ -727,6 +729,14 @@ export interface OnboardingImportSelections {
   structure: boolean;
   projectNotes: boolean;
   taskIds: number[];
+}
+
+/** Options for customizing the AI analysis */
+export interface OnboardingAnalysisOptions {
+  /** Additional user-provided instructions appended to the prompt */
+  customContext?: string;
+  /** Extra file/directory paths to include in the context (absolute paths) */
+  extraFiles?: string[];
 }
 
 // ─── Updater Types ───────────────────────────────────────────────────────────
@@ -942,7 +952,9 @@ export interface IPCHandleMap {
 
   // Onboarding
   [IPC.DETECT_PROJECT_INTELLIGENCE]: { args: [projectPath: string]; return: OnboardingDetectionResult };
-  [IPC.RUN_ONBOARDING_ANALYSIS]: { args: [projectPath: string]; return: { terminalId: string } };
+  [IPC.RUN_ONBOARDING_ANALYSIS]: { args: [projectPath: string, options?: OnboardingAnalysisOptions]; return: { terminalId: string } };
+  [IPC.GET_ONBOARDING_PROMPT_PREVIEW]: { args: [projectPath: string, options?: OnboardingAnalysisOptions]; return: { prompt: string; contextSize: number } };
+  [IPC.BROWSE_ONBOARDING_FILES]: { args: [projectPath: string, type: 'file' | 'directory']; return: string[] };
   [IPC.IMPORT_ONBOARDING_RESULTS]: { args: [payload: { projectPath: string; results: OnboardingAnalysisResult; selections: OnboardingImportSelections }]; return: OnboardingImportResult };
 
   // Prompt Library

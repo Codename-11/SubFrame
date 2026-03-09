@@ -34,6 +34,15 @@ interface PTYInstance {
 const CLAUDE_OUTPUT_BUFFERS = new Map<string, string>();
 const CLAUDE_TIMEOUT_HANDLES = new Map<string, ReturnType<typeof setTimeout>>();
 const CLAUDE_BUFFER_MAX = 2048;
+
+// ─── Output Capture ──────────────────────────────────────────────────────────
+// Allows other main-process modules (e.g. onboardingManager) to accumulate
+// raw PTY output for a specific terminal without piping.
+const captureBuffers = new Map<string, string[]>();
+
+// ─── Output Handlers ─────────────────────────────────────────────────────────
+// Per-terminal callbacks for real-time output monitoring (e.g. trust prompt detection).
+const outputHandlers = new Map<string, (data: string) => void>();
 /** How long (ms) after the last Claude pattern match before marking inactive */
 const CLAUDE_INACTIVE_DELAY = 8000;
 
@@ -318,6 +327,12 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
       mainWindow.webContents.send(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
     }
     detectClaudeOutput(terminalId, data);
+    // Accumulate output if this terminal is being captured
+    const captureBuf = captureBuffers.get(terminalId);
+    if (captureBuf) captureBuf.push(data);
+    // Invoke per-terminal output handler if registered
+    const handler = outputHandlers.get(terminalId);
+    if (handler) handler(data);
   });
 
   // Handle PTY exit
@@ -326,6 +341,8 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     ptyInstances.delete(terminalId);
     // Clean up Claude detection + session correlation state
     CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+    captureBuffers.delete(terminalId);
+    outputHandlers.delete(terminalId);
     terminalSessionMap.delete(terminalId);
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
     if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
@@ -392,8 +409,10 @@ function destroyTerminal(terminalId: string): void {
   if (instance) {
     instance.pty.kill();
     ptyInstances.delete(terminalId);
-    // Clean up Claude detection state
+    // Clean up Claude detection + capture state
     CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+    captureBuffers.delete(terminalId);
+    outputHandlers.delete(terminalId);
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
     if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     console.log(`Destroyed terminal ${terminalId}`);
@@ -409,8 +428,10 @@ function destroyAll(): void {
     console.log(`Destroyed terminal ${terminalId}`);
   }
   ptyInstances.clear();
-  // Clean up all Claude detection state
+  // Clean up all detection + capture state
   CLAUDE_OUTPUT_BUFFERS.clear();
+  captureBuffers.clear();
+  outputHandlers.clear();
   for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
   CLAUDE_TIMEOUT_HANDLES.clear();
 }
@@ -504,9 +525,35 @@ function setupIPC(ipcMain: IpcMain): void {
   });
 }
 
+// ─── Output Capture API ──────────────────────────────────────────────────────
+
+/** Start accumulating raw PTY output for a terminal. */
+function startCapturing(terminalId: string): void {
+  captureBuffers.set(terminalId, []);
+}
+
+/** Get all accumulated output and stop capturing. Returns raw PTY data. */
+function stopCapturing(terminalId: string): string {
+  const chunks = captureBuffers.get(terminalId);
+  captureBuffers.delete(terminalId);
+  return chunks ? chunks.join('') : '';
+}
+
+/** Register a callback invoked on each PTY data chunk for a terminal. */
+function addOutputHandler(terminalId: string, handler: (data: string) => void): void {
+  outputHandlers.set(terminalId, handler);
+}
+
+/** Remove the output handler for a terminal. */
+function removeOutputHandler(terminalId: string): void {
+  outputHandlers.delete(terminalId);
+}
+
 export {
   init, createTerminal, writeToTerminal, resizeTerminal,
   destroyTerminal, destroyAll, getTerminalCount, getTerminalIds,
   hasTerminal, isClaudeActive, getTerminalsByProject, getTerminalInfo,
-  getAvailableShells, setupIPC
+  getAvailableShells, setupIPC,
+  startCapturing, stopCapturing,
+  addOutputHandler, removeOutputHandler
 };

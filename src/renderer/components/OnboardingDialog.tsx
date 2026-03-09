@@ -1,26 +1,23 @@
 /**
  * OnboardingDialog — Multi-step dialog for project intelligence onboarding.
  *
- * Step 1: Detection summary (what files/configs were found)
- * Step 2: Analysis in progress (phase tracking + terminal link)
- * Step 3: Results review (select what to import)
+ * Persistent stepper shows all 4 steps with status indicators.
+ * Steps: Detect → Analyze (AI) → Review & Import → Complete
+ *
+ * Users can skip AI analysis, go back to rerun, and rollback initialization.
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from './ui/dialog';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
-import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
-import { toast } from 'sonner';
 import {
   Loader2,
   Search,
@@ -32,13 +29,45 @@ import {
   Settings2,
   Terminal,
   AlertCircle,
+  RotateCcw,
+  Undo2,
+  PartyPopper,
+  SkipForward,
+  ChevronRight,
+  X,
+  FolderOpen,
+  File,
+  Eye,
+  ChevronDown,
 } from 'lucide-react';
+import { useIPCEvent } from '../hooks/useIPCListener';
+import { IPC } from '../../shared/ipcChannels';
 import type {
   OnboardingDetectionResult,
   OnboardingAnalysisResult,
   OnboardingImportSelections,
+  OnboardingImportResult,
+  OnboardingAnalysisOptions,
   DetectedIntelligence,
 } from '../../shared/ipcChannels';
+
+// ── Step definitions ────────────────────────────────────────────────────────
+
+type StepIndex = 0 | 1 | 2 | 3;
+type StepStatus = 'completed' | 'active' | 'pending' | 'skipped' | 'error';
+
+interface StepDef {
+  label: string;
+  subtitle: string;
+  icon: typeof Search;
+}
+
+const STEPS: StepDef[] = [
+  { label: 'Detect', subtitle: 'Scan project files', icon: Search },
+  { label: 'Analyze', subtitle: 'AI-powered analysis', icon: Brain },
+  { label: 'Review', subtitle: 'Select & import', icon: FileText },
+  { label: 'Complete', subtitle: 'Ready to go', icon: PartyPopper },
+];
 
 // ── Category config ──────────────────────────────────────────────────────────
 
@@ -67,12 +96,19 @@ interface OnboardingDialogProps {
   progress: { phase: string; message: string; progress: number } | null;
   terminalId: string | null;
   isAnalyzing: boolean;
+  isImporting: boolean;
   error: string | null;
   aiToolName: string;
-  onAnalyze: () => void;
+  onAnalyze: (options?: OnboardingAnalysisOptions) => void;
   onImport: (selections: OnboardingImportSelections) => void;
   onCancel: () => void;
   onViewTerminal: () => void;
+  onRetry: () => void;
+  onRollback: () => void;
+  isRollingBack: boolean;
+  importResult: OnboardingImportResult | null;
+  onPreviewPrompt: (options?: OnboardingAnalysisOptions) => Promise<{ prompt: string; contextSize: number }>;
+  onBrowseFiles: (type: 'file' | 'directory') => Promise<string[]>;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -85,31 +121,64 @@ export function OnboardingDialog({
   progress,
   terminalId,
   isAnalyzing,
+  isImporting,
   error,
   aiToolName,
   onAnalyze,
   onImport,
   onCancel,
   onViewTerminal,
+  onRetry,
+  onRollback,
+  isRollingBack,
+  importResult,
+  onPreviewPrompt,
+  onBrowseFiles,
 }: OnboardingDialogProps) {
-  const [step, setStep] = useState<'detect' | 'analyze' | 'review'>('detect');
+  const [activeStep, setActiveStep] = useState<StepIndex>(0);
+  const [analysisSkipped, setAnalysisSkipped] = useState(false);
   const [selections, setSelections] = useState<OnboardingImportSelections>({
     structure: true,
     projectNotes: true,
     taskIds: [],
   });
 
-  // Auto-advance steps based on external state changes
+  // Inline terminal output state
+  const [showOutput, setShowOutput] = useState(false);
+  const [outputLines, setOutputLines] = useState<string[]>([]);
+  const outputRef = useRef<HTMLDivElement>(null);
+  const suppressCancelRef = useRef(false);
+  const [confirmRollback, setConfirmRollback] = useState(false);
+
+  // Advanced analysis options
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [customContext, setCustomContext] = useState('');
+  const [extraFiles, setExtraFiles] = useState<{path: string; type: 'file' | 'directory'}[]>([]);
+  const [promptPreview, setPromptPreview] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  // ── Auto-advance steps based on external state ──
+
+  // Detection arrived → step 0 is done, advance to step 1
+  useEffect(() => {
+    if (detection && activeStep === 0) {
+      setActiveStep(1);
+    }
+  }, [detection, activeStep]);
+
+  // Analysis started → go to step 1
   useEffect(() => {
     if (isAnalyzing) {
-      setStep('analyze');
+      setActiveStep(1);
+      setAnalysisSkipped(false);
     }
   }, [isAnalyzing]);
 
+  // Analysis completed → advance to review
   useEffect(() => {
     if (analysisResult) {
-      setStep('review');
-      // Initialize taskIds to select all suggested tasks
+      setActiveStep(2);
+      setAnalysisSkipped(false);
       setSelections((prev) => ({
         ...prev,
         taskIds: analysisResult.suggestedTasks.map((_, i) => i),
@@ -117,195 +186,549 @@ export function OnboardingDialog({
     }
   }, [analysisResult]);
 
-  // Group detected files by category
+  // Import completed → advance to complete
+  useEffect(() => {
+    if (importResult) {
+      setActiveStep(3);
+    }
+  }, [importResult]);
+
+  // Reset when retry clears state
+  useEffect(() => {
+    if (!isAnalyzing && !analysisResult && !error && detection) {
+      setActiveStep(1);
+    }
+  }, [isAnalyzing, analysisResult, error, detection]);
+
+  // ── Terminal output capture ──
+
+  useIPCEvent<{ terminalId: string; data: string }>(
+    IPC.TERMINAL_OUTPUT_ID,
+    useCallback((data: { terminalId: string; data: string }) => {
+      if (data.terminalId === terminalId) {
+        const clean = data.data
+          .replace(
+            // eslint-disable-next-line no-control-regex
+            /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
+            ''
+          )
+          .replace(
+            // eslint-disable-next-line no-control-regex
+            /\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g,
+            ''
+          )
+          .replace(
+            // eslint-disable-next-line no-control-regex
+            /[\u0000-\u001f\u007f]/g,
+            ''
+          );
+        const lines = clean.split('\n').filter(l => l.trim().length > 0);
+        if (lines.length > 0) {
+          setOutputLines(prev => {
+            const next = [...prev, ...lines];
+            return next.length > 200 ? next.slice(-200) : next;
+          });
+        }
+      }
+    }, [terminalId])
+  );
+
+  // Auto-scroll output
+  useEffect(() => {
+    if (showOutput && outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+    }
+  }, [outputLines, showOutput]);
+
+  // Reset transient state on step change
+  useEffect(() => {
+    setConfirmRollback(false);
+    if (activeStep <= 1) {
+      setOutputLines([]);
+      setShowOutput(false);
+    }
+  }, [activeStep]);
+
+  // Clear accumulated output when terminal changes (new analysis run)
+  useEffect(() => {
+    if (terminalId) {
+      setOutputLines([]);
+    }
+  }, [terminalId]);
+
+  // Reset local state when dialog opens fresh
+  useEffect(() => {
+    if (open) {
+      suppressCancelRef.current = false;
+      setAnalysisSkipped(false);
+      setConfirmRollback(false);
+      setShowAdvanced(false);
+      setPromptPreview(null);
+      setIsLoadingPreview(false);
+      // Note: don't reset extraFiles/customContext — preserve user's configuration across reopens
+    }
+  }, [open]);
+
+  // Clear stale prompt preview when inputs change
+  const extraFilesKey = extraFiles.map(f => f.path).join('\0');
+  useEffect(() => {
+    setPromptPreview(null);
+  }, [customContext, extraFilesKey]);
+
+  // ── Computed state ──
+
   const groupedDetections = useMemo(() => {
     if (!detection) return {};
     const groups: Record<string, DetectedIntelligence[]> = {};
     for (const item of detection.detected) {
-      if (!groups[item.category]) {
-        groups[item.category] = [];
-      }
+      if (!groups[item.category]) groups[item.category] = [];
       groups[item.category].push(item);
     }
     return groups;
   }, [detection]);
 
-  // Determine current phase index for the progress indicator
   const currentPhaseIndex = useMemo(() => {
     if (!progress) return -1;
     return ANALYSIS_PHASES.indexOf(progress.phase as AnalysisPhase);
   }, [progress]);
 
-  // Handle task checkbox toggle
+  // Compute status for each step
+  const stepStatuses: StepStatus[] = useMemo(() => {
+    const s: StepStatus[] = ['pending', 'pending', 'pending', 'pending'];
+
+    // Step 0: Detect
+    if (detection) s[0] = 'completed';
+    if (activeStep === 0) s[0] = 'active';
+
+    // Step 1: Analyze
+    if (activeStep === 1) {
+      s[1] = error ? 'error' : 'active';
+    } else if (analysisResult) {
+      s[1] = 'completed';
+    } else if (analysisSkipped) {
+      s[1] = 'skipped';
+    }
+
+    // Step 2: Review
+    if (activeStep === 2) {
+      s[2] = 'active';
+    } else if (importResult) {
+      s[2] = 'completed';
+    } else if (analysisSkipped) {
+      s[2] = 'skipped';
+    }
+
+    // Step 3: Complete
+    if (activeStep === 3) {
+      s[3] = 'active';
+    } else if (analysisSkipped && !importResult) {
+      s[3] = 'skipped';
+    }
+
+    return s;
+  }, [activeStep, detection, analysisResult, analysisSkipped, error, importResult]);
+
   const toggleTask = (index: number) => {
-    setSelections((prev) => {
-      const has = prev.taskIds.includes(index);
-      return {
-        ...prev,
-        taskIds: has
-          ? prev.taskIds.filter((id) => id !== index)
-          : [...prev.taskIds, index],
-      };
-    });
+    setSelections((prev) => ({
+      ...prev,
+      taskIds: prev.taskIds.includes(index)
+        ? prev.taskIds.filter((id) => id !== index)
+        : [...prev.taskIds, index],
+    }));
   };
 
-  // Determine dialog max width based on step
-  const dialogMaxWidth = step === 'review' ? 'sm:max-w-2xl' : 'sm:max-w-lg';
+  // Navigate to a step (only completed/error steps are clickable to go back)
+  const navigateToStep = (index: StepIndex) => {
+    const status = stepStatuses[index];
+    if (status === 'completed' || status === 'error' || status === 'skipped') {
+      // Going back to analyze: reset analysis state so user can rerun
+      if (index === 1 && !isAnalyzing) {
+        onRetry();
+        setAnalysisSkipped(false);
+      }
+      setActiveStep(index);
+    }
+  };
+
+  const handleSkipAnalysis = () => {
+    setAnalysisSkipped(true);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => {
-      // If closing during analysis, cancel to avoid orphaned terminals
-      if (!nextOpen && isAnalyzing) {
+      if (!nextOpen && (isAnalyzing || isImporting || isRollingBack) && !suppressCancelRef.current) {
         onCancel();
       }
+      suppressCancelRef.current = false;
       onOpenChange(nextOpen);
     }}>
-      <DialogContent
-        className={cn(dialogMaxWidth, 'bg-bg-primary border-border-subtle')}
-      >
-        {/* ── Step 1: Detection Summary ─────────────────────────────────── */}
-        {step === 'detect' && detection && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-text-primary">
-                <Search className="size-5 text-accent" />
-                Project Intelligence Detected
-              </DialogTitle>
-              <DialogDescription className="text-text-secondary">
-                Found existing project configuration and documentation that can
-                be analyzed to bootstrap SubFrame.
-              </DialogDescription>
-            </DialogHeader>
+      <DialogContent className="sm:max-w-2xl bg-bg-primary border-border-subtle !flex !flex-col max-h-[80vh] overflow-hidden p-0 gap-0">
+        <DialogTitle className="sr-only">Project Setup</DialogTitle>
+        {/* ── Stepper ──────────────────────────────────────────────────── */}
+        <div className="shrink-0 flex items-start justify-between gap-1 px-7 pt-7 pb-2">
+          {STEPS.map((stepDef, index) => {
+            const status = stepStatuses[index];
+            const isClickable =
+              index !== activeStep &&
+              !isAnalyzing &&
+              !isImporting &&
+              (status === 'completed' || status === 'error' || status === 'skipped');
 
-            <div className="space-y-3">
-              {/* Detected file groups */}
-              {Object.entries(groupedDetections).map(([category, items]) => {
-                const config = CATEGORY_CONFIG[category] ?? {
-                  icon: FileText,
-                  color: 'text-text-muted',
-                  label: category,
-                };
-                const Icon = config.icon;
-                return (
+            return (
+              <div key={index} className="flex items-start flex-1 min-w-0">
+                {/* Step indicator + labels */}
+                <button
+                  type="button"
+                  onClick={() => isClickable && navigateToStep(index as StepIndex)}
+                  disabled={!isClickable}
+                  className={cn(
+                    'flex flex-col items-center gap-1 min-w-0 flex-1 group',
+                    isClickable && 'cursor-pointer',
+                    !isClickable && 'cursor-default'
+                  )}
+                >
+                  {/* Circle */}
                   <div
-                    key={category}
-                    className="rounded-md border border-border-subtle bg-bg-secondary p-3"
+                    className={cn(
+                      'relative flex items-center justify-center size-8 rounded-full border-2 transition-all duration-200',
+                      status === 'completed' && 'border-success bg-success/10',
+                      status === 'active' && 'border-accent bg-accent/10',
+                      status === 'error' && 'border-error bg-error/10',
+                      status === 'skipped' && 'border-border-default bg-bg-tertiary border-dashed',
+                      status === 'pending' && 'border-border-default bg-bg-secondary',
+                      isClickable && 'group-hover:ring-2 group-hover:ring-accent/20'
+                    )}
                   >
-                    <div className="mb-1.5 flex items-center gap-2">
-                      <Icon className={cn('size-4', config.color)} />
-                      <span className="text-sm font-medium text-text-primary">
-                        {config.label}
-                      </span>
-                      <Badge
-                        variant="secondary"
-                        className="ml-auto text-[10px] px-1.5 py-0"
-                      >
-                        {items.length}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {items.map((item) => (
+                    {status === 'completed' && (
+                      <CheckCircle className="size-4 text-success" />
+                    )}
+                    {status === 'active' && !isAnalyzing && !isImporting && (
+                      <stepDef.icon className="size-4 text-accent" />
+                    )}
+                    {status === 'active' && (isAnalyzing || isImporting) && (
+                      <Loader2 className="size-4 text-accent animate-spin" />
+                    )}
+                    {status === 'error' && (
+                      <AlertCircle className="size-4 text-error" />
+                    )}
+                    {status === 'skipped' && (
+                      <SkipForward className="size-3.5 text-text-muted" />
+                    )}
+                    {status === 'pending' && (
+                      <span className="text-xs font-medium text-text-muted">{index + 1}</span>
+                    )}
+                  </div>
+
+                  {/* Label */}
+                  <span
+                    className={cn(
+                      'text-xs font-medium leading-tight',
+                      status === 'active' && 'text-text-primary',
+                      status === 'completed' && 'text-success',
+                      status === 'error' && 'text-error',
+                      status === 'skipped' && 'text-text-muted',
+                      status === 'pending' && 'text-text-muted'
+                    )}
+                  >
+                    {stepDef.label}
+                  </span>
+
+                  {/* Subtitle */}
+                  <span className="text-[10px] text-text-muted leading-tight text-center">
+                    {status === 'skipped' ? 'Skipped' : stepDef.subtitle}
+                  </span>
+                </button>
+
+                {/* Connector line */}
+                {index < STEPS.length - 1 && (
+                  <div className="flex items-center pt-3.5 px-0.5 flex-shrink-0">
+                    <div
+                      className={cn(
+                        'h-0.5 w-4 sm:w-6 rounded-full transition-colors',
+                        stepStatuses[index] === 'completed' ? 'bg-success/40' : 'bg-border-default'
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="shrink-0 h-px bg-border-subtle" />
+
+        {/* ── Step Content ─────────────────────────────────────────────── */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+
+          {/* ── Step 0: Detection Summary ──────────────────────────────── */}
+          {activeStep === 0 && !detection && (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              {error ? (
+                <>
+                  <AlertCircle className="size-6 text-error" />
+                  <p className="text-sm text-error">Detection failed</p>
+                  <p className="text-xs text-text-muted text-center max-w-xs">{error}</p>
+                </>
+              ) : (
+                <>
+                  <Loader2 className="size-6 text-accent animate-spin" />
+                  <p className="text-sm text-text-secondary">Scanning project files...</p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Step 1: AI Analysis ────────────────────────────────────── */}
+          {activeStep === 1 && (
+            <div className="space-y-4">
+              {/* Detection summary (compact, always visible as context) */}
+              {detection && (
+                <div className="rounded-md border border-border-subtle bg-bg-secondary p-2.5">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Search className="size-3.5 text-accent" />
+                    <span className="text-xs font-medium text-text-primary">
+                      {detection.detected.length} intelligence files detected
+                    </span>
+                    <span className="text-[10px] text-text-muted ml-auto">
+                      {detection.sourceFileCount} source files • {detection.primaryLanguage}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(groupedDetections).map(([category, items]) => {
+                      const config = CATEGORY_CONFIG[category] ?? {
+                        icon: FileText, color: 'text-text-muted', label: category,
+                      };
+                      const Icon = config.icon;
+                      return (
                         <span
-                          key={item.path}
-                          className="inline-flex items-center rounded bg-bg-tertiary px-1.5 py-0.5 text-xs text-text-secondary font-mono"
+                          key={category}
+                          className="inline-flex items-center gap-1 rounded bg-bg-tertiary px-1.5 py-0.5 text-[10px] text-text-secondary"
                         >
-                          {item.label}
+                          <Icon className={cn('size-3', config.color)} />
+                          {config.label} ({items.length})
                         </span>
-                      ))}
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Not worth analyzing warning */}
+              {detection && !detection.worthAnalyzing && (
+                <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-2.5">
+                  <AlertCircle className="size-4 text-warning shrink-0 mt-0.5" />
+                  <p className="text-xs text-warning">
+                    Not enough project intelligence files for meaningful analysis.
+                    Consider adding a README, CLAUDE.md, or other documentation first.
+                  </p>
+                </div>
+              )}
+
+              {/* Analysis not started yet */}
+              {!isAnalyzing && !error && !analysisResult && (
+                <div className="space-y-3">
+                  <div className="flex flex-col items-center py-3 gap-2">
+                    <Brain className="size-8 text-accent/60" />
+                    <div className="text-center">
+                      <p className="text-sm text-text-primary font-medium">
+                        Run AI Analysis
+                      </p>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        {aiToolName} will analyze your project to generate structure docs, notes, and tasks
+                      </p>
                     </div>
                   </div>
-                );
-              })}
 
-              {/* Stats line */}
-              <p className="text-xs text-text-muted">
-                {detection.sourceFileCount} source files
-                {' \u2022 '}
-                Primary: {detection.primaryLanguage}
-                {' \u2022 '}
-                Git: {detection.hasGit ? 'Yes' : 'No'}
-              </p>
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onOpenChange(false)}
-              >
-                Skip
-              </Button>
-              <Button size="sm" onClick={onAnalyze} disabled={isAnalyzing}>
-                Analyze with {aiToolName}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-
-        {/* ── Step 2: Analysis in Progress ──────────────────────────────── */}
-        {step === 'analyze' && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-text-primary">
-                <Brain className="size-5 text-accent" />
-                Analyzing Project...
-              </DialogTitle>
-              <DialogDescription className="text-text-secondary">
-                Running AI analysis to understand your project structure,
-                conventions, and potential tasks.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              {/* Phase steps */}
-              <div className="space-y-2">
-                {ANALYSIS_PHASES.map((phase, index) => {
-                  const isCompleted = index < currentPhaseIndex;
-                  const isCurrent = index === currentPhaseIndex;
-                  const isPending = index > currentPhaseIndex;
-
-                  return (
-                    <div
-                      key={phase}
-                      className="flex items-center gap-2.5"
+                  {/* ── Advanced Options (collapsible) ──────────────────── */}
+                  <div className="rounded-md border border-border-subtle bg-bg-secondary">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced(!showAdvanced)}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:text-text-primary transition-colors"
                     >
-                      {isCompleted && (
-                        <CheckCircle className="size-4 text-success shrink-0" />
+                      <ChevronDown className={cn('size-3.5 transition-transform', showAdvanced && 'rotate-180')} />
+                      <span className="font-medium">Advanced Options</span>
+                      {(customContext || extraFiles.length > 0) && (
+                        <span className="text-[10px] text-accent ml-auto">customized</span>
                       )}
-                      {isCurrent && (
-                        <Loader2 className="size-4 text-accent animate-spin shrink-0" />
-                      )}
-                      {isPending && (
-                        <div className="size-4 rounded-full border border-border-default shrink-0" />
-                      )}
-                      <span
-                        className={cn(
-                          'text-sm capitalize',
-                          isCompleted && 'text-text-secondary',
-                          isCurrent && 'text-text-primary font-medium',
-                          isPending && 'text-text-muted'
-                        )}
-                      >
-                        {phase}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                    </button>
 
-              {/* Progress bar */}
-              <div className="h-1 w-full overflow-hidden rounded-full bg-bg-tertiary">
-                <div
-                  className="h-full rounded-full bg-accent transition-all duration-300"
-                  style={{ width: `${progress?.progress ?? 0}%` }}
-                />
-              </div>
+                    {showAdvanced && (
+                      <div className="px-3 pb-3 space-y-3 border-t border-border-subtle pt-2">
+                        {/* Extra files/directories */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-[11px] font-medium text-text-secondary">
+                              Additional Context Files
+                            </label>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={async () => {
+                                  const paths = await onBrowseFiles('file');
+                                  if (paths.length > 0) {
+                                    setExtraFiles(prev => {
+                                      const existing = new Set(prev.map(f => f.path));
+                                      const newEntries = paths.filter(p => !existing.has(p)).map(p => ({ path: p, type: 'file' as const }));
+                                      return [...prev, ...newEntries];
+                                    });
+                                  }
+                                }}
+                                title="Add files"
+                              >
+                                <File className="size-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={async () => {
+                                  const paths = await onBrowseFiles('directory');
+                                  if (paths.length > 0) {
+                                    setExtraFiles(prev => {
+                                      const existing = new Set(prev.map(f => f.path));
+                                      const newEntries = paths.filter(p => !existing.has(p)).map(p => ({ path: p, type: 'directory' as const }));
+                                      return [...prev, ...newEntries];
+                                    });
+                                  }
+                                }}
+                                title="Add directories"
+                              >
+                                <FolderOpen className="size-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          {extraFiles.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {extraFiles.map((entry) => {
+                                const name = entry.path.split(/[/\\]/).pop() || entry.path;
+                                return (
+                                  <span
+                                    key={entry.path}
+                                    className="inline-flex items-center gap-1 rounded-md bg-bg-tertiary border border-border-subtle px-2 py-0.5 text-[11px] text-text-secondary group"
+                                    title={entry.path}
+                                  >
+                                    {entry.type === 'directory' ? (
+                                      <FolderOpen className="size-3 text-amber-400 shrink-0" />
+                                    ) : (
+                                      <File className="size-3 text-blue-400 shrink-0" />
+                                    )}
+                                    <span className="truncate max-w-[120px]">{name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setExtraFiles(prev => prev.filter(e => e.path !== entry.path))}
+                                      className="ml-0.5 text-text-muted hover:text-error transition-colors"
+                                    >
+                                      <X className="size-3" />
+                                    </button>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-text-muted">
+                              No extra files added. Detected files will be used by default.
+                            </p>
+                          )}
+                        </div>
 
-              {/* Current message */}
-              {progress?.message && (
-                <p className="text-xs text-text-secondary truncate">
-                  {progress.message}
-                </p>
+                        {/* Custom instructions */}
+                        <div>
+                          <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                            Additional Instructions
+                          </label>
+                          <textarea
+                            value={customContext}
+                            onChange={(e) => setCustomContext(e.target.value)}
+                            placeholder="e.g., Focus on the backend API layer, ignore legacy code in /old..."
+                            className="w-full h-16 rounded-md border border-border-default bg-bg-deep px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:ring-1 focus:ring-accent/50"
+                          />
+                        </div>
+
+                        {/* Prompt preview */}
+                        <div>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={async () => {
+                              if (promptPreview) {
+                                setPromptPreview(null);
+                                return;
+                              }
+                              setIsLoadingPreview(true);
+                              try {
+                                const opts: OnboardingAnalysisOptions = {};
+                                if (customContext.trim()) opts.customContext = customContext.trim();
+                                if (extraFiles.length > 0) opts.extraFiles = extraFiles.map(f => f.path);
+                                const result = await onPreviewPrompt(
+                                  Object.keys(opts).length > 0 ? opts : undefined
+                                );
+                                setPromptPreview(result.prompt);
+                              } catch {
+                                setPromptPreview('Error loading prompt preview');
+                              } finally {
+                                setIsLoadingPreview(false);
+                              }
+                            }}
+                            className="gap-1.5"
+                          >
+                            <Eye className="size-3" />
+                            {isLoadingPreview ? 'Loading...' : promptPreview ? 'Hide Prompt' : 'Preview Prompt'}
+                          </Button>
+                          {promptPreview && (
+                            <div className="mt-1.5 max-h-[200px] overflow-y-auto rounded-md bg-bg-deep border border-border-subtle p-2 font-mono text-[10px] leading-relaxed text-text-secondary whitespace-pre-wrap">
+                              {promptPreview}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Analysis in progress — phase stepper */}
+              {isAnalyzing && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    {ANALYSIS_PHASES.map((phase, index) => {
+                      const isCompleted = index < currentPhaseIndex;
+                      const isCurrent = index === currentPhaseIndex;
+                      const isPending = index > currentPhaseIndex;
+
+                      return (
+                        <div key={phase} className="flex items-center gap-2">
+                          {isCompleted && <CheckCircle className="size-3.5 text-success shrink-0" />}
+                          {isCurrent && <Loader2 className="size-3.5 text-accent animate-spin shrink-0" />}
+                          {isPending && <div className="size-3.5 rounded-full border border-border-default shrink-0" />}
+                          <span
+                            className={cn(
+                              'text-xs capitalize',
+                              isCompleted && 'text-text-secondary',
+                              isCurrent && 'text-text-primary font-medium',
+                              isPending && 'text-text-muted'
+                            )}
+                          >
+                            {phase}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-bg-tertiary">
+                    <div
+                      className="h-full rounded-full bg-accent transition-all duration-300"
+                      style={{ width: `${progress?.progress ?? 0}%` }}
+                    />
+                  </div>
+
+                  {progress?.message && (
+                    <p className="text-[11px] text-text-secondary truncate">{progress.message}</p>
+                  )}
+                </div>
               )}
 
               {/* Error display */}
@@ -315,43 +738,25 @@ export function OnboardingDialog({
                   <p className="text-xs text-error">{error}</p>
                 </div>
               )}
-            </div>
 
-            <DialogFooter>
-              {terminalId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onViewTerminal}
+              {/* Terminal output panel */}
+              {showOutput && outputLines.length > 0 && (
+                <div
+                  ref={outputRef}
+                  className="max-h-[160px] overflow-y-auto rounded-md bg-bg-deep border border-border-subtle p-2 font-mono text-[11px] leading-relaxed text-text-secondary"
                 >
-                  <Terminal className="size-3.5" />
-                  View Terminal
-                </Button>
+                  {outputLines.map((line, i) => (
+                    <div key={i} className="whitespace-pre-wrap break-all">{line}</div>
+                  ))}
+                </div>
               )}
-              <Button variant="ghost" size="sm" onClick={onCancel}>
-                Cancel
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+            </div>
+          )}
 
-        {/* ── Step 3: Results Review ────────────────────────────────────── */}
-        {step === 'review' && analysisResult && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-text-primary">
-                <CheckCircle className="size-5 text-success" />
-                Analysis Complete
-              </DialogTitle>
-              <DialogDescription className="text-text-secondary">
-                Review the analysis results and select what to import into your
-                SubFrame project.
-              </DialogDescription>
-            </DialogHeader>
-
-            <ScrollArea className="max-h-[400px] pr-3">
-              <div className="space-y-4">
-                {/* ── Structure section ──────────────────────────────────── */}
+          {/* ── Step 2: Results Review ─────────────────────────────────── */}
+          {activeStep === 2 && analysisResult && (
+            <ScrollArea className="max-h-[350px] pr-3">
+              <div className="space-y-3">
                 <ReviewSection
                   checked={selections.structure}
                   onCheckedChange={(checked) =>
@@ -362,65 +767,46 @@ export function OnboardingDialog({
                 >
                   <div className="space-y-1.5 text-xs text-text-secondary">
                     {analysisResult.structure.description && (
-                      <p className="line-clamp-2">
-                        {analysisResult.structure.description}
-                      </p>
+                      <p className="line-clamp-2">{analysisResult.structure.description}</p>
                     )}
                     {analysisResult.structure.architecture && (
-                      <p className="line-clamp-2 text-text-muted">
-                        {analysisResult.structure.architecture}
-                      </p>
+                      <p className="line-clamp-2 text-text-muted">{analysisResult.structure.architecture}</p>
                     )}
                     <div className="flex gap-3 text-text-muted">
                       {analysisResult.structure.conventions && (
-                        <span>
-                          {analysisResult.structure.conventions.length} conventions
-                        </span>
+                        <span>{analysisResult.structure.conventions.length} conventions</span>
                       )}
                       {analysisResult.structure.modules && (
-                        <span>
-                          {Object.keys(analysisResult.structure.modules).length} modules
-                        </span>
+                        <span>{Object.keys(analysisResult.structure.modules).length} modules</span>
                       )}
                     </div>
                   </div>
                 </ReviewSection>
 
-                {/* ── Project Notes section ──────────────────────────────── */}
                 <ReviewSection
                   checked={selections.projectNotes}
                   onCheckedChange={(checked) =>
-                    setSelections((prev) => ({
-                      ...prev,
-                      projectNotes: checked,
-                    }))
+                    setSelections((prev) => ({ ...prev, projectNotes: checked }))
                   }
                   label="Project Notes"
                   icon={<BookOpen className="size-4 text-green-400" />}
                 >
                   <div className="space-y-1.5 text-xs text-text-secondary">
                     {analysisResult.projectNotes.vision && (
-                      <p className="line-clamp-2">
-                        {analysisResult.projectNotes.vision}
-                      </p>
+                      <p className="line-clamp-2">{analysisResult.projectNotes.vision}</p>
                     )}
                     <div className="flex gap-3 text-text-muted">
                       {analysisResult.projectNotes.decisions && (
-                        <span>
-                          {analysisResult.projectNotes.decisions.length} decisions
-                        </span>
+                        <span>{analysisResult.projectNotes.decisions.length} decisions</span>
                       )}
                       {analysisResult.projectNotes.techStack &&
                         analysisResult.projectNotes.techStack.length > 0 && (
-                          <span>
-                            {analysisResult.projectNotes.techStack.join(', ')}
-                          </span>
+                          <span>{analysisResult.projectNotes.techStack.join(', ')}</span>
                         )}
                     </div>
                   </div>
                 </ReviewSection>
 
-                {/* ── Suggested Tasks section ────────────────────────────── */}
                 {analysisResult.suggestedTasks.length > 0 && (
                   <div className="rounded-md border border-border-subtle bg-bg-secondary p-3">
                     <div className="mb-2 flex items-center justify-between">
@@ -431,8 +817,7 @@ export function OnboardingDialog({
                         </span>
                       </div>
                       <span className="text-xs text-text-muted">
-                        {selections.taskIds.length}/
-                        {analysisResult.suggestedTasks.length} selected
+                        {selections.taskIds.length}/{analysisResult.suggestedTasks.length} selected
                       </span>
                     </div>
                     <div className="space-y-1.5">
@@ -448,15 +833,11 @@ export function OnboardingDialog({
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-text-primary truncate">
-                                {task.title}
-                              </span>
+                              <span className="text-sm text-text-primary truncate">{task.title}</span>
                               <PriorityBadge priority={task.priority} />
                             </div>
                             {task.category && (
-                              <span className="text-[10px] text-text-muted">
-                                {task.category}
-                              </span>
+                              <span className="text-[10px] text-text-muted">{task.category}</span>
                             )}
                           </div>
                         </label>
@@ -466,33 +847,228 @@ export function OnboardingDialog({
                 )}
               </div>
             </ScrollArea>
+          )}
 
-            <DialogFooter>
+          {activeStep === 2 && !analysisResult && (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <AlertCircle className="size-6 text-text-muted" />
+              <p className="text-sm text-text-secondary">No analysis results available</p>
+              <p className="text-xs text-text-muted">Run AI analysis first to see results here.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveStep(1)}
+                className="mt-2"
+              >
+                Go to Analysis
+              </Button>
+            </div>
+          )}
+
+          {/* ── Step 3: Success Confirmation ───────────────────────────── */}
+          {activeStep === 3 && importResult && (
+            <div className="space-y-3">
+              {/* Success header */}
+              <div className="flex flex-col items-center py-3 gap-2">
+                <div className="size-12 rounded-full bg-success/10 flex items-center justify-center">
+                  <PartyPopper className="size-6 text-accent" />
+                </div>
+                <p className="text-base font-medium text-text-primary">
+                  Project setup complete
+                </p>
+              </div>
+
+              {/* Import summary */}
+              <div className="rounded-md border border-success/20 bg-success/5 p-3 space-y-2">
+                {importResult.imported.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-success flex items-center gap-1.5">
+                      <CheckCircle className="size-3.5" />
+                      {importResult.imported.length} item{importResult.imported.length !== 1 ? 's' : ''} imported
+                    </p>
+                    {importResult.imported.map((item, i) => (
+                      <p key={i} className="text-xs text-text-secondary pl-5">• {item}</p>
+                    ))}
+                  </div>
+                )}
+                {importResult.skipped.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-text-muted">Skipped:</p>
+                    {importResult.skipped.map((item, i) => (
+                      <p key={i} className="text-xs text-text-tertiary pl-5">• {item}</p>
+                    ))}
+                  </div>
+                )}
+                {importResult.errors.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-error">Errors:</p>
+                    {importResult.errors.map((item, i) => (
+                      <p key={i} className="text-xs text-error/80 pl-5">• {item}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Next steps */}
+              <div className="rounded-md border border-border-subtle bg-bg-secondary p-3">
+                <p className="text-xs font-medium text-text-primary mb-1.5">Next steps</p>
+                <ul className="space-y-1 text-xs text-text-secondary">
+                  <li className="flex items-start gap-1.5">
+                    <ChevronRight className="size-3 mt-0.5 text-accent shrink-0" />
+                    Open <span className="text-text-primary font-medium">Sub-Tasks</span> panel
+                    <kbd className="ml-auto text-[10px] text-text-muted bg-bg-tertiary rounded px-1">Ctrl+Shift+S</kbd>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <ChevronRight className="size-3 mt-0.5 text-accent shrink-0" />
+                    Review <span className="font-mono text-[11px] text-text-primary">.subframe/PROJECT_NOTES.md</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <ChevronRight className="size-3 mt-0.5 text-accent shrink-0" />
+                    Run your AI tool — SubFrame tracks activity automatically
+                  </li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ─────────────────────────────────────────────────────── */}
+        <DialogFooter className="shrink-0 flex-wrap gap-2 px-6 pb-6 pt-2 border-t border-border-subtle">
+          {/* Left side — rollback / terminal actions */}
+          <div className="flex items-center gap-2 flex-1 flex-wrap min-w-0">
+            {/* Rollback (available in steps 1-2, not during active import or on success) */}
+            {activeStep < 3 && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
                 onClick={() => {
-                  onImport(selections);
-                  toast.success('Project intelligence imported');
-                  onOpenChange(false);
+                  if (confirmRollback) {
+                    onRollback();
+                  } else {
+                    setConfirmRollback(true);
+                  }
                 }}
-                disabled={
-                  !selections.structure &&
-                  !selections.projectNotes &&
-                  selections.taskIds.length === 0
-                }
+                disabled={isRollingBack || isImporting || isAnalyzing}
+                className={cn('gap-1.5', confirmRollback && 'text-error hover:text-error')}
+                title="Remove all SubFrame files and undo initialization"
               >
-                Apply Selected
+                <Undo2 className="size-3.5" />
+                {isRollingBack ? 'Rolling back...' : confirmRollback ? 'Confirm Rollback' : 'Rollback'}
               </Button>
-            </DialogFooter>
-          </>
-        )}
+            )}
+
+            {/* Terminal output controls (step 1 during/after analysis) */}
+            {activeStep === 1 && terminalId && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowOutput(!showOutput)}
+                  className="gap-1.5"
+                  title="Toggle raw AI tool output in this dialog"
+                >
+                  <Terminal className="size-3.5" />
+                  {showOutput ? 'Hide Output' : 'Show Output'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    suppressCancelRef.current = true;
+                    onOpenChange(false);
+                    onViewTerminal();
+                  }}
+                  className="gap-1.5"
+                  title="Close dialog and switch to the analysis terminal"
+                >
+                  Open Terminal
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Right side — primary actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Step 1: Analyze actions */}
+            {activeStep === 1 && (
+              <>
+                {error && (
+                  <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5">
+                    <RotateCcw className="size-3.5" />
+                    Retry
+                  </Button>
+                )}
+                {!isAnalyzing && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSkipAnalysis}
+                    className="gap-1.5"
+                    title="Skip AI analysis and close — you can run it later from SubFrame Health"
+                  >
+                    <SkipForward className="size-3.5" />
+                    Skip
+                  </Button>
+                )}
+                {isAnalyzing ? (
+                  <Button variant="ghost" size="sm" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const opts: OnboardingAnalysisOptions = {};
+                      if (customContext.trim()) opts.customContext = customContext.trim();
+                      if (extraFiles.length > 0) opts.extraFiles = extraFiles.map(f => f.path);
+                      onAnalyze(Object.keys(opts).length > 0 ? opts : undefined);
+                    }}
+                    disabled={isAnalyzing || !detection?.worthAnalyzing}
+                    className="gap-1.5"
+                  >
+                    <Brain className="size-3.5" />
+                    {error ? 'Rerun Analysis' : analysisResult ? 'Rerun' : `Analyze with ${aiToolName}`}
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* Step 2: Import actions */}
+            {activeStep === 2 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setActiveStep(1);
+                    onRetry();
+                  }}
+                  className="gap-1.5"
+                >
+                  <RotateCcw className="size-3.5" />
+                  Rerun Analysis
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => onImport(selections)}
+                  disabled={
+                    isImporting ||
+                    (!selections.structure && !selections.projectNotes && selections.taskIds.length === 0)
+                  }
+                >
+                  {isImporting ? 'Importing...' : 'Apply Selected'}
+                </Button>
+              </>
+            )}
+
+            {/* Step 3: Done */}
+            {activeStep === 3 && (
+              <Button size="sm" onClick={() => onOpenChange(false)}>
+                Get Started
+              </Button>
+            )}
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -524,9 +1100,7 @@ function ReviewSection({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             {icon}
-            <span className="text-sm font-medium text-text-primary">
-              {label}
-            </span>
+            <span className="text-sm font-medium text-text-primary">{label}</span>
           </div>
           {children}
         </div>

@@ -247,7 +247,9 @@ function spawnAIToolRaw(
     const cwd = ctx.worktreePath || ctx.projectPath;
     // Deliver prompt via stdin (no positional arg) to avoid shell mangling
     // of backticks, quotes, and special characters in the prompt text.
-    const child = spawn(ctx.aiTool, ['--print', '--output-format', 'json'], {
+    // Split command string to handle custom flags (e.g. "claude --dangerously-skip-permissions")
+    const [aiExe, ...aiBaseFlags] = ctx.aiTool.split(/\s+/);
+    const child = spawn(aiExe, [...aiBaseFlags, '--print', '--output-format', 'json'], {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: true,
@@ -307,7 +309,9 @@ async function spawnAIToolAgent(
 
     // Agent mode: no --print, uses --output-format json for structured output.
     // The AI can use all its built-in tools (Read, Grep, Glob, Bash, etc.)
-    const child = spawn(ctx.aiTool, ['--output-format', 'json', '--verbose'], {
+    // Split command string to handle custom flags (e.g. "claude --dangerously-skip-permissions")
+    const [aiExe, ...aiBaseFlags] = ctx.aiTool.split(/\s+/);
+    const child = spawn(aiExe, [...aiBaseFlags, '--output-format', 'json', '--verbose'], {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: true,

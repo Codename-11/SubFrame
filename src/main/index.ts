@@ -228,17 +228,22 @@ function createWindow(): BrowserWindow {
       }, 300);
     };
 
+    const safeWatch = (filePath: string, label: string) => {
+      try {
+        const w = fs.watch(filePath, () => scheduleReload(label));
+        w.on('error', () => { /* watched file may be deleted/rebuilt */ });
+        devWatchers.push(w);
+      } catch { /* file may not exist yet */ }
+    };
+
     // Watch JS bundle
-    const bundlePath = path.join(__dirname, '..', '..', 'dist', 'renderer.js');
-    devWatchers.push(fs.watch(bundlePath, () => scheduleReload('Bundle')));
+    safeWatch(path.join(__dirname, '..', '..', 'dist', 'renderer.js'), 'Bundle');
 
     // Watch CSS bundle (esbuild extracts Tailwind CSS to a separate file)
-    const cssPath = path.join(__dirname, '..', '..', 'dist', 'renderer.css');
-    try { devWatchers.push(fs.watch(cssPath, () => scheduleReload('CSS'))); } catch { /* CSS file may not exist yet */ }
+    safeWatch(path.join(__dirname, '..', '..', 'dist', 'renderer.css'), 'CSS');
 
     // Watch index.html
-    const htmlPath = path.join(__dirname, '..', '..', 'index.html');
-    devWatchers.push(fs.watch(htmlPath, () => scheduleReload('HTML')));
+    safeWatch(path.join(__dirname, '..', '..', 'index.html'), 'HTML');
 
     mainWindow.on('closed', () => devWatchers.forEach(w => w.close()));
   }

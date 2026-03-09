@@ -836,6 +836,10 @@ function watchWorkflows(projectPath: string): void {
         send(IPC.PIPELINE_RUN_UPDATED, { projectPath });
       }, 300);
     });
+    workflowsWatcher.on('error', (err) => {
+      console.warn('[Pipeline] Workflows watcher error:', (err as NodeJS.ErrnoException).code);
+      unwatchWorkflows();
+    });
   } catch (err) {
     console.error('Error watching workflows directory:', (err as Error).message);
   }
@@ -943,6 +947,10 @@ function watchPrePushTrigger(projectPath: string): void {
           startPipelineFromTrigger(projectPath, workflow.name, 'pre-push');
         }
       }
+    });
+    triggerWatcher.on('error', (err) => {
+      console.warn('[Pipeline] Trigger watcher error:', (err as NodeJS.ErrnoException).code);
+      unwatchPrePushTrigger();
     });
   } catch (err) {
     console.error('Error watching pre-push triggers:', (err as Error).message);

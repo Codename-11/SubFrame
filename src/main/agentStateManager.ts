@@ -91,6 +91,10 @@ function watchAgentState(projectPath: string): void {
         }
       }, DEBOUNCE_MS);
     });
+    stateWatcher.on('error', (err) => {
+      console.warn('[AgentState] Watcher error (path may have been deleted):', (err as NodeJS.ErrnoException).code);
+      unwatchAgentState();
+    });
   } catch (err) {
     console.error('Error watching agent state directory:', err);
   }

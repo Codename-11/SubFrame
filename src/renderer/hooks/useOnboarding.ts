@@ -15,6 +15,7 @@ import type {
   OnboardingProgressEvent,
   OnboardingImportResult,
   OnboardingImportSelections,
+  OnboardingAnalysisOptions,
 } from '../../shared/ipcChannels';
 
 export function useOnboarding() {
@@ -25,11 +26,14 @@ export function useOnboarding() {
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<OnboardingImportResult | null>(null);
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const detectMutation = useIpcMutation(IPC.DETECT_PROJECT_INTELLIGENCE);
   const analyzeMutation = useIpcMutation(IPC.RUN_ONBOARDING_ANALYSIS);
   const importMutation = useIpcMutation(IPC.IMPORT_ONBOARDING_RESULTS);
+  const previewPromptMutation = useIpcMutation(IPC.GET_ONBOARDING_PROMPT_PREVIEW);
+  const browseFilesMutation = useIpcMutation(IPC.BROWSE_ONBOARDING_FILES);
 
   // ── Progress event listener ──────────────────────────────────────────────
   useIPCEvent<OnboardingProgressEvent>(
@@ -63,22 +67,35 @@ export function useOnboarding() {
   const detect = useCallback(
     async (projectPath: string): Promise<OnboardingDetectionResult> => {
       setError(null);
-      const result = await detectMutation.mutateAsync([projectPath]);
-      setDetection(result);
-      return result;
+      try {
+        const result = await detectMutation.mutateAsync([projectPath]);
+        setDetection(result);
+        return result;
+      } catch (err) {
+        const msg = (err as Error).message || 'Detection failed unexpectedly';
+        setError(msg);
+        throw err;
+      }
     },
     [detectMutation]
   );
 
   const analyze = useCallback(
-    async (projectPath: string): Promise<{ terminalId: string }> => {
+    async (projectPath: string, options?: OnboardingAnalysisOptions): Promise<{ terminalId: string }> => {
       setError(null);
       setIsAnalyzing(true);
       setAnalysisResult(null);
       setProgress(null);
-      const result = await analyzeMutation.mutateAsync([projectPath]);
-      setTerminalId(result.terminalId);
-      return result;
+      try {
+        const result = await analyzeMutation.mutateAsync([projectPath, options]);
+        setTerminalId(result.terminalId);
+        return result;
+      } catch (err) {
+        setIsAnalyzing(false);
+        const msg = (err as Error).message || 'Analysis failed unexpectedly';
+        setError(msg);
+        throw err;
+      }
     },
     [analyzeMutation]
   );
@@ -90,17 +107,47 @@ export function useOnboarding() {
       selections: OnboardingImportSelections
     ): Promise<OnboardingImportResult> => {
       setError(null);
-      const result = await importMutation.mutateAsync([
-        { projectPath, results, selections },
-      ]);
-      return result;
+      try {
+        const result = await importMutation.mutateAsync([
+          { projectPath, results, selections },
+        ]);
+        setImportResult(result);
+        return result;
+      } catch (err) {
+        const msg = (err as Error).message || 'Import failed unexpectedly';
+        setError(msg);
+        throw err;
+      }
     },
     [importMutation]
+  );
+
+  const previewPrompt = useCallback(
+    async (projectPath: string, options?: OnboardingAnalysisOptions): Promise<{ prompt: string; contextSize: number }> => {
+      return previewPromptMutation.mutateAsync([projectPath, options]);
+    },
+    [previewPromptMutation]
+  );
+
+  const browseFiles = useCallback(
+    async (projectPath: string, type: 'file' | 'directory'): Promise<string[]> => {
+      return browseFilesMutation.mutateAsync([projectPath, type]);
+    },
+    [browseFilesMutation]
   );
 
   const cancel = useCallback((projectPath: string): void => {
     typedSend(IPC.CANCEL_ONBOARDING_ANALYSIS, projectPath);
     setIsAnalyzing(false);
+  }, []);
+
+  const retry = useCallback((): void => {
+    setAnalysisResult(null);
+    setProgress(null);
+    setTerminalId(null);
+    setIsAnalyzing(false);
+    setError(null);
+    setImportResult(null);
   }, []);
 
   const reset = useCallback((): void => {
@@ -110,6 +157,7 @@ export function useOnboarding() {
     setTerminalId(null);
     setIsAnalyzing(false);
     setError(null);
+    setImportResult(null);
   }, []);
 
   return {
@@ -118,6 +166,9 @@ export function useOnboarding() {
     analyze,
     importResults,
     cancel,
+    previewPrompt,
+    browseFiles,
+    retry,
     reset,
 
     // State
@@ -128,6 +179,9 @@ export function useOnboarding() {
     isDetecting: detectMutation.isPending,
     isAnalyzing,
     isImporting: importMutation.isPending,
+    isPreviewingPrompt: previewPromptMutation.isPending,
+    isBrowsingFiles: browseFilesMutation.isPending,
     error,
+    importResult,
   };
 }

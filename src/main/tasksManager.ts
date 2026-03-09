@@ -474,6 +474,10 @@ function watchTasksFile(projectPath: string): void {
         }
       }, 300);
     });
+    tasksWatcher.on('error', (err) => {
+      console.warn('[Tasks] Watcher error (path may have been deleted):', (err as NodeJS.ErrnoException).code);
+      unwatchTasksFile();
+    });
   } catch (err) {
     console.error('Error watching tasks directory:', err);
   }

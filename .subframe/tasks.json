@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-08",
+    "lastUpdated": "2026-03-09",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-08T02:31:08.404Z",
+  "lastUpdated": "2026-03-09T00:22:31.494Z",
   "tasks": {
     "pending": [
       {
@@ -477,6 +477,23 @@
         "description": "agent-state.json accumulates sessions indefinitely (currently 3300+ lines). Add rotation logic: archive completed sessions older than N days, cap max sessions, or prune on startup.",
         "userRequest": "Prevent agent-state.json from growing unbounded",
         "acceptanceCriteria": "agent-state.json stays bounded; old completed sessions are pruned or archived",
+        "steps": []
+      },
+      {
+        "id": "task-mmifstga-beor",
+        "title": "Test onboarding analysis flow with Codex and Gemini CLI",
+        "status": "pending",
+        "priority": "medium",
+        "category": "test",
+        "context": "Session 2026-03-09",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-09T00:22:31.449Z",
+        "updatedAt": "2026-03-09T00:22:31.449Z",
+        "completedAt": null,
+        "description": "Verify the onboarding AI analysis pipeline works correctly with non-Claude tools (Codex, Gemini CLI). These still use the pipe/tee approach since they may not support interactive mode. Confirm: streaming output appears, sentinel detection works, timeout is sufficient, and parseAnalysisResponse handles their output formats.",
+        "userRequest": "Add a sub-task to test/verify this with codex/gemini",
+        "acceptanceCriteria": "Analysis completes successfully with Codex CLI,Analysis completes successfully with Gemini CLI,Output is parsed correctly from tee file,Timeout does not fire prematurely,Error patterns detected correctly for each tool",
         "steps": []
       }
     ],

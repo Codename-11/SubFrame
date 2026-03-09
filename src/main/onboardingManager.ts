@@ -19,6 +19,7 @@ import type {
   OnboardingProgressEvent,
   OnboardingImportResult,
   OnboardingImportSelections,
+  OnboardingAnalysisOptions,
 } from '../shared/ipcChannels';
 import { INTELLIGENCE_FILES, FRAME_FILES, FRAME_TASKS_DIR } from '../shared/frameConstants';
 import { execSync } from 'child_process';
@@ -30,7 +31,7 @@ import * as aiToolManager from './aiToolManager';
 let mainWindow: BrowserWindow | null = null;
 
 /** Active analysis runs keyed by projectPath */
-const activeAnalyses = new Map<string, { terminalId: string; cleanup: () => void }>();
+const activeAnalyses = new Map<string, { terminalId: string; cleanup: () => void; cancel?: () => void }>();
 
 /** Parsed results cache keyed by projectPath (for IMPORT to consume after RUN completes) */
 const analysisResultsCache = new Map<string, OnboardingAnalysisResult>();
@@ -194,7 +195,7 @@ const MAX_FILE_SIZE = 10_000;
 /**
  * Read detected files into a concatenated context string, respecting budgets.
  */
-function gatherContext(projectPath: string, detected: DetectedIntelligence[]): string {
+function gatherContext(projectPath: string, detected: DetectedIntelligence[], extraFiles?: string[]): string {
   const parts: string[] = [];
   let totalSize = 0;
 
@@ -229,6 +230,55 @@ function gatherContext(projectPath: string, detected: DetectedIntelligence[]): s
     }
   }
 
+  // Include user-specified extra files (validated against project root)
+  if (extraFiles && extraFiles.length > 0) {
+    const resolvedRoot = path.resolve(projectPath);
+    let skippedCount = 0;
+    for (const filePath of extraFiles) {
+      if (totalSize >= CONTEXT_BUDGET) {
+        skippedCount++;
+        continue;
+      }
+      // Security: ensure the path is within the project directory
+      const resolved = path.resolve(filePath);
+      if (!resolved.startsWith(resolvedRoot + path.sep) && resolved !== resolvedRoot) {
+        console.warn(`[Onboarding] Skipping extra file outside project root: ${filePath}`);
+        continue;
+      }
+      try {
+        const stat = fs.statSync(resolved);
+        if (stat.isDirectory()) {
+          // For directories, list top-level contents
+          const entries = fs.readdirSync(resolved).slice(0, 50);
+          const listing = entries.join('\n');
+          parts.push(`--- DIR: ${path.relative(projectPath, filePath) || filePath} ---`);
+          parts.push(listing);
+          parts.push('');
+          totalSize += listing.length;
+        } else if (stat.isFile()) {
+          let content = fs.readFileSync(resolved, 'utf8');
+          if (content.length > MAX_FILE_SIZE) {
+            content = content.substring(0, MAX_FILE_SIZE) + '\n... [truncated]';
+          }
+          const remaining = CONTEXT_BUDGET - totalSize;
+          if (content.length > remaining) {
+            content = content.substring(0, remaining) + '\n... [truncated to fit budget]';
+          }
+          const relPath = path.relative(projectPath, filePath) || filePath;
+          parts.push(`--- FILE: ${relPath} (${content.length} chars) [user-added] ---`);
+          parts.push(content);
+          parts.push('');
+          totalSize += content.length;
+        }
+      } catch {
+        // Skip unreadable extra files
+      }
+    }
+    if (skippedCount > 0) {
+      console.warn(`[Onboarding] ${skippedCount} extra file(s) skipped — context budget (${CONTEXT_BUDGET} chars) exhausted`);
+    }
+  }
+
   return parts.join('\n');
 }
 
@@ -237,7 +287,7 @@ function gatherContext(projectPath: string, detected: DetectedIntelligence[]): s
 /**
  * Build the analysis prompt that instructs the AI to output structured JSON.
  */
-function buildAnalysisPrompt(context: string, projectName: string): string {
+function buildAnalysisPrompt(context: string, projectName: string, customContext?: string): string {
   return `You are analyzing a software project called "${projectName}" for SubFrame, a terminal-centric IDE for AI coding tools.
 
 Your job is to read the provided project files and produce a structured analysis that SubFrame will import into its project intelligence files.
@@ -267,6 +317,8 @@ Analyze the project and produce a single JSON object with these sections:
    - Suggest 3-5 concrete, specific tasks based on what you see in the project
    - Focus on missing tests, documentation gaps, potential improvements, or cleanup opportunities
 
+IMPORTANT: Do NOT create, modify, or delete any files. Do NOT run any commands. Your ONLY task is to analyze and output the JSON below.
+
 Output ONLY a single JSON code block wrapped in \`\`\`json ... \`\`\` fences. No other text before or after the JSON block.
 
 \`\`\`json
@@ -289,7 +341,7 @@ Output ONLY a single JSON code block wrapped in \`\`\`json ... \`\`\` fences. No
     { "title": "...", "description": "...", "priority": "medium", "category": "feature" }
   ]
 }
-\`\`\``;
+\`\`\`${customContext ? `\n## Additional Instructions\n\n${customContext}` : ''}`;
 }
 
 // ─── Shell Detection ──────────────────────────────────────────────────────────
@@ -337,8 +389,11 @@ function findBashShell(): string | null {
  */
 function checkAIToolAvailable(): { available: boolean; command: string; error?: string } {
   const command = aiToolManager.getStartCommand();
-  // Extract the base command (first token, ignoring path prefixes for wrapper scripts)
-  const baseCommand = command.split(/[\s/\\]/).pop() || command;
+  // Extract the executable: first token (before any flags), then strip path prefixes
+  // e.g. "claude --dangerously-skip-permissions" → "claude"
+  // e.g. "./.subframe/bin/codex --quiet" → "codex"
+  const firstToken = command.split(/\s+/)[0] || command;
+  const baseCommand = firstToken.split(/[/\\]/).pop() || firstToken;
 
   try {
     const whichCmd = process.platform === 'win32' ? 'where' : 'which';
@@ -358,8 +413,8 @@ function checkAIToolAvailable(): { available: boolean; command: string; error?: 
 /** Marker written to terminal output when AI command completes */
 const DONE_MARKER = '__SF_ANALYSIS_DONE__';
 
-/** Default analysis timeout in milliseconds */
-const DEFAULT_ANALYSIS_TIMEOUT_MS = 120_000;
+/** Default analysis timeout in milliseconds (10 minutes — large projects need time for API processing) */
+const DEFAULT_ANALYSIS_TIMEOUT_MS = 600_000;
 
 /**
  * Get the configured analysis timeout, falling back to the default.
@@ -380,33 +435,37 @@ function getAnalysisTimeout(): number {
  * This is the reusable pipeline core — it writes a prompt to a temp file,
  * pipes it through the active AI tool, captures output, and returns the raw result.
  */
-async function runAnalysisInTerminal(projectPath: string, prompt: string): Promise<string> {
+async function runAnalysisInTerminal(projectPath: string, prompt: string): Promise<{ raw: string; terminalId: string }> {
   // Write prompt to temp file
   const timestamp = Date.now();
   const promptFile = path.join(os.tmpdir(), `sf-onboard-prompt-${timestamp}.txt`);
   const resultFile = path.join(os.tmpdir(), `sf-onboard-result-${timestamp}.txt`);
 
   fs.writeFileSync(promptFile, prompt, 'utf8');
-  // Create empty result placeholder
   fs.writeFileSync(resultFile, '', 'utf8');
 
-  // Convert Windows backslash paths to forward slashes for bash compatibility
   const toUnixPath = (p: string) => p.replace(/\\/g, '/');
 
   // Build the AI command
   const tool = aiToolManager.getActiveTool();
   const command = aiToolManager.getStartCommand();
-  let shellCommand: string;
-
-  // Use Unix-style paths in shell commands (Git Bash on Windows needs forward slashes)
   const shellPromptFile = toUnixPath(promptFile);
   const shellResultFile = toUnixPath(resultFile);
 
-  // Use provider-specific flags for non-interactive / piped input
+  // Claude: interactive mode — streams output live in the PTY, captured by ptyManager.
+  //   Completion detected from PTY output (✻ marker). No sentinel file needed.
+  // Others: pipe mode — non-interactive, output captured by tee to a result file.
+  //   Completion detected by sentinel file polling.
+  const isClaudeTool = tool.id === 'claude';
+  let shellCommand: string;
+
   switch (tool.id) {
-    case 'claude':
-      shellCommand = `cat "${shellPromptFile}" | ${command} --print 2>&1 | tee "${shellResultFile}"; echo "${DONE_MARKER}"`;
+    case 'claude': {
+      const skipFlag = '--dangerously-skip-permissions';
+      const claudeCmd = command.includes(skipFlag) ? command : `${command} ${skipFlag}`;
+      shellCommand = `${claudeCmd} "Read the analysis prompt from ${shellPromptFile} and follow ALL instructions in it exactly. Output ONLY the JSON code block as specified in the prompt file. Do NOT create, edit, or delete any files."`;
       break;
+    }
     case 'codex':
       shellCommand = `cat "${shellPromptFile}" | ${command} --quiet 2>&1 | tee "${shellResultFile}"; echo "${DONE_MARKER}"`;
       break;
@@ -423,92 +482,185 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
   const terminalId = ptyManager.createTerminal(projectPath, projectPath, bashShell);
   console.log(`[Onboarding] Created analysis terminal ${terminalId} for ${projectPath} (shell: ${bashShell || 'default'})`);
 
-  // Immediately notify renderer of the terminalId so "View Terminal" works during analysis
+  // Notify renderer — background terminal (doesn't steal focus)
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
-      projectPath,
-      phase: 'analyzing',
-      message: 'AI analysis terminal ready',
-      progress: 55,
-      terminalId,
-    } satisfies OnboardingProgressEvent);
+    mainWindow.webContents.send(IPC.TERMINAL_CREATED, {
+      terminalId, success: true, projectPath, name: 'AI Analysis', background: true,
+    });
   }
 
-  return new Promise<string>((resolve, reject) => {
+  // Notify renderer of the terminalId so "View Terminal" works during analysis
+  const sendProgress = (message: string, progress: number, phase: OnboardingProgressEvent['phase'] = 'analyzing') => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
+        projectPath, phase, message, progress, terminalId,
+      } satisfies OnboardingProgressEvent);
+    }
+  };
+  sendProgress('AI analysis started', 50);
+
+  // Start capturing PTY output for Claude (interactive mode)
+  if (isClaudeTool) {
+    ptyManager.startCapturing(terminalId);
+  }
+
+  // Hoisted timer refs so cleanup() can clear them
+  let claudeRetryTimer: ReturnType<typeof setInterval> | null = null;
+  let claudeSettleTimer: ReturnType<typeof setTimeout> | null = null;
+
+  return new Promise<{ raw: string; terminalId: string }>((resolve, reject) => {
     let resolved = false;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    // Cleanup function — removes temp files, stops polling, and removes active analysis entry
+    // Cleanup — temp files, ALL timers, output handler. Does NOT call stopCapturing.
     const cleanup = () => {
-      if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
+      if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
+      if (claudeSettleTimer) { clearTimeout(claudeSettleTimer); claudeSettleTimer = null; }
       activeAnalyses.delete(projectPath);
+      ptyManager.removeOutputHandler(terminalId);
       try { fs.unlinkSync(promptFile); } catch { /* ignore */ }
+      try { fs.unlinkSync(resultFile); } catch { /* ignore */ }
+      try { fs.unlinkSync(resultFile + '.done'); } catch { /* ignore */ }
     };
 
-    // Store active analysis so CANCEL can reference it
-    activeAnalyses.set(projectPath, { terminalId, cleanup });
+    const finish = (result: string) => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      console.log(`[Onboarding] Analysis complete for ${projectPath} (${result.length} chars)`);
+      resolve({ raw: result, terminalId });
+    };
+
+    const fail = (err: Error) => {
+      if (resolved) return;
+      resolved = true;
+      if (isClaudeTool) ptyManager.stopCapturing(terminalId);
+      cleanup();
+      (err as any).terminalId = terminalId;
+      reject(err);
+    };
+
+    // Store cancel-aware entry so CANCEL handler can reject the promise properly
+    activeAnalyses.set(projectPath, {
+      terminalId,
+      cleanup,
+      cancel: () => fail(new Error('Analysis cancelled by user.')),
+    });
 
     // Timeout guard
     const timeoutMs = getAnalysisTimeout();
-    const timeoutId = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        cleanup();
-        reject(new Error(`Analysis timed out after ${timeoutMs / 1000} seconds`));
-      }
+    timeoutId = setTimeout(() => {
+      fail(new Error(`Analysis timed out after ${timeoutMs / 1000} seconds`));
     }, timeoutMs);
 
-    // Poll the result file for the done marker.
-    // The shell command writes AI output to resultFile via `tee`, then echoes the marker.
-    // We watch the result file for the marker which gets captured by `tee` as well,
-    // OR we write a separate sentinel file. Since the `echo` after `tee` won't be
-    // captured in resultFile, we also write a sentinel.
-    const sentinelFile = resultFile + '.done';
-    const shellSentinelFile = toUnixPath(sentinelFile);
+    // ── Claude: PTY-based session tracking ─────────────────────────
+    // Detect completion directly from PTY output instead of sentinel files.
+    // States: waiting → active (Claude started) → responding (JSON seen) → done (✻ seen)
+    if (isClaudeTool) {
+      let trustConfirmed = false;
+      let menuReady = false;
+      let seenJsonContent = false;
+      let completionDetected = false;
+      let completionAt = 0;
 
-    // Update the shell command to also write a sentinel file on completion
-    const sentinelCommand =
-      shellCommand.replace(
+      ptyManager.addOutputHandler(terminalId, (data) => {
+        if (resolved) return;
+        const stripped = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+
+        // ── Trust prompt auto-response ───────────────────────────────
+        if (!trustConfirmed) {
+          if (!menuReady && /enter to confirm/i.test(stripped)) {
+            menuReady = true;
+            console.log('[Onboarding] Trust prompt menu detected, sending Enter');
+            sendProgress('Accepting directory trust prompt...', 52);
+            let attempts = 0;
+            claudeRetryTimer = setInterval(() => {
+              if (trustConfirmed || attempts >= 10) {
+                if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
+                return;
+              }
+              attempts++;
+              ptyManager.writeToTerminal(terminalId, '\r');
+            }, 500);
+          }
+          if (menuReady && !/trust|folder|directory|security|confirm|cancel|exit/i.test(stripped) && stripped.trim().length > 5) {
+            trustConfirmed = true;
+            if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
+            console.log('[Onboarding] Trust prompt accepted');
+          }
+        }
+
+        // ── Session state tracking ───────────────────────────────────
+        // Active: Claude is generating output
+        if (!seenJsonContent && /"structure"\s*:/.test(stripped)) {
+          seenJsonContent = true;
+          sendProgress('AI is generating analysis...', 65);
+        }
+
+        // Done: Claude Code shows ✻ (U+273B) in completion summary after response.
+        // Only trigger after seeing JSON content to avoid false positives.
+        if (!completionDetected && seenJsonContent && /\u273B/.test(data)) {
+          completionDetected = true;
+          completionAt = Date.now();
+          console.log('[Onboarding] Claude response complete (✻ detected)');
+          sendProgress('AI response received, reading output...', 80);
+
+          // Let output settle for 2s, then read capture buffer and resolve.
+          claudeSettleTimer = setTimeout(() => resolveFromCapture(), 2000);
+        }
+
+        // If more output arrives after ✻, reset settle timer (up to 10s max)
+        if (completionDetected && claudeSettleTimer) {
+          if (Date.now() - completionAt < 10_000) {
+            clearTimeout(claudeSettleTimer);
+            claudeSettleTimer = setTimeout(() => resolveFromCapture(), 2000);
+          }
+          // else: max settle time exceeded, let the existing timer fire
+        }
+      });
+
+      const resolveFromCapture = () => {
+        claudeSettleTimer = null;
+        const result = ptyManager.stopCapturing(terminalId);
+        // Send /exit to clean up the Claude REPL (fire-and-forget)
+        try { ptyManager.writeToTerminal(terminalId, '/exit\r'); } catch { /* terminal may be gone */ }
+        finish(result);
+      };
+
+    } else {
+      // ── Non-Claude: sentinel file polling ──────────────────────────
+      const sentinelFile = resultFile + '.done';
+      const shellSentinelFile = toUnixPath(sentinelFile);
+
+      const sentinelCommand = shellCommand.replace(
         `echo "${DONE_MARKER}"`,
         `echo "${DONE_MARKER}" && echo done > "${shellSentinelFile}"`,
       );
-
-    // Poll for the sentinel file every 500ms
-    pollTimer = setInterval(() => {
-      if (resolved) return;
-
-      try {
-        if (fs.existsSync(sentinelFile)) {
-          resolved = true;
-          clearTimeout(timeoutId);
-
-          // Read the result file (contains AI output from `tee`)
-          let result = '';
-          try {
-            result = fs.readFileSync(resultFile, 'utf8');
-          } catch {
-            result = '';
-          }
-
-          // Clean up
-          cleanup();
-          try { fs.unlinkSync(resultFile); } catch { /* ignore */ }
-          try { fs.unlinkSync(sentinelFile); } catch { /* ignore */ }
-
-          console.log(`[Onboarding] Analysis complete for ${projectPath} (${result.length} chars)`);
-          resolve(result);
-        }
-      } catch {
-        // Ignore polling errors
+      if (sentinelCommand === shellCommand) {
+        console.error('[Onboarding] WARNING: Sentinel injection failed. Analysis may hang until timeout.');
       }
-    }, 500);
+      // Override shellCommand for non-Claude (sent below)
+      shellCommand = sentinelCommand;
+
+      pollTimer = setInterval(() => {
+        if (resolved) return;
+        try {
+          if (fs.existsSync(sentinelFile)) {
+            let result = '';
+            try { result = fs.readFileSync(resultFile, 'utf8'); } catch { result = ''; }
+            try { fs.unlinkSync(sentinelFile); } catch { /* ignore */ }
+            finish(result);
+          }
+        } catch { /* ignore polling errors */ }
+      }, 500);
+    }
 
     // Send the command to the terminal
     console.log(`[Onboarding] Sending analysis command to terminal ${terminalId}`);
-    ptyManager.writeToTerminal(terminalId, sentinelCommand + '\r');
+    ptyManager.writeToTerminal(terminalId, shellCommand + '\r');
   });
 }
 
@@ -518,8 +670,15 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
  * Extract and parse the JSON analysis result from raw AI output.
  * Looks for the first ```json ... ``` block.
  */
-function parseAnalysisResponse(raw: string): OnboardingAnalysisResult | null {
+function parseAnalysisResponse(raw: string): { result: OnboardingAnalysisResult | null; error?: string } {
   try {
+    // Handle empty output
+    if (!raw || raw.trim().length === 0) {
+      const error = 'AI tool produced no output. Check that the AI tool is configured correctly and try again.';
+      console.error(`[Onboarding] ${error}`);
+      return { result: null, error };
+    }
+
     // Strip ANSI escape codes that terminals inject
     const cleaned = raw.replace(
       // eslint-disable-next-line no-control-regex
@@ -527,18 +686,40 @@ function parseAnalysisResponse(raw: string): OnboardingAnalysisResult | null {
       '',
     );
 
+    // Check for common error patterns in the raw output before parsing
+    const lowerCleaned = cleaned.toLowerCase();
+    const errorPatterns: Array<{ pattern: string; label: string }> = [
+      { pattern: 'rate limit', label: 'Rate limit exceeded' },
+      { pattern: 'permission denied', label: 'Permission denied' },
+      { pattern: 'not found', label: 'Command or resource not found' },
+      { pattern: 'unauthorized', label: 'Authentication failed (unauthorized)' },
+      { pattern: 'api key', label: 'API key issue detected' },
+      { pattern: 'econnrefused', label: 'Connection refused' },
+      { pattern: 'timeout', label: 'Request timed out' },
+    ];
+    const detectedError = errorPatterns.find((ep) => lowerCleaned.includes(ep.pattern));
+
     const match = cleaned.match(/```json\s*([\s\S]*?)```/);
     if (!match) {
-      console.error('[Onboarding] No ```json block found in response');
-      return null;
+      const preview = cleaned.trim().substring(0, 300);
+      let error = 'No ```json block found in AI response.';
+      if (detectedError) {
+        error += ` ${detectedError.label} — check the terminal for details.`;
+      } else {
+        error += ' Use "View Terminal" to inspect the raw output.';
+      }
+      // Log preview locally for debugging but don't send to renderer (may contain credentials)
+      console.error(`[Onboarding] ${error} Raw output preview: "${preview}"`);
+      return { result: null, error };
     }
 
     const parsed = JSON.parse(match[1].trim());
 
     // Validate minimum structure
     if (!parsed.structure && !parsed.projectNotes && !parsed.suggestedTasks) {
-      console.error('[Onboarding] Parsed JSON lacks expected top-level keys');
-      return null;
+      const error = 'Parsed JSON lacks expected top-level keys (structure, projectNotes, suggestedTasks).';
+      console.error(`[Onboarding] ${error}`);
+      return { result: null, error };
     }
 
     // Ensure all top-level keys exist with defaults
@@ -553,10 +734,13 @@ function parseAnalysisResponse(raw: string): OnboardingAnalysisResult | null {
       `${result.suggestedTasks.length} tasks suggested`,
     );
 
-    return result;
+    return { result };
   } catch (err) {
-    console.error('[Onboarding] Failed to parse analysis response:', (err as Error).message);
-    return null;
+    const preview = raw ? raw.trim().substring(0, 300) : '(empty)';
+    const error = `Failed to parse AI response: ${(err as Error).message}. Use "View Terminal" to inspect the raw output.`;
+    // Log preview locally for debugging but don't send to renderer (may contain credentials)
+    console.error(`[Onboarding] ${error} Raw output preview: "${preview}"`);
+    return { result: null, error };
   }
 }
 
@@ -773,6 +957,8 @@ function importResults(
           `id: ${taskId}`,
           `title: "${suggestion.title.replace(/"/g, '\\"')}"`,
           `description: "${suggestion.description.replace(/"/g, '\\"')}"`,
+          `userRequest: "Suggested by AI onboarding analysis"`,
+          `acceptanceCriteria: ""`,
           `status: pending`,
           `priority: ${suggestion.priority || 'medium'}`,
           `category: ${suggestion.category || 'feature'}`,
@@ -832,11 +1018,14 @@ function setupIPC(ipcMain: IpcMain): void {
   });
 
   // ── RUN_ONBOARDING_ANALYSIS (handle) ─────────────────────────────────────
-  ipcMain.handle(IPC.RUN_ONBOARDING_ANALYSIS, async (_event, projectPath: string) => {
+  ipcMain.handle(IPC.RUN_ONBOARDING_ANALYSIS, async (_event, projectPath: string, options?: OnboardingAnalysisOptions) => {
     try {
       // Re-entrancy guard — prevent duplicate analyses for the same project
       if (activeAnalyses.has(projectPath)) {
         const existing = activeAnalyses.get(projectPath)!;
+        if (options) {
+          console.warn('[Onboarding] Analysis already running for this project — new options will be ignored. Cancel the current analysis first.');
+        }
         return { terminalId: existing.terminalId };
       }
 
@@ -873,7 +1062,7 @@ function setupIPC(ipcMain: IpcMain): void {
 
       // Phase: gathering
       sendProgress(projectPath, 'gathering', `Reading ${detection.detected.length} detected files...`, 30);
-      const context = gatherContext(projectPath, detection.detected);
+      const context = gatherContext(projectPath, detection.detected, options?.extraFiles);
 
       if (context.trim().length === 0) {
         sendProgress(projectPath, 'error', 'No readable content found in detected files.', 30);
@@ -881,28 +1070,88 @@ function setupIPC(ipcMain: IpcMain): void {
       }
 
       // Build the prompt
-      const prompt = buildAnalysisPrompt(context, detection.projectName);
+      const prompt = buildAnalysisPrompt(context, detection.projectName, options?.customContext);
 
       // Phase: analyzing
       sendProgress(projectPath, 'analyzing', 'Running AI analysis (this may take a minute)...', 50);
 
       let raw: string;
+      let analysisTerminalId = '';
       try {
-        raw = await runAnalysisInTerminal(projectPath, prompt);
+        const result = await runAnalysisInTerminal(projectPath, prompt);
+        raw = result.raw;
+        analysisTerminalId = result.terminalId;
       } catch (err) {
         const msg = (err as Error).message || 'Unknown error during analysis';
-        sendProgress(projectPath, 'error', msg, 50);
+        const errTerminalId = (err as any).terminalId || activeAnalyses.get(projectPath)?.terminalId || '';
+        // Include terminalId so "View Terminal" button appears in error state
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
+            projectPath,
+            phase: 'error',
+            message: msg,
+            progress: 50,
+            terminalId: errTerminalId,
+          } satisfies OnboardingProgressEvent);
+        }
         console.error('[Onboarding] Analysis pipeline error:', err);
-        return { terminalId: '' };
+        // Save error log
+        try {
+          const logDir = path.join(projectPath, '.subframe');
+          fs.mkdirSync(logDir, { recursive: true });
+          const logPath = path.join(projectPath, '.subframe', 'analysis.log');
+          const logContent = [
+            `# SubFrame AI Analysis Log`,
+            `# Date: ${new Date().toISOString()}`,
+            `# Project: ${projectPath}`,
+            `# AI Tool: ${aiToolManager.getStartCommand()}`,
+            `# Status: Error`,
+            '',
+            `Error: ${msg}`,
+          ].join('\n');
+          fs.writeFileSync(logPath, logContent, 'utf8');
+        } catch { /* ignore */ }
+        return { terminalId: errTerminalId };
       }
 
       // Phase: parsing
       sendProgress(projectPath, 'parsing', 'Parsing AI response...', 80);
-      const parsed = parseAnalysisResponse(raw);
+      const { result: parsed, error: parseError } = parseAnalysisResponse(raw);
+
+      // Save analysis log to .subframe/ for debugging
+      try {
+        const logDir = path.join(projectPath, '.subframe');
+        fs.mkdirSync(logDir, { recursive: true });
+        const logPath = path.join(projectPath, '.subframe', 'analysis.log');
+        const logContent = [
+          `# SubFrame AI Analysis Log`,
+          `# Date: ${new Date().toISOString()}`,
+          `# Project: ${projectPath}`,
+          `# AI Tool: ${aiToolManager.getStartCommand()}`,
+          `# Status: ${parsed ? 'Success' : 'Parse failed'}`,
+          '',
+          raw,
+        ].join('\n');
+        fs.writeFileSync(logPath, logContent, 'utf8');
+        console.log(`[Onboarding] Analysis log saved to ${logPath}`);
+      } catch (logErr) {
+        console.error('[Onboarding] Failed to save analysis log:', logErr);
+      }
 
       if (!parsed) {
-        sendProgress(projectPath, 'error', 'Failed to parse AI response. Check the terminal output.', 80);
-        return { terminalId: activeAnalyses.get(projectPath)?.terminalId || '' };
+        const errorMsg = parseError || 'Failed to parse AI response. Check the terminal output.';
+        // Include terminalId so "View Terminal" button appears in error state
+        const errorTerminalId = activeAnalyses.get(projectPath)?.terminalId || analysisTerminalId;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
+            projectPath,
+            phase: 'error',
+            message: errorMsg,
+            progress: 80,
+            terminalId: errorTerminalId,
+          } satisfies OnboardingProgressEvent);
+        }
+        return { terminalId: errorTerminalId };
       }
 
       // Cache parsed results for IMPORT_ONBOARDING_RESULTS
@@ -912,13 +1161,45 @@ function setupIPC(ipcMain: IpcMain): void {
       sendProgress(projectPath, 'done', JSON.stringify(parsed), 100);
 
       // Return the terminal ID so the renderer can show the terminal tab
-      const analysis = activeAnalyses.get(projectPath);
-      return { terminalId: analysis?.terminalId || '' };
+      return { terminalId: analysisTerminalId };
     } catch (err) {
       console.error('[Onboarding] Unexpected error in analysis pipeline:', err);
       sendProgress(projectPath, 'error', `Unexpected error: ${(err as Error).message}`, 0);
       return { terminalId: '' };
     }
+  });
+
+  // ── GET_ONBOARDING_PROMPT_PREVIEW (handle) ─────────────────────────────
+  ipcMain.handle(IPC.GET_ONBOARDING_PROMPT_PREVIEW, (_event, projectPath: string, options?: OnboardingAnalysisOptions) => {
+    try {
+      const detection = detectProjectIntelligence(projectPath);
+      if (!detection.worthAnalyzing) {
+        return { prompt: '(Not enough project intelligence files for analysis)', contextSize: 0 };
+      }
+      const context = gatherContext(projectPath, detection.detected, options?.extraFiles);
+      const prompt = buildAnalysisPrompt(context, detection.projectName, options?.customContext);
+      return { prompt, contextSize: context.length };
+    } catch (err) {
+      console.error('[Onboarding] Prompt preview error:', err);
+      return { prompt: 'Error generating prompt preview', contextSize: 0 };
+    }
+  });
+
+  // ── BROWSE_ONBOARDING_FILES (handle) ─────────────────────────────────────
+  ipcMain.handle(IPC.BROWSE_ONBOARDING_FILES, async (_event, projectPath: string, type: 'file' | 'directory') => {
+    if (!mainWindow || mainWindow.isDestroyed()) return [];
+    const { dialog } = require('electron');
+    const properties: ('openFile' | 'openDirectory' | 'multiSelections')[] = [
+      type === 'file' ? 'openFile' : 'openDirectory',
+      'multiSelections',
+    ];
+    const result = await dialog.showOpenDialog(mainWindow, {
+      defaultPath: projectPath,
+      properties,
+      title: type === 'file' ? 'Add Files to Analysis' : 'Add Directories to Analysis',
+    });
+    if (result.canceled) return [];
+    return result.filePaths;
   });
 
   // ── IMPORT_ONBOARDING_RESULTS (handle) ───────────────────────────────────
@@ -946,7 +1227,7 @@ function setupIPC(ipcMain: IpcMain): void {
         } else {
           sendProgress(
             payload.projectPath,
-            'done',
+            'imported',
             `Imported ${result.imported.length} item(s) successfully.`,
             100,
           );
@@ -981,8 +1262,12 @@ function setupIPC(ipcMain: IpcMain): void {
         console.error('[Onboarding] Error destroying analysis terminal:', err);
       }
 
-      // Run cleanup (removes temp files, deletes from map)
-      analysis.cleanup();
+      // Reject the promise properly (also runs cleanup internally)
+      if (analysis.cancel) {
+        analysis.cancel();
+      } else {
+        analysis.cleanup();
+      }
 
       sendProgress(projectPath, 'error', 'Analysis cancelled by user.', 0);
     }
@@ -991,4 +1276,15 @@ function setupIPC(ipcMain: IpcMain): void {
 
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
-export { init, setupIPC, detectProjectIntelligence, runAnalysisInTerminal, checkAIToolAvailable };
+export {
+  init,
+  setupIPC,
+  detectProjectIntelligence,
+  runAnalysisInTerminal,
+  checkAIToolAvailable,
+  // Exported for testing — not part of the public API
+  parseAnalysisResponse as _parseAnalysisResponse,
+  gatherContext as _gatherContext,
+  buildAnalysisPrompt as _buildAnalysisPrompt,
+  importResults as _importResults,
+};
