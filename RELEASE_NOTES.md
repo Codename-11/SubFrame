@@ -1,24 +1,22 @@
-# v0.2.2-beta
+# v0.2.3-beta
 
 ## Highlights
 
-**Onboarding flow fully wired** — Initializing a project now opens the AI analysis wizard automatically. Terminal ID is delivered immediately so "View Terminal" works during analysis. Closing the dialog mid-analysis properly cancels and cleans up.
+**Usage polling rearchitected** — Off by default, fetch once on startup, click to refresh. Optional auto-polling with exponential backoff and persistent failure notification.
 
-**Terminal stability** — Fixed copy/paste double-fire, throttled render-heavy output/scroll tracking, and wired up session/skill/plugin commands that were silently failing.
+**Collapsed sidebar drawers** — All panel groups now visible in collapsed right panel with animated drawers for multi-panel groups.
 
-**Uninstall parity** — De-init now removes all artifacts that init creates, including `pre-push` hook and `onboard` skill.
+**GitHub Changes default** — Changes panel replaces Issues as the entry point for the GitHub group.
 
-## What's New
+## Improvements
 
-- **AI Analysis re-run**: SubFrame Health panel has an "AI Analysis" button to re-run onboarding analysis on already-initialized projects
+- Usage indicator shows loading spinner during fetch with click debouncing
+- Settings: toggle + conditional slider for usage auto-polling
+- Collapsed right panel: 7 group icons with drawer expand for Agent hub (6 panels) and GitHub hub (5 panels)
+- Exponential backoff on usage polling errors (doubles up to 8min cap)
+- Toast notification after 5 consecutive polling failures with one-click disable
 
 ## Bug Fixes
 
-- Onboarding not triggered after project init
-- "View Terminal" unavailable during AI analysis (terminal ID delivered too late)
-- Orphaned analysis terminals when closing dialog mid-analysis
-- OnboardingDialog not closing after applying results
-- Uninstall missing `pre-push` git hook and `onboard` Claude skill
-- Terminal copy/paste double-fire and xterm decoration API
-- Terminal render storm during rapid PTY output
-- Session/Skills/Plugins panel commands not executing (`window.terminalSendCommand` was never defined)
+- Usage polling no longer runs by default, eliminating unnecessary API calls and 429 errors
+- GitHub keyboard shortcut (Ctrl+Shift+G) now opens Changes instead of Issues

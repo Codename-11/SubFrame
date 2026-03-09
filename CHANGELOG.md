@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3-beta] - 2026-03-09
+
+### Fixed
+- **Usage polling off by default**: Polling now disabled by default (on-demand only); when enabled uses exponential backoff with persistent failure notification and one-click disable
+- **Collapsed right panel shows all groups**: All panel group icons visible in collapsed sidebar with animated drawers for multi-panel groups (Agent hub, GitHub hub)
+- **GitHub default view**: Changes panel is now the default entry point (Ctrl+Shift+G) instead of Issues
+- **Usage fetch indicator**: Loading spinner shown in usage pill during API fetch with click debouncing
+
 ## [0.2.2-beta] - 2026-03-08
 
 ### Added
