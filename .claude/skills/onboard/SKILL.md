@@ -177,16 +177,59 @@ If the task CLI script (\`scripts/task.js\`) does not exist in the target projec
 Before writing any files, ensure the \`.subframe/\` directory and its subdirectories exist:
 
 \`\`\`bash
-mkdir -p .subframe/tasks
+mkdir -p .subframe/tasks .subframe/hooks .claude
 \`\`\`
 
-### Step 6: Write Files
+### Step 6: Set Up Claude Code Hooks
+
+Set up Claude Code hooks for automatic sub-task awareness. These hooks inject context at session start, match prompts to pending sub-tasks, and remind about in-progress work.
+
+> **Note:** This deploys only the 3 core hooks (task awareness). The full SubFrame IDE install also registers \`PreToolUse\` and \`PostToolUse\` hooks for real-time agent-state tracking, but those are SubFrame IDE-specific and should not be deployed to onboarded projects.
+
+Create three hook scripts in \`.subframe/hooks/\`. Each hook must:
+- Use a directory-traversal function that walks up from CWD looking for \`.subframe/\` (or \`.subframe/tasks.json\`) — handles monorepo CWD shifts
+- Read tasks from \`.subframe/tasks.json\` directly (no external CLI dependency)
+- Exit silently with code 0 on any error — never fail loudly
+- Use \`#!/usr/bin/env node\` shebang, require only \`fs\`, \`path\`, \`child_process\`
+
+**1. \`.subframe/hooks/session-start.js\`** (SessionStart event)
+- Traverses up from CWD looking for \`.subframe/tasks.json\`
+- Outputs in-progress tasks with priority icons, step progress (\`Steps: N/M\`), and last note
+- Outputs top 5 pending tasks sorted by priority
+- Wraps output in \`<sub-tasks-context>\` tags
+
+**2. \`.subframe/hooks/prompt-submit.js\`** (UserPromptSubmit event)
+- Reads hook input from stdin (JSON with \`{ prompt, cwd }\`)
+- Fuzzy-matches prompt words against pending sub-task titles (primary) and descriptions (secondary, at 50% weight), taking the higher score
+- If match confidence >= 40%, outputs suggestion wrapped in \`<sub-task-match>\` tags
+- Skips slash commands and prompts shorter than 10 characters
+
+**3. \`.subframe/hooks/stop.js\`** (Stop event)
+- Reads hook input from stdin (JSON with \`{ cwd }\`)
+- If sub-tasks are in-progress, outputs reminder wrapped in \`<sub-task-reminder>\` tags
+- If no sub-tasks are in-progress but >= 2 source files are modified (via \`git diff --name-only HEAD -- src/\`), outputs untracked work warning wrapped in \`<sync-check>\` tags
+
+Then create or update \`.claude/settings.json\` with hook configuration. **All paths must use \`$(git rev-parse --show-toplevel)\`** to resolve correctly in monorepos where CWD may shift:
+
+\`\`\`json
+{
+  "hooks": {
+    "SessionStart": [{"matcher": "", "hooks": [{"type": "command", "command": "node \\"$(git rev-parse --show-toplevel)/.subframe/hooks/session-start.js\\""}]}],
+    "UserPromptSubmit": [{"matcher": "", "hooks": [{"type": "command", "command": "node \\"$(git rev-parse --show-toplevel)/.subframe/hooks/prompt-submit.js\\""}]}],
+    "Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "node \\"$(git rev-parse --show-toplevel)/.subframe/hooks/stop.js\\""}]}]
+  }
+}
+\`\`\`
+
+If \`.claude/settings.json\` already exists, **merge** the hooks config — do not overwrite other fields. If SubFrame hook entries already exist (commands containing \`.subframe/hooks/\`), **replace** them rather than appending duplicates.
+
+### Step 7: Write Files
 
 Write the generated content:
 1. \`.subframe/STRUCTURE.json\` — the module map
 2. \`.subframe/PROJECT_NOTES.md\` — the project documentation
 
-### Step 7: Summary
+### Step 8: Summary
 
 Show a summary of what was created or updated:
 
@@ -199,6 +242,12 @@ Show a summary of what was created or updated:
 ### Files Written
 - \`.subframe/STRUCTURE.json\` — <N> modules mapped
 - \`.subframe/PROJECT_NOTES.md\` — project documentation bootstrapped
+
+### Hooks Deployed
+- \`.subframe/hooks/session-start.js\` — sub-task context injection
+- \`.subframe/hooks/prompt-submit.js\` — prompt-to-task matching
+- \`.subframe/hooks/stop.js\` — work tracking reminders
+- \`.claude/settings.json\` — hook configuration (git-root-relative paths)
 
 ### Sub-Tasks Created
 - [ST-XXX] <title> (priority, category)

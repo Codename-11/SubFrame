@@ -5,10 +5,11 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import { dialog } from 'electron';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
-import { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES, GITHOOKS_DIR } from '../shared/frameConstants';
+import { FRAME_DIR, FRAME_CONFIG_FILE, FRAME_FILES, FRAME_VERSION, GITHOOKS_DIR } from '../shared/frameConstants';
 import type { UninstallOptions, UninstallResult } from '../shared/ipcChannels';
 import * as workspace from './workspace';
 import { initializeProject, checkExistingFiles } from '../shared/projectInit';
@@ -16,6 +17,7 @@ import { getNativeFileStatus, getClaudeNativeStatus, removeBacklink } from '../s
 import { getSubFrameHealth, getComponentRegistry } from '../shared/subframeHealth';
 import { readClaudeSettings, writeClaudeSettings, mergeSubFrameHooks, removeSubFrameHooks } from '../shared/claudeSettingsUtils';
 import * as templates from '../shared/frameTemplates';
+import { SUBFRAME_VERSION_REGEX, SUBFRAME_MANAGED_REGEX } from '../shared/frameTemplates';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -125,6 +127,165 @@ function initializeFrameProject(projectPath: string, projectName?: string): unkn
 }
 
 /**
+ * Clean up .bak files from previous updates.
+ * Called at the start of each update cycle so only the most recent backups survive.
+ */
+function cleanupBackups(projectPath: string): number {
+  let deleted = 0;
+  const dirsToScan = [
+    path.join(projectPath, FRAME_DIR),
+    path.join(projectPath, GITHOOKS_DIR),
+    path.join(projectPath, '.claude', 'skills'),
+  ];
+
+  function walkAndClean(dir: string): void {
+    if (!fs.existsSync(dir)) return;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walkAndClean(fullPath);
+      } else if (entry.name.endsWith('.bak')) {
+        try {
+          fs.unlinkSync(fullPath);
+          deleted++;
+        } catch {
+          // Non-fatal — skip files we can't delete
+        }
+      }
+    }
+  }
+
+  for (const dir of dirsToScan) {
+    walkAndClean(dir);
+  }
+
+  return deleted;
+}
+
+/**
+ * Update SubFrame components in a project. Extracted from the IPC handler for testability.
+ */
+function updateSubFrameComponents(
+  projectPath: string,
+  componentIds: string[]
+): { updated: string[]; failed: string[]; skipped: string[] } {
+  const updated: string[] = [];
+  const failed: string[] = [];
+  const skipped: string[] = [];
+
+  // Clean up old .bak files before creating new ones
+  cleanupBackups(projectPath);
+
+  const registry = getComponentRegistry();
+
+  for (const id of componentIds) {
+    const entry = registry.find((r) => r.id === id);
+    if (!entry) {
+      failed.push(id);
+      continue;
+    }
+
+    try {
+      const fullPath = path.join(projectPath, entry.path);
+
+      // Check for user opt-out before any write (skip claude-settings which has no file header)
+      if (entry.specialCheck !== 'claude-settings' && fs.existsSync(fullPath)) {
+        try {
+          const existingContent = fs.readFileSync(fullPath, 'utf8');
+          if (SUBFRAME_MANAGED_REGEX.test(existingContent)) {
+            skipped.push(id);
+            continue;
+          }
+        } catch { /* unreadable file — proceed with update */ }
+      }
+
+      if (entry.specialCheck === 'claude-settings') {
+        // Re-merge Claude hooks
+        const existing = readClaudeSettings(projectPath);
+        const subframeHooksConfig = templates.getClaudeSettingsHooksTemplate();
+        const merged = mergeSubFrameHooks(existing, subframeHooksConfig);
+        writeClaudeSettings(projectPath, merged);
+        updated.push(id);
+      } else if (entry.templateVersion !== undefined) {
+        // Version-stamped template (e.g., AGENTS.md) — backup existing, regenerate
+
+        // Backup existing file before overwriting
+        if (fs.existsSync(fullPath)) {
+          fs.copyFileSync(fullPath, fullPath + '.bak');
+        }
+
+        // Resolve project name from config, fallback to directory name
+        let projectName = path.basename(projectPath);
+        try {
+          const config = JSON.parse(fs.readFileSync(
+            path.join(projectPath, FRAME_DIR, 'config.json'), 'utf8'
+          ));
+          if (config.name && typeof config.name === 'string') {
+            projectName = config.name;
+          }
+        } catch { /* use fallback */ }
+
+        // Dispatch by component ID for templates that need parameters
+        let content: string | null = null;
+        if (entry.id === 'agents') {
+          content = templates.getAgentsTemplate(projectName);
+        }
+        // Generic fallback: if the entry also has getTemplate(), use that
+        if (content === null && entry.getTemplate) {
+          content = entry.getTemplate();
+        }
+
+        if (content !== null) {
+          const dir = path.dirname(fullPath);
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+          }
+          const writeOpts: fs.WriteFileOptions = entry.executable
+            ? { encoding: 'utf8', mode: 0o755 }
+            : 'utf8';
+          fs.writeFileSync(fullPath, content, writeOpts);
+          updated.push(id);
+        } else {
+          failed.push(id);
+        }
+      } else if (entry.getTemplate) {
+        // Content-compared template — backup and regenerate
+
+        // Always backup before overwriting (including legacy files)
+        if (fs.existsSync(fullPath)) {
+          fs.copyFileSync(fullPath, fullPath + '.bak');
+        }
+
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        const content = entry.getTemplate();
+        const writeOpts: fs.WriteFileOptions = entry.executable
+          ? { encoding: 'utf8', mode: 0o755 }
+          : 'utf8';
+        fs.writeFileSync(fullPath, content, writeOpts);
+        updated.push(id);
+      } else {
+        // Existence-only components can't be "updated" (they contain user data)
+        failed.push(id);
+      }
+    } catch (err) {
+      console.error(`Error updating component ${id}:`, err);
+      failed.push(id);
+    }
+  }
+
+  return { updated, failed, skipped };
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIPC(ipcMain: IpcMain): void {
@@ -190,78 +351,12 @@ function setupIPC(ipcMain: IpcMain): void {
   });
 
   ipcMain.on(IPC.UPDATE_SUBFRAME_COMPONENTS, (event, { projectPath, componentIds }: { projectPath: string; componentIds: string[] }) => {
-    const updated: string[] = [];
-    const failed: string[] = [];
-
-    const registry = getComponentRegistry();
-
-    for (const id of componentIds) {
-      const entry = registry.find((r) => r.id === id);
-      if (!entry) {
-        failed.push(id);
-        continue;
-      }
-
-      try {
-        if (entry.specialCheck === 'claude-settings') {
-          // Re-merge Claude hooks
-          const existing = readClaudeSettings(projectPath);
-          const subframeHooksConfig = templates.getClaudeSettingsHooksTemplate();
-          const merged = mergeSubFrameHooks(existing, subframeHooksConfig);
-          writeClaudeSettings(projectPath, merged);
-          updated.push(id);
-        } else if (entry.templateVersion !== undefined) {
-          // Version-stamped template — backup existing, regenerate from current template
-          const fullPath = path.join(projectPath, entry.path);
-
-          // Backup existing file
-          if (fs.existsSync(fullPath)) {
-            fs.copyFileSync(fullPath, fullPath + '.bak');
-          }
-
-          // Resolve project name from config, fallback to directory name
-          let projectName = path.basename(projectPath);
-          try {
-            const config = JSON.parse(fs.readFileSync(
-              path.join(projectPath, FRAME_DIR, 'config.json'), 'utf8'
-            ));
-            if (config.name && typeof config.name === 'string') {
-              projectName = config.name;
-            }
-          } catch { /* use fallback */ }
-
-          // Dispatch by component ID (templates that need parameters)
-          if (entry.id === 'agents') {
-            const dir = path.dirname(fullPath);
-            if (!fs.existsSync(dir)) {
-              fs.mkdirSync(dir, { recursive: true });
-            }
-            fs.writeFileSync(fullPath, templates.getAgentsTemplate(projectName), 'utf8');
-            updated.push(id);
-          } else {
-            failed.push(id);
-          }
-        } else if (entry.getTemplate) {
-          // Regenerate from template and overwrite
-          const fullPath = path.join(projectPath, entry.path);
-          const dir = path.dirname(fullPath);
-          if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-          }
-          const content = entry.getTemplate();
-          fs.writeFileSync(fullPath, content, 'utf8');
-          updated.push(id);
-        } else {
-          // Existence-only components can't be "updated" (they contain user data)
-          failed.push(id);
-        }
-      } catch (err) {
-        console.error(`Error updating component ${id}:`, err);
-        failed.push(id);
-      }
-    }
-
-    event.sender.send(IPC.SUBFRAME_COMPONENTS_UPDATED, { projectPath, updated, failed });
+    const result = updateSubFrameComponents(projectPath, componentIds);
+    event.sender.send(IPC.SUBFRAME_COMPONENTS_UPDATED, {
+      projectPath,
+      ...result,
+      skipped: result.skipped.length > 0 ? result.skipped : undefined,
+    });
   });
 
   ipcMain.on(IPC.UNINSTALL_SUBFRAME, (event, { projectPath, options }: { projectPath: string; options: UninstallOptions }) => {
@@ -337,7 +432,6 @@ function uninstallSubFrame(projectPath: string, options: UninstallOptions): Unin
           removed.push(`${GITHOOKS_DIR}/ (empty, removed)`);
           // Reset git config
           try {
-            const { execSync } = require('child_process');
             execSync('git config --unset core.hooksPath', {
               cwd: projectPath,
               stdio: 'ignore',
@@ -431,4 +525,4 @@ function uninstallSubFrame(projectPath: string, options: UninstallOptions): Unin
   };
 }
 
-export { init, isFrameProject, getFrameConfig, initializeFrameProject, setupIPC };
+export { init, isFrameProject, getFrameConfig, initializeFrameProject, updateSubFrameComponents, setupIPC };

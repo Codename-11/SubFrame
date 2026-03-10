@@ -282,13 +282,15 @@ export function RightPanel() {
             const newWidth = Math.min(600, Math.max(320, startWidth - (ev.clientX - startX)));
             setRightPanelWidth(newWidth);
           };
-          const onMouseUp = () => {
+          const cleanup = () => {
             document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('mouseup', cleanup);
+            window.removeEventListener('blur', cleanup);
             useUIStore.getState().setIsResizing(false);
           };
           document.addEventListener('mousemove', onMouseMove);
-          document.addEventListener('mouseup', onMouseUp);
+          document.addEventListener('mouseup', cleanup);
+          window.addEventListener('blur', cleanup);
         }}
         onDoubleClick={() => setRightPanelWidth(380)}
         title="Drag to resize, double-click to reset"

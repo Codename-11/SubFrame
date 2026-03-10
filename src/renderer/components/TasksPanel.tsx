@@ -14,7 +14,7 @@ import {
   type SortingState,
   type SortingFn,
 } from '@tanstack/react-table';
-import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X, Copy, Lock, Link, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X, Copy, Lock, Link, Sparkles, Loader2, Pencil } from 'lucide-react';
 import { TaskTimeline } from './TaskTimeline';
 import { TaskGraph } from './TaskGraph';
 import { TaskKanban } from './TaskKanban';
@@ -109,9 +109,10 @@ function formToMarkdown(
     parts.push(description);
     parts.push('');
   }
-  if (steps.length > 0) {
+  const nonEmptySteps = steps.filter((s) => s.label.trim());
+  if (nonEmptySteps.length > 0) {
     parts.push('## Steps');
-    for (const step of steps) {
+    for (const step of nonEmptySteps) {
       parts.push(`- [${step.completed ? 'x' : ' '}] ${step.label}`);
     }
     parts.push('');
@@ -184,7 +185,17 @@ const taskMdComponents: Record<string, React.ComponentType<any>> = {
   em: ({ children, ...props }: any) => <em className="italic" {...props}>{children}</em>,
   code: ({ children, ...props }: any) => <code className="bg-bg-tertiary text-accent px-1 py-0.5 rounded text-[11px] font-mono" {...props}>{children}</code>,
   a: ({ children, href, ...props }: any) => (
-    <a href={href} className="text-info hover:underline" onClick={(e: React.MouseEvent) => { e.preventDefault(); if (href) require('electron').shell.openExternal(href); }} {...props}>{children}</a>
+    <a href={href} className="text-info hover:underline" onClick={(e: React.MouseEvent) => {
+      e.preventDefault();
+      if (href) {
+        try {
+          const url = new URL(href);
+          if (['https:', 'http:'].includes(url.protocol)) {
+            require('electron').shell.openExternal(href);
+          }
+        } catch { /* invalid URL — ignore */ }
+      }
+    }} {...props}>{children}</a>
   ),
 };
 
@@ -399,6 +410,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const [formNotes, setFormNotes] = useState('');
   const [formBlockedBy, setFormBlockedBy] = useState<string[]>([]);
   const [formBlocks, setFormBlocks] = useState<string[]>([]);
+  const [blockedBySelect, setBlockedBySelect] = useState('');
+  const [blocksSelect, setBlocksSelect] = useState('');
   const [dialogMode, setDialogMode] = useState<'form' | 'markdown'>('form');
   const [markdownContent, setMarkdownContent] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -648,6 +661,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormNotes('');
     setFormBlockedBy([]);
     setFormBlocks([]);
+    setBlockedBySelect('');
+    setBlocksSelect('');
     setDialogMode('form');
     setMarkdownContent('');
     setShowAdvanced(false);
@@ -667,6 +682,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormNotes(task.notes || '');
     setFormBlockedBy(task.blockedBy ?? []);
     setFormBlocks(task.blocks ?? []);
+    setBlockedBySelect('');
+    setBlocksSelect('');
     setDialogMode('form');
     setMarkdownContent('');
     setShowAdvanced(!!(task.acceptanceCriteria || task.notes || task.blockedBy?.length || task.blocks?.length));
@@ -910,7 +927,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                     {expandedId === row.original.id && (
                       <tr>
                         <td colSpan={columns.length} className="px-4 py-3 bg-bg-deep/50">
-                          <TaskDetail task={row.original} updateTask={updateTask} allTasks={tasks} />
+                          <TaskDetail task={row.original} updateTask={updateTask} allTasks={tasks} isFullView={isFullView} onEdit={openEditDialog} />
                         </td>
                       </tr>
                     )}
@@ -1157,9 +1174,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                         )}
                         <div className="flex gap-1.5">
                           <select
-                            id="blockedBy-select"
+                            value={blockedBySelect}
+                            onChange={(e) => setBlockedBySelect(e.target.value)}
                             className="flex-1 rounded-md bg-bg-deep border border-border-subtle px-2 py-1 text-xs text-text-primary"
-                            defaultValue=""
                           >
                             <option value="" disabled>Select a task...</option>
                             {tasks
@@ -1174,10 +1191,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                             variant="outline"
                             className="h-6 px-2 text-xs cursor-pointer"
                             onClick={() => {
-                              const sel = document.getElementById('blockedBy-select') as HTMLSelectElement | null;
-                              if (sel?.value) {
-                                setFormBlockedBy([...formBlockedBy, sel.value]);
-                                sel.value = '';
+                              if (blockedBySelect) {
+                                setFormBlockedBy([...formBlockedBy, blockedBySelect]);
+                                setBlockedBySelect('');
                               }
                             }}
                           >
@@ -1214,9 +1230,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                         )}
                         <div className="flex gap-1.5">
                           <select
-                            id="blocks-select"
+                            value={blocksSelect}
+                            onChange={(e) => setBlocksSelect(e.target.value)}
                             className="flex-1 rounded-md bg-bg-deep border border-border-subtle px-2 py-1 text-xs text-text-primary"
-                            defaultValue=""
                           >
                             <option value="" disabled>Select a task...</option>
                             {tasks
@@ -1231,10 +1247,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                             variant="outline"
                             className="h-6 px-2 text-xs cursor-pointer"
                             onClick={() => {
-                              const sel = document.getElementById('blocks-select') as HTMLSelectElement | null;
-                              if (sel?.value) {
-                                setFormBlocks([...formBlocks, sel.value]);
-                                sel.value = '';
+                              if (blocksSelect) {
+                                setFormBlocks([...formBlocks, blocksSelect]);
+                                setBlocksSelect('');
                               }
                             }}
                           >
@@ -1323,9 +1338,10 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   );
 }
 
-function TaskDetail({ task, updateTask, allTasks }: { task: Task; updateTask: { mutate: (vars: { taskId: string; updates: Partial<Task> }) => void }; allTasks: Task[] }) {
-  const completedSteps = task.steps.filter((s) => s.completed).length;
-  const totalSteps = task.steps.length;
+function TaskDetail({ task, updateTask, allTasks, isFullView = false, onEdit }: { task: Task; updateTask: { mutate: (vars: { taskId: string; updates: Partial<Task> }) => void }; allTasks: Task[]; isFullView?: boolean; onEdit?: (task: Task) => void }) {
+  const steps = task.steps ?? [];
+  const completedSteps = steps.filter((s) => s.completed).length;
+  const totalSteps = steps.length;
   const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   function resolveTaskTitle(id: string): string {
@@ -1340,7 +1356,7 @@ function TaskDetail({ task, updateTask, allTasks }: { task: Task; updateTask: { 
 
   return (
     <div className="flex flex-col gap-2.5 text-xs">
-      {/* ID header */}
+      {/* ID header + actions */}
       <div className="flex items-center gap-1.5">
         <span className="font-mono text-[10px] text-text-muted select-all">{task.id}</span>
         <button
@@ -1350,11 +1366,40 @@ function TaskDetail({ task, updateTask, allTasks }: { task: Task; updateTask: { 
         >
           <Copy className="w-3 h-3" />
         </button>
+        {onEdit && (
+          <button
+            onClick={() => onEdit(task)}
+            className="text-text-muted hover:text-accent transition-colors p-0.5 rounded hover:bg-bg-tertiary cursor-pointer"
+            title="Edit task"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+        )}
       </div>
 
-      {/* Two-column grid layout */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3">
-        {/* Left column — content */}
+      {/* Metadata badges — inline in panel mode, in sidebar card in full-view */}
+      {!isFullView && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="secondary" className={cn('text-[10px] capitalize', STATUS_COLORS[task.status])}>
+            {task.status.replace('_', ' ')}
+          </Badge>
+          <Badge variant="secondary" className={cn('text-[10px] capitalize', PRIORITY_COLORS[task.priority])}>
+            {task.priority}
+          </Badge>
+          {task.category && (
+            <Badge variant="secondary" className={cn('text-[10px] capitalize', CATEGORY_COLORS[task.category] || CATEGORY_COLORS.chore)}>
+              {task.category}
+            </Badge>
+          )}
+          <span className="text-text-muted text-[10px] ml-auto">
+            Updated: {formatDate(task.updatedAt)}
+          </span>
+        </div>
+      )}
+
+      {/* Content: single column in panel, two-column in full-view */}
+      <div className={isFullView ? 'grid grid-cols-[1fr_220px] gap-3' : 'flex flex-col gap-2'}>
+        {/* Content column */}
         <div className="flex flex-col gap-2 min-w-0">
           {task.userRequest && (
             <div className="break-words">
@@ -1431,9 +1476,9 @@ function TaskDetail({ task, updateTask, allTasks }: { task: Task; updateTask: { 
                 />
               </div>
               <TaskTimeline
-                steps={task.steps}
+                steps={steps}
                 onToggleStep={(index) => {
-                  const newSteps = task.steps.map((s, i) => i === index ? { ...s, completed: !s.completed } : s);
+                  const newSteps = steps.map((s, i) => i === index ? { ...s, completed: !s.completed } : s);
                   updateTask.mutate({ taskId: task.id, updates: { steps: newSteps } });
                 }}
               />
@@ -1441,35 +1486,37 @@ function TaskDetail({ task, updateTask, allTasks }: { task: Task; updateTask: { 
           )}
         </div>
 
-        {/* Right column — metadata card */}
-        <div className="flex flex-col gap-2 rounded border border-border-subtle bg-bg-secondary/50 p-2.5 h-fit">
-          <div className="flex flex-wrap gap-1">
-            <Badge variant="secondary" className={cn('text-[10px] capitalize', STATUS_COLORS[task.status])}>
-              {task.status.replace('_', ' ')}
-            </Badge>
-            <Badge variant="secondary" className={cn('text-[10px] capitalize', PRIORITY_COLORS[task.priority])}>
-              {task.priority}
-            </Badge>
-            {task.category && (
-              <Badge variant="secondary" className={cn('text-[10px] capitalize', CATEGORY_COLORS[task.category] || CATEGORY_COLORS.chore)}>
-                {task.category}
+        {/* Right column — metadata card (full-view only, panel mode shows inline badges above) */}
+        {isFullView && (
+          <div className="flex flex-col gap-2 rounded border border-border-subtle bg-bg-secondary/50 p-2.5 h-fit">
+            <div className="flex flex-wrap gap-1">
+              <Badge variant="secondary" className={cn('text-[10px] capitalize', STATUS_COLORS[task.status])}>
+                {task.status.replace('_', ' ')}
               </Badge>
-            )}
-          </div>
-
-          {totalSteps > 0 && (
-            <div className="flex items-center gap-1.5 text-text-tertiary">
-              <Check className="w-3 h-3" />
-              <span>{completedSteps}/{totalSteps} steps</span>
+              <Badge variant="secondary" className={cn('text-[10px] capitalize', PRIORITY_COLORS[task.priority])}>
+                {task.priority}
+              </Badge>
+              {task.category && (
+                <Badge variant="secondary" className={cn('text-[10px] capitalize', CATEGORY_COLORS[task.category] || CATEGORY_COLORS.chore)}>
+                  {task.category}
+                </Badge>
+              )}
             </div>
-          )}
 
-          <div className="flex flex-col gap-0.5 text-text-tertiary border-t border-border-subtle pt-2 mt-0.5">
-            <span>Created: {formatDate(task.createdAt)}</span>
-            <span>Updated: {formatDate(task.updatedAt)}</span>
-            {task.completedAt && <span>Completed: {formatDate(task.completedAt)}</span>}
+            {totalSteps > 0 && (
+              <div className="flex items-center gap-1.5 text-text-tertiary">
+                <Check className="w-3 h-3" />
+                <span>{completedSteps}/{totalSteps} steps</span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-0.5 text-text-tertiary border-t border-border-subtle pt-2 mt-0.5">
+              <span>Created: {formatDate(task.createdAt)}</span>
+              <span>Updated: {formatDate(task.updatedAt)}</span>
+              {task.completedAt && <span>Completed: {formatDate(task.completedAt)}</span>}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -1010,28 +1010,28 @@
       ],
       "functions": {
         "init": {
-          "line": 25,
+          "line": 26,
           "params": [
             "window"
           ],
           "purpose": "Initialize frame project module"
         },
         "isFrameProject": {
-          "line": 32,
+          "line": 33,
           "params": [
             "projectPath"
           ],
           "purpose": "Check if a project is a SubFrame project"
         },
         "getFrameConfig": {
-          "line": 40,
+          "line": 41,
           "params": [
             "projectPath"
           ],
           "purpose": "Get SubFrame config from project"
         },
         "showInitializeConfirmation": {
-          "line": 53,
+          "line": 54,
           "params": [
             "projectPath"
           ],
@@ -1043,7 +1043,7 @@
           ]
         },
         "initializeFrameProject": {
-          "line": 118,
+          "line": 119,
           "params": [
             "projectPath",
             "projectName"
@@ -1054,7 +1054,7 @@
           ]
         },
         "setupIPC": {
-          "line": 130,
+          "line": 131,
           "params": [
             "ipcMain"
           ],
@@ -1073,7 +1073,7 @@
           ]
         },
         "uninstallSubFrame": {
-          "line": 292,
+          "line": 342,
           "params": [
             "projectPath",
             "options"
@@ -1087,7 +1087,7 @@
           ]
         }
       },
-      "loc": 435,
+      "loc": 485,
       "ipc": {
         "listens": [
           "CHECK_IS_FRAME_PROJECT",
@@ -1430,7 +1430,7 @@
           ]
         },
         "createWindow": {
-          "line": 137,
+          "line": 140,
           "purpose": "Create main application window",
           "calls": [
             "createSplash",
@@ -1440,25 +1440,25 @@
           ]
         },
         "setupAllIPC": {
-          "line": 279,
+          "line": 282,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 328,
+          "line": 331,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 339,
+          "line": 342,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 378,
+      "loc": 381,
       "ipc": {
         "listens": [
           "GET_RELEASE_NOTES",
@@ -2079,7 +2079,7 @@
           ]
         },
         "shouldRequireApproval": {
-          "line": 528,
+          "line": 527,
           "params": [
             "stage",
             "artifacts"
@@ -2087,21 +2087,21 @@
           "purpose": "Determine if a stage should pause for approval."
         },
         "waitForApproval": {
-          "line": 540,
+          "line": 539,
           "params": [
             "runCtx"
           ],
           "purpose": "Returns true if approved, false if rejected."
         },
         "init": {
-          "line": 563,
+          "line": 562,
           "params": [
             "window"
           ],
           "purpose": "Initialize the pipeline manager."
         },
         "setupIPC": {
-          "line": 570,
+          "line": 569,
           "params": [
             "ipcMain"
           ],
@@ -2125,20 +2125,20 @@
           ]
         },
         "watchWorkflows": {
-          "line": 829,
+          "line": 828,
           "params": [
             "projectPath"
           ],
           "calls": [
-            "send",
+            "broadcastRunsList",
             "unwatchWorkflows"
           ]
         },
         "unwatchWorkflows": {
-          "line": 854
+          "line": 853
         },
         "startPipelineFromTrigger": {
-          "line": 869,
+          "line": 868,
           "params": [
             "projectPath",
             "workflowId",
@@ -2156,7 +2156,7 @@
           ]
         },
         "watchPrePushTrigger": {
-          "line": 927,
+          "line": 926,
           "params": [
             "projectPath"
           ],
@@ -2167,10 +2167,10 @@
           ]
         },
         "unwatchPrePushTrigger": {
-          "line": 966
+          "line": 965
         }
       },
-      "loc": 983,
+      "loc": 982,
       "ipc": {
         "listens": [
           "PIPELINE_LIST_WORKFLOWS",
@@ -4016,7 +4016,6 @@
         "TerminalArea",
         "RightPanel",
         "SettingsPanel",
-        "KeyboardShortcuts",
         "CommandPalette",
         "PromptLibrary",
         "WhatsNew",
@@ -4041,6 +4040,7 @@
           "line": 36,
           "purpose": "Keyboard shortcuts are wired here to match the original app.",
           "calls": [
+            "TerminalArea",
             "cn",
             "typedInvoke",
             "typedSend",
@@ -4050,9 +4050,11 @@
           ]
         }
       },
-      "loc": 470,
+      "loc": 522,
       "ipc": {
         "listens": [
+          "WORKSPACE_DATA",
+          "WORKSPACE_UPDATED",
           "SUBFRAME_UNINSTALLED",
           "MENU_TOGGLE_SIDEBAR",
           "MENU_TOGGLE_RIGHT_PANEL",
@@ -4427,34 +4429,6 @@
         ],
         "emits": []
       }
-    },
-    "renderer/components/KeyboardShortcuts": {
-      "file": "src\\renderer\\components\\KeyboardShortcuts.tsx",
-      "description": "KeyboardShortcuts — Dialog showing all available keyboard shortcuts. Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen.",
-      "exports": [
-        "KeyboardShortcuts"
-      ],
-      "depends": [
-        "react",
-        "lucide-react",
-        "stores/useUIStore",
-        "lib/shortcuts"
-      ],
-      "functions": {
-        "Kbd": {
-          "line": 19,
-          "params": [
-            "{ children }"
-          ]
-        },
-        "KeyboardShortcuts": {
-          "line": 35,
-          "calls": [
-            "getShortcutsByCategory"
-          ]
-        }
-      },
-      "loc": 122
     },
     "renderer/components/OnboardingDialog": {
       "file": "src\\renderer\\components\\OnboardingDialog.tsx",
@@ -5250,6 +5224,28 @@
       },
       "loc": 1278
     },
+    "renderer/components/ShortcutsPanel": {
+      "file": "src\\renderer\\components\\ShortcutsPanel.tsx",
+      "description": "ShortcutsPanel — Full-view panel for keyboard shortcuts. Replaces the old dialog modal with a VS Code-style full-panel view. Renders inside the TerminalArea full-view system (like TasksPanel, PipelinePanel).",
+      "exports": [
+        "ShortcutsPanel"
+      ],
+      "depends": [
+        "react",
+        "lucide-react",
+        "lib/shortcuts",
+        "ui/kbd"
+      ],
+      "functions": {
+        "ShortcutsPanel": {
+          "line": 14,
+          "calls": [
+            "getShortcutsByCategory"
+          ]
+        }
+      },
+      "loc": 125
+    },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
       "description": "",
@@ -5579,13 +5575,13 @@
           "purpose": "── Status helpers ──"
         },
         "getStatusIcon": {
-          "line": 65,
+          "line": 69,
           "params": [
             "comp"
           ]
         },
         "SimpleCheckbox": {
-          "line": 94,
+          "line": 99,
           "params": [
             "{\r\n  checked",
             "onChange",
@@ -5595,7 +5591,7 @@
           "purpose": "── Simple checkbox (no shadcn Checkbox available) ──"
         },
         "SubFrameHealthPanel": {
-          "line": 114,
+          "line": 119,
           "calls": [
             "cn",
             "getStatusBadge",
@@ -5605,7 +5601,7 @@
           ]
         }
       },
-      "loc": 450
+      "loc": 473
     },
     "renderer/components/TaskGraph": {
       "file": "src\\renderer\\components\\TaskGraph.tsx",
@@ -5896,7 +5892,7 @@
           ]
         }
       },
-      "loc": 579,
+      "loc": 653,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -5924,6 +5920,8 @@
         "DecisionsDetailView",
         "PipelinePanel",
         "AgentStateView",
+        "ShortcutsPanel",
+        "ViewTabBar",
         "ErrorBoundary",
         "stores/useTerminalStore",
         "stores/useProjectStore",
@@ -5937,20 +5935,20 @@
       ],
       "functions": {
         "saveSession": {
-          "line": 48,
+          "line": 50,
           "params": [
             "projectPath",
             "store"
           ]
         },
         "loadSession": {
-          "line": 81,
+          "line": 83,
           "params": [
             "projectPath"
           ]
         },
         "TerminalArea": {
-          "line": 91,
+          "line": 93,
           "calls": [
             "createTerminal",
             "getLogoSVG",
@@ -5963,7 +5961,7 @@
           ]
         }
       },
-      "loc": 672,
+      "loc": 685,
       "ipc": {
         "listens": [
           "TERMINAL_CREATED",
@@ -6030,7 +6028,7 @@
           ]
         },
         "UsageItem": {
-          "line": 654,
+          "line": 657,
           "params": [
             "{ label",
             "utilization",
@@ -6038,13 +6036,13 @@
           ]
         },
         "ResetTime": {
-          "line": 677,
+          "line": 680,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 696,
+      "loc": 699,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -6099,6 +6097,23 @@
         }
       },
       "loc": 75
+    },
+    "renderer/components/ViewTabBar": {
+      "file": "src\\renderer\\components\\ViewTabBar.tsx",
+      "description": "",
+      "exports": [
+        "ViewTabBar"
+      ],
+      "depends": [
+        "react",
+        "stores/useUIStore"
+      ],
+      "functions": {
+        "ViewTabBar": {
+          "line": 28
+        }
+      },
+      "loc": 79
     },
     "renderer/components/WhatsNew": {
       "file": "src\\renderer\\components\\WhatsNew.tsx",
@@ -6245,11 +6260,12 @@
         "hooks/useIpc",
         "lib/ipc",
         "../shared/ipcChannels",
-        "sonner"
+        "sonner",
+        "ui/kbd"
       ],
       "functions": {
         "WorkspaceSelector": {
-          "line": 39,
+          "line": 40,
           "purpose": "Shows current workspace name, allows switching, creating, renaming, and deleting workspaces.",
           "calls": [
             "typedInvoke",
@@ -6258,14 +6274,22 @@
           ]
         },
         "AddProjectButton": {
-          "line": 304,
+          "line": 307,
           "calls": [
             "typedInvoke",
             "typedSend"
           ]
         }
       },
-      "loc": 381
+      "loc": 384
+    },
+    "renderer/global.d": {
+      "file": "src\\renderer\\global.d.ts",
+      "description": "Global window augmentations for SubFrame renderer",
+      "exports": [],
+      "depends": [],
+      "functions": {},
+      "loc": 7
     },
     "renderer/hooks/useAgentState": {
       "file": "src\\renderer\\hooks\\useAgentState.ts",
@@ -7120,27 +7144,28 @@
         "ipc",
         "../shared/ipcChannels",
         "stores/useUIStore",
-        "stores/useTerminalStore"
+        "stores/useTerminalStore",
+        "terminalRegistry"
       ],
       "functions": {
         "generatePromptId": {
-          "line": 24
+          "line": 25
         },
         "createBlankPrompt": {
-          "line": 29,
+          "line": 30,
           "calls": [
             "generatePromptId"
           ]
         },
         "resolveTemplateVariables": {
-          "line": 44,
+          "line": 45,
           "params": [
             "content",
             "projectPath: string | null"
           ]
         },
         "insertPromptIntoTerminal": {
-          "line": 63,
+          "line": 64,
           "params": [
             "prompt",
             "activeTerminalId",
@@ -7153,7 +7178,7 @@
           ]
         },
         "sendCommandToTerminal": {
-          "line": 82,
+          "line": 89,
           "params": [
             "command"
           ],
@@ -7163,26 +7188,26 @@
           ]
         },
         "copyPromptToClipboard": {
-          "line": 93,
+          "line": 106,
           "params": [
             "prompt"
           ]
         },
         "parseTags": {
-          "line": 99,
+          "line": 112,
           "params": [
             "input"
           ]
         },
         "sortPrompts": {
-          "line": 110,
+          "line": 123,
           "params": [
             "prompts",
             "mode"
           ]
         }
       },
-      "loc": 125
+      "loc": 138
     },
     "renderer/lib/shortcuts": {
       "file": "src\\renderer\\lib\\shortcuts.ts",
@@ -7220,7 +7245,9 @@
         "get",
         "addUserMessageMarker",
         "getUserMessageMarkers",
-        "clearUserMessageMarkers"
+        "clearUserMessageMarkers",
+        "setLastActive",
+        "wasRecentlyActive"
       ],
       "depends": [
         "xterm",
@@ -7246,16 +7273,16 @@
           ]
         },
         "getHolderRoot": {
-          "line": 112
+          "line": 114
         },
         "loadGpuRenderer": {
-          "line": 123,
+          "line": 125,
           "params": [
             "terminal"
           ]
         },
         "getOrCreate": {
-          "line": 160,
+          "line": 162,
           "params": [
             "id",
             "options"
@@ -7267,7 +7294,7 @@
           ]
         },
         "attach": {
-          "line": 223,
+          "line": 225,
           "params": [
             "id",
             "container"
@@ -7275,7 +7302,7 @@
           "purpose": "Moves the holder div (which contains the xterm DOM tree) into the container."
         },
         "detach": {
-          "line": 238,
+          "line": 240,
           "params": [
             "id"
           ],
@@ -7285,26 +7312,26 @@
           ]
         },
         "dispose": {
-          "line": 249,
+          "line": 251,
           "params": [
             "id"
           ],
           "purpose": "Only call when the user explicitly closes a terminal."
         },
         "has": {
-          "line": 271,
+          "line": 273,
           "params": [
             "id"
           ]
         },
         "get": {
-          "line": 276,
+          "line": 278,
           "params": [
             "id"
           ]
         },
         "addUserMessageMarker": {
-          "line": 284,
+          "line": 286,
           "params": [
             "id",
             "showDecoration",
@@ -7316,19 +7343,32 @@
           ]
         },
         "getUserMessageMarkers": {
-          "line": 334,
+          "line": 336,
           "params": [
             "id"
           ]
         },
         "clearUserMessageMarkers": {
-          "line": 339,
+          "line": 341,
           "params": [
             "id"
           ]
+        },
+        "setLastActive": {
+          "line": 352,
+          "params": [
+            "id"
+          ]
+        },
+        "wasRecentlyActive": {
+          "line": 358,
+          "params": [
+            "id",
+            "windowMs"
+          ]
         }
       },
-      "loc": 348,
+      "loc": 363,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -7399,13 +7439,14 @@
       "file": "src\\renderer\\stores\\useUIStore.ts",
       "description": "",
       "exports": [
+        "VIEW_TAB_LABELS",
         "useUIStore"
       ],
       "depends": [
         "zustand"
       ],
       "functions": {},
-      "loc": 148
+      "loc": 250
     },
     "shared/agentStateTypes": {
       "file": "src\\shared\\agentStateTypes.ts",
@@ -7556,6 +7597,7 @@
         "readClaudeSettings",
         "writeClaudeSettings",
         "hasSubFrameHooks",
+        "getSubFrameHookCoverage",
         "mergeSubFrameHooks",
         "removeSubFrameHooks"
       ],
@@ -7596,8 +7638,15 @@
             "isSubFrameHook"
           ]
         },
+        "getSubFrameHookCoverage": {
+          "line": 94,
+          "params": [
+            "settings"
+          ],
+          "purpose": "Returns detailed coverage info: which are configured, which are missing."
+        },
         "mergeSubFrameHooks": {
-          "line": 92,
+          "line": 125,
           "params": [
             "existing",
             "subframeHooks: { hooks: ClaudeHooksConfig }"
@@ -7605,7 +7654,7 @@
           "purpose": "If SubFrame hooks already exist, they are replaced with the new ones."
         },
         "removeSubFrameHooks": {
-          "line": 125,
+          "line": 158,
           "params": [
             "settings"
           ],
@@ -7615,7 +7664,7 @@
           ]
         }
       },
-      "loc": 158
+      "loc": 191
     },
     "shared/frameConstants": {
       "file": "src\\shared\\frameConstants.ts",
@@ -7675,6 +7724,8 @@
         "getHealthCheckWorkflow",
         "getDocsAuditWorkflow",
         "getSecurityScanWorkflow",
+        "SUBFRAME_VERSION_REGEX",
+        "SUBFRAME_MANAGED_REGEX",
         "AGENTS_TEMPLATE_VERSION"
       ],
       "depends": [
@@ -7682,19 +7733,20 @@
         "fs",
         "path",
         "child_process",
-        "package.json"
+        "package.json",
+        "frameConstants"
       ],
       "functions": {
         "getDateString": {
-          "line": 77,
+          "line": 84,
           "purpose": "Get current date in YYYY-MM-DD format"
         },
         "getISOTimestamp": {
-          "line": 84,
+          "line": 91,
           "purpose": "Get current ISO timestamp"
         },
         "getAgentsTemplate": {
-          "line": 91,
+          "line": 98,
           "params": [
             "projectName"
           ],
@@ -7704,7 +7756,7 @@
           ]
         },
         "getStructureTemplate": {
-          "line": 483,
+          "line": 492,
           "params": [
             "projectName"
           ],
@@ -7714,7 +7766,7 @@
           ]
         },
         "getNotesTemplate": {
-          "line": 507,
+          "line": 516,
           "params": [
             "projectName"
           ],
@@ -7724,7 +7776,7 @@
           ]
         },
         "getTasksTemplate": {
-          "line": 527,
+          "line": 536,
           "params": [
             "projectName"
           ],
@@ -7735,14 +7787,14 @@
           ]
         },
         "getTaskMarkdownTemplate": {
-          "line": 580,
+          "line": 589,
           "params": [
             "task"
           ],
           "purpose": "Generate a blank task markdown template for a new task."
         },
         "getQuickstartTemplate": {
-          "line": 614,
+          "line": 623,
           "params": [
             "projectName"
           ],
@@ -7752,14 +7804,14 @@
           ]
         },
         "getDocsInternalReadme": {
-          "line": 692,
+          "line": 701,
           "params": [
             "projectName"
           ],
           "purpose": "docs-internal/README.md template"
         },
         "getFrameConfigTemplate": {
-          "line": 734,
+          "line": 743,
           "params": [
             "projectName"
           ],
@@ -7769,11 +7821,11 @@
           ]
         },
         "getCodexWrapperTemplate": {
-          "line": 766,
+          "line": 775,
           "purpose": "Codex CLI wrapper script"
         },
         "getGenericWrapperTemplate": {
-          "line": 800,
+          "line": 811,
           "params": [
             "toolCommand",
             "promptFlag"
@@ -7781,36 +7833,36 @@
           "purpose": "Generic AI tool wrapper template"
         },
         "getNativeFileTemplate": {
-          "line": 836,
+          "line": 847,
           "purpose": "Returns just the backlink block that references AGENTS.md",
           "calls": [
             "getBacklinkBlock"
           ]
         },
         "getPreCommitHookTemplate": {
-          "line": 845,
+          "line": 856,
           "purpose": "Pre-commit hook template for user projects"
         },
         "getPrePushHookTemplate": {
-          "line": 891,
+          "line": 904,
           "purpose": "Triggers pipeline workflows configured with \"on: { push: true }\"."
         },
         "getHookUpdaterScript": {
-          "line": 918,
+          "line": 933,
           "purpose": "Pre-commit hook updater script (Node.js)",
           "calls": [
             "stripExt"
           ]
         },
         "stripExt": {
-          "line": 934,
+          "line": 951,
           "params": [
             "p"
           ],
           "purpose": "Strip any JS/TS extension for module key"
         },
         "getSessionStartHookTemplate": {
-          "line": 1051,
+          "line": 1068,
           "purpose": "Injects pending/in-progress sub-tasks into Claude's context at session start.",
           "calls": [
             "findTasksFile",
@@ -7818,7 +7870,7 @@
           ]
         },
         "findTasksFile": {
-          "line": 1249,
+          "line": 1272,
           "params": [
             "startDir"
           ],
@@ -7827,7 +7879,7 @@
           ]
         },
         "main": {
-          "line": 1641,
+          "line": 1668,
           "purpose": "── Main ────────────────────────────────────────────────────────────────────",
           "calls": [
             "cleanStaleSessions",
@@ -7837,7 +7889,7 @@
           ]
         },
         "getPromptSubmitHookTemplate": {
-          "line": 1137,
+          "line": 1156,
           "purpose": "Fuzzy-matches user prompts against pending sub-task titles.",
           "calls": [
             "findTasksFile",
@@ -7846,14 +7898,14 @@
           ]
         },
         "matchScore": {
-          "line": 1162,
+          "line": 1183,
           "params": [
             "prompt",
             "title"
           ]
         },
         "getStopHookTemplate": {
-          "line": 1224,
+          "line": 1245,
           "purpose": "Reminds about in-progress sub-tasks and detects untracked work.",
           "calls": [
             "findProjectRoot",
@@ -7863,20 +7915,20 @@
           ]
         },
         "findProjectRoot": {
-          "line": 1588,
+          "line": 1615,
           "params": [
             "startDir"
           ],
           "purpose": "── Helpers ─────────────────────────────────────────────────────────────────"
         },
         "getModifiedSourceFiles": {
-          "line": 1256,
+          "line": 1279,
           "params": [
             "projectRoot"
           ]
         },
         "getPreToolUseHookTemplate": {
-          "line": 1328,
+          "line": 1351,
           "purpose": "Writes a \"running\" step to agent-state.json for real-time agent visualization.",
           "calls": [
             "buildLabel",
@@ -7888,34 +7940,34 @@
           ]
         },
         "buildLabel": {
-          "line": 1376,
+          "line": 1401,
           "params": [
             "toolName",
             "toolInput"
           ]
         },
         "loadState": {
-          "line": 1597,
+          "line": 1624,
           "params": [
             "statePath"
           ]
         },
         "writeState": {
-          "line": 1606,
+          "line": 1633,
           "params": [
             "statePath",
             "state"
           ]
         },
         "cleanStaleSessions": {
-          "line": 1623,
+          "line": 1650,
           "params": [
             "state",
             "now"
           ]
         },
         "getPostToolUseHookTemplate": {
-          "line": 1568,
+          "line": 1593,
           "purpose": "Marks matching running step as \"completed\" in agent-state.json.",
           "calls": [
             "cleanStaleSessions",
@@ -7926,43 +7978,43 @@
           ]
         },
         "getClaudeSettingsHooksTemplate": {
-          "line": 1732,
+          "line": 1759,
           "purpose": "Returns the hooks portion of .claude/settings.json pointing to .subframe/hooks/"
         },
         "getSubTasksSkillTemplate": {
-          "line": 1773,
+          "line": 1800,
           "purpose": "instead of the SubFrame-app-specific scripts/task.js CLI"
         },
         "getSubDocsSkillTemplate": {
-          "line": 1884,
+          "line": 1913,
           "purpose": "/sub-docs skill template — generalized for any SubFrame-managed project"
         },
         "getSubAuditSkillTemplate": {
-          "line": 1980,
+          "line": 2011,
           "purpose": "/sub-audit skill template — generalized for any SubFrame-managed project"
         },
         "getOnboardSkillTemplate": {
-          "line": 2068,
+          "line": 2101,
           "purpose": "/onboard skill template — analyze project intelligence and bootstrap SubFrame files"
         },
         "getDefaultReviewWorkflow": {
-          "line": 2285,
+          "line": 2320,
           "purpose": "─── Pipeline Workflow Templates ──────────────────────────────────────────────"
         },
         "getTaskVerifyWorkflow": {
-          "line": 2327
+          "line": 2364
         },
         "getHealthCheckWorkflow": {
-          "line": 2348
+          "line": 2387
         },
         "getDocsAuditWorkflow": {
-          "line": 2379
+          "line": 2420
         },
         "getSecurityScanWorkflow": {
-          "line": 2402
+          "line": 2445
         }
       },
-      "loc": 2424
+      "loc": 2469
     },
     "shared/ipcChannels": {
       "file": "src\\shared\\ipcChannels.ts",
@@ -7974,7 +8026,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1181
+      "loc": 1187
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -8075,20 +8127,29 @@
         "claudeSettingsUtils"
       ],
       "functions": {
+        "isVersionOlder": {
+          "line": 229,
+          "params": [
+            "deployed",
+            "current"
+          ],
+          "purpose": "Returns true if `deployed` is older than `current`."
+        },
         "checkComponent": {
-          "line": 227,
+          "line": 260,
           "params": [
             "projectPath",
             "entry: ComponentRegistryEntry"
           ],
           "purpose": "Check if a single component is current (content matches template).",
           "calls": [
-            "hasSubFrameHooks",
+            "getSubFrameHookCoverage",
+            "isVersionOlder",
             "readClaudeSettings"
           ]
         },
         "getSubFrameHealth": {
-          "line": 346,
+          "line": 447,
           "params": [
             "projectPath"
           ],
@@ -8100,15 +8161,15 @@
           ]
         },
         "getComponentRegistry": {
-          "line": 380,
+          "line": 481,
           "purpose": "Get the component registry (for use by update handlers)."
         },
         "getHooksDir": {
-          "line": 387,
+          "line": 488,
           "purpose": "Get the hooks directory path constant."
         }
       },
-      "loc": 390
+      "loc": 491
     },
     "shared/themeTypes": {
       "file": "src\\shared\\themeTypes.ts",
@@ -8722,6 +8783,13 @@
         "description": "GithubPanel — GitHub issues, PRs, branches, and worktrees."
       }
     ],
+    "global.d": [
+      {
+        "module": "renderer/global.d",
+        "file": "src\\renderer\\global.d.ts",
+        "description": "Global window augmentations for SubFrame renderer"
+      }
+    ],
     "history": [
       {
         "module": "main/promptLogger",
@@ -8770,13 +8838,6 @@
         "module": "shared/ipcChannels",
         "file": "src\\shared\\ipcChannels.ts",
         "description": "IPC Channel Constants — TypeScript Edition Single source of truth for all IPC channel names and their type signatures."
-      }
-    ],
-    "keyboard-shortcuts": [
-      {
-        "module": "renderer/components/KeyboardShortcuts",
-        "file": "src\\renderer\\components\\KeyboardShortcuts.tsx",
-        "description": "KeyboardShortcuts — Dialog showing all available keyboard shortcuts. Opened via Ctrl+? (Ctrl+Shift+/) or from useUIStore.shortcutsHelpOpen."
       }
     ],
     "logo-svg": [
@@ -8945,6 +9006,11 @@
       }
     ],
     "shortcuts": [
+      {
+        "module": "renderer/components/ShortcutsPanel",
+        "file": "src\\renderer\\components\\ShortcutsPanel.tsx",
+        "description": "ShortcutsPanel — Full-view panel for keyboard shortcuts. Replaces the old dialog modal with a VS Code-style full-panel view. Renders inside the TerminalArea full-view system (like TasksPanel, PipelinePanel)."
+      },
       {
         "module": "renderer/lib/shortcuts",
         "file": "src\\renderer\\lib\\shortcuts.ts",
@@ -9272,6 +9338,13 @@
       {
         "module": "renderer/lib/utils",
         "file": "src\\renderer\\lib\\utils.ts",
+        "description": ""
+      }
+    ],
+    "view": [
+      {
+        "module": "renderer/components/ViewTabBar",
+        "file": "src\\renderer\\components\\ViewTabBar.tsx",
         "description": ""
       }
     ],

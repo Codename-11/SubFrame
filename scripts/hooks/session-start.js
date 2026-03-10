@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// @subframe-version 0.2.4-beta
+// @subframe-managed
 /**
  * SubFrame SessionStart Hook
  *
@@ -38,43 +40,40 @@ function main() {
   const inProgress = data.tasks?.inProgress || [];
   const pending = data.tasks?.pending || [];
 
-  // Priority icons: ▲ high, ◇ medium, ▽ low
+  // Priority icons
   function pi(p) { return p === 'high' ? '\u25B2' : p === 'low' ? '\u25BD' : '\u25C7'; }
 
-  // Build context output
   const lines = ['<sub-tasks-context>'];
 
   if (inProgress.length > 0) {
-    lines.push(`\u25C6 SubFrame \u2500 \uD83D\uDD04 In Progress (${inProgress.length}):`);
+    lines.push('\u25C6 SubFrame \u2500 \uD83D\uDD04 In Progress (' + inProgress.length + '):');
     for (const t of inProgress) {
-      lines.push(`  ${pi(t.priority)} [${t.id}] ${t.title}`);
+      lines.push('  ' + pi(t.priority) + ' [' + t.id + '] ' + t.title);
       if (t.notes) {
         const lastNote = t.notes.split('\n').pop().trim();
-        if (lastNote) lines.push(`    \u2514 ${lastNote}`);
+        if (lastNote) lines.push('    \u2514 ' + lastNote);
       }
     }
   }
 
   if (pending.length > 0) {
-    lines.push(`\u25C6 SubFrame \u2500 \uD83D\uDCCB Pending (${pending.length}):`);
-    // Show high priority first, limit to 5 to avoid context bloat
+    lines.push('\u25C6 SubFrame \u2500 \uD83D\uDCCB Pending (' + pending.length + '):');
     const sorted = [...pending].sort((a, b) => {
       const p = { high: 0, medium: 1, low: 2 };
       return (p[a.priority] || 1) - (p[b.priority] || 1);
     });
     const shown = sorted.slice(0, 5);
     for (const t of shown) {
-      lines.push(`  ${pi(t.priority)} [${t.id}] ${t.title}`);
+      lines.push('  ' + pi(t.priority) + ' [' + t.id + '] ' + t.title);
     }
     if (pending.length > 5) {
-      lines.push(`  \u2026 +${pending.length - 5} more \u2192 node scripts/task.js list`);
+      lines.push('  \u2026 +' + (pending.length - 5) + ' more \u2192 node scripts/task.js list');
     }
   }
 
   lines.push('Use: start <id> | complete <id> | add --title "..."');
   lines.push('</sub-tasks-context>');
 
-  // Output to stdout — Claude Code adds this to conversation context
   console.log(lines.join('\n'));
 }
 

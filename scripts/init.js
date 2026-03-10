@@ -15,6 +15,12 @@
 
 const path = require('path');
 const fs = require('fs');
+
+// Ensure frameTemplates.js is up-to-date with the .ts source before
+// projectInit.js tries to require() it.
+process.env.QUIET = '1';
+require('./build-templates');
+
 const { initializeProject, checkExistingFiles } = require('../src/shared/projectInit');
 
 // ─── Argument parsing ────────────────────────────────────────────────

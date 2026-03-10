@@ -593,6 +593,12 @@ export interface SubFrameComponentStatus {
   current: boolean;
   needsUpdate: boolean;
   path: string;
+  /** Version extracted from @subframe-version header (if present) */
+  deployedVersion?: string;
+  /** True if the file has @subframe-managed: false (user opted out of updates) */
+  managedOptOut?: boolean;
+  /** For claude-settings: which expected hook event types are missing */
+  missingHooks?: string[];
 }
 
 /** SubFrame health status (aggregate) */
@@ -1146,7 +1152,7 @@ export interface IPCEventMap {
 
   // SubFrame Health
   [IPC.SUBFRAME_HEALTH_DATA]: { projectPath: string; health: SubFrameHealthStatus | null; error?: string };
-  [IPC.SUBFRAME_COMPONENTS_UPDATED]: { projectPath: string; updated: string[]; failed: string[]; error?: string };
+  [IPC.SUBFRAME_COMPONENTS_UPDATED]: { projectPath: string; updated: string[]; failed: string[]; skipped?: string[]; error?: string };
   [IPC.SUBFRAME_UNINSTALLED]: { projectPath: string; result: UninstallResult | null; error?: string };
 
   // Agent State

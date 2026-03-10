@@ -124,11 +124,11 @@ export function TaskTimeline({ steps, onToggleStep, compact }: TaskTimelineProps
                         transition={{ duration: 0.2 }}
                         className="w-5 h-5 rounded-full bg-accent flex items-center justify-center"
                       >
-                        {/* Pulse ring */}
+                        {/* Pulse ring — 3-keyframe opacity so loop point is seamless (0→0→0) */}
                         <motion.div
                           className="absolute inset-0 rounded-full bg-accent"
-                          animate={{ scale: [1, 1.4], opacity: [0.4, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                          animate={{ scale: [1, 1.2, 1.5], opacity: [0, 0.4, 0] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', times: [0, 0.1, 1] }}
                         />
                         <div className="w-1.5 h-1.5 rounded-full bg-bg-deep" />
                       </motion.div>

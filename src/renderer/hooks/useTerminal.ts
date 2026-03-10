@@ -13,6 +13,7 @@ import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import type { SearchAddon } from 'xterm-addon-search';
 import * as terminalRegistry from '../lib/terminalRegistry';
+import { useUIStore } from '../stores/useUIStore';
 
 export type { TerminalOptions as UseTerminalOptions } from '../lib/terminalRegistry';
 
@@ -48,25 +49,45 @@ export function useTerminal(
     // Attach terminal DOM to this container
     terminalRegistry.attach(terminalId, container);
 
-    // Auto-fit on container resize (debounced to prevent cursor jump during drag)
+    // Auto-fit on container resize — skips fit() during active panel/sidebar drag
+    // to avoid continuous buffer reflow + PTY resize cascades. Fits once on drag end.
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    let needsFitAfterResize = false;
+
+    const doFit = () => {
+      requestAnimationFrame(() => {
+        try {
+          instance.fitAddon.fit();
+        } catch {
+          // Ignore if terminal is disposed
+        }
+      });
+    };
+
     const observer = new ResizeObserver(() => {
       if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        requestAnimationFrame(() => {
-          try {
-            instance.fitAddon.fit();
-          } catch {
-            // Ignore if terminal is disposed
-          }
-        });
-      }, 80);
+      // During active panel drag, defer fit until drag ends
+      if (useUIStore.getState().isResizing) {
+        needsFitAfterResize = true;
+        return;
+      }
+      resizeTimer = setTimeout(doFit, 80);
     });
     observer.observe(container);
+
+    // Subscribe to isResizing changes — fit once when drag ends
+    const unsubResize = useUIStore.subscribe((state, prev) => {
+      if (prev.isResizing && !state.isResizing && needsFitAfterResize) {
+        needsFitAfterResize = false;
+        if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = null; }
+        doFit();
+      }
+    });
 
     return () => {
       if (resizeTimer) clearTimeout(resizeTimer);
       observer.disconnect();
+      unsubResize();
       // Detach — do NOT dispose. Instance stays alive in the registry.
       terminalRegistry.detach(terminalId);
       terminalRef.current = null;

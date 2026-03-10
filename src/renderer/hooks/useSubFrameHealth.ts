@@ -23,7 +23,7 @@ export function useSubFrameHealth() {
   const latestData = useRef<SubFrameHealthStatus | null>(null);
 
   // ── Update result state ──
-  const [updateResult, setUpdateResult] = useState<{ updated: string[]; failed: string[] } | null>(null);
+  const [updateResult, setUpdateResult] = useState<{ updated: string[]; failed: string[]; skipped?: string[] } | null>(null);
 
   // ── Uninstall result state ──
   const [uninstallResult, setUninstallResult] = useState<UninstallResult | null>(null);
@@ -42,8 +42,8 @@ export function useSubFrameHealth() {
 
   // ── Components updated listener ──
   useEffect(() => {
-    const handler = (_event: unknown, data: { projectPath: string; updated: string[]; failed: string[]; error?: string }) => {
-      setUpdateResult({ updated: data.updated || [], failed: data.failed || [] });
+    const handler = (_event: unknown, data: { projectPath: string; updated: string[]; failed: string[]; skipped?: string[]; error?: string }) => {
+      setUpdateResult({ updated: data.updated || [], failed: data.failed || [], skipped: data.skipped });
       // Refresh health after update
       reload();
     };

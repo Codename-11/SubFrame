@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// @subframe-version 0.2.4-beta
+// @subframe-managed
 /**
  * SubFrame PreToolUse Hook
  *
@@ -131,7 +133,6 @@ function cleanStaleSessions(state, now) {
     if (now - lastActivity > STALE_MS && session.status === 'active') {
       session.status = 'idle';
       session.currentTool = undefined;
-      // Close orphaned running steps from hard kills
       for (const step of session.steps || []) {
         if (step.status === 'running') {
           step.status = 'completed';

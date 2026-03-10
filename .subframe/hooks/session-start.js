@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// @subframe-version 0.2.4-beta
+// @subframe-managed
 /**
  * SubFrame SessionStart Hook
  *
@@ -47,11 +49,6 @@ function main() {
     lines.push('\u25C6 SubFrame \u2500 \uD83D\uDD04 In Progress (' + inProgress.length + '):');
     for (const t of inProgress) {
       lines.push('  ' + pi(t.priority) + ' [' + t.id + '] ' + t.title);
-      // Show step progress if steps exist
-      if (t.steps && t.steps.length > 0) {
-        const done = t.steps.filter(s => s.completed).length;
-        lines.push('    \u2514 Steps: ' + done + '/' + t.steps.length);
-      }
       if (t.notes) {
         const lastNote = t.notes.split('\n').pop().trim();
         if (lastNote) lines.push('    \u2514 ' + lastNote);

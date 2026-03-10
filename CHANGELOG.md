@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Version-stamped component deployment**: All deployed files (JS hooks, git hooks, codex wrapper, markdown skills, YAML workflows) now include `@subframe-version` and `@subframe-managed` headers for tracking origin and version
+- **Version-aware health check**: SubFrame Health detects outdated deployments by comparing `@subframe-version` in deployed files to current app version
+- **Structural claude-settings validation**: Health check verifies all 5 hook event types are configured and reports which are missing
+- **User-edit resilience**: Files marked with `@subframe-managed: false` are skipped during updates — opt out of managed updates per file
+- **Build pipeline safety**: `npm run verify:hooks` prevents `scripts/hooks/` drift from templates; included in `npm run check`, pre-commit hook, and CI
+- **Health panel improvements**: Shows deployed version transitions, missing hooks list, user-managed badges, and skipped component count after updates
+
 ## [0.2.4-beta] - 2026-03-10
 
 ### Added

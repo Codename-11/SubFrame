@@ -532,13 +532,15 @@ export function Sidebar() {
             const newWidth = Math.min(500, Math.max(180, startWidth + (e.clientX - startX)));
             setSidebarWidth(newWidth);
           };
-          const onMouseUp = () => {
+          const cleanup = () => {
             document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('mouseup', cleanup);
+            window.removeEventListener('blur', cleanup);
             useUIStore.getState().setIsResizing(false);
           };
           document.addEventListener('mousemove', onMouseMove);
-          document.addEventListener('mouseup', onMouseUp);
+          document.addEventListener('mouseup', cleanup);
+          window.addEventListener('blur', cleanup);
         }}
         onDoubleClick={() => setSidebarWidth(260)}
         title="Drag to resize, double-click to reset"

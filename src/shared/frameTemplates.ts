@@ -4,6 +4,13 @@
  * Each template includes instructions header for Claude Code
  */
 
+import { FRAME_VERSION } from './frameConstants';
+
+/** Regex to extract @subframe-version from deployed files */
+export const SUBFRAME_VERSION_REGEX = /@subframe-version\s+([\d.\-a-zA-Z]+)/;
+/** Regex to check if a file has opted out of managed updates */
+export const SUBFRAME_MANAGED_REGEX = /@subframe-managed:\s*false/;
+
 interface FrameConfigTemplate {
   version: string;
   name: string;
@@ -90,7 +97,9 @@ function getISOTimestamp(): string {
  */
 export function getAgentsTemplate(projectName: string): string {
   const date = getDateString();
-  return `# ${projectName} - SubFrame Project
+  return `<!-- @subframe-version ${FRAME_VERSION} -->
+<!-- @subframe-managed -->
+# ${projectName} - SubFrame Project
 
 This project is managed with **SubFrame**. AI assistants should follow the rules below to keep documentation up to date.
 
@@ -765,6 +774,8 @@ export function getFrameConfigTemplate(projectName: string): FrameConfigTemplate
  */
 export function getCodexWrapperTemplate(): string {
   return `#!/usr/bin/env bash
+# @subframe-version ${FRAME_VERSION}
+# @subframe-managed
 # SubFrame AI Tool Wrapper for Codex CLI
 # This script injects AGENTS.md as initial prompt
 
@@ -844,6 +855,8 @@ export function getNativeFileTemplate(): string {
  */
 export function getPreCommitHookTemplate(): string {
   return `#!/bin/bash
+# @subframe-version ${FRAME_VERSION}
+# @subframe-managed
 #
 # SubFrame pre-commit hook
 # Auto-updates STRUCTURE.json when JS files in src/ are committed.
@@ -890,6 +903,8 @@ exit 0
  */
 export function getPrePushHookTemplate(): string {
   return `#!/bin/bash
+# @subframe-version ${FRAME_VERSION}
+# @subframe-managed
 # SubFrame pre-push hook
 # Triggers pipeline workflows configured with "on: { push: true }"
 # To bypass: git push --no-verify
@@ -917,6 +932,8 @@ exit 0
  */
 export function getHookUpdaterScript(): string {
   return `#!/usr/bin/env node
+// @subframe-version ${FRAME_VERSION}
+// @subframe-managed
 /**
  * SubFrame STRUCTURE.json Updater
  * Called by .githooks/pre-commit when source files in src/ are staged.
@@ -1050,6 +1067,8 @@ fs.writeFileSync(STRUCTURE_FILE, JSON.stringify(structure, null, 2) + '\\n');
  */
 export function getSessionStartHookTemplate(): string {
   return `#!/usr/bin/env node
+// @subframe-version ${FRAME_VERSION}
+// @subframe-managed
 /**
  * SubFrame SessionStart Hook
  *
@@ -1136,6 +1155,8 @@ main();
  */
 export function getPromptSubmitHookTemplate(): string {
   return `#!/usr/bin/env node
+// @subframe-version ${FRAME_VERSION}
+// @subframe-managed
 /**
  * SubFrame UserPromptSubmit Hook
  *
@@ -1223,6 +1244,8 @@ main();
  */
 export function getStopHookTemplate(): string {
   return `#!/usr/bin/env node
+// @subframe-version ${FRAME_VERSION}
+// @subframe-managed
 /**
  * SubFrame Stop Hook
  *
@@ -1327,6 +1350,8 @@ main();
  */
 export function getPreToolUseHookTemplate(): string {
   return `#!/usr/bin/env node
+// @subframe-version ${FRAME_VERSION}
+// @subframe-managed
 /**
  * SubFrame PreToolUse Hook
  *
@@ -1567,6 +1592,8 @@ try {
  */
 export function getPostToolUseHookTemplate(): string {
   return `#!/usr/bin/env node
+// @subframe-version ${FRAME_VERSION}
+// @subframe-managed
 /**
  * SubFrame PostToolUse Hook
  *
@@ -1771,7 +1798,9 @@ export function getClaudeSettingsHooksTemplate(): { hooks: Record<string, Array<
  * instead of the SubFrame-app-specific scripts/task.js CLI
  */
 export function getSubTasksSkillTemplate(): string {
-  return `---
+  return `<!-- @subframe-version ${FRAME_VERSION} -->
+<!-- @subframe-managed -->
+---
 name: sub-tasks
 description: View and manage SubFrame Sub-Tasks. Use when starting work, completing tasks, checking what's pending, or creating new tasks from conversation.
 disable-model-invocation: false
@@ -1882,7 +1911,9 @@ When the user says things like "let's do this later", "add a task for...", or "w
  * /sub-docs skill template — generalized for any SubFrame-managed project
  */
 export function getSubDocsSkillTemplate(): string {
-  return `---
+  return `<!-- @subframe-version ${FRAME_VERSION} -->
+<!-- @subframe-managed -->
+---
 name: sub-docs
 description: Sync all SubFrame documentation after feature work. Updates CLAUDE.md lists, changelog, PROJECT_NOTES decisions, and STRUCTURE.json.
 argument-hint: [summary of what changed]
@@ -1978,7 +2009,9 @@ Present a checklist of what was updated:
  * /sub-audit skill template — generalized for any SubFrame-managed project
  */
 export function getSubAuditSkillTemplate(): string {
-  return `---
+  return `<!-- @subframe-version ${FRAME_VERSION} -->
+<!-- @subframe-managed -->
+---
 name: sub-audit
 description: Run a code review and documentation audit on recent changes. Finds bugs, edge cases, missing docs, and type safety issues.
 argument-hint: [scope - e.g., "auth feature", "last 5 commits"]
@@ -2066,7 +2099,9 @@ After presenting the report, ask the user if they want to fix any of the reporte
  * /onboard skill template — analyze project intelligence and bootstrap SubFrame files
  */
 export function getOnboardSkillTemplate(): string {
-  return `---
+  return `<!-- @subframe-version ${FRAME_VERSION} -->
+<!-- @subframe-managed -->
+---
 name: onboard
 description: Analyze project intelligence files and bootstrap SubFrame's STRUCTURE.json, PROJECT_NOTES.md, and initial sub-tasks from existing codebase context.
 disable-model-invocation: false
@@ -2283,7 +2318,9 @@ Show a summary of what was created or updated:
 // ─── Pipeline Workflow Templates ──────────────────────────────────────────────
 
 export function getDefaultReviewWorkflow(): string {
-  return `name: review
+  return `# @subframe-version ${FRAME_VERSION}
+# @subframe-managed
+name: review
 on:
   push:
     branches: ['*']
@@ -2325,7 +2362,9 @@ jobs:
 }
 
 export function getTaskVerifyWorkflow(): string {
-  return `name: task-verify
+  return `# @subframe-version ${FRAME_VERSION}
+# @subframe-managed
+name: task-verify
 on:
   manual: true
 
@@ -2346,7 +2385,9 @@ jobs:
 }
 
 export function getHealthCheckWorkflow(): string {
-  return `name: health-check
+  return `# @subframe-version ${FRAME_VERSION}
+# @subframe-managed
+name: health-check
 on:
   manual: true
 
@@ -2377,7 +2418,9 @@ jobs:
 }
 
 export function getDocsAuditWorkflow(): string {
-  return `name: docs-audit
+  return `# @subframe-version ${FRAME_VERSION}
+# @subframe-managed
+name: docs-audit
 on:
   manual: true
 
@@ -2400,7 +2443,9 @@ jobs:
 }
 
 export function getSecurityScanWorkflow(): string {
-  return `name: security-scan
+  return `# @subframe-version ${FRAME_VERSION}
+# @subframe-managed
+name: security-scan
 on:
   manual: true
 

@@ -25,7 +25,7 @@ afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-// Helper: a SubFrame hooks config matching what getClaudeSettingsHooksTemplate returns
+// Helper: a SubFrame hooks config matching production format (git-root-relative paths)
 function makeSubFrameHooks(): { hooks: ClaudeHooksConfig } {
   return {
     hooks: {
@@ -33,7 +33,7 @@ function makeSubFrameHooks(): { hooks: ClaudeHooksConfig } {
         {
           matcher: '',
           hooks: [
-            { type: 'command', command: 'node .subframe/hooks/session-start.js' },
+            { type: 'command', command: 'node "$(git rev-parse --show-toplevel)/.subframe/hooks/session-start.js"' },
           ],
         },
       ],
@@ -41,7 +41,7 @@ function makeSubFrameHooks(): { hooks: ClaudeHooksConfig } {
         {
           matcher: '',
           hooks: [
-            { type: 'command', command: 'node .subframe/hooks/prompt-submit.js' },
+            { type: 'command', command: 'node "$(git rev-parse --show-toplevel)/.subframe/hooks/prompt-submit.js"' },
           ],
         },
       ],
@@ -49,7 +49,7 @@ function makeSubFrameHooks(): { hooks: ClaudeHooksConfig } {
         {
           matcher: '',
           hooks: [
-            { type: 'command', command: 'node .subframe/hooks/stop.js' },
+            { type: 'command', command: 'node "$(git rev-parse --show-toplevel)/.subframe/hooks/stop.js"' },
           ],
         },
       ],

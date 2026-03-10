@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// @subframe-version 0.2.4-beta
+// @subframe-managed
 /**
  * SubFrame UserPromptSubmit Hook
  *
@@ -22,45 +24,25 @@ function findTasksFile(startDir) {
   return null;
 }
 
-/**
- * Simple word-overlap fuzzy match.
- * Returns a score 0-1 based on how many words from the task title
- * appear in the user prompt.
- */
 function matchScore(prompt, title) {
   const promptWords = new Set(prompt.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2));
   const titleWords = title.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
-
   if (titleWords.length === 0) return 0;
-
   let matches = 0;
   for (const word of titleWords) {
     if (promptWords.has(word)) matches++;
   }
-
   return matches / titleWords.length;
 }
 
 function main() {
-  // Read hook input from stdin
   let input = '';
-  try {
-    input = fs.readFileSync(0, 'utf8');
-  } catch {
-    process.exit(0);
-  }
-
+  try { input = fs.readFileSync(0, 'utf8'); } catch { process.exit(0); }
   let hookData;
-  try {
-    hookData = JSON.parse(input);
-  } catch {
-    process.exit(0);
-  }
+  try { hookData = JSON.parse(input); } catch { process.exit(0); }
 
   const prompt = hookData.prompt;
   if (!prompt || typeof prompt !== 'string' || prompt.length < 10) process.exit(0);
-
-  // Skip if prompt is a slash command or very short
   if (prompt.startsWith('/')) process.exit(0);
 
   const tasksPath = findTasksFile(hookData.cwd) || findTasksFile(process.cwd());
@@ -70,35 +52,29 @@ function main() {
   try {
     const raw = fs.readFileSync(tasksPath, 'utf8').replace(/,\s*([\]}])/g, '$1');
     data = JSON.parse(raw);
-  } catch {
-    process.exit(0);
-  }
+  } catch { process.exit(0); }
 
   const pending = data.tasks?.pending || [];
   if (pending.length === 0) process.exit(0);
 
-  // Find best matching pending task
   let bestTask = null;
   let bestScore = 0;
 
   for (const task of pending) {
-    // Match against title and description
     const titleScore = matchScore(prompt, task.title);
     const descScore = task.description ? matchScore(prompt, task.description) * 0.5 : 0;
     const score = Math.max(titleScore, descScore);
-
     if (score > bestScore) {
       bestScore = score;
       bestTask = task;
     }
   }
 
-  // Only suggest if match confidence is reasonable (>40% word overlap)
   if (bestScore >= 0.4 && bestTask) {
-    console.log(`<sub-task-match>`);
-    console.log(`\u25C6 SubFrame \u2500 \uD83C\uDFAF Matches sub-task [${bestTask.id}]: "${bestTask.title}" (${bestTask.priority})`);
-    console.log(`\u2192 Start: node scripts/task.js start ${bestTask.id}`);
-    console.log(`</sub-task-match>`);
+    console.log('<sub-task-match>');
+    console.log('\u25C6 SubFrame \u2500 \uD83C\uDFAF Matches sub-task [' + bestTask.id + ']: "' + bestTask.title + '" (' + bestTask.priority + ')');
+    console.log('\u2192 Start: node scripts/task.js start ' + bestTask.id);
+    console.log('</sub-task-match>');
   }
 }
 

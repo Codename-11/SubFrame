@@ -33,25 +33,11 @@ function getTemplateById(id: string): string {
 
 /**
  * Helper: build a SubFrame hooks config matching what getClaudeSettingsHooksTemplate returns.
- * Uses the registry's stop hook template to get the hooks dir path.
+ * Uses the actual template to ensure all 5 event types are present.
  */
-function makeSubFrameHooksConfig(): { hooks: Record<string, Array<{ matcher: string; hooks: Array<{ type: string; command: string }> }>> } {
-  return {
-    hooks: {
-      SessionStart: [{
-        matcher: '',
-        hooks: [{ type: 'command', command: 'node .subframe/hooks/session-start.js' }],
-      }],
-      UserPromptSubmit: [{
-        matcher: '',
-        hooks: [{ type: 'command', command: 'node .subframe/hooks/prompt-submit.js' }],
-      }],
-      Stop: [{
-        matcher: '',
-        hooks: [{ type: 'command', command: 'node .subframe/hooks/stop.js' }],
-      }],
-    },
-  };
+function makeSubFrameHooksConfig() {
+  const { getClaudeSettingsHooksTemplate } = require('../../src/shared/frameTemplates');
+  return getClaudeSettingsHooksTemplate();
 }
 
 /**
@@ -71,6 +57,9 @@ function deployFullProject(): void {
   fs.writeFileSync(path.join(tmpDir, FRAME_FILES.STRUCTURE), '{}');
   fs.writeFileSync(path.join(tmpDir, FRAME_FILES.NOTES), '# Notes');
   fs.mkdirSync(path.join(tmpDir, FRAME_TASKS_DIR), { recursive: true }); // tasks/ directory
+  fs.writeFileSync(path.join(tmpDir, FRAME_FILES.TASKS), '{}'); // tasks.json index
+  fs.writeFileSync(path.join(tmpDir, FRAME_FILES.CLAUDE), '# CLAUDE.md'); // CLAUDE.md
+  fs.writeFileSync(path.join(tmpDir, FRAME_FILES.GEMINI), '# GEMINI.md'); // GEMINI.md
   fs.writeFileSync(path.join(tmpDir, FRAME_FILES.QUICKSTART), '# Quick');
   fs.mkdirSync(path.join(tmpDir, FRAME_FILES.DOCS_INTERNAL), { recursive: true });
 
@@ -146,12 +135,14 @@ function deployFullProject(): void {
     getTemplateById('pre-push'),
   );
 
-  // Pipeline workflow files (existence-only)
+  // Pipeline workflow files (content-compared — use registry templates)
   const workflowsDir = path.join(tmpDir, FRAME_WORKFLOWS_DIR);
   fs.mkdirSync(workflowsDir, { recursive: true });
-  fs.writeFileSync(path.join(workflowsDir, 'review.yml'), 'name: review\non:\n  manual: true\njobs:\n  q:\n    steps:\n      - name: Lint\n        uses: lint\n');
-  fs.writeFileSync(path.join(workflowsDir, 'task-verify.yml'), 'name: task-verify\non:\n  manual: true\njobs:\n  v:\n    steps:\n      - name: Test\n        uses: test\n');
-  fs.writeFileSync(path.join(workflowsDir, 'health-check.yml'), 'name: health-check\non:\n  manual: true\njobs:\n  a:\n    steps:\n      - name: Lint\n        uses: lint\n');
+  fs.writeFileSync(path.join(workflowsDir, 'review.yml'), getTemplateById('workflow-review'));
+  fs.writeFileSync(path.join(workflowsDir, 'task-verify.yml'), getTemplateById('workflow-task-verify'));
+  fs.writeFileSync(path.join(workflowsDir, 'health-check.yml'), getTemplateById('workflow-health-check'));
+  fs.writeFileSync(path.join(workflowsDir, 'docs-audit.yml'), getTemplateById('workflow-docs-audit'));
+  fs.writeFileSync(path.join(workflowsDir, 'security-scan.yml'), getTemplateById('workflow-security-scan'));
 }
 
 // ── getComponentRegistry ─────────────────────────────────────────────────────

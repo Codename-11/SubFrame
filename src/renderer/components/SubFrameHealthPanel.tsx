@@ -7,7 +7,7 @@ import { useState } from 'react';
 import {
   RefreshCw, CheckCircle, XCircle, AlertTriangle,
   ChevronDown, ChevronRight, Loader2, Trash2, Eye,
-  ArrowUpCircle, Sparkles,
+  ArrowUpCircle, Sparkles, ShieldOff,
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -53,16 +53,21 @@ function groupByCategory(components: SubFrameComponentStatus[]): Record<string, 
 // ── Status helpers ──
 
 function getStatusBadge(comp: SubFrameComponentStatus) {
+  if (comp.managedOptOut) {
+    return { label: 'User-managed', className: 'bg-blue-900/60 text-blue-300', title: 'User opted out of auto-updates (@subframe-managed: false)' };
+  }
   if (!comp.exists) {
     return { label: 'Missing', className: 'bg-red-900/60 text-red-300', title: 'Component file not found — click update to install' };
   }
   if (comp.needsUpdate) {
-    return { label: 'Outdated', className: 'bg-amber-900/60 text-amber-300', title: 'Component exists but differs from the latest version — click update to sync' };
+    const versionInfo = comp.deployedVersion ? ` (${comp.deployedVersion})` : '';
+    return { label: 'Outdated', className: 'bg-amber-900/60 text-amber-300', title: `Component exists but differs from the latest version${versionInfo} — click update to sync` };
   }
   return { label: 'Healthy', className: 'bg-emerald-900/60 text-emerald-300', title: 'Component is up to date' };
 }
 
 function getStatusIcon(comp: SubFrameComponentStatus) {
+  if (comp.managedOptOut) return <ShieldOff size={14} className="text-blue-400 shrink-0" />;
   if (!comp.exists) return <XCircle size={14} className="text-red-400 shrink-0" />;
   if (comp.needsUpdate) return <AlertTriangle size={14} className="text-amber-400 shrink-0" />;
   return <CheckCircle size={14} className="text-emerald-400 shrink-0" />;
@@ -388,7 +393,7 @@ export function SubFrameHealthPanel() {
                   <div className="flex flex-col gap-1">
                     {components.map((comp) => {
                       const badge = getStatusBadge(comp);
-                      const canUpdate = comp.needsUpdate || !comp.exists;
+                      const canUpdate = (comp.needsUpdate || !comp.exists) && !comp.managedOptOut;
 
                       return (
                         <div
@@ -406,6 +411,18 @@ export function SubFrameHealthPanel() {
                             <div className="text-[10px] text-text-tertiary mt-0.5 font-mono truncate">
                               {comp.path}
                             </div>
+                            {/* Show version transition for outdated components */}
+                            {comp.needsUpdate && comp.deployedVersion && (
+                              <div className="text-[10px] text-amber-400/80 mt-0.5">
+                                v{comp.deployedVersion} → v{health ? 'latest' : '?'}
+                              </div>
+                            )}
+                            {/* Show missing hooks for claude-settings */}
+                            {comp.missingHooks && comp.missingHooks.length > 0 && (
+                              <div className="text-[10px] text-amber-400/80 mt-0.5">
+                                Missing: {comp.missingHooks.join(', ')}
+                              </div>
+                            )}
                           </div>
                           {canUpdate && (
                             <button
@@ -431,6 +448,12 @@ export function SubFrameHealthPanel() {
                   <div className="flex items-center gap-2 text-xs text-emerald-400 mb-1">
                     <CheckCircle size={12} />
                     <span>Updated: {updateResult.updated.join(', ')}</span>
+                  </div>
+                )}
+                {updateResult.skipped && updateResult.skipped.length > 0 && (
+                  <div className="flex items-center gap-2 text-xs text-blue-400 mb-1">
+                    <ShieldOff size={12} />
+                    <span>Skipped (user-managed): {updateResult.skipped.join(', ')}</span>
                   </div>
                 )}
                 {updateResult.failed.length > 0 && (

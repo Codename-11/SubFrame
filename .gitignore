@@ -51,3 +51,6 @@ docs/.vitepress/cache/
 
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
+
+# Auto-generated CJS from TypeScript (build artifact)
+src/shared/frameTemplates.js

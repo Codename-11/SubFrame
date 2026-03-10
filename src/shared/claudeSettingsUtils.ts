@@ -84,6 +84,39 @@ export function hasSubFrameHooks(settings: ClaudeSettings): boolean {
   return false;
 }
 
+/** Expected hook event types that SubFrame deploys */
+const EXPECTED_HOOK_EVENTS = ['SessionStart', 'UserPromptSubmit', 'Stop', 'PreToolUse', 'PostToolUse'];
+
+/**
+ * Check which SubFrame hook event types are configured in settings.
+ * Returns detailed coverage info: which are configured, which are missing.
+ */
+export function getSubFrameHookCoverage(settings: ClaudeSettings): {
+  configured: string[];
+  missing: string[];
+  total: number;
+} {
+  const configured: string[] = [];
+
+  for (const eventType of EXPECTED_HOOK_EVENTS) {
+    const matchers = settings.hooks?.[eventType];
+    if (!Array.isArray(matchers)) continue;
+
+    const hasSubFrameHook = matchers.some((matcher: ClaudeHookMatcher) => {
+      if (!Array.isArray(matcher.hooks)) return false;
+      return matcher.hooks.some(isSubFrameHook);
+    });
+
+    if (hasSubFrameHook) {
+      configured.push(eventType);
+    }
+  }
+
+  const missing = EXPECTED_HOOK_EVENTS.filter((e) => !configured.includes(e));
+
+  return { configured, missing, total: EXPECTED_HOOK_EVENTS.length };
+}
+
 /**
  * Merge SubFrame hooks into existing settings. Preserves all existing hooks.
  * SubFrame hooks are added as a new matcher group (empty matcher = matches all).

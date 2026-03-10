@@ -524,7 +524,7 @@ mainWindow.webContents.openDevTools();
 - 5-minute stale session cleanup prevents ghost "active" sessions from hard kills
 - Windows-safe atomic writes: `renameSync` with fallback to direct `writeFileSync` when file is locked
 
-**Files:** `src/shared/agentStateTypes.ts`, `src/main/agentStateManager.ts`, `src/renderer/hooks/useAgentState.ts`, `src/renderer/components/AgentStateView.tsx`, `src/renderer/components/AgentTimeline.tsx`, `src/renderer/components/SidebarAgentStatus.tsx`, `scripts/hooks/pre-tool-use.js`, `scripts/hooks/post-tool-use.js`
+**Files:** `src/shared/agentStateTypes.ts`, `src/main/agentStateManager.ts`, `src/renderer/hooks/useAgentState.ts`, `src/renderer/components/AgentStateView.tsx`, `src/renderer/components/AgentTimeline.tsx`, `src/renderer/components/SidebarAgentStatus.tsx`, `.subframe/hooks/pre-tool-use.js`, `.subframe/hooks/post-tool-use.js`
 
 ---
 
@@ -1391,3 +1391,28 @@ function useTerminal(containerRef: RefObject<HTMLDivElement>, options: ITerminal
 
 **Files created:** `taskMarkdownParser.ts`, `TaskTimeline.tsx`, `TaskGraph.tsx`, `migrate-tasks-to-md.js`
 **Files modified:** `tasksManager.ts` (complete rewrite), `task.js` (complete rewrite), `ipcChannels.ts`, `frameConstants.ts`, `frameTemplates.ts`, `useTasks.ts`, `useUIStore.ts`, `TasksPanel.tsx`
+
+### [2026-03-10] Version-Stamped Component Update System
+
+**Decision:** Add `@subframe-version` and `@subframe-managed` headers to all files deployed by SubFrame (hooks, git hooks, skills, workflows, codex wrapper).
+
+**Why version stamps over content comparison:**
+- Content comparison is brittle — any whitespace or formatting change triggers false positives
+- Version stamps give a clear, ordered comparison: "deployed at 0.2.3, current is 0.2.4, update available"
+- Enables efficient health checks without reading full file contents or computing hashes
+- Version stamps are human-readable — users can see at a glance which SubFrame version deployed a file
+
+**The `@subframe-managed: false` opt-out mechanism:**
+- Users may customize deployed hooks or workflows beyond what SubFrame generates
+- If SubFrame blindly overwrites, user edits are lost
+- Setting `@subframe-managed: false` in a deployed file tells SubFrame to skip it during updates
+- The health panel shows a badge for user-managed files so the user knows they're responsible for keeping them current
+- `frameProject.ts` reports skipped components back to the UI so the user sees what was not updated
+
+**Build pipeline safety net:**
+- `scripts/verify-hooks.js` compares `scripts/hooks/` (the committed hook files) against what `frameTemplates.ts` would generate
+- Catches drift where a template is updated but the committed hook files are stale (or vice versa)
+- Runs in `npm run check`, pre-commit hook, and CI — prevents shipping mismatched hooks
+- Fail-fast: blocks commit/CI if hooks are out of sync with templates
+
+**Files:** `frameTemplates.ts`, `frameTemplates.js`, `subframeHealth.ts`, `claudeSettingsUtils.ts`, `frameProject.ts`, `ipcChannels.ts`, `SubFrameHealthPanel.tsx`, `scripts/verify-hooks.js`

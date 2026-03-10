@@ -38,3 +38,6 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Verify hooks
+        run: npm run verify:hooks

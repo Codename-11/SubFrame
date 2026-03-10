@@ -6,6 +6,33 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Version-Stamped Component Update System (2026-03-10)
+
+#### Version Stamps in Templates
+- **frameTemplates.ts**: All template functions (`getSessionStartHook`, `getPromptSubmitHook`, `getStopHook`, `getPreToolUseHook`, `getPostToolUseHook`, `getPreCommitHook`, `getPrePushHook`, `getCodexWrapper`, skill templates, workflow templates) now prepend `// @subframe-version X.Y.Z` and `// @subframe-managed` headers to deployed files
+- **frameTemplates.js**: JS fallback updated to match TS version
+- **Comment formats**: JS files use `// @subframe-version`, markdown skills use `<!-- @subframe-version -->`, YAML workflows use `# @subframe-version`
+- **New exports**: `SUBFRAME_VERSION_REGEX`, `SUBFRAME_MANAGED_REGEX` from `frameTemplates.ts`
+
+#### Version-Aware Health Check
+- **subframeHealth.ts**: `checkComponent()` now extracts `@subframe-version` from deployed files and compares to current `FRAME_VERSION`
+- **claude-settings check**: Now structural — validates all 5 event types (SessionStart, UserPromptSubmit, Stop, PreToolUse, PostToolUse) are configured, reports which are missing
+- **claudeSettingsUtils.ts**: New export `getSubFrameHookCoverage()` returns configured event types and missing ones
+
+#### User-Edit Resilience
+- **frameProject.ts**: Checks for `@subframe-managed: false` in deployed files before updating; skips files with opt-out marker
+- **Update response**: Reports `skipped` components back to the UI
+- **ipcChannels.ts**: `SubFrameComponentStatus` extended with `deployedVersion?`, `managedOptOut?`, `missingHooks?`; update response has `skipped?`
+
+#### Build Pipeline Safety
+- **scripts/verify-hooks.js**: New script that compares `scripts/hooks/` content against template output to detect drift
+- **package.json**: Added `verify:hooks` script; `check` script now includes `npm run verify:hooks`
+- **.githooks/pre-commit**: Runs `verify-hooks.js` if present
+- **.github/workflows/ci.yml**: Added `npm run verify:hooks` step
+
+#### Health Panel UI
+- **SubFrameHealthPanel.tsx**: Shows deployed version with transition indicators (e.g., `0.2.3 → 0.2.4`), missing hooks list, `@subframe-managed: false` badges, and skipped component count after updates
+
 ### Onboarding Flow Fixes (2026-03-07)
 
 #### Init → Onboarding Connection
@@ -385,7 +412,7 @@ Notable changes grouped by date and domain.
   - `AgentStateView` component: panel mode (compact session card + timeline) and full-view mode (session list + detail)
   - `AgentTimeline` component: vertical stepper with Framer Motion animations, status icons, relative timestamps, auto-scroll
   - `SidebarAgentStatus` component: pulsing green dot + current tool name in sidebar footer
-  - Claude Code hooks (`scripts/hooks/pre-tool-use.js`, `post-tool-use.js`): write running/completed steps to agent-state.json
+  - Claude Code hooks (`.subframe/hooks/pre-tool-use.js`, `post-tool-use.js`): write running/completed steps to agent-state.json
   - 4 new IPC channels: `LOAD_AGENT_STATE`, `AGENT_STATE_DATA`, `WATCH_AGENT_STATE`, `UNWATCH_AGENT_STATE`
   - Keyboard shortcut: `Ctrl+Shift+A` for Agent Activity panel
   - AI-agnostic port: hooks are Claude-specific adapters, renderer only depends on the generic `agent-state.json` format

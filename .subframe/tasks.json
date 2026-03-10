@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-10T01:47:28.088Z",
+  "lastUpdated": "2026-03-10T20:40:48.800Z",
   "tasks": {
     "pending": [
       {
@@ -512,6 +512,51 @@
     ],
     "inProgress": [],
     "completed": [
+      {
+        "id": "task-1772674776397-kc624grpq",
+        "title": "Task Editor UI Option",
+        "status": "completed",
+        "priority": "medium",
+        "category": "refactor",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T01:39:36.397Z",
+        "updatedAt": "2026-03-10T01:47:28.085Z",
+        "completedAt": "2026-03-10T01:47:28.085Z",
+        "description": "Currently the Sub-Tasks system only allows viewing existing tasks via the markdown editor. Similar to the creation wizard for Sub-Tasks, allow switching between UI/Markdown view.\nI also want to enhance the Sub-Tasks side view pane dropdown detail view (and full view dropdown detail view) to visual render within dropdown (steps, timeline element, etc) if available.\nLastly I want to fix the Sub-Tasks Tags to properly split priority out into its own column so we can sort by priority as well in table view.\nLastly Lastly - I want to allow easy task reference in chat - I know we can send to chat but it would be nice to have a quick 'copy-id' or something of that nature to allow copying ref to task to chat with agent about, etc.\nLastly Lastly Lastly - allow user to easily via UI link tasks to be dependant/blocking/sequential etc and enhance UI to cleanly/properly show this - match our clean UI/UX - no skimpy.\nFix markdown/codemirror editor to allow proper text selection via cursor/mouse etc. currently glitchy.\nAllow 'AI-Enhance' or whatever best name is for button to fix a usertyped task to properly scope/description/use sub-task features/etc. this should be quick and allow model choice (default to sonnet?) - leverage existing utilities if possible/correct.",
+        "acceptanceCriteria": "Define what \"done\" looks like.",
+        "notes": "Any additional context or references.\n[2026-03-10] Split priority into its own sortable column in panel mode (was merged in Tags). Default sort now: status asc + priority high→low. Both category and priority columns are sortable with multi-sort.\n[2026-03-10] Implemented enhanced TaskDetail (two-column layout, progress bar, copy ID, user request display, dependency resolution with icons) and dependency linking UI in dialog Advanced section\n[2026-03-10] Task editing UI was already functional (Form/Markdown toggle, steps editor, priority/category/status). Now enhanced with dependency linking (blockedBy/blocks) in Advanced section.\n[2026-03-10] Fixed CodeMirror text selection in Editor and WorkflowEditor by adding onOpenAutoFocus/onPointerDownOutside preventDefault to DialogContent — prevents Radix focus trap from interfering with CM mouse events\n[2026-03-10] Added AI-Enhance button: new IPC channel ENHANCE_TASK, handler in tasksManager spawns active AI tool with structured prompt, returns enhanced title/description/steps/criteria/priority/category. UI shows Sparkles button in dialog header when title present.",
+        "steps": [
+          {
+            "completed": true,
+            "label": "Enhance Sub-Task editing with UI capability"
+          },
+          {
+            "completed": true,
+            "label": "Enhance Sub-Task dropdown view with UI capability"
+          },
+          {
+            "completed": true,
+            "label": "Split priority into its own column in Sub-Tasks table view"
+          },
+          {
+            "completed": true,
+            "label": "AI-Enhance button to auto-scope tasks"
+          },
+          {
+            "completed": true,
+            "label": "Fix CodeMirror text selection"
+          },
+          {
+            "completed": true,
+            "label": "Dependency linking UI (blockedBy/blocks in dialog)"
+          },
+          {
+            "completed": true,
+            "label": "Copy task ID button for chat reference"
+          }
+        ]
+      },
       {
         "id": "task-1772722916748-m562u62l7",
         "title": "Left Sidebar 'Add Projects' via add new folder doesn't add to workspace",
@@ -1424,49 +1469,21 @@
         "steps": []
       },
       {
-        "id": "task-1772674776397-kc624grpq",
-        "title": "Task Editor UI Option",
+        "id": "task-mml2rax8-ovzn",
+        "title": "Version-stamped component update system",
         "status": "completed",
-        "priority": "medium",
-        "category": "refactor",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-10",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-05T01:39:36.397Z",
-        "updatedAt": "2026-03-10T01:47:28.085Z",
-        "completedAt": "2026-03-10T01:47:28.085Z",
-        "description": "Currently the Sub-Tasks system only allows viewing existing tasks via the markdown editor. Similar to the creation wizard for Sub-Tasks, allow switching between UI/Markdown view.\nI also want to enhance the Sub-Tasks side view pane dropdown detail view (and full view dropdown detail view) to visual render within dropdown (steps, timeline element, etc) if available.\nLastly I want to fix the Sub-Tasks Tags to properly split priority out into its own column so we can sort by priority as well in table view.\nLastly Lastly - I want to allow easy task reference in chat - I know we can send to chat but it would be nice to have a quick 'copy-id' or something of that nature to allow copying ref to task to chat with agent about, etc.\nLastly Lastly Lastly - allow user to easily via UI link tasks to be dependant/blocking/sequential etc and enhance UI to cleanly/properly show this - match our clean UI/UX - no skimpy.\nFix markdown/codemirror editor to allow proper text selection via cursor/mouse etc. currently glitchy.\nAllow 'AI-Enhance' or whatever best name is for button to fix a usertyped task to properly scope/description/use sub-task features/etc. this should be quick and allow model choice (default to sonnet?) - leverage existing utilities if possible/correct.",
-        "acceptanceCriteria": "Define what \"done\" looks like.",
-        "notes": "Any additional context or references.\n[2026-03-10] Split priority into its own sortable column in panel mode (was merged in Tags). Default sort now: status asc + priority high→low. Both category and priority columns are sortable with multi-sort.\n[2026-03-10] Implemented enhanced TaskDetail (two-column layout, progress bar, copy ID, user request display, dependency resolution with icons) and dependency linking UI in dialog Advanced section\n[2026-03-10] Task editing UI was already functional (Form/Markdown toggle, steps editor, priority/category/status). Now enhanced with dependency linking (blockedBy/blocks) in Advanced section.\n[2026-03-10] Fixed CodeMirror text selection in Editor and WorkflowEditor by adding onOpenAutoFocus/onPointerDownOutside preventDefault to DialogContent — prevents Radix focus trap from interfering with CM mouse events\n[2026-03-10] Added AI-Enhance button: new IPC channel ENHANCE_TASK, handler in tasksManager spawns active AI tool with structured prompt, returns enhanced title/description/steps/criteria/priority/category. UI shows Sparkles button in dialog header when title present.",
-        "steps": [
-          {
-            "completed": true,
-            "label": "Enhance Sub-Task editing with UI capability"
-          },
-          {
-            "completed": true,
-            "label": "Enhance Sub-Task dropdown view with UI capability"
-          },
-          {
-            "completed": true,
-            "label": "Split priority into its own column in Sub-Tasks table view"
-          },
-          {
-            "completed": true,
-            "label": "AI-Enhance button to auto-scope tasks"
-          },
-          {
-            "completed": true,
-            "label": "Fix CodeMirror text selection"
-          },
-          {
-            "completed": true,
-            "label": "Dependency linking UI (blockedBy/blocks in dialog)"
-          },
-          {
-            "completed": true,
-            "label": "Copy task ID button for chat reference"
-          }
-        ]
+        "createdAt": "2026-03-10T20:40:44.300Z",
+        "updatedAt": "2026-03-10T20:40:48.797Z",
+        "completedAt": "2026-03-10T20:40:48.797Z",
+        "description": "Add version stamps (@subframe-version, @subframe-managed) to all deployed templates. Improve health check with version-aware detection, structural claude-settings validation, user-edit resilience (opt-out via @subframe-managed: false). Add build pipeline safety (verify:hooks in check/CI/pre-commit). Ensures projects initialized with SubFrame can be reliably updated when SubFrame itself is updated.",
+        "userRequest": "Ensure that if we make changes or enhancements or add more hooks, anything we initialize in other projects can be updated along with the version of SubFrame.",
+        "acceptanceCriteria": "All deployed files contain @subframe-version header. Health panel detects outdated versions. Users can opt out of managed updates. Build pipeline prevents scripts/hooks/ drift.",
+        "steps": []
       }
     ]
   }

@@ -53,13 +53,13 @@ An important detail: `CLAUDE.md` and `GEMINI.md` are **not** copies of `AGENTS.m
 
 SubFrame installs five hooks that run alongside your AI tools, keeping them informed without changing how they work.
 
-**SessionStart** (`scripts/hooks/session-start.js`) fires at startup, resume, and after context compaction. It injects pending and in-progress sub-tasks into Claude's context so it always knows what work is tracked — even after the context window has been compressed.
+**SessionStart** (`.subframe/hooks/session-start.js`) fires at startup, resume, and after context compaction. It injects pending and in-progress sub-tasks into Claude's context so it always knows what work is tracked — even after the context window has been compressed.
 
-**UserPromptSubmit** (`scripts/hooks/prompt-submit.js`) fires on every user message. It fuzzy-matches your prompt against pending sub-task titles. If there's a match, it suggests starting the task before diving into work — preventing duplicate effort.
+**UserPromptSubmit** (`.subframe/hooks/prompt-submit.js`) fires on every user message. It fuzzy-matches your prompt against pending sub-task titles. If there's a match, it suggests starting the task before diving into work — preventing duplicate effort.
 
-**Stop** (`scripts/hooks/stop.js`) fires when Claude finishes responding. It checks for in-progress sub-tasks and reminds about them, flagging modified source files that aren't tracked by any task.
+**Stop** (`.subframe/hooks/stop.js`) fires when Claude finishes responding. It checks for in-progress sub-tasks and reminds about them, flagging modified source files that aren't tracked by any task.
 
-**PreToolUse / PostToolUse** (`scripts/hooks/pre-tool-use.js`, `post-tool-use.js`) monitor agent tool usage for the **Agent Activity Timeline**. They track which tools are called and on which files, building a visual timeline of everything the agent does during a session.
+**PreToolUse / PostToolUse** (`.subframe/hooks/pre-tool-use.js`, `post-tool-use.js`) monitor agent tool usage for the **Agent Activity Timeline**. They track which tools are called and on which files, building a visual timeline of everything the agent does during a session.
 
 **Git pre-commit** (`.githooks/pre-commit`) runs `npm run structure` before each commit, keeping `STRUCTURE.json` in sync with source code changes automatically.
 
