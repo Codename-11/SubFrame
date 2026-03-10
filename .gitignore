@@ -46,5 +46,8 @@ docs/.vitepress/cache/
 .subframe/agent-state.json.tmp.*
 .subframe/tasks.json.pre-migration-backup
 
+# Pipeline run history (contains local paths)
+.subframe/pipelines/runs.json
+
 # Claude Code local settings (user-specific)
 .claude/settings.local.json

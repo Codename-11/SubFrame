@@ -311,5 +311,5 @@ SubFrame is built upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozha
 ---
 
 <p align="center">
-  <strong>v0.2.1-beta</strong> · Public beta — <a href="https://github.com/Codename-11/SubFrame/issues">feedback welcome</a> · <a href="https://sub-frame.dev">sub-frame.dev</a>
+  <strong>v0.2.3-beta</strong> · Public beta — <a href="https://github.com/Codename-11/SubFrame/issues">feedback welcome</a> · <a href="https://sub-frame.dev">sub-frame.dev</a>
 </p>

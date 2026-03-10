@@ -391,7 +391,6 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
           let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
           const timeoutPromise = new Promise<never>((_, reject) => {
             timeoutHandle = setTimeout(() => {
-              abortController.abort();
               reject(new Error(`Stage timed out after ${Math.round(timeoutMs / 1000)}s`));
             }, timeoutMs);
           });
@@ -839,7 +838,7 @@ function watchWorkflows(projectPath: string): void {
       if (watchDebounceTimer) clearTimeout(watchDebounceTimer);
       watchDebounceTimer = setTimeout(() => {
         // Notify renderer that workflows changed so it can refetch
-        send(IPC.PIPELINE_RUN_UPDATED, { projectPath });
+        broadcastRunsList(projectPath);
       }, 300);
     });
     workflowsWatcher.on('error', (err) => {

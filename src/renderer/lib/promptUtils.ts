@@ -8,6 +8,7 @@ import { typedSend } from './ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { useUIStore } from '../stores/useUIStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
+import * as terminalRegistry from './terminalRegistry';
 import type { SavedPrompt } from '../../shared/ipcChannels';
 
 /** Template variables available in prompt content */
@@ -71,6 +72,12 @@ export function insertPromptIntoTerminal(
   }
   const text = resolveTemplateVariables(prompt.content, projectPath);
   typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: text });
+  // Focus the xterm instance so the user can immediately edit or press Enter.
+  // 100ms delay ensures Radix Dialog focus-restore (on close) completes first.
+  setTimeout(() => {
+    const instance = terminalRegistry.get(activeTerminalId);
+    if (instance) instance.terminal.focus();
+  }, 100);
   toast.success('Inserted into terminal');
   return true;
 }
@@ -86,6 +93,12 @@ export function sendCommandToTerminal(command: string): boolean {
     return false;
   }
   typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: command + '\r' });
+  // Focus the xterm instance so the terminal is ready for interaction.
+  // 100ms delay ensures Radix Dialog/Dropdown focus-restore completes first.
+  setTimeout(() => {
+    const instance = terminalRegistry.get(activeTerminalId);
+    if (instance) instance.terminal.focus();
+  }, 100);
   return true;
 }
 
