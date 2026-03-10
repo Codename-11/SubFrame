@@ -1,0 +1,108 @@
+name: Bug Report
+description: Something isn't working as expected
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched existing issues and didn't find a duplicate
+          required: true
+        - label: I'm on the [latest version](https://github.com/Codename-11/SubFrame/releases/latest) of SubFrame
+          required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      multiple: true
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS Version
+      description: "e.g. Windows 11 23H2, macOS Sequoia 15.3, Ubuntu 24.04"
+      placeholder: "Windows 11 23H2"
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: SubFrame Version
+      description: "Check the title bar or Settings > About. Use v0.x.x-beta format."
+      placeholder: "v0.2.3-beta"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Clear description of the bug. What did you expect vs. what actually happened?
+      placeholder: |
+        **Expected:** ...
+        **Actual:** ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce the issue.
+      placeholder: |
+        1. Open SubFrame
+        2. Navigate to ...
+        3. Click / run ...
+        4. See error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Which part of the app? Pick the closest match.
+      multiple: true
+      options:
+        - Terminal / PTY
+        - Sidebar / Navigation
+        - Editor / File viewer
+        - Task system
+        - Settings
+        - Plugins
+        - Pipeline system
+        - Git / GitHub integration
+        - AI tools / Claude sessions
+        - Keyboard shortcuts
+        - Theme / UI rendering
+        - Build / startup / updates
+        - Other
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or errors
+      description: Paste error output, DevTools console logs (Ctrl+Shift+I), or crash stack traces.
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recordings
+      description: If applicable, drag and drop screenshots or screen recordings here.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Workarounds you tried, related issues, environment details (Node version, shell, etc).

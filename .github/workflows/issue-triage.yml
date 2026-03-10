@@ -1,0 +1,92 @@
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened, labeled]
+
+concurrency:
+  group: issue-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Zero-cost keyword labeling (no API calls)
+  auto-label:
+    if: github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.issue.title.toLowerCase();
+            const body = (context.payload.issue.body || '').toLowerCase();
+            const text = `${title} ${body}`;
+            const labels = [];
+
+            // Area labels
+            if (text.match(/terminal|pty|shell|xterm/)) labels.push('area:terminal');
+            if (text.match(/pipeline|workflow|ci/)) labels.push('area:pipeline');
+            if (text.match(/editor|codemirror|file tree/)) labels.push('area:editor');
+            if (text.match(/theme|css|styling|dark mode|neon/)) labels.push('area:theme');
+            if (text.match(/settings|config|preferences/)) labels.push('area:settings');
+            if (text.match(/task|sub-task|kanban/)) labels.push('area:tasks');
+            if (text.match(/plugin|extension/)) labels.push('area:plugins');
+            if (text.match(/git|github|pr|pull request/)) labels.push('area:git');
+            if (text.match(/sidebar|navigation|panel/)) labels.push('area:ui');
+            if (text.match(/shortcut|keybind|hotkey/)) labels.push('area:shortcuts');
+            if (text.match(/agent|claude|ai|session/)) labels.push('area:ai');
+            if (text.match(/update|install|build|electron/)) labels.push('area:build');
+
+            // Platform labels
+            if (text.match(/windows|win32|taskkill/)) labels.push('platform:windows');
+            if (text.match(/macos|mac os|darwin|dmg/)) labels.push('platform:macos');
+            if (text.match(/linux|ubuntu|debian|appimage/)) labels.push('platform:linux');
+
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels
+              });
+            }
+
+  # Claude triage for issues labeled 'needs-triage'
+  claude-triage:
+    if: >
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'needs-triage'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--max-turns 8"
+
+          direct_prompt: |
+            Triage this GitHub issue for SubFrame (terminal-centric IDE for Claude Code).
+
+            Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+
+            Body:
+            ${{ github.event.issue.body }}
+
+            Please:
+            1. Classify: is this a bug report, feature request, question, or duplicate?
+            2. If bug: check if you can identify the relevant code area from CLAUDE.md/STRUCTURE.json
+            3. If feature: assess if it fits SubFrame's scope (enhances AI coding tools, doesn't replace them)
+            4. If possible duplicate: search existing issues via `gh issue list --search "..."` and link them
+            5. Post a brief, friendly comment with your assessment and any relevant pointers
+
+            Keep it concise and helpful. Remove the 'needs-triage' label and add appropriate labels.

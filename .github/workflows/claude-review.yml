@@ -1,0 +1,42 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          prompt: |
+            Review this pull request. Focus on:
+
+            1. **Pattern adherence** — Does it follow SubFrame's architecture? Check CLAUDE.md and REVIEW.md.
+            2. **Code quality** — Bugs, edge cases, type safety, error handling.
+            3. **Project fit** — Is this a good addition? Does it enhance the terminal-centric IDE without over-engineering?
+            4. **Security** — No hardcoded secrets, proper input validation at boundaries, safe IPC usage.
+
+            Be practical, not pedantic. Skip nitpicks on formatting or comment style.
+            If the PR looks good, say so briefly — don't invent issues.
+
+            Post a summary comment with your assessment, and use inline comments for specific code issues.
+
+          claude_args: "--max-turns 10"

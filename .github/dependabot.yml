@@ -1,0 +1,33 @@
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      # Batch dev dependency updates (types, linting, testing)
+      dev-dependencies:
+        dependency-type: development
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "vitest*"
+          - "@testing-library/*"
+          - "prettier*"
+          - "typescript"
+      # Batch Electron ecosystem updates
+      electron:
+        patterns:
+          - "electron"
+          - "electron-*"
+
+  # GitHub Actions versions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5

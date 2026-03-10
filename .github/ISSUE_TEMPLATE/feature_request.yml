@@ -1,0 +1,72 @@
+name: Feature Request
+description: Suggest an idea or improvement for SubFrame
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched existing issues and didn't find a duplicate
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What problem does this solve, or what workflow would it improve?
+      placeholder: "When I'm working on ..., I find it frustrating that ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you'd like to happen. Be as specific or high-level as you want.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds, other tools, or alternative approaches you've thought about.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of SubFrame does this relate to?
+      multiple: true
+      options:
+        - Terminal / PTY
+        - Sidebar / Navigation
+        - Editor / File viewer
+        - Task system
+        - Settings
+        - Plugins
+        - Pipeline system
+        - Git / GitHub integration
+        - AI tools / Claude sessions
+        - Keyboard shortcuts
+        - Theme / UI
+        - Build / startup / updates
+        - New area (describe above)
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: How big is this?
+      description: Your best guess — just helps with prioritization.
+      options:
+        - Small tweak (UI label, color, minor behavior)
+        - Medium feature (new panel, workflow improvement)
+        - Large feature (new system, major architecture)
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Mockups, screenshots, links to similar features in other tools, etc.
