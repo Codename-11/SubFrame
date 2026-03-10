@@ -1,41 +1,40 @@
-Pipeline AI controls, keyboard shortcuts overhaul, workspace navigation, task editor enhancements, and full GitHub repo setup for public readiness.
+Fix release focused on terminal stability, task panel UX, and audit-driven hardening across the codebase.
 
 ## What's Changed
 
 ### Features
-- **Pipeline max-turns control** — AI agent stages support `max-turns` config in workflow YAML (default 25, 0 = unlimited), with "Re-run Unlimited" button when a stage hits the turn limit
-- **Pipeline agent heartbeat logging** — Agent-mode stages emit periodic heartbeat logs and elapsed time counter in the timeline, replacing silent long-running stages
-- **Pipeline failure tracking** — Stages track failure reason (max-turns, timeout, error) for targeted retry UI and distinct visual indicators
-- **Centralized shortcut registry** — Single source of truth for all keyboard shortcuts; help modal now has search filter
-- **Workspace keyboard switching** — `Ctrl+Alt+1-9` jumps to workspace by index, `Ctrl+Alt+[/]` cycles prev/next, collapsed sidebar has workspace switcher
-- **Quick Tasks palette** — `Ctrl+'` overlay for fuzzy-search across active sub-tasks with status dots and priority badges
-- **Command palette enhancements** — Added Pipeline, Prompt Library, and dynamic Workspaces groups
-- **Enhanced task detail view** — Two-column layout with metadata card, step progress, dependency resolution, and AI-Enhance button
-- **Task dependency linking UI** — Blocked-by and Blocks fields with select + removable badge pattern
-- **Terminal grid slot retention** — Drag-swap positions persist across view mode changes and app restarts
+- **View tab bar** — VS Code-style tab bar for managing open full-view panels with close buttons and keyboard navigation
+- **Terminal user message stepping** — Directional up/down navigation between user message markers in terminal scrollback, replacing the single "jump to last" button
+- **Shortcuts panel** — Full-view panel replacing the modal dialog, integrated with the view tab bar system
+- **Keyboard badge component** — Shared `<Kbd>` component for consistent shortcut display across the UI
+- **Terminal tab index numbers** — Tabs 1-9 show index numbers for quick keyboard switching reference
 
-### GitHub & CI Setup
-- **Claude PR auto-review** — GitHub Action reviews every PR for pattern adherence, code quality, and project fit
-- **`@claude` interactive mentions** — Mention `@claude` in any issue or PR comment for on-demand AI help
-- **Issue auto-labeling** — Zero-cost keyword-based area and platform labels on issue open
-- **Issue triage workflow** — Claude-powered triage when `needs-triage` label is applied
-- **Dependabot** — Weekly npm and GitHub Actions dependency updates with grouped dev deps
-- **Issue templates** — Bug report and feature request YAML forms with structured fields
-- **PR template** — Checklist for quality gates, changelog, and conventions
-- **CONTRIBUTING.md, SECURITY.md, REVIEW.md** — Contributor guide, vulnerability reporting, and Claude review rules
-- **Ko-fi funding** — GitHub sponsor button
+### Improvements
+- **Version-stamped deployments** — All deployed files (hooks, git hooks, workflows) include `@subframe-version` and `@subframe-managed` headers for tracking
+- **Version-aware health check** — SubFrame Health detects outdated deployments by comparing embedded version stamps to current app version
+- **Structural claude-settings validation** — Health check verifies all 5 hook event types are configured
+- **User-edit resilience** — Files marked `@subframe-managed: false` are skipped during updates
+- **Build pipeline safety** — `npm run verify:hooks` prevents hook script drift; included in quality gates and CI
+- **Health panel UI** — Shows version transitions, missing hooks, user-managed badges, and skipped component counts
+- **Task detail layout** — Single-column stacked layout in side panel, two-column grid in full-view; inline edit button next to Copy ID
 
 ### Bug Fixes
-- **Pipeline cancel on Windows** — Process tree kill now uses `taskkill /F /T` instead of SIGTERM
-- **CodeMirror text selection in dialogs** — Radix focus trap no longer intercepts CodeMirror mouse events
-- **Task priority not sortable** — Split into separate sortable Category and Priority columns
-- **Command palette GitHub label** — Corrected to "GitHub" (was "GitHub Issues")
-- **Shortcuts modal duplicate** — Removed duplicate Ctrl+Shift+Y entry
-- **Prompt Library unreachable from palette** — Added event bridge for command palette trigger
-- **Sensitive files tracked in git** — Untracked local settings and pipeline runs files
-- **npm audit vulnerabilities** — Fixed minimatch and tar issues in build-time deps
+- **Terminal indicators lost on workspace switch** — Grace period state moved from React ref to terminal registry, surviving component remounts
+- **Terminal onData race condition** — Reads terminal from registry instead of React ref, eliminating null-ref during terminal switch
+- **Terminal resize choppiness during panel drag** — Skips fit() during active resize, single fit on drag end
+- **Panel resize stuck on mouse-release outside window** — Window blur listener clears isResizing state as safety net
+- **TaskDetail crash on undefined steps** — Guards `task.steps` with `?? []` fallback
+- **Task dependency selects** — Replaced `document.getElementById` with controlled React state
+- **Task markdown link security** — URL scheme validation before `shell.openExternal` (https/http only)
+- **Managed-file opt-out check truncated** — Full content check instead of first 1024 bytes
+- **Empty task steps silently dropped** — Filters empty-label steps before markdown conversion
+- **Double terminal fit on drag end** — Clears debounce timer when subscriber fires
+- **TaskTimeline pulse flash** — 3-keyframe seamless loop replaces abrupt opacity jump
+- **Workspace switching context** — Ctrl+Alt shortcuts moved to always-mounted App component
+- **Loading screen not dismissing** — React callback pattern for reliable overlay removal
+- **Semver pre-release comparison** — Segment-by-segment numeric-aware comparison
 
 ### Other Changes
-- Pipeline workflows updated to use agent mode with explicit max-turns limits
-- CI and Claude review workflows use concurrency groups to cancel superseded runs
-- Removed dead PipelineLogView.tsx component
+- `execSync` moved to top-level import in frameProject
+- Hook system refactored with build/verify scripts
+- Claude settings utilities extracted to shared module

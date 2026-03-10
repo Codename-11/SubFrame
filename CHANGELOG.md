@@ -7,13 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5-beta] - 2026-03-10
+
 ### Added
-- **Version-stamped component deployment**: All deployed files (JS hooks, git hooks, codex wrapper, markdown skills, YAML workflows) now include `@subframe-version` and `@subframe-managed` headers for tracking origin and version
+- **View tab bar**: VS Code-style tab bar for managing open full-view panels with close buttons and keyboard navigation
+- **Terminal user message stepping**: Directional up/down navigation between user message markers in terminal scrollback (replaces single "jump to last" button)
+- **Scroll-to-bottom icon**: Updated to ArrowDownToLine for clearer visual meaning
+- **Shortcuts panel**: Full-view panel replacing the modal dialog, integrated with the tab bar system
+- **Keyboard badge component**: Shared `<Kbd>` component for consistent shortcut display across UI
+- **Terminal tab index numbers**: Tabs 1-9 show index numbers for quick switching reference
+- **Version-stamped component deployment**: All deployed files now include `@subframe-version` and `@subframe-managed` headers for tracking origin and version
 - **Version-aware health check**: SubFrame Health detects outdated deployments by comparing `@subframe-version` in deployed files to current app version
 - **Structural claude-settings validation**: Health check verifies all 5 hook event types are configured and reports which are missing
 - **User-edit resilience**: Files marked with `@subframe-managed: false` are skipped during updates — opt out of managed updates per file
 - **Build pipeline safety**: `npm run verify:hooks` prevents `scripts/hooks/` drift from templates; included in `npm run check`, pre-commit hook, and CI
 - **Health panel improvements**: Shows deployed version transitions, missing hooks list, user-managed badges, and skipped component count after updates
+
+### Fixed
+- **Terminal user message indicators lost on workspace switch**: Moved grace period state from React ref to terminal registry so it persists across component remounts
+- **Terminal onData race condition**: Read terminal from registry instead of React ref, eliminating null-ref window during terminal switch
+- **Terminal resize choppiness during panel drag**: Skip fit() during active resize, single fit on drag end via Zustand store subscription
+- **Terminal message nav state lingering**: Reset hasMessageAbove/hasMessageBelow when highlightUserMessages setting toggled off
+- **Panel resize stuck on mouse-release outside window**: Added window blur listener as safety net to clear isResizing state
+- **TaskDetail crash on undefined steps**: Guard `task.steps` with `?? []` fallback (prevents crash on tasks from older format)
+- **Task dependency selects using global DOM queries**: Replaced `document.getElementById` with controlled React state to prevent ID collisions and stale DOM
+- **Task markdown link security**: Validate URL scheme before `shell.openExternal` — only allows `https:` and `http:`
+- **Managed-file opt-out check truncated**: Removed `.slice(0, 1024)` so `@subframe-managed: false` marker is found anywhere in the file
+- **Empty task steps lost on form/markdown round-trip**: Filter empty-label steps before markdown conversion to prevent silent data loss
+- **Double terminal fit on drag end**: Clear debounce timer when Zustand subscriber fires fit, preventing redundant reflow
+- **TaskTimeline pulse animation flash**: Replaced 2-keyframe loop (opacity jump) with 3-keyframe seamless loop (fade-in → fade-out → no gap)
+- **TasksPanel two-column layout cramped in side panel**: Single-column stacked layout in panel mode, two-column grid only in full-view
+- **Workspace switching not working from all contexts**: Moved Ctrl+Alt workspace shortcuts to App.tsx (always mounted)
+- **Loading screen not dismissing**: Added React callback pattern for reliable loading overlay removal
+- **Semver pre-release comparison**: Segment-by-segment numeric-aware comparison instead of lexicographic
+
+### Changed
+- **TaskDetail expanded row**: Inline edit button (Pencil icon) next to Copy ID; inline badges row replaces sidebar card in panel mode
+- **`execSync` import in frameProject**: Moved from conditional `require()` to top-level import
 
 ## [0.2.4-beta] - 2026-03-10
 
@@ -229,7 +259,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.4-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.5-beta...HEAD
+[0.2.5-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.4-beta...v0.2.5-beta
 [0.2.4-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.3-beta...v0.2.4-beta
 [0.2.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.2-beta...v0.2.3-beta
 [0.2.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.1-beta...v0.2.2-beta

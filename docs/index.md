@@ -31,7 +31,7 @@ head:
         "operatingSystem": "Windows (macOS and Linux coming soon)",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "author": { "@type": "Organization", "name": "Axiom-Labs", "url": "https://github.com/Codename-11/SubFrame" },
-        "softwareVersion": "0.2.4-beta",
+        "softwareVersion": "0.2.5-beta",
         "license": "https://spdx.org/licenses/BUSL-1.1.html",
         "codeRepository": "https://github.com/Codename-11/SubFrame"
       }
