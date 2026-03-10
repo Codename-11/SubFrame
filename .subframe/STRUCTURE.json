@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-09",
+  "lastUpdated": "2026-03-10",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -598,7 +598,7 @@
     },
     "main/claudeUsageManager": {
       "file": "src\\main\\claudeUsageManager.ts",
-      "description": "Claude Usage Manager Module Fetches Claude Code usage data from OAuth API and provides periodic updates",
+      "description": "Claude Usage Manager Module Fetches Claude Code usage data from OAuth API and provides periodic updates.",
       "exports": [
         "init",
         "setupIPC",
@@ -619,47 +619,50 @@
       ],
       "functions": {
         "getPollingMs": {
-          "line": 43,
-          "purpose": "Read the configured polling interval from settings (in seconds), clamped to 30–600.",
+          "line": 54,
+          "purpose": "Returns 0 when polling is disabled, otherwise clamped to 30–600.",
           "calls": [
             "getSetting"
           ]
         },
         "init": {
-          "line": 53,
+          "line": 65,
           "params": [
             "window"
           ],
           "purpose": "Initialize the module with window reference",
           "calls": [
+            "getPollingMs",
             "onSettingChange",
+            "resetBackoff",
             "restartPolling",
-            "startPolling"
+            "scheduleNextPoll",
+            "sendUsageToRenderer"
           ]
         },
         "extractToken": {
-          "line": 69,
+          "line": 92,
           "params": [
             "credentials"
           ],
           "purpose": "Extract access token from a parsed credentials object"
         },
         "getTokenFromCredentialsFile": {
-          "line": 82,
+          "line": 105,
           "purpose": "Read OAuth token from the Claude credentials file (~/.claude/.credentials.json)",
           "calls": [
             "extractToken"
           ]
         },
         "getTokenFromKeychain": {
-          "line": 99,
+          "line": 122,
           "purpose": "Read OAuth token from macOS Keychain",
           "calls": [
             "extractToken"
           ]
         },
         "getOAuthToken": {
-          "line": 119,
+          "line": 142,
           "purpose": "Get OAuth token using platform-appropriate method",
           "calls": [
             "getTokenFromCredentialsFile",
@@ -667,62 +670,86 @@
           ]
         },
         "fetchUsage": {
-          "line": 148,
+          "line": 171,
           "purpose": "Fetch usage data from Claude OAuth API",
           "calls": [
             "getOAuthToken"
           ]
         },
-        "sendUsageToRenderer": {
-          "line": 254,
+        "resetBackoff": {
+          "line": 277,
+          "purpose": "Reset exponential backoff state (on success or setting change)"
+        },
+        "computeBackoff": {
+          "line": 284,
           "params": [
-            "retries",
-            "delay"
+            "baseMs"
           ],
-          "purpose": "Send usage data to renderer, with retry on transient errors (429, network)",
+          "purpose": "Compute next backoff delay: doubles from base up to MAX_BACKOFF_MS"
+        },
+        "sendUsageToRenderer": {
+          "line": 293,
+          "purpose": "Send usage data to renderer. Tracks consecutive failures for backoff.",
           "calls": [
-            "fetchUsage"
+            "fetchUsage",
+            "resetBackoff"
+          ]
+        },
+        "scheduleNextPoll": {
+          "line": 317,
+          "params": [
+            "baseMs"
+          ],
+          "purpose": "Uses setTimeout (not setInterval) so each cycle can adjust its delay.",
+          "calls": [
+            "computeBackoff",
+            "getPollingMs",
+            "sendUsageToRenderer"
           ]
         },
         "startPolling": {
-          "line": 270,
-          "purpose": "Reads interval from settings (general.usagePollingInterval).",
+          "line": 341,
+          "purpose": "Uses setTimeout chains with exponential backoff instead of fixed setInterval.",
           "calls": [
             "getPollingMs",
-            "sendUsageToRenderer",
+            "scheduleNextPoll",
             "stopPolling"
           ]
         },
         "stopPolling": {
-          "line": 291,
+          "line": 353,
           "purpose": "Stop polling"
         },
         "restartPolling": {
-          "line": 305,
+          "line": 367,
           "purpose": "Restart polling (called when the setting changes)",
           "calls": [
-            "startPolling"
+            "getPollingMs",
+            "scheduleNextPoll",
+            "sendUsageToRenderer",
+            "stopPolling"
           ]
         },
         "setupIPC": {
-          "line": 312,
+          "line": 381,
           "params": [
             "ipcMain"
           ],
           "purpose": "Setup IPC handlers",
           "calls": [
-            "fetchUsage"
+            "fetchUsage",
+            "resetBackoff"
           ]
         },
         "cleanup": {
-          "line": 330,
+          "line": 402,
           "purpose": "Cleanup on app quit",
           "calls": [
             "stopPolling"
           ]
         }
       },
-      "loc": 336,
+      "loc": 408,
       "ipc": {
         "listens": [
           "LOAD_CLAUDE_USAGE",
@@ -1103,14 +1130,14 @@
       ],
       "functions": {
         "init": {
-          "line": 62,
+          "line": 64,
           "params": [
             "window"
           ],
           "purpose": "Initialize manager"
         },
         "execGit": {
-          "line": 69,
+          "line": 71,
           "params": [
             "command",
             "projectPath"
@@ -1118,14 +1145,14 @@
           "purpose": "Execute git command with promise"
         },
         "isWorkingTreeClean": {
-          "line": 84,
+          "line": 86,
           "params": [
             "projectPath"
           ],
           "purpose": "Check if working tree is clean"
         },
         "getGitStatus": {
-          "line": 113,
+          "line": 115,
           "params": [
             "projectPath"
           ],
@@ -1135,7 +1162,7 @@
           ]
         },
         "loadBranches": {
-          "line": 168,
+          "line": 170,
           "params": [
             "projectPath"
           ],
@@ -1145,7 +1172,7 @@
           ]
         },
         "switchBranch": {
-          "line": 213,
+          "line": 224,
           "params": [
             "projectPath",
             "branchName"
@@ -1157,7 +1184,7 @@
           ]
         },
         "createBranch": {
-          "line": 245,
+          "line": 265,
           "params": [
             "projectPath",
             "branchName",
@@ -1170,7 +1197,7 @@
           ]
         },
         "deleteBranch": {
-          "line": 271,
+          "line": 291,
           "params": [
             "projectPath",
             "branchName",
@@ -1182,7 +1209,7 @@
           ]
         },
         "loadWorktrees": {
-          "line": 288,
+          "line": 308,
           "params": [
             "projectPath"
           ],
@@ -1192,7 +1219,7 @@
           ]
         },
         "addWorktree": {
-          "line": 330,
+          "line": 350,
           "params": [
             "projectPath",
             "worktreePath",
@@ -1205,7 +1232,7 @@
           ]
         },
         "removeWorktree": {
-          "line": 349,
+          "line": 369,
           "params": [
             "projectPath",
             "worktreePath",
@@ -1217,7 +1244,7 @@
           ]
         },
         "setupIPC": {
-          "line": 368,
+          "line": 388,
           "params": [
             "ipcMain"
           ],
@@ -1234,7 +1261,7 @@
           ]
         }
       },
-      "loc": 413,
+      "loc": 433,
       "ipc": {
         "listens": [
           "LOAD_GIT_BRANCHES",
@@ -1642,25 +1669,25 @@
           "purpose": "pipes it through the active AI tool, captures output, and returns the raw result."
         },
         "parseAnalysisResponse": {
-          "line": 686,
+          "line": 626,
           "params": [
             "raw"
           ],
           "purpose": "Looks for the first ```json ... ``` block."
         },
         "generateTaskId": {
-          "line": 765,
+          "line": 740,
           "purpose": "Generate a short unique-ish task ID."
         },
         "getExistingTaskTitles": {
-          "line": 774,
+          "line": 749,
           "params": [
             "projectPath"
           ],
           "purpose": "Get existing task titles from .subframe/tasks/ to avoid duplicates."
         },
         "importResults": {
-          "line": 801,
+          "line": 776,
           "params": [
             "projectPath",
             "results",
@@ -1673,14 +1700,14 @@
           ]
         },
         "init": {
-          "line": 1007,
+          "line": 982,
           "params": [
             "window"
           ],
           "purpose": "Initialize the onboarding manager with a window reference."
         },
         "setupIPC": {
-          "line": 1014,
+          "line": 989,
           "params": [
             "ipcMain"
           ],
@@ -1688,7 +1715,6 @@
           "calls": [
             "buildAnalysisPrompt",
             "checkAIToolAvailable",
-            "cleanup",
             "detectProjectIntelligence",
             "findBashShell",
             "gatherContext",
@@ -1699,7 +1725,7 @@
           ]
         }
       },
-      "loc": 1300,
+      "loc": 1279,
       "ipc": {
         "listens": [
           "DETECT_PROJECT_INTELLIGENCE",
@@ -1789,33 +1815,42 @@
             "getGitInfo"
           ]
         },
-        "findFilesRecursive": {
-          "line": 306,
-          "params": [
-            "dir",
-            "extensions"
-          ],
-          "purpose": "Recursively find files matching extensions (cross-platform)"
-        },
-        "countLinesOfCode": {
-          "line": 327,
+        "getSourceFiles": {
+          "line": 331,
           "params": [
             "projectPath"
           ],
-          "purpose": "Count lines of code in src directory (cross-platform)",
+          "purpose": "Falls back to recursive filesystem scan if not a git repo.",
           "calls": [
             "findFilesRecursive"
           ]
         },
-        "countFiles": {
-          "line": 357,
+        "findFilesRecursive": {
+          "line": 353,
+          "params": [
+            "dir"
+          ],
+          "purpose": "Recursively find source files from project root (non-git fallback)."
+        },
+        "countLinesOfCode": {
+          "line": 373,
           "params": [
             "projectPath"
           ],
-          "purpose": "Count files in src directory (cross-platform)"
+          "purpose": "Count lines of code across all source files in the project.",
+          "calls": [
+            "getSourceFiles"
+          ]
+        },
+        "countFiles": {
+          "line": 398,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Count source files in the project."
         },
         "getGitInfo": {
-          "line": 378,
+          "line": 410,
           "params": [
             "projectPath"
           ],
@@ -1825,21 +1860,21 @@
           ]
         },
         "getGitActivity": {
-          "line": 411,
+          "line": 443,
           "params": [
             "projectPath"
           ],
           "purpose": "Get commit activity for last 90 days (GitHub-style heatmap data)"
         },
         "getRecentFiles": {
-          "line": 438,
+          "line": 470,
           "params": [
             "projectPath"
           ],
           "purpose": "Get recently modified source files"
         },
         "getFileGitHistory": {
-          "line": 470,
+          "line": 502,
           "params": [
             "projectPath",
             "filePath"
@@ -1847,7 +1882,7 @@
           "purpose": "Get file git history (contributors, commits, blame)"
         },
         "getFileCommits": {
-          "line": 506,
+          "line": 538,
           "params": [
             "projectPath",
             "filePath"
@@ -1855,7 +1890,7 @@
           "purpose": "Get recent commits for a file"
         },
         "getFileContributors": {
-          "line": 537,
+          "line": 569,
           "params": [
             "projectPath",
             "filePath"
@@ -1863,7 +1898,7 @@
           "purpose": "Get contributors for a file"
         },
         "setupIPC": {
-          "line": 570,
+          "line": 602,
           "params": [
             "ipcMain"
           ],
@@ -1874,7 +1909,7 @@
           ]
         }
       },
-      "loc": 581,
+      "loc": 613,
       "ipc": {
         "listens": [
           "LOAD_OVERVIEW",
@@ -2013,7 +2048,9 @@
             "trigger",
             "branch",
             "baseSha",
-            "headSha: string"
+            "headSha",
+            "overrides",
+            "string>"
           ],
           "purpose": "Build a PipelineRun from a workflow definition.",
           "calls": [
@@ -2024,7 +2061,7 @@
           ]
         },
         "executeRun": {
-          "line": 311,
+          "line": 314,
           "params": [
             "runCtx",
             "workflow"
@@ -2042,7 +2079,7 @@
           ]
         },
         "shouldRequireApproval": {
-          "line": 522,
+          "line": 528,
           "params": [
             "stage",
             "artifacts"
@@ -2050,21 +2087,21 @@
           "purpose": "Determine if a stage should pause for approval."
         },
         "waitForApproval": {
-          "line": 534,
+          "line": 540,
           "params": [
             "runCtx"
           ],
           "purpose": "Returns true if approved, false if rejected."
         },
         "init": {
-          "line": 557,
+          "line": 563,
           "params": [
             "window"
           ],
           "purpose": "Initialize the pipeline manager."
         },
         "setupIPC": {
-          "line": 564,
+          "line": 570,
           "params": [
             "ipcMain"
           ],
@@ -2088,7 +2125,7 @@
           ]
         },
         "watchWorkflows": {
-          "line": 823,
+          "line": 829,
           "params": [
             "projectPath"
           ],
@@ -2098,10 +2135,10 @@
           ]
         },
         "unwatchWorkflows": {
-          "line": 848
+          "line": 854
         },
         "startPipelineFromTrigger": {
-          "line": 863,
+          "line": 869,
           "params": [
             "projectPath",
             "workflowId",
@@ -2119,7 +2156,7 @@
           ]
         },
         "watchPrePushTrigger": {
-          "line": 921,
+          "line": 927,
           "params": [
             "projectPath"
           ],
@@ -2130,10 +2167,10 @@
           ]
         },
         "unwatchPrePushTrigger": {
-          "line": 960
+          "line": 966
         }
       },
-      "loc": 977,
+      "loc": 983,
       "ipc": {
         "listens": [
           "PIPELINE_LIST_WORKFLOWS",
@@ -2178,14 +2215,33 @@
       ],
       "functions": {
         "uid": {
-          "line": 47,
+          "line": 49,
           "purpose": "─── Utilities ───────────────────────────────────────────────────────────────"
         },
+        "killProcessTree": {
+          "line": 61,
+          "params": [
+            "child"
+          ],
+          "purpose": "This uses `taskkill /F /T` on Windows to kill the entire tree."
+        },
+        "formatElapsed": {
+          "line": 74,
+          "params": [
+            "ms"
+          ]
+        },
+        "isMaxTurnsError": {
+          "line": 83,
+          "params": [
+            "message"
+          ]
+        },
         "now": {
-          "line": 51
+          "line": 91
         },
         "execAsyncWithEnv": {
-          "line": 58,
+          "line": 98,
           "params": [
             "cmd",
             "opts",
@@ -2194,7 +2250,7 @@
           "purpose": "Run a shell command with custom env and return stdout/stderr."
         },
         "execAsync": {
-          "line": 86,
+          "line": 126,
           "params": [
             "cmd",
             "opts: { cwd: string; signal?: AbortSignal }"
@@ -2202,7 +2258,7 @@
           "purpose": "Run a shell command and return stdout/stderr."
         },
         "getDiff": {
-          "line": 117,
+          "line": 157,
           "params": [
             "ctx"
           ],
@@ -2212,7 +2268,7 @@
           ]
         },
         "getProjectContext": {
-          "line": 148,
+          "line": 188,
           "params": [
             "ctx"
           ],
@@ -2222,7 +2278,7 @@
           ]
         },
         "spawnAITool": {
-          "line": 216,
+          "line": 256,
           "params": [
             "ctx",
             "prompt: string"
@@ -2233,49 +2289,57 @@
           ]
         },
         "spawnAIToolRaw": {
-          "line": 242,
+          "line": 282,
           "params": [
             "ctx",
             "prompt: string"
           ],
-          "purpose": "backticks, quotes, and other special characters in prompts."
+          "purpose": "backticks, quotes, and other special characters in prompts.",
+          "calls": [
+            "killProcessTree"
+          ]
         },
         "spawnAIToolAgent": {
-          "line": 302,
+          "line": 345,
           "params": [
             "ctx",
             "prompt: string"
           ],
-          "purpose": "but dramatically better for deep audits. Returns the final output text."
+          "purpose": "Emits periodic heartbeat logs with elapsed time and detected turn count.",
+          "calls": [
+            "formatElapsed",
+            "isMaxTurnsError",
+            "killProcessTree"
+          ]
         },
         "dispatchAITool": {
-          "line": 373,
+          "line": 483,
           "params": [
             "ctx",
             "prompt"
           ],
-          "purpose": "- mode: 'print' (default) → spawnAITool (single-turn, fast, cheap)",
+          "purpose": "Errors from agent mode may carry a `.failureReason` property (e.g. 'max-turns').",
           "calls": [
             "spawnAITool",
             "spawnAIToolAgent"
           ]
         },
         "getContextForScope": {
-          "line": 387,
+          "line": 497,
           "params": [
             "ctx"
           ],
           "purpose": "Returns empty string if no context available."
         },
         "parseJSONFromOutput": {
-          "line": 401,
+          "line": 511,
           "params": [
             "output"
           ],
           "purpose": "The output may contain markdown fences or other wrapping."
         },
         "runLintStage": {
-          "line": 443,
+          "line": 553,
           "params": [
             "ctx"
           ],
@@ -2290,7 +2354,7 @@
           ]
         },
         "parseLintOutput": {
-          "line": 533,
+          "line": 643,
           "params": [
             "output",
             "stageId"
@@ -2302,14 +2366,14 @@
           ]
         },
         "buildFocusInstruction": {
-          "line": 560,
+          "line": 670,
           "params": [
             "ctx"
           ],
           "purpose": "Supported values: security, documentation, architecture, performance, testing, or custom text."
         },
         "runTestStage": {
-          "line": 580,
+          "line": 690,
           "params": [
             "ctx"
           ],
@@ -2318,13 +2382,14 @@
             "buildFocusInstruction",
             "dispatchAITool",
             "getContextForScope",
+            "isMaxTurnsError",
             "now",
             "parseJSONFromOutput",
             "uid"
           ]
         },
         "runDescribeStage": {
-          "line": 655,
+          "line": 768,
           "params": [
             "ctx"
           ],
@@ -2333,13 +2398,14 @@
             "buildFocusInstruction",
             "dispatchAITool",
             "getContextForScope",
+            "isMaxTurnsError",
             "now",
             "parseJSONFromOutput",
             "uid"
           ]
         },
         "runCritiqueStage": {
-          "line": 752,
+          "line": 868,
           "params": [
             "ctx"
           ],
@@ -2348,13 +2414,14 @@
             "buildFocusInstruction",
             "dispatchAITool",
             "getContextForScope",
+            "isMaxTurnsError",
             "now",
             "parseJSONFromOutput",
             "uid"
           ]
         },
         "runFreezeStage": {
-          "line": 913,
+          "line": 1032,
           "params": [
             "ctx"
           ],
@@ -2365,7 +2432,7 @@
           ]
         },
         "runPushStage": {
-          "line": 941,
+          "line": 1060,
           "params": [
             "ctx"
           ],
@@ -2377,7 +2444,7 @@
           ]
         },
         "runCreatePrStage": {
-          "line": 1012,
+          "line": 1131,
           "params": [
             "ctx"
           ],
@@ -2389,7 +2456,7 @@
           ]
         },
         "runCustomStage": {
-          "line": 1105,
+          "line": 1224,
           "params": [
             "ctx",
             "step",
@@ -2398,14 +2465,14 @@
           "purpose": "Executes the `run:` shell command or `uses:` script from a workflow step."
         },
         "getStageHandler": {
-          "line": 1206,
+          "line": 1325,
           "params": [
             "stageType"
           ],
           "purpose": "Resolve a stage type string to its handler function."
         }
       },
-      "loc": 1218
+      "loc": 1337
     },
     "main/pipelineWorkflowParser": {
       "file": "src\\main\\pipelineWorkflowParser.ts",
@@ -3231,34 +3298,36 @@
       "depends": [
         "fs",
         "path",
+        "child_process",
         "shared/ipcChannels",
         "shared/frameConstants",
-        "taskMarkdownParser"
+        "taskMarkdownParser",
+        "aiToolManager"
       ],
       "functions": {
         "init": {
-          "line": 49,
+          "line": 51,
           "params": [
             "window"
           ],
           "purpose": "Initialize tasks manager"
         },
         "setProjectPath": {
-          "line": 56,
+          "line": 58,
           "params": [
             "projectPath"
           ],
           "purpose": "Set current project path"
         },
         "getTasksDir": {
-          "line": 63,
+          "line": 65,
           "params": [
             "projectPath"
           ],
           "purpose": "Get the .subframe/tasks/ directory for a project"
         },
         "getTaskFilePath": {
-          "line": 70,
+          "line": 72,
           "params": [
             "projectPath",
             "taskId"
@@ -3266,14 +3335,14 @@
           "purpose": "Get the full path for a task's markdown file"
         },
         "getTasksJsonPath": {
-          "line": 77,
+          "line": 79,
           "params": [
             "projectPath"
           ],
           "purpose": "Get tasks.json file path for a project (for index / backward compat)"
         },
         "ensureTasksDir": {
-          "line": 84,
+          "line": 86,
           "params": [
             "projectPath"
           ],
@@ -3283,39 +3352,39 @@
           ]
         },
         "statusToGroupKey": {
-          "line": 94,
+          "line": 96,
           "params": [
             "status"
           ],
           "purpose": "Map task status to the grouped key used in TasksData"
         },
         "generateTaskId": {
-          "line": 103,
+          "line": 105,
           "purpose": "Generate unique task ID"
         },
         "computeTasksFingerprint": {
-          "line": 112,
+          "line": 114,
           "params": [
             "tasksData"
           ],
           "purpose": "(which come from .md files and are stable unless the task actually changes)."
         },
         "stripInternalFields": {
-          "line": 127,
+          "line": 129,
           "params": [
             "tasks"
           ],
           "purpose": "`filePath` leaks absolute local paths; `_unknownSections` is parser-internal."
         },
         "getProjectName": {
-          "line": 142,
+          "line": 144,
           "params": [
             "projectPath"
           ],
           "purpose": "Derive the project name from the project path"
         },
         "buildTasksData": {
-          "line": 149,
+          "line": 151,
           "params": [
             "projectPath",
             "allTasks"
@@ -3327,7 +3396,7 @@
           ]
         },
         "loadTasks": {
-          "line": 205,
+          "line": 207,
           "params": [
             "projectPath"
           ],
@@ -3340,7 +3409,7 @@
           ]
         },
         "regenerateIndex": {
-          "line": 276,
+          "line": 278,
           "params": [
             "projectPath",
             "tasksData"
@@ -3353,7 +3422,7 @@
           ]
         },
         "addTask": {
-          "line": 323,
+          "line": 325,
           "params": [
             "projectPath",
             "task"
@@ -3369,7 +3438,7 @@
           ]
         },
         "updateTask": {
-          "line": 367,
+          "line": 369,
           "params": [
             "projectPath",
             "taskId",
@@ -3385,7 +3454,7 @@
           ]
         },
         "deleteTask": {
-          "line": 420,
+          "line": 422,
           "params": [
             "projectPath",
             "taskId"
@@ -3398,7 +3467,7 @@
           ]
         },
         "watchTasksFile": {
-          "line": 445,
+          "line": 447,
           "params": [
             "projectPath"
           ],
@@ -3411,11 +3480,11 @@
           ]
         },
         "unwatchTasksFile": {
-          "line": 489,
+          "line": 491,
           "purpose": "Stop watching tasks directory"
         },
         "setupIPC": {
-          "line": 500,
+          "line": 502,
           "params": [
             "ipcMain"
           ],
@@ -3423,6 +3492,7 @@
           "calls": [
             "addTask",
             "deleteTask",
+            "getActiveTool",
             "loadTasks",
             "unwatchTasksFile",
             "updateTask",
@@ -3430,7 +3500,7 @@
           ]
         }
       },
-      "loc": 592,
+      "loc": 675,
       "ipc": {
         "listens": [
           "LOAD_TASKS",
@@ -3438,7 +3508,8 @@
           "UNWATCH_TASKS",
           "ADD_TASK",
           "UPDATE_TASK",
-          "DELETE_TASK"
+          "DELETE_TASK",
+          "ENHANCE_TASK"
         ],
         "emits": [
           "TASKS_DATA",
@@ -3954,28 +4025,32 @@
         "Editor",
         "ErrorBoundary",
         "ThemeProvider",
+        "TasksPalette",
         "stores/useUIStore",
         "stores/useProjectStore",
         "stores/useTerminalStore",
         "lib/utils",
         "hooks/useOnboarding",
         "hooks/useSettings",
+        "hooks/useIpc",
         "../shared/ipcChannels",
         "lib/ipc"
       ],
       "functions": {
         "App": {
-          "line": 34,
+          "line": 36,
           "purpose": "Keyboard shortcuts are wired here to match the original app.",
           "calls": [
             "cn",
+            "typedInvoke",
             "typedSend",
             "useAIToolConfig",
+            "useIpcQuery",
             "useOnboarding"
           ]
         }
       },
-      "loc": 413,
+      "loc": 470,
       "ipc": {
         "listens": [
           "SUBFRAME_UNINSTALLED",
@@ -3991,7 +4066,7 @@
     },
     "renderer/components/CommandPalette": {
       "file": "src\\renderer\\components\\CommandPalette.tsx",
-      "description": "CommandPalette — Floating command palette triggered by Ctrl+/. Provides quick access to actions, panel toggles, terminal commands, project switching, and settings.",
+      "description": "CommandPalette — Floating command palette triggered by Ctrl+/. Provides quick access to actions, panel toggles, terminal commands, workspace/project switching, and settings.",
       "exports": [
         "CommandPalette"
       ],
@@ -4000,18 +4075,24 @@
         "stores/useUIStore",
         "stores/useTerminalStore",
         "stores/useProjectStore",
+        "hooks/useIpc",
         "lib/ipc",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "lib/shortcuts",
+        "sonner"
       ],
       "functions": {
         "CommandPalette": {
-          "line": 48,
+          "line": 55,
           "calls": [
-            "typedSend"
+            "switchWorkspace",
+            "typedInvoke",
+            "typedSend",
+            "useIpcQuery"
           ]
         }
       },
-      "loc": 284
+      "loc": 338
     },
     "renderer/components/CritiqueView": {
       "file": "src\\renderer\\components\\CritiqueView.tsx",
@@ -4099,7 +4180,7 @@
           ]
         }
       },
-      "loc": 701,
+      "loc": 703,
       "ipc": {
         "listens": [
           "FILE_CONTENT",
@@ -4354,21 +4435,26 @@
         "KeyboardShortcuts"
       ],
       "depends": [
+        "react",
         "lucide-react",
-        "stores/useUIStore"
+        "stores/useUIStore",
+        "lib/shortcuts"
       ],
       "functions": {
         "Kbd": {
-          "line": 81,
+          "line": 19,
           "params": [
             "{ children }"
           ]
         },
         "KeyboardShortcuts": {
-          "line": 98
+          "line": 35,
+          "calls": [
+            "getShortcutsByCategory"
+          ]
         }
       },
-      "loc": 137
+      "loc": 122
     },
     "renderer/components/OnboardingDialog": {
       "file": "src\\renderer\\components\\OnboardingDialog.tsx",
@@ -4575,35 +4661,6 @@
       },
       "loc": 227
     },
-    "renderer/components/PipelineLogView": {
-      "file": "src\\renderer\\components\\PipelineLogView.tsx",
-      "description": "PipelineLogView — Scrollable log viewer for pipeline stage output.",
-      "exports": [
-        "PipelineLogView"
-      ],
-      "depends": [
-        "react",
-        "framer-motion",
-        "lucide-react",
-        "lib/utils"
-      ],
-      "functions": {
-        "StageStatusBadge": {
-          "line": 24,
-          "params": [
-            "{ status }"
-          ]
-        },
-        "PipelineLogView": {
-          "line": 33,
-          "params": [
-            "{ stages",
-            "logs }"
-          ]
-        }
-      },
-      "loc": 171
-    },
     "renderer/components/PipelinePanel": {
       "file": "src\\renderer\\components\\PipelinePanel.tsx",
       "description": "PipelinePanel — Main pipeline panel supporting side-panel and full-view modes. Shows workflow selector, run list, and run detail with tabs.",
@@ -4624,21 +4681,21 @@
       ],
       "functions": {
         "formatRelativeTime": {
-          "line": 58,
+          "line": 59,
           "params": [
             "dateString"
           ],
           "purpose": "─── Utilities ───────────────────────────────────────────────────────────────"
         },
         "StatusBadge": {
-          "line": 96,
+          "line": 97,
           "params": [
             "{ status }"
           ],
           "purpose": "─── Sub-components ──────────────────────────────────────────────────────────"
         },
         "RunListItem": {
-          "line": 107,
+          "line": 108,
           "params": [
             "{\r\n  run",
             "isSelected",
@@ -4647,44 +4704,44 @@
           ]
         },
         "OverviewTab": {
-          "line": 155,
+          "line": 156,
           "params": [
             "{ run",
             "onStageClick }"
           ]
         },
         "ArtifactCard": {
-          "line": 189,
+          "line": 190,
           "params": [
             "{ artifact }"
           ]
         },
         "ContentArtifactCard": {
-          "line": 202,
+          "line": 203,
           "params": [
             "{ artifact }"
           ]
         },
         "CommentArtifactCard": {
-          "line": 215,
+          "line": 216,
           "params": [
             "{ artifact }"
           ]
         },
         "PatchArtifactSummary": {
-          "line": 237,
+          "line": 238,
           "params": [
             "{ artifact }"
           ]
         },
         "CritiqueView": {
-          "line": 262,
+          "line": 263,
           "params": [
             "{ run }"
           ]
         },
         "PatchReview": {
-          "line": 305,
+          "line": 306,
           "params": [
             "{\r\n  run",
             "onApplyPatch",
@@ -4692,7 +4749,7 @@
           ]
         },
         "PipelineLogView": {
-          "line": 372,
+          "line": 373,
           "params": [
             "{\r\n  run",
             "logs",
@@ -4702,13 +4759,13 @@
           ]
         },
         "PipelinePanel": {
-          "line": 453,
+          "line": 468,
           "params": [
             "{ isFullView"
           ]
         }
       },
-      "loc": 876
+      "loc": 921
     },
     "renderer/components/PipelineTimeline": {
       "file": "src\\renderer\\components\\PipelineTimeline.tsx",
@@ -4717,33 +4774,44 @@
         "PipelineTimeline"
       ],
       "depends": [
+        "react",
         "framer-motion",
         "lucide-react",
         "lib/utils"
       ],
       "functions": {
         "formatDuration": {
-          "line": 19,
+          "line": 20,
           "params": [
             "ms"
           ]
         },
         "countFinished": {
-          "line": 29,
+          "line": 30,
           "params": [
             "stages"
           ]
         },
         "PipelineTimeline": {
-          "line": 33,
+          "line": 34,
           "params": [
             "{ stages",
             "onStageClick",
             "compact }"
           ]
         },
+        "useElapsed": {
+          "line": 111,
+          "params": [
+            "startedAt",
+            "isRunning"
+          ],
+          "calls": [
+            "formatDuration"
+          ]
+        },
         "StageNode": {
-          "line": 109,
+          "line": 126,
           "params": [
             "{ stage",
             "index",
@@ -4753,7 +4821,7 @@
           ]
         }
       },
-      "loc": 250
+      "loc": 284
     },
     "renderer/components/PluginsPanel": {
       "file": "src\\renderer\\components\\PluginsPanel.tsx",
@@ -4979,7 +5047,7 @@
           ]
         }
       },
-      "loc": 353
+      "loc": 360
     },
     "renderer/components/PromptsPanel": {
       "file": "src\\renderer\\components\\PromptsPanel.tsx",
@@ -5036,6 +5104,7 @@
         "RightPanel"
       ],
       "depends": [
+        "react",
         "framer-motion",
         "stores/useUIStore",
         "lib/utils",
@@ -5055,20 +5124,27 @@
       ],
       "functions": {
         "getGroup": {
-          "line": 94,
+          "line": 101,
+          "params": [
+            "panelId"
+          ]
+        },
+        "getGroupIndex": {
+          "line": 106,
           "params": [
             "panelId"
           ]
         },
         "RightPanel": {
-          "line": 117,
+          "line": 129,
           "calls": [
             "cn",
-            "getGroup"
+            "getGroup",
+            "getGroupIndex"
           ]
         }
       },
-      "loc": 288
+      "loc": 378
     },
     "renderer/components/SessionsPanel": {
       "file": "src\\renderer\\components\\SessionsPanel.tsx",
@@ -5172,7 +5248,7 @@
           ]
         }
       },
-      "loc": 1264
+      "loc": 1278
     },
     "renderer/components/Sidebar": {
       "file": "src\\renderer\\components\\Sidebar.tsx",
@@ -5195,6 +5271,7 @@
         "FileTree",
         "../shared/ipcChannels",
         "lib/ipc",
+        "hooks/useIpc",
         "../shared/logoSVG",
         "SidebarAgentStatus",
         "stores/useTerminalStore",
@@ -5203,7 +5280,7 @@
       ],
       "functions": {
         "Sidebar": {
-          "line": 65,
+          "line": 69,
           "purpose": "at top, tab icons with active accent, settings at bottom.",
           "calls": [
             "cn",
@@ -5213,27 +5290,36 @@
             "useSettings"
           ]
         },
+        "CollapsedWorkspaceSwitcher": {
+          "line": 551,
+          "calls": [
+            "cn",
+            "typedInvoke",
+            "typedSend",
+            "useIpcQuery"
+          ]
+        },
         "GitStatusBar": {
-          "line": 541,
+          "line": 662,
           "calls": [
             "useGitStatus"
           ]
         },
         "CollapsedGitStatus": {
-          "line": 566,
+          "line": 687,
           "calls": [
             "cn",
             "useGitStatus"
           ]
         },
         "GitBranchIcon": {
-          "line": 607,
+          "line": 728,
           "params": [
             "{ className }"
           ]
         }
       },
-      "loc": 615,
+      "loc": 736,
       "ipc": {
         "listens": [
           "IS_FRAME_PROJECT_RESULT",
@@ -5342,21 +5428,28 @@
           ]
         },
         "GitActivityGrid": {
-          "line": 151,
+          "line": 122,
           "params": [
             "{ activity }",
             "DayActivity> }"
           ]
         },
         "CommitActivityChart": {
-          "line": 280,
+          "line": 251,
           "params": [
             "{ activity }",
             "DayActivity> }"
           ]
         },
+        "BranchGroups": {
+          "line": 398,
+          "params": [
+            "{ branches",
+            "currentBranch }"
+          ]
+        },
         "MetricCard": {
-          "line": 417,
+          "line": 537,
           "params": [
             "{ label",
             "value",
@@ -5364,14 +5457,14 @@
           ]
         },
         "InfoRow": {
-          "line": 429,
+          "line": 549,
           "params": [
             "{ label",
             "value }"
           ]
         }
       },
-      "loc": 437
+      "loc": 557
     },
     "renderer/components/StructureMap": {
       "file": "src\\renderer\\components\\StructureMap.tsx",
@@ -5613,6 +5706,46 @@
       },
       "loc": 446
     },
+    "renderer/components/TasksPalette": {
+      "file": "src\\renderer\\components\\TasksPalette.tsx",
+      "description": "TasksPalette — Floating quick-task palette triggered by Ctrl+'. Provides fast search and navigation for active Sub-Tasks. Follows the same overlay pattern as CommandPalette.tsx and PromptLibrary.tsx.",
+      "exports": [
+        "TasksPalette"
+      ],
+      "depends": [
+        "react",
+        "stores/useUIStore",
+        "hooks/useTasks"
+      ],
+      "functions": {
+        "StatusDot": {
+          "line": 22,
+          "params": [
+            "{ status",
+            "blocked }"
+          ]
+        },
+        "PriorityBadge": {
+          "line": 34,
+          "params": [
+            "{ priority }"
+          ]
+        },
+        "StepsProgress": {
+          "line": 46,
+          "params": [
+            "{ steps }"
+          ]
+        },
+        "TasksPalette": {
+          "line": 56,
+          "calls": [
+            "useTasks"
+          ]
+        }
+      },
+      "loc": 168
+    },
     "renderer/components/TasksPanel": {
       "file": "src\\renderer\\components\\TasksPanel.tsx",
       "description": "TasksPanel — Sub-task management with TanStack Table. Supports filtering, sorting, inline expand, add/edit/delete.",
@@ -5634,7 +5767,9 @@
         "lib/utils",
         "hooks/useTasks",
         "stores/useTerminalStore",
+        "stores/useProjectStore",
         "stores/useUIStore",
+        "lib/ipc",
         "../shared/ipcChannels",
         "sonner",
         "react-markdown",
@@ -5642,7 +5777,7 @@
       ],
       "functions": {
         "formToMarkdown": {
-          "line": 99,
+          "line": 101,
           "params": [
             "description",
             "steps",
@@ -5651,26 +5786,26 @@
           ]
         },
         "markdownToForm": {
-          "line": 130,
+          "line": 132,
           "params": [
             "md"
           ]
         },
         "formatDate": {
-          "line": 189,
+          "line": 191,
           "params": [
             "iso"
           ]
         },
         "SortHeader": {
-          "line": 217,
+          "line": 219,
           "params": [
             "{ column",
             "label }"
           ]
         },
         "TaskActions": {
-          "line": 239,
+          "line": 241,
           "params": [
             "{\r\n  task",
             "onUpdateStatus",
@@ -5683,20 +5818,21 @@
           ]
         },
         "TasksPanel": {
-          "line": 336,
+          "line": 338,
           "params": [
             "{ isFullView"
           ]
         },
         "TaskDetail": {
-          "line": 1144,
+          "line": 1326,
           "params": [
             "{ task",
-            "updateTask }"
+            "updateTask",
+            "allTasks }"
           ]
         }
       },
-      "loc": 1212,
+      "loc": 1477,
       "ipc": {
         "listens": [],
         "emits": [
@@ -5801,20 +5937,20 @@
       ],
       "functions": {
         "saveSession": {
-          "line": 47,
+          "line": 48,
           "params": [
             "projectPath",
             "store"
           ]
         },
         "loadSession": {
-          "line": 79,
+          "line": 81,
           "params": [
             "projectPath"
           ]
         },
         "TerminalArea": {
-          "line": 89,
+          "line": 91,
           "calls": [
             "createTerminal",
             "getLogoSVG",
@@ -5827,7 +5963,7 @@
           ]
         }
       },
-      "loc": 657,
+      "loc": 672,
       "ipc": {
         "listens": [
           "TERMINAL_CREATED",
@@ -5860,7 +5996,7 @@
           ]
         }
       },
-      "loc": 387
+      "loc": 389
     },
     "renderer/components/TerminalTabBar": {
       "file": "src\\renderer\\components\\TerminalTabBar.tsx",
@@ -5877,11 +6013,12 @@
         "stores/useUIStore",
         "../shared/ipcChannels",
         "lib/ipc",
+        "hooks/useSettings",
         "lib/terminalRegistry"
       ],
       "functions": {
         "TerminalTabBar": {
-          "line": 68,
+          "line": 70,
           "params": [
             "{\r\n  onCreateTerminal",
             "onCloseTerminal",
@@ -5893,7 +6030,7 @@
           ]
         },
         "UsageItem": {
-          "line": 614,
+          "line": 654,
           "params": [
             "{ label",
             "utilization",
@@ -5901,13 +6038,13 @@
           ]
         },
         "ResetTime": {
-          "line": 637,
+          "line": 677,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 656,
+      "loc": 696,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -6008,29 +6145,29 @@
       ],
       "functions": {
         "uid": {
-          "line": 145
+          "line": 146
         },
         "createBlankStep": {
-          "line": 149,
+          "line": 150,
           "calls": [
             "uid"
           ]
         },
         "createBlankJob": {
-          "line": 166,
+          "line": 168,
           "calls": [
             "createBlankStep",
             "uid"
           ]
         },
         "createBlankState": {
-          "line": 176,
+          "line": 178,
           "calls": [
             "createBlankJob"
           ]
         },
         "definitionToState": {
-          "line": 187,
+          "line": 189,
           "params": [
             "def"
           ],
@@ -6039,13 +6176,13 @@
           ]
         },
         "yamlQuote": {
-          "line": 227,
+          "line": 230,
           "params": [
             "val"
           ]
         },
         "stateToYaml": {
-          "line": 241,
+          "line": 244,
           "params": [
             "state"
           ],
@@ -6054,13 +6191,13 @@
           ]
         },
         "stageSupportsConfig": {
-          "line": 309,
+          "line": 313,
           "params": [
             "uses"
           ]
         },
         "StepCard": {
-          "line": 315,
+          "line": 319,
           "params": [
             "{\r\n  step",
             "index",
@@ -6072,7 +6209,7 @@
           "purpose": "─── Step Card ───────────────────────────────────────────────────────────────"
         },
         "YamlEditorPane": {
-          "line": 591,
+          "line": 605,
           "params": [
             "{\r\n  value",
             "onChange",
@@ -6081,7 +6218,7 @@
           "purpose": "─── YAML Editor (lightweight CodeMirror wrapper) ────────────────────────────"
         },
         "WorkflowEditorDialog": {
-          "line": 653,
+          "line": 667,
           "params": [
             "{\r\n  open",
             "onOpenChange",
@@ -6093,7 +6230,7 @@
           ]
         }
       },
-      "loc": 1261
+      "loc": 1279
     },
     "renderer/components/WorkspaceSelector": {
       "file": "src\\renderer\\components\\WorkspaceSelector.tsx",
@@ -6121,14 +6258,14 @@
           ]
         },
         "AddProjectButton": {
-          "line": 287,
+          "line": 304,
           "calls": [
             "typedInvoke",
             "typedSend"
           ]
         }
       },
-      "loc": 364
+      "loc": 381
     },
     "renderer/hooks/useAgentState": {
       "file": "src\\renderer\\hooks\\useAgentState.ts",
@@ -7047,6 +7184,29 @@
       },
       "loc": 125
     },
+    "renderer/lib/shortcuts": {
+      "file": "src\\renderer\\lib\\shortcuts.ts",
+      "description": "Centralized keyboard shortcut registry. Single source of truth for all keyboard shortcuts in SubFrame.",
+      "exports": [
+        "getShortcutsByCategory",
+        "getKeys",
+        "SHORTCUTS",
+        "CATEGORY_ORDER"
+      ],
+      "depends": [],
+      "functions": {
+        "getShortcutsByCategory": {
+          "line": 157
+        },
+        "getKeys": {
+          "line": 170,
+          "params": [
+            "id"
+          ]
+        }
+      },
+      "loc": 173
+    },
     "renderer/lib/terminalRegistry": {
       "file": "src\\renderer\\lib\\terminalRegistry.ts",
       "description": "Persistent terminal instance registry. Decouples xterm.js Terminal lifecycle from React component mount/unmount.",
@@ -7233,7 +7393,7 @@
           "line": 8
         }
       },
-      "loc": 159
+      "loc": 163
     },
     "renderer/stores/useUIStore": {
       "file": "src\\renderer\\stores\\useUIStore.ts",
@@ -7790,19 +7950,19 @@
           "purpose": "─── Pipeline Workflow Templates ──────────────────────────────────────────────"
         },
         "getTaskVerifyWorkflow": {
-          "line": 2325
+          "line": 2327
         },
         "getHealthCheckWorkflow": {
-          "line": 2344
+          "line": 2348
         },
         "getDocsAuditWorkflow": {
-          "line": 2371
+          "line": 2379
         },
         "getSecurityScanWorkflow": {
-          "line": 2392
+          "line": 2402
         }
       },
-      "loc": 2412
+      "loc": 2424
     },
     "shared/ipcChannels": {
       "file": "src\\shared\\ipcChannels.ts",
@@ -7814,7 +7974,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1158
+      "loc": 1181
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -8448,7 +8608,7 @@
       {
         "module": "main/claudeUsageManager",
         "file": "src\\main\\claudeUsageManager.ts",
-        "description": "Claude Usage Manager Module Fetches Claude Code usage data from OAuth API and provides periodic updates"
+        "description": "Claude Usage Manager Module Fetches Claude Code usage data from OAuth API and provides periodic updates."
       }
     ],
     "codemirror-extensions": [
@@ -8469,7 +8629,7 @@
       {
         "module": "renderer/components/CommandPalette",
         "file": "src\\renderer\\components\\CommandPalette.tsx",
-        "description": "CommandPalette — Floating command palette triggered by Ctrl+/. Provides quick access to actions, panel toggles, terminal commands, project switching, and settings."
+        "description": "CommandPalette — Floating command palette triggered by Ctrl+/. Provides quick access to actions, panel toggles, terminal commands, workspace/project switching, and settings."
       }
     ],
     "critique-view": [
@@ -8685,13 +8845,6 @@
         "description": "PipelinePanel — Main pipeline panel supporting side-panel and full-view modes. Shows workflow selector, run list, and run detail with tabs."
       }
     ],
-    "pipeline-log-view": [
-      {
-        "module": "renderer/components/PipelineLogView",
-        "file": "src\\renderer\\components\\PipelineLogView.tsx",
-        "description": "PipelineLogView — Scrollable log viewer for pipeline stage output."
-      }
-    ],
     "pipeline-stages": [
       {
         "module": "main/pipelineStages",
@@ -8791,6 +8944,13 @@
         "description": "SettingsPanel — Settings dialog/modal with tabs. Opens via useUIStore.settingsOpen."
       }
     ],
+    "shortcuts": [
+      {
+        "module": "renderer/lib/shortcuts",
+        "file": "src\\renderer\\lib\\shortcuts.ts",
+        "description": "Centralized keyboard shortcut registry. Single source of truth for all keyboard shortcuts in SubFrame."
+      }
+    ],
     "sidebar": [
       {
         "module": "renderer/components/Sidebar",
@@ -8883,6 +9043,13 @@
         "module": "renderer/components/TasksPanel",
         "file": "src\\renderer\\components\\TasksPanel.tsx",
         "description": "TasksPanel — Sub-task management with TanStack Table. Supports filtering, sorting, inline expand, add/edit/delete."
+      }
+    ],
+    "tasks-palette": [
+      {
+        "module": "renderer/components/TasksPalette",
+        "file": "src\\renderer\\components\\TasksPalette.tsx",
+        "description": "TasksPalette — Floating quick-task palette triggered by Ctrl+'. Provides fast search and navigation for active Sub-Tasks. Follows the same overlay pattern as CommandPalette.tsx and PromptLibrary.tsx."
       }
     ],
     "terminal": [

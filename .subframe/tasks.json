@@ -1,77 +1,15 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking index (SubFrame's task system)",
+    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-09",
+    "lastUpdated": "2026-03-10",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-09T23:29:28.805Z",
-  "taskSchema": {
-    "_comment": "This schema shows the expected structure for each task",
-    "id": "unique-id (task-xxx format)",
-    "title": "Short actionable title (max 60 chars)",
-    "description": "Claude's detailed explanation - what, how, which files affected",
-    "userRequest": "Original user prompt/request - copy verbatim",
-    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
-    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
-    "status": "pending | in_progress | completed",
-    "priority": "high | medium | low",
-    "category": "feature | fix | refactor | docs | test",
-    "context": "Session date and context",
-    "blockedBy": "Array of task IDs this task is blocked by",
-    "blocks": "Array of task IDs this task blocks",
-    "steps": "Array of { label, completed } step objects",
-    "createdAt": "ISO timestamp",
-    "updatedAt": "ISO timestamp",
-    "completedAt": "ISO timestamp | null"
-  },
+  "lastUpdated": "2026-03-10T01:47:28.088Z",
   "tasks": {
     "pending": [
-      {
-        "id": "task-1772674776397-kc624grpq",
-        "title": "Task Editor UI Option",
-        "status": "pending",
-        "priority": "medium",
-        "category": "refactor",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-05T01:39:36.397Z",
-        "updatedAt": "2026-03-05T01:39:36.397Z",
-        "completedAt": null,
-        "description": "Currently the Sub-Tasks system only allows viewing existing tasks via the markdown editor. Similar to the creation wizard for Sub-Tasks, allow switching between UI/Markdown view.\nI also want to enhance the Sub-Tasks side view pane dropdown detail view (and full view dropdown detail view) to visual render within dropdown (steps, timeline element, etc) if available.\nLastly I want to fix the Sub-Tasks Tags to properly split priority out into its own column so we can sort by priority as well in table view.",
-        "acceptanceCriteria": "Define what \"done\" looks like.",
-        "notes": "Any additional context or references.",
-        "steps": [
-          {
-            "completed": false,
-            "label": "Enhance Sub-Task editing with UI capability"
-          },
-          {
-            "completed": false,
-            "label": "Enhance Sub-Task dropdown view with UI capability"
-          },
-          {
-            "completed": false,
-            "label": "Split priority into its own column in Sub-Tasks table view"
-          }
-        ]
-      },
-      {
-        "id": "task-1772723006337-9hz8gve8s",
-        "title": "Show Active Project/Workspace in Collapsed Left Sidebar",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-05T15:03:26.337Z",
-        "updatedAt": "2026-03-05T15:03:26.337Z",
-        "completedAt": null,
-        "description": "",
-        "steps": []
-      },
       {
         "id": "task-1772731742884-0p0hh1fz8",
         "title": "Settings>AI Tool>Start Command - Enhance with Quick Badges",
@@ -129,20 +67,6 @@
         "steps": []
       },
       {
-        "id": "task-1772927784890-ldbz5pqu9",
-        "title": "Allow command pallet to access user saved Prompts",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-07T23:56:24.890Z",
-        "updatedAt": "2026-03-07T23:56:24.890Z",
-        "completedAt": null,
-        "description": "",
-        "steps": []
-      },
-      {
         "id": "task-1772930979470-cx0ermf3t",
         "title": "Plugin/Integrations system?",
         "status": "pending",
@@ -157,24 +81,80 @@
         "steps": []
       },
       {
-        "id": "task-1773098968783-j6j17jgu2",
-        "title": "Fix Terminal Slot Retention",
+        "id": "task-1773101835342-vjocui5x1",
+        "title": "Add protection to closing windows with agent running",
         "status": "pending",
-        "priority": "medium",
-        "category": "bug",
+        "priority": "high",
+        "category": "enhancement",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-09T23:29:28.783Z",
-        "updatedAt": "2026-03-09T23:29:28.783Z",
+        "createdAt": "2026-03-10T00:17:15.342Z",
+        "updatedAt": "2026-03-10T00:17:15.342Z",
         "completedAt": null,
-        "description": "Terminals seem to prefer their original slot as if we swap views or change grid layouts, termina's end up reordering back to their original order.",
+        "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1773106251873-jkr6061nr",
+        "title": "Allow Sub-Tasks to be private",
+        "status": "pending",
+        "priority": "high",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:30:51.873Z",
+        "updatedAt": "2026-03-10T01:30:51.873Z",
+        "completedAt": null,
+        "description": "Sub-Tasks should be allowed to be marked private and not tracked via git. All UI/Sub-Frame features should still work as normal otherwise. We should include enhancements to skils/hooks, etc if needed.",
+        "steps": []
+      },
+      {
+        "id": "task-1773106558697-vynen76ga",
+        "title": "AI Tool install status/availibility",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:35:58.697Z",
+        "updatedAt": "2026-03-10T01:35:58.697Z",
+        "completedAt": null,
+        "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1773106569050-gj4oqprxk",
+        "title": "AI Tool command pallet/overlay",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:36:09.050Z",
+        "updatedAt": "2026-03-10T01:36:09.050Z",
+        "completedAt": null,
+        "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1773106824704-yhkq4hg7n",
+        "title": "Research better method for Usage Stats",
+        "status": "pending",
+        "priority": "high",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:40:24.704Z",
+        "updatedAt": "2026-03-10T01:40:24.704Z",
+        "completedAt": null,
+        "description": "Our current approach for Usage Stats (at least for Claude) works - however it results in frequent 'Usage Unavailable'. We need to research this and ensure we're using the best approach.",
         "steps": []
       },
       {
         "id": "task-m6",
         "title": "Claude Code chat sidebar",
         "status": "pending",
-        "priority": "medium",
+        "priority": "low",
         "category": "feature",
         "context": "todos.json - mediumTerm",
         "blockedBy": [],
@@ -561,6 +541,34 @@
         "steps": []
       },
       {
+        "id": "task-1772723006337-9hz8gve8s",
+        "title": "Show Active Project/Workspace in Collapsed Left Sidebar",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T15:03:26.337Z",
+        "updatedAt": "2026-03-10T00:37:49.410Z",
+        "completedAt": "2026-03-10T00:37:49.410Z",
+        "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1772927784890-ldbz5pqu9",
+        "title": "Allow command pallet to access user saved Prompts",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-07T23:56:24.890Z",
+        "updatedAt": "2026-03-10T00:35:15.656Z",
+        "completedAt": "2026-03-10T00:35:15.656Z",
+        "description": "",
+        "steps": []
+      },
+      {
         "id": "task-1772931003433-4ceksawud",
         "title": "Spellcheck in all UI textfields",
         "status": "completed",
@@ -572,6 +580,20 @@
         "updatedAt": "2026-03-08T01:14:55.672Z",
         "completedAt": "2026-03-08T01:14:55.672Z",
         "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1773098968783-j6j17jgu2",
+        "title": "Fix Terminal Slot Retention",
+        "status": "completed",
+        "priority": "medium",
+        "category": "bug",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-09T23:29:28.783Z",
+        "updatedAt": "2026-03-10T01:07:21.533Z",
+        "completedAt": "2026-03-10T01:07:21.533Z",
+        "description": "Terminals seem to prefer their original slot as if we swap views or change grid layouts, termina's end up reordering back to their original order.",
         "steps": []
       },
       {
@@ -1143,6 +1165,63 @@
         "steps": []
       },
       {
+        "id": "task-mmjvt1of-nopi",
+        "title": "Centralized keyboard shortcut registry",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-10",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T00:38:22.142Z",
+        "updatedAt": "2026-03-10T00:38:44.203Z",
+        "completedAt": "2026-03-10T00:38:44.203Z",
+        "description": "Single source of truth for all keyboard shortcuts in shortcuts.ts, consumed by KeyboardShortcuts modal and CommandPalette.",
+        "steps": []
+      },
+      {
+        "id": "task-mmjxuuux-pwh7",
+        "title": "Repo setup: issue templates, PR template, Claude CI review, contributing guide",
+        "status": "completed",
+        "priority": "high",
+        "category": "infrastructure",
+        "context": "Session 2026-03-10",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:35:45.848Z",
+        "updatedAt": "2026-03-10T01:41:20.104Z",
+        "completedAt": "2026-03-10T01:41:20.104Z",
+        "description": "Full GitHub repo setup for public readiness. Add issue templates (bug report, feature request, question), PR template, CONTRIBUTING.md, Claude-powered PR review workflow, SECURITY.md, and CODE_OF_CONDUCT.md. Configure Claude to review PRs for pattern adherence, code quality, and project fit.",
+        "userRequest": "Create proper issue templates, ensure Claude is configured for CI and PR review (@claude inspect for pattern adherence, suggestions, project fit), contributing guide — goal is public readiness for external contributors.",
+        "acceptanceCriteria": "Issue templates exist and work, PR template guides contributors, Claude reviews PRs automatically on open/update, CONTRIBUTING.md explains workflow, repo is ready for external contributors",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Create .github/ISSUE_TEMPLATE/ (bug, feature, question)"
+          },
+          {
+            "completed": false,
+            "label": "Create .github/PULL_REQUEST_TEMPLATE.md"
+          },
+          {
+            "completed": false,
+            "label": "Create CONTRIBUTING.md"
+          },
+          {
+            "completed": false,
+            "label": "Add Claude PR review workflow (.github/workflows/claude-review.yml)"
+          },
+          {
+            "completed": false,
+            "label": "Create SECURITY.md"
+          },
+          {
+            "completed": true,
+            "label": "Verify all templates render correctly"
+          }
+        ]
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -1343,11 +1422,52 @@
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
         "steps": []
+      },
+      {
+        "id": "task-1772674776397-kc624grpq",
+        "title": "Task Editor UI Option",
+        "status": "completed",
+        "priority": "medium",
+        "category": "refactor",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T01:39:36.397Z",
+        "updatedAt": "2026-03-10T01:47:28.085Z",
+        "completedAt": "2026-03-10T01:47:28.085Z",
+        "description": "Currently the Sub-Tasks system only allows viewing existing tasks via the markdown editor. Similar to the creation wizard for Sub-Tasks, allow switching between UI/Markdown view.\nI also want to enhance the Sub-Tasks side view pane dropdown detail view (and full view dropdown detail view) to visual render within dropdown (steps, timeline element, etc) if available.\nLastly I want to fix the Sub-Tasks Tags to properly split priority out into its own column so we can sort by priority as well in table view.\nLastly Lastly - I want to allow easy task reference in chat - I know we can send to chat but it would be nice to have a quick 'copy-id' or something of that nature to allow copying ref to task to chat with agent about, etc.\nLastly Lastly Lastly - allow user to easily via UI link tasks to be dependant/blocking/sequential etc and enhance UI to cleanly/properly show this - match our clean UI/UX - no skimpy.\nFix markdown/codemirror editor to allow proper text selection via cursor/mouse etc. currently glitchy.\nAllow 'AI-Enhance' or whatever best name is for button to fix a usertyped task to properly scope/description/use sub-task features/etc. this should be quick and allow model choice (default to sonnet?) - leverage existing utilities if possible/correct.",
+        "acceptanceCriteria": "Define what \"done\" looks like.",
+        "notes": "Any additional context or references.\n[2026-03-10] Split priority into its own sortable column in panel mode (was merged in Tags). Default sort now: status asc + priority high→low. Both category and priority columns are sortable with multi-sort.\n[2026-03-10] Implemented enhanced TaskDetail (two-column layout, progress bar, copy ID, user request display, dependency resolution with icons) and dependency linking UI in dialog Advanced section\n[2026-03-10] Task editing UI was already functional (Form/Markdown toggle, steps editor, priority/category/status). Now enhanced with dependency linking (blockedBy/blocks) in Advanced section.\n[2026-03-10] Fixed CodeMirror text selection in Editor and WorkflowEditor by adding onOpenAutoFocus/onPointerDownOutside preventDefault to DialogContent — prevents Radix focus trap from interfering with CM mouse events\n[2026-03-10] Added AI-Enhance button: new IPC channel ENHANCE_TASK, handler in tasksManager spawns active AI tool with structured prompt, returns enhanced title/description/steps/criteria/priority/category. UI shows Sparkles button in dialog header when title present.",
+        "steps": [
+          {
+            "completed": true,
+            "label": "Enhance Sub-Task editing with UI capability"
+          },
+          {
+            "completed": true,
+            "label": "Enhance Sub-Task dropdown view with UI capability"
+          },
+          {
+            "completed": true,
+            "label": "Split priority into its own column in Sub-Tasks table view"
+          },
+          {
+            "completed": true,
+            "label": "AI-Enhance button to auto-scope tasks"
+          },
+          {
+            "completed": true,
+            "label": "Fix CodeMirror text selection"
+          },
+          {
+            "completed": true,
+            "label": "Dependency linking UI (blockedBy/blocks in dialog)"
+          },
+          {
+            "completed": true,
+            "label": "Copy task ID button for chat reference"
+          }
+        ]
       }
     ]
-  },
-  "metadata": {
-    "totalCreated": 85,
-    "totalCompleted": 53
   }
 }

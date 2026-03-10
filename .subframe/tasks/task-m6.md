@@ -2,7 +2,7 @@
 id: task-m6
 title: Claude Code chat sidebar
 status: pending
-priority: medium
+priority: low
 category: feature
 blockedBy: []
 blocks: []
