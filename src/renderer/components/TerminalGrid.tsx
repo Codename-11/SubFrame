@@ -32,43 +32,46 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
   const setActiveTerminal = useTerminalStore((s) => s.setActiveTerminal);
   const maximizedTerminalId = useTerminalStore((s) => s.maximizedTerminalId);
   const setMaximizedTerminal = useTerminalStore((s) => s.setMaximizedTerminal);
+  const gridSlots = useTerminalStore((s) => s.gridSlots);
+  const setGridSlots = useTerminalStore((s) => s.setGridSlots);
 
   const config = GRID_LAYOUTS[gridLayout] ?? GRID_LAYOUTS['2x2'];
   const maxCells = config.rows * config.cols;
-
-  // Slot-based grid: each cell maps to a terminal ID or null (empty)
-  const [gridSlots, setGridSlots] = useState<(string | null)[]>([]);
 
   // Track which slot index was clicked for "New Terminal" so we can place it there
   const pendingSlotRef = useRef<number | null>(null);
 
   // Rebuild slots when terminals or layout change — preserve existing positions
   useEffect(() => {
-    setGridSlots(prev => {
-      const terminalIds = new Set(projectTerminals.map(t => t.id));
-      // Keep existing assignments that still have valid terminals
-      const kept = prev.slice(0, maxCells).map(id => id && terminalIds.has(id) ? id : null);
-      // Pad to maxCells
-      while (kept.length < maxCells) kept.push(null);
-      // Find terminals not yet assigned to a slot
-      const assignedIds = new Set(kept.filter(Boolean));
-      const unassigned = projectTerminals.filter(t => !assignedIds.has(t.id));
-      // If a specific slot was requested, fill it first
-      let ui = 0;
-      const pending = pendingSlotRef.current;
-      if (pending !== null && pending < kept.length && kept[pending] === null && ui < unassigned.length) {
-        kept[pending] = unassigned[ui++].id;
-        pendingSlotRef.current = null;
+    const prev = useTerminalStore.getState().gridSlots;
+    const terminalIds = new Set(projectTerminals.map(t => t.id));
+    // Keep existing assignments that still have valid terminals
+    const kept = prev.slice(0, maxCells).map(id => id && terminalIds.has(id) ? id : null);
+    // Pad to maxCells
+    while (kept.length < maxCells) kept.push(null);
+    // Find terminals not yet assigned to a slot
+    const assignedIds = new Set(kept.filter(Boolean));
+    const unassigned = projectTerminals.filter(t => !assignedIds.has(t.id));
+    // If a specific slot was requested, fill it first
+    let ui = 0;
+    const pending = pendingSlotRef.current;
+    if (pending !== null && pending < kept.length && kept[pending] === null && ui < unassigned.length) {
+      kept[pending] = unassigned[ui++].id;
+      pendingSlotRef.current = null;
+    }
+    // Fill remaining empty slots with remaining unassigned terminals
+    for (let i = 0; i < kept.length && ui < unassigned.length; i++) {
+      if (kept[i] === null) {
+        kept[i] = unassigned[ui++].id;
       }
-      // Fill remaining empty slots with remaining unassigned terminals
-      for (let i = 0; i < kept.length && ui < unassigned.length; i++) {
-        if (kept[i] === null) {
-          kept[i] = unassigned[ui++].id;
-        }
-      }
-      return kept;
-    });
-  }, [projectTerminals, maxCells]);
+    }
+    // Only update store if slots actually changed (avoid infinite loops)
+    const prevStr = JSON.stringify(prev.slice(0, maxCells));
+    const nextStr = JSON.stringify(kept);
+    if (prevStr !== nextStr) {
+      setGridSlots(kept);
+    }
+  }, [projectTerminals, maxCells, setGridSlots]);
 
   // Resolve slots to terminal objects for rendering
   const terminalMap = useRef(new Map<string, TerminalInfo>());
@@ -108,12 +111,11 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
     if (sourceIdx === null || sourceIdx === targetIdx) return;
 
     // Swap the two slots (works for filled↔filled, filled↔empty, any combo)
-    setGridSlots(prev => {
-      const next = [...prev];
-      [next[sourceIdx], next[targetIdx]] = [next[targetIdx], next[sourceIdx]];
-      return next;
-    });
-  }, []);
+    const prev = useTerminalStore.getState().gridSlots;
+    const next = [...prev];
+    [next[sourceIdx], next[targetIdx]] = [next[targetIdx], next[sourceIdx]];
+    setGridSlots(next);
+  }, [setGridSlots]);
 
   const handleDragEnd = useCallback(() => {
     setDragSourceIdx(null);

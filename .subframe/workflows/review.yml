@@ -23,6 +23,8 @@ jobs:
       - name: Code Review
         uses: critique
         require-approval: if_patches
+        with:
+          max-turns: 25
       - name: Freeze
         uses: freeze
 

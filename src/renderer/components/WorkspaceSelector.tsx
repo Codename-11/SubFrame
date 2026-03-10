@@ -47,17 +47,19 @@ export function WorkspaceSelector() {
 
   // Parse the workspace list response — handler returns { active: string, workspaces: [...] }
   const parsed = workspaceList as WorkspaceListResult | undefined;
-  const workspaces = useMemo<WorkspaceListEntry[]>(() =>
+  const workspaces = useMemo<(WorkspaceListEntry & { projectCount: number })[]>(() =>
     parsed?.workspaces?.map((ws) => ({
       key: ws.key,
       name: ws.name,
       active: ws.key === parsed.active,
+      projectCount: ws.projectCount ?? 0,
     })) ?? [],
     [parsed]
   );
 
-  // Find active workspace
+  // Find active workspace and its 1-based index
   const activeWs = workspaces.find((ws) => ws.active);
+  const activeIndex = workspaces.findIndex((ws) => ws.active) + 1;
 
   // Sync workspace name to store
   useEffect(() => {
@@ -71,6 +73,8 @@ export function WorkspaceSelector() {
   const handleSwitch = useCallback(
     async (key: string) => {
       if (loading) return;
+      // Skip if already the active workspace
+      if (parsed?.active === key) return;
       setLoading(true);
       try {
         await typedInvoke(IPC.WORKSPACE_SWITCH, key);
@@ -83,7 +87,7 @@ export function WorkspaceSelector() {
         setLoading(false);
       }
     },
-    [refetch, loading]
+    [refetch, loading, parsed]
   );
 
   const handleCreate = useCallback(async () => {
@@ -167,21 +171,34 @@ export function WorkspaceSelector() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors min-w-0 cursor-pointer">
+            {activeIndex > 0 && (
+              <span className="font-mono font-semibold text-accent opacity-70">#{activeIndex}</span>
+            )}
             <span className="truncate">{activeWs?.name || 'Default Workspace'}</span>
             <ChevronDown className="w-3 h-3 flex-shrink-0 opacity-50" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-[180px]">
-          {workspaces.map((ws) => (
-            <DropdownMenuItem
-              key={ws.key}
-              onClick={() => handleSwitch(ws.key)}
-              disabled={loading}
-              className={ws.active ? 'bg-accent-subtle' : ''}
-            >
-              <span className="truncate">{ws.name}</span>
-            </DropdownMenuItem>
-          ))}
+        <DropdownMenuContent align="start" className="min-w-[220px]">
+          {workspaces.map((ws, i) => {
+            const idx = i + 1;
+            return (
+              <DropdownMenuItem
+                key={ws.key}
+                onClick={() => handleSwitch(ws.key)}
+                disabled={loading}
+                className={ws.active ? 'bg-accent-subtle' : ''}
+              >
+                <span className="font-mono font-semibold text-accent opacity-70 mr-1.5">#{idx}</span>
+                <span className="truncate">{ws.name}</span>
+                {ws.projectCount > 0 && (
+                  <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
+                )}
+                {idx <= 9 && (
+                  <span className="ml-auto text-[10px] font-mono text-text-muted opacity-60 pl-3">Ctrl+Alt+{idx}</span>
+                )}
+              </DropdownMenuItem>
+            );
+          })}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleCreate} disabled={loading}>
             <Plus className="w-3.5 h-3.5 mr-2" />

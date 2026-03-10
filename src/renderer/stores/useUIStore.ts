@@ -138,7 +138,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
 
   // TasksPanel sort/filter — session-scoped (no localStorage)
-  tasksSorting: [{ id: 'status', desc: false }],
+  tasksSorting: [{ id: 'status', desc: false }, { id: 'priority', desc: false }],
   setTasksSorting: (s) => set({ tasksSorting: s }),
   tasksStatusFilter: 'all',
   setTasksStatusFilter: (f) => set({ tasksStatusFilter: f }),

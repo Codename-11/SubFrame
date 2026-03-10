@@ -26,6 +26,7 @@ import {
   Trash2,
   Pencil,
   Plus,
+  Infinity as InfinityIcon,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
@@ -427,16 +428,30 @@ function PipelineLogView({
       </div>
 
       {/* Log output */}
-      <div className="bg-bg-deep rounded border border-border-subtle p-2 min-h-[120px] overflow-auto">
+      <div className="bg-bg-deep rounded border border-border-subtle p-2 min-h-[120px] max-h-[300px] overflow-auto">
         {stageLog.length > 0 ? (
-          <pre className="text-[10px] text-text-secondary font-mono whitespace-pre-wrap">
-            {stageLog.join('\n')}
+          <pre className="text-[10px] font-mono whitespace-pre-wrap">
+            {stageLog.map((line, i) => {
+              const isHeartbeat = line.startsWith('[Agent]');
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    isHeartbeat ? 'text-text-muted italic' : 'text-text-secondary'
+                  )}
+                >
+                  {line}
+                </div>
+              );
+            })}
           </pre>
         ) : (
           <p className="text-[10px] text-text-muted text-center py-4">
             {selectedStage?.status === 'pending'
               ? 'Stage has not started yet'
-              : 'No log output'}
+              : selectedStage?.status === 'running'
+                ? 'Waiting for output...'
+                : 'No log output'}
           </p>
         )}
       </div>
@@ -547,6 +562,16 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
     startPipeline.mutate({ workflowId: selectedRun.workflowId, trigger: 'manual' });
   };
 
+  /** Re-run the same workflow with max-turns set to unlimited */
+  const handleRerunUnlimited = () => {
+    if (!selectedRun) return;
+    startPipeline.mutate({
+      workflowId: selectedRun.workflowId,
+      trigger: 'manual',
+      overrides: { 'max-turns': '0' },
+    });
+  };
+
   const handleDeleteRun = () => {
     if (!selectedRunId) return;
     deleteRun.mutate(selectedRunId);
@@ -577,6 +602,14 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
         }
         return false;
       });
+  }, [selectedRun]);
+
+  // Detect if run failed due to max-turns (any stage)
+  const hasMaxTurnsFailure = useMemo(() => {
+    if (!selectedRun) return false;
+    return selectedRun.jobs
+      .flatMap((j) => j.stages)
+      .some((s) => s.failureReason === 'max-turns');
   }, [selectedRun]);
 
   // ─── Render sections ────────────────────────────────────────────────────
@@ -756,6 +789,18 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
               <RotateCcw size={10} />
               Re-run
             </Button>
+            {hasMaxTurnsFailure && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[10px] gap-1 text-warning hover:text-warning"
+                onClick={handleRerunUnlimited}
+                title="Re-run with unlimited AI turns (bypasses max-turns limit)"
+              >
+                <InfinityIcon size={10} />
+                Unlimited
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

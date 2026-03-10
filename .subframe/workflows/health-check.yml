@@ -16,8 +16,12 @@ jobs:
         uses: describe
         with:
           scope: project
+          mode: agent
+          max-turns: 25
       - name: Code Quality Review
         uses: critique
         with:
           scope: project
+          mode: agent
           focus: architecture
+          max-turns: 30

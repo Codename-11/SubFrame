@@ -120,6 +120,7 @@ interface EditorStep {
   withMode: string;
   withFocus: string;
   withPrompt: string;
+  withMaxTurns: string;
   expanded: boolean;
 }
 
@@ -159,6 +160,7 @@ function createBlankStep(): EditorStep {
     withMode: '',
     withFocus: '',
     withPrompt: '',
+    withMaxTurns: '',
     expanded: true,
   };
 }
@@ -212,6 +214,7 @@ function definitionToState(def: WorkflowDefinition): EditorState {
         withMode: step.with?.mode ?? '',
         withFocus: step.with?.focus ?? '',
         withPrompt: step.with?.prompt ?? '',
+        withMaxTurns: step.with?.['max-turns'] ?? '',
         expanded: false,
       })),
     });
@@ -291,6 +294,7 @@ function stateToYaml(state: EditorState): string {
       if (step.withScope) withEntries.push(['scope', step.withScope]);
       if (step.withMode) withEntries.push(['mode', step.withMode]);
       if (step.withFocus) withEntries.push(['focus', step.withFocus]);
+      if (step.withMaxTurns) withEntries.push(['max-turns', yamlQuote(step.withMaxTurns)]);
       if (step.withPrompt) withEntries.push(['prompt', yamlQuote(step.withPrompt)]);
 
       if (withEntries.length > 0) {
@@ -564,6 +568,16 @@ function StepCard({
                           ))}
                         </datalist>
                       </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-tertiary mb-0.5 block">Max Turns</label>
+                      <Input
+                        value={step.withMaxTurns}
+                        onChange={(e) => onUpdate({ withMaxTurns: e.target.value })}
+                        placeholder="25 (0 = unlimited)"
+                        className="bg-bg-primary border-border-subtle text-xs h-7"
+                        title="Maximum AI agent turns. Default: 25 for agent mode. Set to 0 for unlimited."
+                      />
                     </div>
                     <div className="col-span-2">
                       <label className="text-[10px] text-text-tertiary mb-0.5 block">Custom Prompt (overrides default)</label>
@@ -910,6 +924,7 @@ jobs:
             const scopeM = block.match(/scope:\s*(\S+)/);
             const modeM = block.match(/mode:\s*(\S+)/);
             const focusM = block.match(/focus:\s*(\S+)/);
+            const maxTurnsM = block.match(/max-turns:\s*(\S+)/);
 
             job.steps.push({
               id: uid(),
@@ -923,6 +938,7 @@ jobs:
               withScope: scopeM?.[1] ?? '',
               withMode: modeM?.[1] ?? '',
               withFocus: focusM?.[1] ?? '',
+              withMaxTurns: maxTurnsM?.[1] ?? '',
               withPrompt: '',
               expanded: false,
             });
@@ -982,6 +998,8 @@ jobs:
           'sm:max-w-2xl max-h-[85vh] flex flex-col',
         )}
         aria-describedby={undefined}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <div className="flex items-center justify-between gap-2">

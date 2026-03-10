@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   FolderOpen,
   FileText,
@@ -9,6 +9,8 @@ import {
   Loader2,
   CircleHelp,
   Play,
+  Layers,
+  Plus,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -24,6 +26,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -36,8 +39,9 @@ import { ProjectList } from './ProjectList';
 import { WorkspaceSelector } from './WorkspaceSelector';
 import { FileTree } from './FileTree';
 import { IPC } from '../../shared/ipcChannels';
-import type { AITool } from '../../shared/ipcChannels';
-import { typedInvoke } from '../lib/ipc';
+import type { AITool, WorkspaceListResult } from '../../shared/ipcChannels';
+import { typedInvoke, typedSend } from '../lib/ipc';
+import { useIpcQuery } from '../hooks/useIpc';
 import { getLogoSVG } from '../../shared/logoSVG';
 import { SidebarAgentStatus } from './SidebarAgentStatus';
 import { useTerminalStore } from '../stores/useTerminalStore';
@@ -229,6 +233,12 @@ export function Sidebar() {
             dangerouslySetInnerHTML={{ __html: getLogoSVG({ size: 36, id: 'sb-col', frame: false }) }}
           />
         </button>
+
+        {/* Workspace switcher (collapsed) */}
+        <CollapsedWorkspaceSwitcher />
+
+        {/* Subtle separator */}
+        <div className="w-5 border-t border-border-subtle my-0.5" />
 
         {/* Tab icons — active highlighted with accent */}
         {SIDEBAR_TABS.map((tab) => {
@@ -534,6 +544,117 @@ export function Sidebar() {
         title="Drag to resize, double-click to reset"
       />
     </div>
+  );
+}
+
+/** Collapsed sidebar workspace switcher — dropdown with workspace list */
+function CollapsedWorkspaceSwitcher() {
+  const workspaceName = useProjectStore((s) => s.workspaceName);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const { data: workspaceList, refetch } = useIpcQuery(IPC.WORKSPACE_LIST, [], {
+    staleTime: 10000,
+  });
+
+  const parsed = workspaceList as WorkspaceListResult | undefined;
+  const workspaces = useMemo(() =>
+    parsed?.workspaces?.map((ws) => ({
+      key: ws.key,
+      name: ws.name,
+      active: ws.key === parsed.active,
+      projectCount: ws.projectCount ?? 0,
+    })) ?? [],
+    [parsed]
+  );
+
+  const handleSwitch = useCallback(
+    async (key: string) => {
+      if (loading) return;
+      // Skip if already the active workspace
+      if (parsed?.active === key) return;
+      setLoading(true);
+      try {
+        await typedInvoke(IPC.WORKSPACE_SWITCH, key);
+        refetch();
+        typedSend(IPC.LOAD_WORKSPACE);
+      } catch {
+        toast.error('Failed to switch workspace');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [refetch, loading, parsed]
+  );
+
+  const handleCreate = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await typedInvoke(IPC.WORKSPACE_CREATE, 'New Workspace');
+      refetch();
+      typedSend(IPC.LOAD_WORKSPACE);
+      toast.success('Workspace created');
+    } catch {
+      toast.error('Failed to create workspace');
+    } finally {
+      setLoading(false);
+    }
+  }, [refetch, loading]);
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <Tooltip>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  'p-2 rounded transition-colors cursor-pointer',
+                  open
+                    ? 'text-accent bg-accent-subtle'
+                    : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
+                )}
+                aria-label={`Workspace: ${workspaceName || 'Default Workspace'}`}
+              >
+                <Layers size={16} />
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p className="text-xs">{workspaceName || 'Default Workspace'}</p>
+            <p className="text-[10px] opacity-60">Switch workspace</p>
+          </TooltipContent>
+          <DropdownMenuContent side="right" align="start" className="min-w-[220px]">
+            {workspaces.map((ws, i) => {
+              const idx = i + 1;
+              return (
+                <DropdownMenuItem
+                  key={ws.key}
+                  onClick={() => handleSwitch(ws.key)}
+                  disabled={loading}
+                  className={ws.active ? 'bg-accent-subtle' : ''}
+                >
+                  <span className="font-mono font-semibold text-accent opacity-70 mr-1.5">#{idx}</span>
+                  <span className="truncate">{ws.name}</span>
+                  {ws.projectCount > 0 && (
+                    <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
+                  )}
+                  {idx <= 9 && (
+                    <span className="ml-auto text-[10px] font-mono text-text-muted opacity-60 pl-3">Ctrl+Alt+{idx}</span>
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleCreate} disabled={loading}>
+              <Plus className="w-3.5 h-3.5 mr-2" />
+              New Workspace
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

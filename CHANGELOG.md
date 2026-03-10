@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Pipeline max-turns control**: AI agent stages now support `max-turns` config in workflow YAML (`with: { max-turns: 25 }`). Default 25 for agent mode, 0 = unlimited. Configurable in Workflow Editor UI
+- **Pipeline "Re-run Unlimited" button**: When a stage fails due to turn limit, an amber warning indicator and "Unlimited" re-run button appear to bypass the limit
+- **Pipeline agent heartbeat logging**: Agent-mode stages emit periodic heartbeat logs (`[Agent] 1m 30s elapsed | ~5 turns`) and a final summary, replacing silent long-running stages
+- **Pipeline elapsed time in timeline**: Running stages show a live elapsed time counter under the stage node
+- **Pipeline runtime overrides**: `startPipeline` accepts runtime `overrides` that merge into all stage configs (used by the unlimited re-run flow)
+- **Pipeline failure reasons**: Stages track `failureReason` (`max-turns`, `timeout`, `error`) for targeted retry UI and distinct visual indicators
+- **Centralized shortcut registry**: Single source of truth (`src/renderer/lib/shortcuts.ts`) for all keyboard shortcuts — KeyboardShortcuts modal and CommandPalette auto-generate from it
+- **Keyboard shortcuts search**: Shortcuts help modal now has a filter input to search by key or description
+- **Workspace keyboard switching**: `Ctrl+Alt+1-9` jumps to workspace by index, `Ctrl+Alt+[/]` cycles prev/next
+- **Workspace dropdown UI**: `#N` index prefix, project count badge, and shortcut hints in the dropdown
+- **Collapsed sidebar workspace switcher**: Layers icon between logo and tab icons opens compact workspace dropdown
+- **Quick Tasks palette**: New `Ctrl+'` overlay for fast fuzzy-search across active sub-tasks (in-progress, pending, blocked) with status dots and priority badges
+- **Command palette enhancements**: Added Pipeline panel, Prompt Library, and dynamic Workspaces group; all shortcut labels now sourced from registry
+- **Enhanced task detail view**: Two-column layout with metadata card, step progress bar, user request display, dependency resolution with icons, and copy task ID button
+- **Task dependency linking UI**: Blocked-by and Blocks fields in edit dialog Advanced section with select + removable badge pattern
+- **AI-Enhance button for tasks**: Sparkles button in task dialog uses active AI tool to auto-improve title, description, steps, acceptance criteria, and priority/category
+- **Terminal grid slot retention**: Drag-swap slot positions now persist across view mode changes, project switches, and app restarts via Zustand store + session persistence
+
+### Fixed
+- **Pipeline cancel on Windows**: Process tree kill now uses `taskkill /F /T` on Windows instead of `SIGTERM` (which only killed the shell, not the Claude CLI child process)
+- **CodeMirror text selection in dialogs**: Added `onOpenAutoFocus`/`onPointerDownOutside` preventDefault to Editor and WorkflowEditor dialogs — prevents Radix focus trap from intercepting CodeMirror mouse events
+- **Task priority not sortable**: Split combined Tags column into separate Category and Priority columns (both sortable with multi-sort). Default sort: status asc → priority high-to-low
+
+### Changed
+- **Pipeline workflows use agent mode**: `health-check`, `docs-audit`, and `security-scan` workflows now use `mode: agent` for project-scope AI stages, with explicit `max-turns` limits (25-30)
+
+### Removed
+- **Dead `PipelineLogView.tsx`**: Standalone component was never imported — removed (inline version in PipelinePanel is used)
+
+### Fixed
+- **Command palette GitHub label**: "GitHub Issues" corrected to "GitHub" (toggles the panel group, not a sub-tab)
+- **Shortcuts modal duplicate**: Removed duplicate `Ctrl+Shift+Y` entry (was listed in both Panels and Terminal)
+- **Prompt Library unreachable from palette**: Added `open-prompt-library` event bridge so command palette can trigger it
+
 ## [0.2.3-beta] - 2026-03-09
 
 ### Fixed

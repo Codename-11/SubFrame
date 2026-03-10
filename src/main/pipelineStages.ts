@@ -15,6 +15,7 @@ import type {
   ContentArtifact,
   CommentArtifact,
   ArtifactSeverity,
+  StageFailureReason,
 } from '../shared/ipcChannels';
 
 // ─── Stage Context & Result ──────────────────────────────────────────────────
@@ -38,6 +39,7 @@ export interface StageResult {
   status: 'completed' | 'failed' | 'skipped';
   artifacts: PipelineArtifact[];
   logs: string[];
+  failureReason?: StageFailureReason;
 }
 
 export type StageHandler = (ctx: StageContext) => Promise<StageResult>;
@@ -46,6 +48,44 @@ export type StageHandler = (ctx: StageContext) => Promise<StageResult>;
 
 function uid(): string {
   return crypto.randomUUID();
+}
+
+/** Default max turns for agent-mode AI stages (0 = unlimited) */
+const DEFAULT_AGENT_MAX_TURNS = 25;
+
+/**
+ * Kill a child process tree. On Windows, `child.kill()` only kills the shell
+ * when spawned with `shell: true`, leaving the actual process running.
+ * This uses `taskkill /F /T` on Windows to kill the entire tree.
+ */
+function killProcessTree(child: ReturnType<typeof spawn>): void {
+  if (!child.pid) return;
+  if (process.platform === 'win32') {
+    // exec() is async — errors go to callback, not thrown synchronously
+    exec(`taskkill /F /T /PID ${child.pid}`, { timeout: 5000 }, (err) => {
+      if (err) child.kill('SIGTERM'); // Fallback if taskkill fails (PID gone, access denied)
+    });
+  } else {
+    child.kill('SIGTERM');
+  }
+}
+
+/** Format elapsed milliseconds to human-readable string */
+function formatElapsed(ms: number): string {
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  const rem = sec % 60;
+  return rem > 0 ? `${min}m ${rem}s` : `${min}m`;
+}
+
+/** Check if an error message indicates max-turns exhaustion */
+function isMaxTurnsError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes('max_turns') ||
+    lower.includes('max turns') ||
+    lower.includes('turn limit') ||
+    lower.includes('maximum number of turns');
 }
 
 function now(): string {
@@ -74,7 +114,7 @@ function execAsyncWithEnv(
     });
     if (opts.signal) {
       opts.signal.addEventListener('abort', () => {
-        child.kill('SIGTERM');
+        killProcessTree(child);
       }, { once: true });
     }
   });
@@ -101,10 +141,10 @@ function execAsync(
         resolve({ stdout, stderr });
       }
     });
-    // If the signal fires after exec started, kill the process
+    // If the signal fires after exec started, kill the process tree
     if (opts.signal) {
       opts.signal.addEventListener('abort', () => {
-        child.kill('SIGTERM');
+        killProcessTree(child);
       }, { once: true });
     }
   });
@@ -289,7 +329,7 @@ function spawnAIToolRaw(
     child.on('error', reject);
 
     ctx.abortSignal.addEventListener('abort', () => {
-      child.kill('SIGTERM');
+      killProcessTree(child);
     }, { once: true });
   });
 }
@@ -298,6 +338,9 @@ function spawnAIToolRaw(
  * Spawn the AI tool in agent mode (no --print) — allows the AI to use tools,
  * read files, and explore the codebase autonomously. Slower and more expensive
  * but dramatically better for deep audits. Returns the final output text.
+ *
+ * Supports --max-turns via stepConfig['max-turns'] (0 or '' = unlimited).
+ * Emits periodic heartbeat logs with elapsed time and detected turn count.
  */
 async function spawnAIToolAgent(
   ctx: StageContext,
@@ -305,13 +348,27 @@ async function spawnAIToolAgent(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const cwd = ctx.worktreePath || ctx.projectPath;
-    ctx.emit('Spawning AI agent (autonomous mode)...');
+
+    // Resolve max-turns: stepConfig value > default (25). '0' or '' = unlimited.
+    const configMaxTurns = ctx.stepConfig['max-turns'];
+    const maxTurns = configMaxTurns === '0' || configMaxTurns === 'unlimited'
+      ? 0
+      : configMaxTurns
+        ? parseInt(configMaxTurns, 10) || DEFAULT_AGENT_MAX_TURNS
+        : DEFAULT_AGENT_MAX_TURNS;
+
+    const turnsLabel = maxTurns > 0 ? `max ${maxTurns} turns` : 'unlimited turns';
+    ctx.emit(`Spawning AI agent (autonomous mode, ${turnsLabel})...`);
 
     // Agent mode: no --print, uses --output-format json for structured output.
     // The AI can use all its built-in tools (Read, Grep, Glob, Bash, etc.)
     // Split command string to handle custom flags (e.g. "claude --dangerously-skip-permissions")
     const [aiExe, ...aiBaseFlags] = ctx.aiTool.split(/\s+/);
-    const child = spawn(aiExe, [...aiBaseFlags, '--output-format', 'json', '--verbose'], {
+    const args = [...aiBaseFlags, '--output-format', 'json', '--verbose'];
+    if (maxTurns > 0) {
+      args.push('--max-turns', String(maxTurns));
+    }
+    const child = spawn(aiExe, args, {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: true,
@@ -323,30 +380,77 @@ async function spawnAIToolAgent(
 
     let stdout = '';
     let stderr = '';
+    const startTime = Date.now();
+    let turnCount = 0;
+    let lastActivityTime = Date.now();
+
+    // Heartbeat timer — emits elapsed time every 15s so the UI shows the stage is alive
+    const heartbeatInterval = setInterval(() => {
+      if (ctx.abortSignal.aborted) return;
+      const elapsed = Date.now() - startTime;
+      const idle = Date.now() - lastActivityTime;
+      const parts = [`[Agent] ${formatElapsed(elapsed)} elapsed`];
+      if (turnCount > 0) parts.push(`~${turnCount} turns`);
+      if (idle > 30_000) parts.push('waiting...');
+      ctx.emit(parts.join(' | '));
+    }, 15_000);
+
+    // Guard: if signal was already aborted before we got here, clean up immediately
+    if (ctx.abortSignal.aborted) {
+      clearInterval(heartbeatInterval);
+      killProcessTree(child);
+      reject(new Error('Aborted'));
+      return;
+    }
 
     child.stdout.on('data', (data: Buffer) => {
       const chunk = data.toString();
       stdout += chunk;
+      lastActivityTime = Date.now();
     });
 
     child.stderr.on('data', (data: Buffer) => {
       const chunk = data.toString();
       stderr += chunk;
+      lastActivityTime = Date.now();
       for (const line of chunk.split('\n').filter(Boolean)) {
+        // Detect turn boundaries from verbose output
+        if (line.includes('tool_use') || line.includes('Tool:') || /\bturn\b/i.test(line)) {
+          turnCount++;
+        }
         ctx.emit(line);
       }
     });
 
     child.on('close', (code) => {
+      clearInterval(heartbeatInterval);
+      const elapsed = Date.now() - startTime;
+      ctx.emit(`[Agent] Finished in ${formatElapsed(elapsed)} (~${turnCount} turns)`);
+
       if (ctx.abortSignal.aborted) {
         reject(new Error('Aborted'));
       } else if (code !== 0) {
-        reject(new Error(`AI agent exited with code ${code}: ${stderr}`));
+        const errMsg = `AI agent exited with code ${code}: ${stderr}`;
+        // Check if this was a max-turns exhaustion
+        if (isMaxTurnsError(stderr) || isMaxTurnsError(stdout)) {
+          const err = new Error(errMsg);
+          (err as Error & { failureReason: string }).failureReason = 'max-turns';
+          reject(err);
+        } else {
+          reject(new Error(errMsg));
+        }
       } else {
         // Unwrap envelope if present
         try {
           const envelope = JSON.parse(stdout);
           if (envelope && typeof envelope === 'object' && 'result' in envelope && typeof envelope.result === 'string') {
+            // Check for max-turns in the envelope metadata
+            if (envelope.subtype === 'max_turns_reached' || isMaxTurnsError(JSON.stringify(envelope))) {
+              const err = new Error('AI agent reached max turns limit');
+              (err as Error & { failureReason: string }).failureReason = 'max-turns';
+              reject(err);
+              return;
+            }
             resolve(envelope.result);
             return;
           }
@@ -357,10 +461,14 @@ async function spawnAIToolAgent(
       }
     });
 
-    child.on('error', reject);
+    child.on('error', (err) => {
+      clearInterval(heartbeatInterval);
+      reject(err);
+    });
 
     ctx.abortSignal.addEventListener('abort', () => {
-      child.kill('SIGTERM');
+      clearInterval(heartbeatInterval);
+      killProcessTree(child);
     }, { once: true });
   });
 }
@@ -369,6 +477,8 @@ async function spawnAIToolAgent(
  * Dispatch to the appropriate AI tool mode based on stepConfig.mode.
  * - mode: 'agent' → spawnAIToolAgent (autonomous, multi-turn, uses tools)
  * - mode: 'print' (default) → spawnAITool (single-turn, fast, cheap)
+ *
+ * Errors from agent mode may carry a `.failureReason` property (e.g. 'max-turns').
  */
 async function dispatchAITool(ctx: StageContext, prompt: string): Promise<string> {
   const mode = ctx.stepConfig.mode || 'print';
@@ -641,9 +751,12 @@ Run the project's test suite and evaluate the results. Respond with ONLY a JSON 
       logs,
     };
   } catch (err) {
-    ctx.emit(`Test stage error: ${(err as Error).message}`);
-    logs.push(`Error: ${(err as Error).message}`);
-    return { status: 'failed', artifacts, logs };
+    const e = err as Error & { failureReason?: string };
+    ctx.emit(`Test stage error: ${e.message}`);
+    logs.push(`Error: ${e.message}`);
+    const failureReason = e.failureReason === 'max-turns' ? 'max-turns' as const
+      : isMaxTurnsError(e.message) ? 'max-turns' as const : 'error' as const;
+    return { status: 'failed', artifacts, logs, failureReason };
   }
 }
 
@@ -737,9 +850,12 @@ Respond with ONLY a JSON object:
 
     return { status: 'completed', artifacts, logs };
   } catch (err) {
-    ctx.emit(`Describe stage error: ${(err as Error).message}`);
-    logs.push(`Error: ${(err as Error).message}`);
-    return { status: 'failed', artifacts, logs };
+    const e = err as Error & { failureReason?: string };
+    ctx.emit(`Describe stage error: ${e.message}`);
+    logs.push(`Error: ${e.message}`);
+    const failureReason = e.failureReason === 'max-turns' ? 'max-turns' as const
+      : isMaxTurnsError(e.message) ? 'max-turns' as const : 'error' as const;
+    return { status: 'failed', artifacts, logs, failureReason };
   }
 }
 
@@ -900,9 +1016,12 @@ Respond with ONLY a JSON object:
 
     return { status: 'completed', artifacts, logs };
   } catch (err) {
-    ctx.emit(`Critique stage error: ${(err as Error).message}`);
-    logs.push(`Error: ${(err as Error).message}`);
-    return { status: 'failed', artifacts, logs };
+    const e = err as Error & { failureReason?: string };
+    ctx.emit(`Critique stage error: ${e.message}`);
+    logs.push(`Error: ${e.message}`);
+    const failureReason = e.failureReason === 'max-turns' ? 'max-turns' as const
+      : isMaxTurnsError(e.message) ? 'max-turns' as const : 'error' as const;
+    return { status: 'failed', artifacts, logs, failureReason };
   }
 }
 

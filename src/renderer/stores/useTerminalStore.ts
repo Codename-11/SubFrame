@@ -35,6 +35,8 @@ interface TerminalState {
   viewMode: ViewMode;
   gridLayout: GridLayout;
   maximizedTerminalId: string | null;
+  gridSlots: (string | null)[];
+  setGridSlots: (slots: (string | null)[]) => void;
   setActiveTerminal: (id: string) => void;
   addTerminal: (info: TerminalInfo) => void;
   removeTerminal: (id: string, currentProjectPath?: string) => void;
@@ -54,6 +56,8 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   viewMode: 'tabs',
   gridLayout: loadGridLayout(),
   maximizedTerminalId: null,
+  gridSlots: [],
+  setGridSlots: (slots) => set({ gridSlots: slots }),
 
   setActiveTerminal: (id) => {
     const info = get().terminals.get(id);

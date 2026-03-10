@@ -11,5 +11,7 @@ jobs:
       - name: Verify Implementation
         uses: critique
         require-approval: if_patches
+        with:
+          max-turns: 25
       - name: Generate Summary
         uses: describe

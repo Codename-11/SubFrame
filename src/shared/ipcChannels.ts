@@ -91,6 +91,7 @@ export const IPC = {
   TOGGLE_TASKS_PANEL: 'toggle-tasks-panel',
   WATCH_TASKS: 'watch-tasks',
   UNWATCH_TASKS: 'unwatch-tasks',
+  ENHANCE_TASK: 'enhance-task',
 
   // Plugins Panel
   LOAD_PLUGINS: 'load-plugins',
@@ -811,6 +812,8 @@ export interface PatchArtifact {
 
 export type PipelineArtifact = ContentArtifact | CommentArtifact | PatchArtifact;
 
+export type StageFailureReason = 'max-turns' | 'timeout' | 'error' | null;
+
 export interface PipelineStage {
   id: string;
   name: string;
@@ -824,6 +827,8 @@ export interface PipelineStage {
   startedAt: string | null;
   completedAt: string | null;
   durationMs: number | null;
+  /** Why the stage failed — enables targeted retry UI (e.g. "Re-run unlimited") */
+  failureReason: StageFailureReason;
 }
 
 export interface PipelineJob {
@@ -850,6 +855,8 @@ export interface PipelineRun {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
+  /** Runtime overrides applied to all AI stage stepConfig (e.g. { 'max-turns': '0' }) */
+  overrides?: Record<string, string>;
 }
 
 export interface WorkflowStep {
@@ -890,6 +897,12 @@ export interface PipelineProgressEvent {
   runId: string;
   stageId: string;
   log: string;
+  /** Optional metadata for enhanced progress display */
+  meta?: {
+    isHeartbeat?: boolean;
+    elapsedMs?: number;
+    turnCount?: number;
+  };
 }
 
 // ─── Handle Map (ipcMain.handle → ipcRenderer.invoke) ───────────────────────
@@ -976,7 +989,7 @@ export interface IPCHandleMap {
 
   // Pipeline
   [IPC.PIPELINE_LIST_WORKFLOWS]: { args: [projectPath: string]; return: WorkflowDefinition[] };
-  [IPC.PIPELINE_START]: { args: [payload: { projectPath: string; workflowId: string; trigger: PipelineTrigger }]; return: { runId: string } };
+  [IPC.PIPELINE_START]: { args: [payload: { projectPath: string; workflowId: string; trigger: PipelineTrigger; overrides?: Record<string, string> }]; return: { runId: string } };
   [IPC.PIPELINE_CANCEL]: { args: [runId: string]; return: { success: boolean } };
   [IPC.PIPELINE_APPROVE_STAGE]: { args: [payload: { runId: string; stageId: string }]; return: { success: boolean } };
   [IPC.PIPELINE_REJECT_STAGE]: { args: [payload: { runId: string; stageId: string }]; return: { success: boolean } };
@@ -989,6 +1002,12 @@ export interface IPCHandleMap {
   [IPC.PIPELINE_DELETE_WORKFLOW]: {
     args: [payload: { projectPath: string; filename: string }];
     return: { success: boolean; error?: string };
+  };
+
+  // Task AI Enhance
+  [IPC.ENHANCE_TASK]: {
+    args: [payload: { projectPath: string; task: Partial<Task> }];
+    return: { success: boolean; enhanced: Partial<Task>; error?: string };
   };
 }
 

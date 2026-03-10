@@ -13,5 +13,7 @@ jobs:
         uses: critique
         with:
           scope: project
+          mode: agent
           focus: documentation
+          max-turns: 30
           prompt: "Audit project documentation. Check if CLAUDE.md, CHANGELOG.md, and STRUCTURE.json are accurate and complete. Identify missing docs, outdated sections, and inconsistencies between documented and actual behavior."

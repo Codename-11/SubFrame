@@ -2308,6 +2308,8 @@ jobs:
       - name: Code Review
         uses: critique
         require-approval: if_patches
+        with:
+          max-turns: 25
       - name: Freeze
         uses: freeze
 
@@ -2336,6 +2338,8 @@ jobs:
       - name: Verify Implementation
         uses: critique
         require-approval: if_patches
+        with:
+          max-turns: 25
       - name: Generate Summary
         uses: describe
 `;
@@ -2360,11 +2364,15 @@ jobs:
         uses: describe
         with:
           scope: project
+          mode: agent
+          max-turns: 25
       - name: Code Quality Review
         uses: critique
         with:
           scope: project
+          mode: agent
           focus: architecture
+          max-turns: 30
 `;
 }
 
@@ -2384,7 +2392,9 @@ jobs:
         uses: critique
         with:
           scope: project
+          mode: agent
           focus: documentation
+          max-turns: 30
           prompt: "Audit project documentation. Check if CLAUDE.md, CHANGELOG.md, and STRUCTURE.json are accurate and complete. Identify missing docs, outdated sections, and inconsistencies between documented and actual behavior."
 `;
 }
@@ -2405,7 +2415,9 @@ jobs:
         uses: critique
         with:
           scope: project
+          mode: agent
           focus: security
+          max-turns: 30
           prompt: "Security audit of this codebase. Check for hardcoded secrets, injection vectors, exposed environment variables, authentication gaps, insecure dependencies, and OWASP top 10 vulnerabilities."
 `;
 }

@@ -438,6 +438,8 @@ export function Editor({ filePath, onClose }: EditorProps) {
       <DialogContent
         className={dialogContentClass}
         showCloseButton={false}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
       >
         <TooltipProvider delayDuration={400}>
           {/* Header */}

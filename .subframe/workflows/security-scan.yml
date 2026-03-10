@@ -13,5 +13,7 @@ jobs:
         uses: critique
         with:
           scope: project
+          mode: agent
           focus: security
+          max-turns: 30
           prompt: "Security audit of this codebase. Check for hardcoded secrets, injection vectors, exposed environment variables, authentication gaps, insecure dependencies, and OWASP top 10 vulnerabilities."

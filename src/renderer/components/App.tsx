@@ -13,6 +13,7 @@ import { OnboardingDialog } from './OnboardingDialog';
 import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ThemeProvider } from './ThemeProvider';
+import { TasksPalette } from './TasksPalette';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
@@ -20,9 +21,10 @@ import { useTerminalStore } from '../stores/useTerminalStore';
 import { cn } from '../lib/utils';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useAIToolConfig } from '../hooks/useSettings';
+import { useIpcQuery } from '../hooks/useIpc';
 import { IPC } from '../../shared/ipcChannels';
-import { typedSend } from '../lib/ipc';
-import type { UninstallResult } from '../../shared/ipcChannels';
+import { typedInvoke, typedSend } from '../lib/ipc';
+import type { UninstallResult, WorkspaceListResult } from '../../shared/ipcChannels';
 
 const { ipcRenderer } = require('electron');
 
@@ -53,6 +55,16 @@ export function App() {
   const { config: aiToolConfig } = useAIToolConfig();
   // Guard: prevents auto-reopen from fighting with user's explicit close
   const userDismissedAnalysisRef = useRef(false);
+
+  // Workspace list for Ctrl+Alt+N switching — refs avoid stale closure in handleKeyDown
+  const { data: workspaceData } = useIpcQuery(IPC.WORKSPACE_LIST, [], { staleTime: 10000 });
+  const workspaceListRef = useRef<{ key: string; name: string }[]>([]);
+  const activeWorkspaceKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const parsed = workspaceData as WorkspaceListResult | undefined;
+    workspaceListRef.current = parsed?.workspaces?.map((ws) => ({ key: ws.key, name: ws.name })) ?? [];
+    activeWorkspaceKeyRef.current = parsed?.active ?? null;
+  }, [workspaceData]);
 
   // Listen for uninstall result (rollback from onboarding dialog)
   const onboardingResetRef = useRef(onboarding.reset);
@@ -158,6 +170,48 @@ export function App() {
       if (modKey && e.shiftKey && key === 'enter') {
         e.preventDefault();
         window.dispatchEvent(new Event('start-ai-tool'));
+      }
+
+      // ── Workspace switching: Ctrl+Alt+1-9 ──
+      if (modKey && e.altKey && !e.shiftKey && key >= '1' && key <= '9') {
+        const idx = parseInt(key, 10) - 1;
+        const wsList = workspaceListRef.current;
+        if (idx < wsList.length) {
+          e.preventDefault();
+          typedInvoke(IPC.WORKSPACE_SWITCH, wsList[idx].key)
+            .then(() => typedSend(IPC.LOAD_WORKSPACE))
+            .catch(() => { /* workspace switch failed — silently ignored */ });
+        }
+      }
+
+      // Ctrl+Alt+[ — Previous workspace
+      if (modKey && e.altKey && e.key === '[') {
+        const wsList = workspaceListRef.current;
+        const activeKey = activeWorkspaceKeyRef.current;
+        if (wsList.length > 1 && activeKey) {
+          e.preventDefault();
+          const activeIdx = wsList.findIndex((ws) => ws.key === activeKey);
+          if (activeIdx === -1) return;
+          const prev = (activeIdx - 1 + wsList.length) % wsList.length;
+          typedInvoke(IPC.WORKSPACE_SWITCH, wsList[prev].key)
+            .then(() => typedSend(IPC.LOAD_WORKSPACE))
+            .catch(() => { /* workspace switch failed */ });
+        }
+      }
+
+      // Ctrl+Alt+] — Next workspace
+      if (modKey && e.altKey && e.key === ']') {
+        const wsList = workspaceListRef.current;
+        const activeKey = activeWorkspaceKeyRef.current;
+        if (wsList.length > 1 && activeKey) {
+          e.preventDefault();
+          const activeIdx = wsList.findIndex((ws) => ws.key === activeKey);
+          if (activeIdx === -1) return;
+          const next = (activeIdx + 1) % wsList.length;
+          typedInvoke(IPC.WORKSPACE_SWITCH, wsList[next].key)
+            .then(() => typedSend(IPC.LOAD_WORKSPACE))
+            .catch(() => { /* workspace switch failed */ });
+        }
       }
     },
     [toggleSidebar, togglePanel, setSettingsOpen, setShortcutsHelpOpen, selectAdjacentProject, requestSidebarFocus]
@@ -339,6 +393,9 @@ export function App() {
 
       {/* Prompt library (Ctrl+Shift+L) */}
       <PromptLibrary />
+
+      {/* Quick tasks palette (Ctrl+') */}
+      <TasksPalette />
 
       {/* What's New dialog (auto-shows after updates) */}
       <WhatsNew />

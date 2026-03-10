@@ -14,7 +14,7 @@ import {
   type SortingState,
   type SortingFn,
 } from '@tanstack/react-table';
-import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X } from 'lucide-react';
+import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X, Copy, Lock, Link, Sparkles, Loader2 } from 'lucide-react';
 import { TaskTimeline } from './TaskTimeline';
 import { TaskGraph } from './TaskGraph';
 import { TaskKanban } from './TaskKanban';
@@ -36,7 +36,9 @@ import {
 import { cn } from '../lib/utils';
 import { useTasks } from '../hooks/useTasks';
 import { useTerminalStore } from '../stores/useTerminalStore';
+import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore, type StatusFilter } from '../stores/useUIStore';
+import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import type { Task, TaskStep } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
@@ -336,6 +338,7 @@ interface TasksPanelProps {
 export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const { tasks, addTask, updateTask, deleteTask, isLoading } = useTasks();
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
+  const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
 
   // Sort/filter state from Zustand store — survives panel switches
   const sorting = useUIStore((s) => s.tasksSorting);
@@ -394,9 +397,44 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const [formSteps, setFormSteps] = useState<TaskStep[]>([]);
   const [formAcceptanceCriteria, setFormAcceptanceCriteria] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formBlockedBy, setFormBlockedBy] = useState<string[]>([]);
+  const [formBlocks, setFormBlocks] = useState<string[]>([]);
   const [dialogMode, setDialogMode] = useState<'form' | 'markdown'>('form');
   const [markdownContent, setMarkdownContent] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
+
+  const handleEnhance = useCallback(async () => {
+    if (!currentProjectPath || enhancing) return;
+    setEnhancing(true);
+    try {
+      const result = await typedInvoke(IPC.ENHANCE_TASK, {
+        projectPath: currentProjectPath,
+        task: {
+          title: formTitle,
+          description: formDescription,
+          priority: formPriority,
+          category: formCategory,
+        },
+      });
+      if (result.success && result.enhanced) {
+        const e = result.enhanced;
+        if (e.title) setFormTitle(e.title);
+        if (e.description) setFormDescription(e.description);
+        if (e.acceptanceCriteria) { setFormAcceptanceCriteria(e.acceptanceCriteria); setShowAdvanced(true); }
+        if (e.steps && Array.isArray(e.steps)) setFormSteps(e.steps as TaskStep[]);
+        if (e.priority) setFormPriority(e.priority as 'high' | 'medium' | 'low');
+        if (e.category) setFormCategory(e.category);
+        toast.success('Task enhanced by AI');
+      } else {
+        toast.error(result.error || 'AI enhancement failed');
+      }
+    } catch {
+      toast.error('Failed to reach AI tool');
+    } finally {
+      setEnhancing(false);
+    }
+  }, [currentProjectPath, enhancing, formTitle, formDescription, formPriority, formCategory]);
 
   // Stable callbacks — mutation refs are stable from useTasks, so no deps needed
   const handleUpdateStatus = useCallback(
@@ -543,26 +581,38 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         },
       );
     } else {
-      // Panel mode: combined tags column (category + priority stacked) to save space
-      cols.push({
-        id: 'tags',
-        header: () => <span className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium">Tags</span>,
-        cell: ({ row }) => {
-          const cat = row.original.category || 'feature';
-          const priority = row.original.priority;
-          return (
-            <div className="flex flex-col gap-0.5">
-              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap w-fit', CATEGORY_COLORS[cat] || CATEGORY_COLORS.chore)}>
+      // Panel mode: separate category + priority columns (sortable)
+      cols.push(
+        {
+          accessorKey: 'category',
+          header: ({ column }) => <SortHeader column={column} label="Cat" />,
+          cell: ({ getValue }) => {
+            const cat = (getValue() as string) || 'feature';
+            return (
+              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', CATEGORY_COLORS[cat] || CATEGORY_COLORS.chore)}>
                 {CATEGORY_SHORT[cat] || cat}
               </Badge>
-              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap w-fit', PRIORITY_COLORS[priority])}>
+            );
+          },
+          enableMultiSort: true,
+          size: 42,
+        },
+        {
+          accessorKey: 'priority',
+          header: ({ column }) => <SortHeader column={column} label="Pri" />,
+          cell: ({ getValue }) => {
+            const priority = getValue() as string;
+            return (
+              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', PRIORITY_COLORS[priority])}>
                 {priority}
               </Badge>
-            </div>
-          );
+            );
+          },
+          sortingFn: prioritySortingFn,
+          enableMultiSort: true,
+          size: 42,
         },
-        size: 52,
-      });
+      );
     }
 
     cols.push({
@@ -596,6 +646,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormSteps([]);
     setFormAcceptanceCriteria('');
     setFormNotes('');
+    setFormBlockedBy([]);
+    setFormBlocks([]);
     setDialogMode('form');
     setMarkdownContent('');
     setShowAdvanced(false);
@@ -613,9 +665,11 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormSteps(task.steps?.map((s) => ({ ...s })) || []);
     setFormAcceptanceCriteria(task.acceptanceCriteria || '');
     setFormNotes(task.notes || '');
+    setFormBlockedBy(task.blockedBy ?? []);
+    setFormBlocks(task.blocks ?? []);
     setDialogMode('form');
     setMarkdownContent('');
-    setShowAdvanced(!!(task.acceptanceCriteria || task.notes));
+    setShowAdvanced(!!(task.acceptanceCriteria || task.notes || task.blockedBy?.length || task.blocks?.length));
     setDialogOpen(true);
   }, []);
 
@@ -645,6 +699,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       steps: steps.filter((s) => s.label.trim()), // Drop empty-label steps
       acceptanceCriteria: acceptanceCriteria || undefined,
       notes: notes || undefined,
+      blockedBy: formBlockedBy.length ? formBlockedBy : undefined,
+      blocks: formBlocks.length ? formBlocks : undefined,
     };
 
     if (editingTask) {
@@ -854,7 +910,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                     {expandedId === row.original.id && (
                       <tr>
                         <td colSpan={columns.length} className="px-4 py-3 bg-bg-deep/50">
-                          <TaskDetail task={row.original} updateTask={updateTask} />
+                          <TaskDetail task={row.original} updateTask={updateTask} allTasks={tasks} />
                         </td>
                       </tr>
                     )}
@@ -904,6 +960,18 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                     className="px-2 py-0.5 text-[11px] text-text-tertiary hover:text-accent border border-border-subtle rounded transition-colors cursor-pointer"
                   >
                     From Template
+                  </button>
+                )}
+                {/* AI Enhance */}
+                {formTitle.trim() && dialogMode === 'form' && (
+                  <button
+                    onClick={handleEnhance}
+                    disabled={enhancing}
+                    className="flex items-center gap-1 px-2 py-0.5 text-[11px] text-text-tertiary hover:text-info border border-border-subtle rounded transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                    title="Use AI to improve task scope and add steps"
+                  >
+                    {enhancing ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                    Enhance
                   </button>
                 )}
                 {/* Form / Markdown toggle */}
@@ -1060,6 +1128,120 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                           className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-2 text-sm text-text-primary resize-y focus:outline-none focus:ring-1 focus:ring-accent"
                         />
                       </div>
+
+                      {/* Dependencies — Blocked By */}
+                      <div>
+                        <label className="text-xs text-text-secondary mb-1 block">Blocked By</label>
+                        {formBlockedBy.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {formBlockedBy.map((depId) => {
+                              const depTask = tasks.find((t) => t.id === depId);
+                              return (
+                                <span
+                                  key={depId}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-red-900/40 text-red-300"
+                                >
+                                  <Lock size={10} />
+                                  <span className="truncate max-w-[140px]">{depTask?.title ?? depId}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setFormBlockedBy(formBlockedBy.filter((id) => id !== depId))}
+                                    className="hover:text-red-100 cursor-pointer"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <select
+                            id="blockedBy-select"
+                            className="flex-1 rounded-md bg-bg-deep border border-border-subtle px-2 py-1 text-xs text-text-primary"
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Select a task...</option>
+                            {tasks
+                              .filter((t) => t.id !== editingTask?.id && !formBlockedBy.includes(t.id))
+                              .map((t) => (
+                                <option key={t.id} value={t.id}>{t.title}</option>
+                              ))}
+                          </select>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-6 px-2 text-xs cursor-pointer"
+                            onClick={() => {
+                              const sel = document.getElementById('blockedBy-select') as HTMLSelectElement | null;
+                              if (sel?.value) {
+                                setFormBlockedBy([...formBlockedBy, sel.value]);
+                                sel.value = '';
+                              }
+                            }}
+                          >
+                            <Plus size={10} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Dependencies — Blocks */}
+                      <div>
+                        <label className="text-xs text-text-secondary mb-1 block">Blocks</label>
+                        {formBlocks.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {formBlocks.map((depId) => {
+                              const depTask = tasks.find((t) => t.id === depId);
+                              return (
+                                <span
+                                  key={depId}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-900/40 text-amber-300"
+                                >
+                                  <Link size={10} />
+                                  <span className="truncate max-w-[140px]">{depTask?.title ?? depId}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setFormBlocks(formBlocks.filter((id) => id !== depId))}
+                                    className="hover:text-amber-100 cursor-pointer"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <select
+                            id="blocks-select"
+                            className="flex-1 rounded-md bg-bg-deep border border-border-subtle px-2 py-1 text-xs text-text-primary"
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Select a task...</option>
+                            {tasks
+                              .filter((t) => t.id !== editingTask?.id && !formBlocks.includes(t.id))
+                              .map((t) => (
+                                <option key={t.id} value={t.id}>{t.title}</option>
+                              ))}
+                          </select>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-6 px-2 text-xs cursor-pointer"
+                            onClick={() => {
+                              const sel = document.getElementById('blocks-select') as HTMLSelectElement | null;
+                              if (sel?.value) {
+                                setFormBlocks([...formBlocks, sel.value]);
+                                sel.value = '';
+                              }
+                            }}
+                          >
+                            <Plus size={10} />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1141,70 +1323,153 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   );
 }
 
-function TaskDetail({ task, updateTask }: { task: Task; updateTask: { mutate: (vars: { taskId: string; updates: Partial<Task> }) => void } }) {
+function TaskDetail({ task, updateTask, allTasks }: { task: Task; updateTask: { mutate: (vars: { taskId: string; updates: Partial<Task> }) => void }; allTasks: Task[] }) {
+  const completedSteps = task.steps.filter((s) => s.completed).length;
+  const totalSteps = task.steps.length;
+  const progressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  function resolveTaskTitle(id: string): string {
+    const found = allTasks.find((t) => t.id === id);
+    return found ? found.title : id;
+  }
+
+  function handleCopyId(): void {
+    navigator.clipboard.writeText(task.id);
+    toast.success('Task ID copied');
+  }
+
   return (
-    <div className="flex flex-col gap-2 text-xs">
-      {task.description && (
-        <div className="break-words">
-          <span className="text-text-tertiary font-medium block mb-0.5">Description</span>
-          <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
-            {task.description}
-          </Markdown>
+    <div className="flex flex-col gap-2.5 text-xs">
+      {/* ID header */}
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-[10px] text-text-muted select-all">{task.id}</span>
+        <button
+          onClick={handleCopyId}
+          className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-bg-tertiary cursor-pointer"
+          title="Copy task ID"
+        >
+          <Copy className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* Two-column grid layout */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3">
+        {/* Left column — content */}
+        <div className="flex flex-col gap-2 min-w-0">
+          {task.userRequest && (
+            <div className="break-words">
+              <span className="text-text-tertiary font-medium block mb-0.5">User Request</span>
+              <div className="border-l-2 border-accent/50 pl-2.5 py-1 bg-bg-tertiary/30 rounded-r">
+                <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
+                  {task.userRequest}
+                </Markdown>
+              </div>
+            </div>
+          )}
+          {task.description && (
+            <div className="break-words">
+              <span className="text-text-tertiary font-medium block mb-0.5">Description</span>
+              <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
+                {task.description}
+              </Markdown>
+            </div>
+          )}
+          {task.acceptanceCriteria && (
+            <div className="break-words">
+              <span className="text-text-tertiary font-medium block mb-0.5">Acceptance Criteria</span>
+              <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
+                {task.acceptanceCriteria}
+              </Markdown>
+            </div>
+          )}
+          {task.notes && (
+            <div className="break-words">
+              <span className="text-text-tertiary font-medium block mb-0.5">Notes</span>
+              <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
+                {task.notes}
+              </Markdown>
+            </div>
+          )}
+
+          {/* Dependencies */}
+          {((task.blockedBy && task.blockedBy.length > 0) || (task.blocks && task.blocks.length > 0)) && (
+            <div className="flex flex-col gap-1">
+              <span className="text-text-tertiary font-medium">Dependencies</span>
+              <div className="flex flex-wrap gap-1">
+                {task.blockedBy?.map((dep) => (
+                  <Badge key={dep} variant="secondary" className="text-[10px] bg-red-900/40 text-red-300 gap-1">
+                    <Lock className="w-2.5 h-2.5" />
+                    Blocked by: {resolveTaskTitle(dep)}
+                  </Badge>
+                ))}
+                {task.blocks?.map((dep) => (
+                  <Badge key={dep} variant="secondary" className="text-[10px] bg-amber-900/40 text-amber-300 gap-1">
+                    <Link className="w-2.5 h-2.5" />
+                    Blocking: {resolveTaskTitle(dep)}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Step progress bar + timeline */}
+          {totalSteps > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-text-tertiary font-medium">Steps</span>
+                <span className="text-text-muted text-[10px]">
+                  {completedSteps}/{totalSteps} completed ({progressPercent}%)
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-bg-tertiary rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-300',
+                    progressPercent === 100 ? 'bg-emerald-500' : 'bg-accent'
+                  )}
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <TaskTimeline
+                steps={task.steps}
+                onToggleStep={(index) => {
+                  const newSteps = task.steps.map((s, i) => i === index ? { ...s, completed: !s.completed } : s);
+                  updateTask.mutate({ taskId: task.id, updates: { steps: newSteps } });
+                }}
+              />
+            </div>
+          )}
         </div>
-      )}
-      {task.acceptanceCriteria && (
-        <div className="break-words">
-          <span className="text-text-tertiary font-medium block mb-0.5">Acceptance Criteria</span>
-          <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
-            {task.acceptanceCriteria}
-          </Markdown>
-        </div>
-      )}
-      {task.notes && (
-        <div className="break-words">
-          <span className="text-text-tertiary font-medium block mb-0.5">Notes</span>
-          <Markdown remarkPlugins={[remarkGfm]} components={taskMdComponents}>
-            {task.notes}
-          </Markdown>
-        </div>
-      )}
-      {task.category && (
-        <div>
-          <span className="text-text-tertiary font-medium">Category: </span>
-          <span className="text-text-secondary">{task.category}</span>
-        </div>
-      )}
-      {task.blockedBy && task.blockedBy.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {task.blockedBy.map((dep) => (
-            <Badge key={dep} variant="secondary" className="text-[10px] bg-red-900/40 text-red-300">
-              Blocked by: {dep}
+
+        {/* Right column — metadata card */}
+        <div className="flex flex-col gap-2 rounded border border-border-subtle bg-bg-secondary/50 p-2.5 h-fit">
+          <div className="flex flex-wrap gap-1">
+            <Badge variant="secondary" className={cn('text-[10px] capitalize', STATUS_COLORS[task.status])}>
+              {task.status.replace('_', ' ')}
             </Badge>
-          ))}
-        </div>
-      )}
-      {task.blocks && task.blocks.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {task.blocks.map((dep) => (
-            <Badge key={dep} variant="secondary" className="text-[10px] bg-amber-900/40 text-amber-300">
-              Blocking: {dep}
+            <Badge variant="secondary" className={cn('text-[10px] capitalize', PRIORITY_COLORS[task.priority])}>
+              {task.priority}
             </Badge>
-          ))}
+            {task.category && (
+              <Badge variant="secondary" className={cn('text-[10px] capitalize', CATEGORY_COLORS[task.category] || CATEGORY_COLORS.chore)}>
+                {task.category}
+              </Badge>
+            )}
+          </div>
+
+          {totalSteps > 0 && (
+            <div className="flex items-center gap-1.5 text-text-tertiary">
+              <Check className="w-3 h-3" />
+              <span>{completedSteps}/{totalSteps} steps</span>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-0.5 text-text-tertiary border-t border-border-subtle pt-2 mt-0.5">
+            <span>Created: {formatDate(task.createdAt)}</span>
+            <span>Updated: {formatDate(task.updatedAt)}</span>
+            {task.completedAt && <span>Completed: {formatDate(task.completedAt)}</span>}
+          </div>
         </div>
-      )}
-      {task.steps && task.steps.length > 0 && (
-        <TaskTimeline
-          steps={task.steps}
-          onToggleStep={(index) => {
-            const newSteps = task.steps.map((s, i) => i === index ? { ...s, completed: !s.completed } : s);
-            updateTask.mutate({ taskId: task.id, updates: { steps: newSteps } });
-          }}
-        />
-      )}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-text-tertiary">
-        <span>Created: {formatDate(task.createdAt)}</span>
-        <span>Updated: {formatDate(task.updatedAt)}</span>
-        {task.completedAt && <span>Completed: {formatDate(task.completedAt)}</span>}
       </div>
     </div>
   );

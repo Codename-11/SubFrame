@@ -85,6 +85,13 @@ export function PromptLibrary() {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  // Listen for command palette trigger
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('open-prompt-library', handler);
+    return () => window.removeEventListener('open-prompt-library', handler);
+  }, []);
+
   // Group prompts by category
   const grouped = useMemo(() => {
     const map = new Map<string, SavedPrompt[]>();

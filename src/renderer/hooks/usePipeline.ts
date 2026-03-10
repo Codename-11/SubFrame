@@ -83,9 +83,9 @@ export function usePipeline() {
 
   // Mutations — use typedInvoke for handle-based channels
   const startPipeline = useMutation({
-    mutationFn: (vars: { workflowId: string; trigger: PipelineTrigger }) => {
+    mutationFn: (vars: { workflowId: string; trigger: PipelineTrigger; overrides?: Record<string, string> }) => {
       if (!projectPath) return Promise.reject(new Error('No project'));
-      return typedInvoke(IPC.PIPELINE_START, { projectPath, workflowId: vars.workflowId, trigger: vars.trigger });
+      return typedInvoke(IPC.PIPELINE_START, { projectPath, workflowId: vars.workflowId, trigger: vars.trigger, overrides: vars.overrides });
     },
   });
 

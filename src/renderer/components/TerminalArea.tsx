@@ -40,6 +40,7 @@ interface SessionData {
   activeTerminalId: string | null;
   terminalNames: Record<string, string>;
   gridLayout?: string;
+  gridSlots?: (string | null)[];
   tabOrder?: string[];
   maximizedTerminalId?: string | null;
 }
@@ -63,6 +64,7 @@ function saveSession(projectPath: string | null, store: ReturnType<typeof useTer
       : null,
     terminalNames: Object.fromEntries(terminals.map((t) => [t.id, t.name])),
     gridLayout: store.gridLayout,
+    gridSlots: store.gridSlots,
     tabOrder,
     maximizedTerminalId: terminals.length > 0 ? store.maximizedTerminalId : null,
   };
@@ -282,6 +284,10 @@ export function TerminalArea() {
         if (session.gridLayout) {
           useTerminalStore.getState().setGridLayout(session.gridLayout as any);
         }
+        // Restore grid slot assignments (drag-swap positions)
+        if (session.gridSlots && Array.isArray(session.gridSlots)) {
+          useTerminalStore.getState().setGridSlots(session.gridSlots);
+        }
         // Gap 3: Restore tab order by updating createdAt timestamps
         if (session.tabOrder && session.tabOrder.length > 0) {
           const store = useTerminalStore.getState();
@@ -313,6 +319,15 @@ export function TerminalArea() {
       hasRestoredInitialRef.current = true;
     }
   }, [currentProjectPath, terminals, setViewMode, renameTerminal, switchToProject, normalizedPath]);
+
+  // Save session on app close so grid slot positions persist across restarts
+  useEffect(() => {
+    const handler = () => {
+      saveSession(currentProjectPath, useTerminalStore.getState());
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [currentProjectPath]);
 
   // Auto-create first terminal when project is selected and none exist
   useEffect(() => {
@@ -390,8 +405,8 @@ export function TerminalArea() {
         return;
       }
 
-      // Ctrl+1-9 — Jump to terminal N
-      if (modKey && e.key >= '1' && e.key <= '9') {
+      // Ctrl+1-9 — Jump to terminal N (exclude Alt to avoid conflict with Ctrl+Alt+N workspace switch)
+      if (modKey && !e.altKey && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
         const idx = parseInt(e.key) - 1;
         if (idx < projectTerminals.length) {

@@ -9,10 +9,12 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC, type Task } from '../shared/ipcChannels';
 import { FRAME_FILES, FRAME_TASKS_DIR } from '../shared/frameConstants';
 import { parseTaskMarkdown, serializeTaskMarkdown } from './taskMarkdownParser';
+import { getActiveTool } from './aiToolManager';
 
 interface TasksData {
   _frame_metadata?: {
@@ -574,6 +576,87 @@ function setupIPC(ipcMain: IpcMain): void {
       // Also send updated tasks data
       const tasks = loadTasks(projectPath);
       event.sender.send(IPC.TASKS_DATA, { projectPath, tasks });
+    }
+  );
+
+  ipcMain.handle(
+    IPC.ENHANCE_TASK,
+    async (_event, { projectPath, task }: { projectPath: string; task: Partial<Task> }) => {
+      try {
+        const tool = getActiveTool();
+        const [aiExe, ...aiBaseFlags] = tool.command.split(/\s+/);
+
+        const prompt = `You are a project task scoping assistant. Given a rough task description, improve and structure it into a well-scoped sub-task.
+
+Input task:
+- Title: ${task.title || '(untitled)'}
+- Description: ${task.description || '(none)'}
+- Priority: ${task.priority || 'medium'}
+- Category: ${task.category || 'feature'}
+
+Return ONLY a valid JSON object (no markdown fences, no explanation) with these fields:
+{
+  "title": "concise, actionable title (imperative mood)",
+  "description": "clear 1-3 sentence description of what this task accomplishes",
+  "acceptanceCriteria": "bullet list of what 'done' looks like, each on its own line",
+  "steps": ["step 1 label", "step 2 label", "step 3 label"],
+  "priority": "high|medium|low",
+  "category": "feature|enhancement|bug|refactor|research|docs|test|chore"
+}
+
+Keep the original intent. Improve clarity, add missing acceptance criteria, suggest 3-5 concrete steps, and correct the priority/category if clearly wrong.`;
+
+        const result = await new Promise<string>((resolve, reject) => {
+          const child = spawn(aiExe, [...aiBaseFlags, '--print', '--output-format', 'json'], {
+            cwd: projectPath,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            shell: true,
+          });
+
+          child.stdin.write(prompt);
+          child.stdin.end();
+
+          let stdout = '';
+          let stderr = '';
+          child.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
+          child.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+          child.on('close', (code) => {
+            if (code === 0) resolve(stdout.trim());
+            else reject(new Error(stderr || `AI tool exited with code ${code}`));
+          });
+          child.on('error', reject);
+        });
+
+        // Unwrap Claude CLI JSON envelope if present
+        let content = result;
+        try {
+          const envelope = JSON.parse(result);
+          if (envelope && typeof envelope === 'object' && 'result' in envelope) {
+            content = envelope.result;
+          }
+        } catch { /* not an envelope */ }
+
+        // Parse the AI response as JSON
+        const enhanced = JSON.parse(content);
+        const steps = Array.isArray(enhanced.steps)
+          ? enhanced.steps.map((s: string) => ({ label: s, completed: false }))
+          : undefined;
+
+        return {
+          success: true,
+          enhanced: {
+            title: enhanced.title || task.title,
+            description: enhanced.description || task.description,
+            acceptanceCriteria: enhanced.acceptanceCriteria,
+            steps,
+            priority: enhanced.priority || task.priority,
+            category: enhanced.category || task.category,
+          },
+        };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { success: false, enhanced: {}, error: msg };
+      }
     }
   );
 }

@@ -253,7 +253,8 @@ function buildRun(
   trigger: PipelineTrigger,
   branch: string,
   baseSha: string,
-  headSha: string
+  headSha: string,
+  overrides?: Record<string, string>
 ): PipelineRun {
   const runId = uid();
   const sortedJobIds = topologicalSortJobs(workflow.jobs);
@@ -273,6 +274,7 @@ function buildRun(
       startedAt: null,
       completedAt: null,
       durationMs: null,
+      failureReason: null,
     }));
 
     return {
@@ -300,6 +302,7 @@ function buildRun(
     createdAt: now(),
     updatedAt: now(),
     completedAt: null,
+    overrides,
   };
 }
 
@@ -379,7 +382,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
             stage.logs.push(log);
             emitProgress(run.id, stage.id, log);
           },
-          stepConfig: step?.with ?? {},
+          stepConfig: { ...(step?.with ?? {}), ...(run.overrides ?? {}) },
         };
 
         try {
@@ -418,6 +421,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
           }
 
           stage.status = result.status;
+          stage.failureReason = result.failureReason ?? null;
           stage.logs.push(...result.logs);
           stage.completedAt = now();
           stage.durationMs = new Date(stage.completedAt).getTime() - new Date(stage.startedAt!).getTime();
@@ -468,10 +472,12 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
           }
         } catch (err) {
           if (abortController.signal.aborted) break;
+          const errMsg = (err as Error).message;
           stage.status = 'failed';
+          stage.failureReason = errMsg.includes('timed out') ? 'timeout' : 'error';
           stage.completedAt = now();
           stage.durationMs = new Date(stage.completedAt).getTime() - new Date(stage.startedAt!).getTime();
-          stage.logs.push(`Unhandled error: ${(err as Error).message}`);
+          stage.logs.push(`Unhandled error: ${errMsg}`);
           run.updatedAt = now();
           broadcastRunUpdate(run);
 
@@ -573,9 +579,9 @@ function setupIPC(ipcMain: IpcMain): void {
     IPC.PIPELINE_START,
     async (
       _event,
-      payload: { projectPath: string; workflowId: string; trigger: PipelineTrigger }
+      payload: { projectPath: string; workflowId: string; trigger: PipelineTrigger; overrides?: Record<string, string> }
     ) => {
-      const { projectPath, workflowId, trigger } = payload;
+      const { projectPath, workflowId, trigger, overrides } = payload;
 
       // Load workflows and find the requested one
       ensureWorkflowsDir(projectPath);
@@ -615,7 +621,7 @@ function setupIPC(ipcMain: IpcMain): void {
         headSha = '';
       }
 
-      const run = buildRun(workflow, projectPath, trigger, branch, baseSha, headSha);
+      const run = buildRun(workflow, projectPath, trigger, branch, baseSha, headSha, overrides);
       const abortController = new AbortController();
       const runCtx: PipelineRunContext = {
         run,

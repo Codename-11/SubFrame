@@ -4,8 +4,9 @@
  * Full mode shows stage nodes connected by lines with status indicators.
  */
 
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, SkipForward } from 'lucide-react';
+import { Check, X, SkipForward, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { PipelineStage, StageStatus } from '../../shared/ipcChannels';
 
@@ -106,12 +107,30 @@ interface StageNodeProps {
   onClick?: (stageId: string) => void;
 }
 
+/** Live elapsed time for running stages */
+function useElapsed(startedAt: string | null, isRunning: boolean): string | null {
+  const [elapsed, setElapsed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isRunning || !startedAt) { setElapsed(null); return; }
+    const update = () => {
+      const ms = Date.now() - new Date(startedAt).getTime();
+      setElapsed(formatDuration(ms));
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [startedAt, isRunning]);
+  return elapsed;
+}
+
 function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps) {
   const { status } = stage;
   const isCompleted = status === 'completed';
   const isRunning = status === 'running';
   const isFailed = status === 'failed';
   const isSkipped = status === 'skipped';
+  const isMaxTurns = isFailed && stage.failureReason === 'max-turns';
+  const elapsed = useElapsed(stage.startedAt, isRunning);
 
   return (
     <div className="flex flex-col items-center flex-1 min-w-0">
@@ -140,7 +159,7 @@ function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps)
             onClick && 'cursor-pointer',
             !onClick && 'cursor-default'
           )}
-          title={`${stage.name}${stage.durationMs ? ` (${formatDuration(stage.durationMs)})` : ''}`}
+          title={`${stage.name}${stage.durationMs ? ` (${formatDuration(stage.durationMs)})` : ''}${isMaxTurns ? ' — Turn limit reached' : stage.failureReason === 'timeout' ? ' — Timed out' : ''}`}
           type="button"
         >
           <AnimatePresence mode="wait">
@@ -179,9 +198,15 @@ function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps)
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.5, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="w-5 h-5 rounded-full bg-error flex items-center justify-center"
+                className={cn(
+                  'w-5 h-5 rounded-full flex items-center justify-center',
+                  isMaxTurns ? 'bg-warning' : 'bg-error'
+                )}
               >
-                <X size={10} className="text-bg-deep" strokeWidth={3} />
+                {isMaxTurns
+                  ? <AlertTriangle size={10} className="text-bg-deep" strokeWidth={3} />
+                  : <X size={10} className="text-bg-deep" strokeWidth={3} />
+                }
               </motion.div>
             ) : isSkipped ? (
               <motion.div
@@ -229,7 +254,8 @@ function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps)
           'text-[9px] mt-1 text-center truncate w-full px-0.5',
           isCompleted && 'text-success',
           isRunning && 'text-accent',
-          isFailed && 'text-error',
+          isMaxTurns && 'text-warning',
+          isFailed && !isMaxTurns && 'text-error',
           isSkipped && 'text-text-muted',
           status === 'pending' && 'text-text-muted'
         )}
@@ -238,11 +264,19 @@ function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps)
         {stage.name}
       </span>
 
-      {/* Duration badge */}
+      {/* Duration / elapsed badge */}
+      {isRunning && elapsed && (
+        <span className="text-[8px] text-accent mt-0.5 tabular-nums animate-pulse">
+          {elapsed}
+        </span>
+      )}
       {isCompleted && stage.durationMs != null && (
         <span className="text-[8px] text-text-tertiary mt-0.5">
           {formatDuration(stage.durationMs)}
         </span>
+      )}
+      {isMaxTurns && (
+        <span className="text-[7px] text-warning mt-0.5">turn limit</span>
       )}
     </div>
   );
