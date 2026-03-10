@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4-beta] - 2026-03-10
+
 ### Added
 - **Pipeline max-turns control**: AI agent stages now support `max-turns` config in workflow YAML (`with: { max-turns: 25 }`). Default 25 for agent mode, 0 = unlimited. Configurable in Workflow Editor UI
 - **Pipeline "Re-run Unlimited" button**: When a stage fails due to turn limit, an amber warning indicator and "Unlimited" re-run button appear to bypass the limit
@@ -25,22 +27,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Task dependency linking UI**: Blocked-by and Blocks fields in edit dialog Advanced section with select + removable badge pattern
 - **AI-Enhance button for tasks**: Sparkles button in task dialog uses active AI tool to auto-improve title, description, steps, acceptance criteria, and priority/category
 - **Terminal grid slot retention**: Drag-swap slot positions now persist across view mode changes, project switches, and app restarts via Zustand store + session persistence
+- **GitHub issue templates**: Bug report and feature request YAML form templates with structured fields
+- **GitHub PR template**: Checklist for quality gates, changelog, and conventions
+- **Claude PR auto-review**: GitHub Action workflow reviews PRs for pattern adherence, code quality, and project fit using OAuth
+- **Claude interactive `@claude` mentions**: Respond to `@claude` in any issue or PR comment for on-demand AI help
+- **Issue auto-labeling**: Zero-cost keyword-based labeling on issue open (area and platform tags)
+- **Issue triage workflow**: Claude-powered triage when `needs-triage` label is applied
+- **Dependabot configuration**: Weekly npm and GitHub Actions dependency updates with grouped dev deps
+- **CONTRIBUTING.md**: Developer setup, workflow, conventions, and PR expectations
+- **SECURITY.md**: Vulnerability reporting via GitHub private advisory
+- **REVIEW.md**: Claude review rules — patterns to enforce, things to skip, project fit criteria
+- **Ko-fi funding**: GitHub sponsor button linked to Ko-fi
 
 ### Fixed
 - **Pipeline cancel on Windows**: Process tree kill now uses `taskkill /F /T` on Windows instead of `SIGTERM` (which only killed the shell, not the Claude CLI child process)
 - **CodeMirror text selection in dialogs**: Added `onOpenAutoFocus`/`onPointerDownOutside` preventDefault to Editor and WorkflowEditor dialogs — prevents Radix focus trap from intercepting CodeMirror mouse events
 - **Task priority not sortable**: Split combined Tags column into separate Category and Priority columns (both sortable with multi-sort). Default sort: status asc → priority high-to-low
-
-### Changed
-- **Pipeline workflows use agent mode**: `health-check`, `docs-audit`, and `security-scan` workflows now use `mode: agent` for project-scope AI stages, with explicit `max-turns` limits (25-30)
-
-### Removed
-- **Dead `PipelineLogView.tsx`**: Standalone component was never imported — removed (inline version in PipelinePanel is used)
-
-### Fixed
 - **Command palette GitHub label**: "GitHub Issues" corrected to "GitHub" (toggles the panel group, not a sub-tab)
 - **Shortcuts modal duplicate**: Removed duplicate `Ctrl+Shift+Y` entry (was listed in both Panels and Terminal)
 - **Prompt Library unreachable from palette**: Added `open-prompt-library` event bridge so command palette can trigger it
+- **Sensitive files tracked in git**: Untracked `.claude/settings.local.json` and `.subframe/pipelines/runs.json` (contained local filesystem paths)
+- **npm audit vulnerabilities**: Fixed minimatch ReDoS and tar path traversal in build-time dependencies
+
+### Changed
+- **Pipeline workflows use agent mode**: `health-check`, `docs-audit`, and `security-scan` workflows now use `mode: agent` for project-scope AI stages, with explicit `max-turns` limits (25-30)
+- **CI concurrency groups**: CI and Claude review workflows cancel superseded runs on the same PR branch
+
+### Removed
+- **Dead `PipelineLogView.tsx`**: Standalone component was never imported — removed (inline version in PipelinePanel is used)
 
 ## [0.2.3-beta] - 2026-03-09
 
@@ -207,7 +221,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.1-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.4-beta...HEAD
+[0.2.4-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.3-beta...v0.2.4-beta
+[0.2.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.2-beta...v0.2.3-beta
+[0.2.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.1-beta...v0.2.2-beta
 [0.2.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.0-beta...v0.2.1-beta
 [0.2.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.4...v0.2.0-beta
 [0.1.0-beta.4]: https://github.com/Codename-11/SubFrame/compare/v0.1.0-beta.3...v0.1.0-beta.4
