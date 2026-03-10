@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar';
 import { TerminalArea } from './TerminalArea';
 import { RightPanel } from './RightPanel';
 import { SettingsPanel } from './SettingsPanel';
-import { KeyboardShortcuts } from './KeyboardShortcuts';
+
 import { CommandPalette } from './CommandPalette';
 import { PromptLibrary } from './PromptLibrary';
 import { WhatsNew } from './WhatsNew';
@@ -24,7 +24,7 @@ import { useAIToolConfig } from '../hooks/useSettings';
 import { useIpcQuery } from '../hooks/useIpc';
 import { IPC } from '../../shared/ipcChannels';
 import { typedInvoke, typedSend } from '../lib/ipc';
-import type { UninstallResult, WorkspaceListResult } from '../../shared/ipcChannels';
+import type { UninstallResult, WorkspaceListResult, WorkspaceData, WorkspaceProject } from '../../shared/ipcChannels';
 
 const { ipcRenderer } = require('electron');
 
@@ -57,14 +57,59 @@ export function App() {
   const userDismissedAnalysisRef = useRef(false);
 
   // Workspace list for Ctrl+Alt+N switching — refs avoid stale closure in handleKeyDown
-  const { data: workspaceData } = useIpcQuery(IPC.WORKSPACE_LIST, [], { staleTime: 10000 });
+  const { data: workspaceData, refetch: refetchWorkspaceList } = useIpcQuery(IPC.WORKSPACE_LIST, [], { staleTime: 10000 });
   const workspaceListRef = useRef<{ key: string; name: string }[]>([]);
   const activeWorkspaceKeyRef = useRef<string | null>(null);
+  const refetchWorkspaceListRef = useRef(refetchWorkspaceList);
+  refetchWorkspaceListRef.current = refetchWorkspaceList;
   useEffect(() => {
     const parsed = workspaceData as WorkspaceListResult | undefined;
     workspaceListRef.current = parsed?.workspaces?.map((ws) => ({ key: ws.key, name: ws.name })) ?? [];
     activeWorkspaceKeyRef.current = parsed?.active ?? null;
   }, [workspaceData]);
+
+  // Persistent workspace data listener — ensures project store is updated
+  // even when Sidebar/ProjectList are not mounted (collapsed or hidden sidebar).
+  // When ProjectList IS mounted it also handles these events; the duplicate
+  // store update is harmless (idempotent).
+  useEffect(() => {
+    const applyWorkspaceProjects = (projects: WorkspaceProject[], workspaceName?: string) => {
+      const store = useProjectStore.getState();
+      // Filter out scanned (discovered) projects — only show workspace projects
+      const manual = (projects || []).filter((p) => (p as WorkspaceProject & { source?: string }).source !== 'scanned');
+      store.setProjects(manual.map((p) => ({ path: p.path, name: p.name, isFrameProject: p.isFrameProject ?? false })));
+      if (workspaceName) store.setWorkspaceName(workspaceName);
+
+      // Auto-select first project if current selection is not in the new list
+      const current = store.currentProjectPath;
+      const inList = manual.some((p) => p.path === current);
+      if (!inList) {
+        if (manual.length > 0) {
+          store.setProject(manual[0].path, manual[0].isFrameProject ?? false);
+        } else {
+          store.setProject(null, false);
+        }
+      }
+    };
+
+    const handleData = (_event: unknown, data: WorkspaceData | WorkspaceProject[]) => {
+      const list = data && 'projects' in data ? (data as WorkspaceData).projects : (data as WorkspaceProject[]);
+      const wsName = data && 'workspaceName' in data ? (data as WorkspaceData & { workspaceName?: string }).workspaceName : undefined;
+      applyWorkspaceProjects(list, wsName);
+    };
+
+    const handleUpdated = (_event: unknown, data: { projects: WorkspaceProject[]; workspaceName: string }) => {
+      const list = data && 'projects' in data ? data.projects : (data as unknown as WorkspaceProject[]);
+      applyWorkspaceProjects(list, data?.workspaceName);
+    };
+
+    ipcRenderer.on(IPC.WORKSPACE_DATA, handleData);
+    ipcRenderer.on(IPC.WORKSPACE_UPDATED, handleUpdated);
+    return () => {
+      ipcRenderer.removeListener(IPC.WORKSPACE_DATA, handleData);
+      ipcRenderer.removeListener(IPC.WORKSPACE_UPDATED, handleUpdated);
+    };
+  }, []);
 
   // Listen for uninstall result (rollback from onboarding dialog)
   const onboardingResetRef = useRef(onboarding.reset);
@@ -124,11 +169,7 @@ export function App() {
         togglePanel('agentState');
       }
 
-      // Ctrl/Cmd+Shift+Y — Toggle pipeline panel
-      if (modKey && e.shiftKey && key === 'y') {
-        e.preventDefault();
-        togglePanel('pipeline');
-      }
+      // Ctrl/Cmd+Shift+Y — handled by TerminalArea (toggleFullView('pipeline'))
 
       // Ctrl/Cmd+, — Toggle settings
       if (modKey && !e.shiftKey && key === ',') {
@@ -179,7 +220,10 @@ export function App() {
         if (idx < wsList.length) {
           e.preventDefault();
           typedInvoke(IPC.WORKSPACE_SWITCH, wsList[idx].key)
-            .then(() => typedSend(IPC.LOAD_WORKSPACE))
+            .then(() => {
+              typedSend(IPC.LOAD_WORKSPACE);
+              refetchWorkspaceListRef.current();
+            })
             .catch(() => { /* workspace switch failed — silently ignored */ });
         }
       }
@@ -194,7 +238,10 @@ export function App() {
           if (activeIdx === -1) return;
           const prev = (activeIdx - 1 + wsList.length) % wsList.length;
           typedInvoke(IPC.WORKSPACE_SWITCH, wsList[prev].key)
-            .then(() => typedSend(IPC.LOAD_WORKSPACE))
+            .then(() => {
+              typedSend(IPC.LOAD_WORKSPACE);
+              refetchWorkspaceListRef.current();
+            })
             .catch(() => { /* workspace switch failed */ });
         }
       }
@@ -209,7 +256,10 @@ export function App() {
           if (activeIdx === -1) return;
           const next = (activeIdx + 1) % wsList.length;
           typedInvoke(IPC.WORKSPACE_SWITCH, wsList[next].key)
-            .then(() => typedSend(IPC.LOAD_WORKSPACE))
+            .then(() => {
+              typedSend(IPC.LOAD_WORKSPACE);
+              refetchWorkspaceListRef.current();
+            })
             .catch(() => { /* workspace switch failed */ });
         }
       }
@@ -221,6 +271,11 @@ export function App() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // Dismiss the index.html loading overlay now that React has rendered
+  useEffect(() => {
+    window.__dismissLoadingScreen?.();
+  }, []);
 
   // Listen for menu-triggered actions from main process
   useEffect(() => {
@@ -384,9 +439,6 @@ export function App() {
 
       {/* Settings dialog (modal, renders above everything) */}
       <SettingsPanel />
-
-      {/* Keyboard shortcuts help overlay */}
-      <KeyboardShortcuts />
 
       {/* Command palette (Ctrl+/) */}
       <CommandPalette />

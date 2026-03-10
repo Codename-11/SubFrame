@@ -3,7 +3,25 @@ import type { SortingState } from '@tanstack/react-table';
 
 type PanelId = 'tasks' | 'plugins' | 'sessions' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | null;
 type SidebarState = 'expanded' | 'collapsed' | 'hidden';
-type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | null;
+export type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts' | null;
+
+export interface ViewTab {
+  id: string;       // 'terminal' | any FullViewContent value
+  label: string;    // Display name for the tab
+  closable: boolean; // false for 'terminal'
+}
+
+export const VIEW_TAB_LABELS: Record<string, string> = {
+  terminal: 'Terminal',
+  overview: 'Overview',
+  structureMap: 'Structure Map',
+  tasks: 'Tasks',
+  stats: 'Stats',
+  decisions: 'Decisions',
+  pipeline: 'Pipeline',
+  agentState: 'Agent Activity',
+  shortcuts: 'Keyboard Shortcuts',
+};
 export type StatusFilter = 'all' | 'pending' | 'in_progress' | 'completed' | 'blocked';
 
 interface UIState {
@@ -28,7 +46,12 @@ interface UIState {
   // Full-view overlay (renders inside TerminalArea instead of terminal content)
   fullViewContent: FullViewContent;
   setFullViewContent: (content: FullViewContent) => void;
-  toggleFullView: (content: 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline') => void;
+  toggleFullView: (content: 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts') => void;
+
+  // Tab system
+  openTabs: ViewTab[];
+  openTab: (id: string, label?: string) => void;
+  closeTab: (id: string) => void;
 
   // Editor
   editorFilePath: string | null;
@@ -102,10 +125,77 @@ export const useUIStore = create<UIState>((set, get) => ({
   closeRightPanel: () => set({ activePanel: null, rightPanelVisible: false, rightPanelCollapsed: false }),
 
   fullViewContent: null,
-  setFullViewContent: (content) => set({ fullViewContent: content }),
+  openTabs: [{ id: 'terminal', label: 'Terminal', closable: false }],
+  setFullViewContent: (content) => {
+    const prev = get().fullViewContent;
+    let { openTabs } = get();
+
+    // When opening a view, ensure it has a tab
+    if (content !== null && !openTabs.some(t => t.id === content)) {
+      openTabs = [...openTabs, { id: content, label: VIEW_TAB_LABELS[content] || content, closable: true }];
+    }
+
+    // Sync shortcutsHelpOpen
+    if (prev === 'shortcuts' && content !== 'shortcuts') {
+      set({ fullViewContent: content, shortcutsHelpOpen: false, openTabs });
+    } else if (content === 'shortcuts') {
+      set({ fullViewContent: content, shortcutsHelpOpen: true, openTabs });
+    } else {
+      set({ fullViewContent: content, openTabs });
+    }
+  },
   toggleFullView: (content) => {
     const current = get().fullViewContent;
-    set({ fullViewContent: current === content ? null : content });
+    let { openTabs } = get();
+
+    if (current === content) {
+      // Already viewing this — switch to terminal (keep tab open)
+      if (content === 'shortcuts') {
+        set({ fullViewContent: null, shortcutsHelpOpen: false });
+      } else {
+        set({ fullViewContent: null });
+      }
+    } else {
+      // Switch to this view — add tab if needed
+      if (!openTabs.some(t => t.id === content)) {
+        openTabs = [...openTabs, { id: content, label: VIEW_TAB_LABELS[content] || content, closable: true }];
+      }
+      if (content === 'shortcuts') {
+        set({ fullViewContent: content, shortcutsHelpOpen: true, openTabs });
+      } else {
+        set({ fullViewContent: content, openTabs, ...(current === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+      }
+    }
+  },
+  openTab: (id, label) => {
+    const { openTabs } = get();
+    let next = openTabs;
+    if (!openTabs.some(t => t.id === id)) {
+      next = [...openTabs, { id, label: label || VIEW_TAB_LABELS[id] || id, closable: id !== 'terminal' }];
+    }
+    // Switch to this tab by setting fullViewContent
+    const content = id === 'terminal' ? null : id as FullViewContent;
+    if (id === 'shortcuts') {
+      set({ openTabs: next, fullViewContent: content, shortcutsHelpOpen: true });
+    } else {
+      const prev = get().fullViewContent;
+      set({ openTabs: next, fullViewContent: content, ...(prev === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+    }
+  },
+  closeTab: (id) => {
+    if (id === 'terminal') return; // Can't close terminal
+    const { openTabs, fullViewContent } = get();
+    const next = openTabs.filter(t => t.id !== id);
+    // If closing the active tab, switch to the previous tab or terminal
+    const currentActiveId = fullViewContent ?? 'terminal';
+    if (currentActiveId === id) {
+      const closedIdx = openTabs.findIndex(t => t.id === id);
+      const fallback = (closedIdx > 0 ? openTabs[closedIdx - 1] : next[0]) ?? next[0];
+      const fallbackContent = !fallback || fallback.id === 'terminal' ? null : fallback.id as FullViewContent;
+      set({ openTabs: next, fullViewContent: fallbackContent, ...(id === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+    } else {
+      set({ openTabs: next, ...(id === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+    }
   },
 
   editorFilePath: null,
@@ -135,7 +225,19 @@ export const useUIStore = create<UIState>((set, get) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
   shortcutsHelpOpen: false,
-  setShortcutsHelpOpen: (open) => set({ shortcutsHelpOpen: open }),
+  setShortcutsHelpOpen: (open) => {
+    // Route shortcuts help through the full-view system instead of a modal dialog
+    if (open) {
+      let { openTabs } = get();
+      if (!openTabs.some(t => t.id === 'shortcuts')) {
+        openTabs = [...openTabs, { id: 'shortcuts', label: VIEW_TAB_LABELS['shortcuts'], closable: true }];
+      }
+      set({ shortcutsHelpOpen: true, fullViewContent: 'shortcuts', openTabs });
+    } else {
+      const tabs = get().openTabs.filter(t => t.id !== 'shortcuts');
+      set({ shortcutsHelpOpen: false, fullViewContent: get().fullViewContent === 'shortcuts' ? null : get().fullViewContent, openTabs: tabs });
+    }
+  },
 
   // TasksPanel sort/filter — session-scoped (no localStorage)
   tasksSorting: [{ id: 'status', desc: false }, { id: 'priority', desc: false }],

@@ -17,6 +17,8 @@ import { StatsDetailView } from './StatsDetailView';
 import { DecisionsDetailView } from './DecisionsDetailView';
 import { PipelinePanel } from './PipelinePanel';
 import { AgentStateView } from './AgentStateView';
+import { ShortcutsPanel } from './ShortcutsPanel';
+import { ViewTabBar } from './ViewTabBar';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -105,6 +107,7 @@ export function TerminalArea() {
   const fullViewContent = useUIStore((s) => s.fullViewContent);
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
   const toggleFullView = useUIStore((s) => s.toggleFullView);
+  const closeTab = useUIStore((s) => s.closeTab);
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
   const { settings } = useSettings();
   const { config: aiToolConfig } = useAIToolConfig();
@@ -362,9 +365,11 @@ export function TerminalArea() {
         if (fullViewContent) {
           e.preventDefault();
           if (fullViewContent === 'stats' || fullViewContent === 'decisions' || fullViewContent === 'structureMap' || fullViewContent === 'tasks') {
+            // Overview sub-views: navigate back to overview (switch tabs, don't close)
             setFullViewContent('overview');
           } else {
-            setFullViewContent(null);
+            // Standalone views (overview, pipeline, agentState, shortcuts): close the tab
+            closeTab(fullViewContent);
           }
           return;
         }
@@ -462,6 +467,7 @@ export function TerminalArea() {
     toggleFullView,
     fullViewContent,
     setFullViewContent,
+    closeTab,
     viewMode,
     setViewMode,
   ]);
@@ -472,17 +478,17 @@ export function TerminalArea() {
       // Mouse button 3 = back, 4 = forward
       if (e.button === 3 && fullViewContent) {
         e.preventDefault();
-        // Detail views go back to overview; overview closes entirely
+        // Detail views go back to overview; standalone views close the tab
         if (fullViewContent === 'stats' || fullViewContent === 'decisions' || fullViewContent === 'structureMap' || fullViewContent === 'tasks') {
           setFullViewContent('overview');
         } else {
-          setFullViewContent(null);
+          closeTab(fullViewContent);
         }
       }
     };
     document.addEventListener('mouseup', handler);
     return () => document.removeEventListener('mouseup', handler);
-  }, [fullViewContent, setFullViewContent]);
+  }, [fullViewContent, setFullViewContent, closeTab]);
 
   // Listen for RUN_COMMAND from menu accelerators
   useEffect(() => {
@@ -509,21 +515,25 @@ export function TerminalArea() {
     decisions: 'Project Decisions',
     pipeline: 'Pipeline',
     agentState: 'Agent Activity',
+    shortcuts: 'Keyboard Shortcuts',
   };
   const fullViewTitle = fullViewContent ? fullViewTitles[fullViewContent] ?? '' : '';
 
   return (
     <div className="flex flex-col h-full w-full">
-      <TerminalTabBar
-        onCreateTerminal={createTerminal}
-        onCloseTerminal={closeTerminal}
-        onOverviewToggle={() => togglePanel('overview')}
-        onTogglePanel={(panel) => togglePanel(panel)}
-        projectTerminals={projectTerminals}
-        gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
-          ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
-          : undefined}
-      />
+      <ViewTabBar />
+      {!fullViewContent && (
+        <TerminalTabBar
+          onCreateTerminal={createTerminal}
+          onCloseTerminal={closeTerminal}
+          onOverviewToggle={() => togglePanel('overview')}
+          onTogglePanel={(panel) => togglePanel(panel)}
+          projectTerminals={projectTerminals}
+          gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
+            ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
+            : undefined}
+        />
+      )}
 
       <div className="flex-1 min-h-0">
         {fullViewContent ? (
@@ -532,7 +542,7 @@ export function TerminalArea() {
             {/* Full-view top bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-border-subtle bg-bg-secondary shrink-0">
               <div className="flex items-center gap-2">
-                {fullViewContent && fullViewContent !== 'overview' && fullViewContent !== 'pipeline' && (
+                {fullViewContent && fullViewContent !== 'overview' && fullViewContent !== 'pipeline' && fullViewContent !== 'shortcuts' && (
                   <button
                     onClick={() => setFullViewContent('overview')}
                     className="flex items-center gap-1 px-2 py-1 rounded text-[11px] text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
@@ -545,7 +555,7 @@ export function TerminalArea() {
                 <span className="text-xs font-medium text-text-primary">{fullViewTitle}</span>
               </div>
               <button
-                onClick={() => setFullViewContent(null)}
+                onClick={() => closeTab(fullViewContent!)}
                 className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                 title="Close (Esc)"
               >
@@ -560,7 +570,7 @@ export function TerminalArea() {
                   <OverviewPanel isFullView />
                 )}
                 {fullViewContent === 'structureMap' && (
-                  <StructureMap open inline onClose={() => setFullViewContent(null)} />
+                  <StructureMap open inline onClose={() => closeTab('structureMap')} />
                 )}
                 {fullViewContent === 'tasks' && (
                   <TasksPanel isFullView />
@@ -576,6 +586,9 @@ export function TerminalArea() {
                 )}
                 {fullViewContent === 'agentState' && (
                   <AgentStateView isFullView />
+                )}
+                {fullViewContent === 'shortcuts' && (
+                  <ShortcutsPanel />
                 )}
               </ErrorBoundary>
             </div>

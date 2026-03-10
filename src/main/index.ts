@@ -102,11 +102,14 @@ function createSplash(bounds: Partial<Electron.Rectangle>, isMaximized?: boolean
         background: ${LOGO_COLORS.gradientCSS};
         animation: s 1.2s ease-in-out infinite; }
       @keyframes s { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }
+      .st { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 11px; color: #a8a29e; letter-spacing: 0.2px; }
     </style></head><body>
       <div class="c">
         ${logoSVG}
         <span class="t">SubFrame</span>
         <div class="bar"><div class="fill"></div></div>
+        <span class="st">Loading workspace...</span>
       </div>
     </body></html>`;
 

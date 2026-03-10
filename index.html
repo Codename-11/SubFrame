@@ -63,10 +63,18 @@
       0% { transform: translateX(-100%); }
       100% { transform: translateX(400%); }
     }
+    .loading-stage-text {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 11px;
+      color: #a8a29e;
+      letter-spacing: 0.2px;
+    }
   </style>
 </head>
 <body>
-  <!-- Loading screen — pure CSS, renders before any JS executes -->
+  <!-- Loading screen — pure CSS, renders before any JS executes
+       Logo SVG duplicated here because index.html loads before bundling.
+       Canonical source: src/shared/logoSVG.ts — keep in sync with getLogoSVG(). -->
   <div id="app-loading">
     <div class="loading-content">
       <svg width="140" height="140" viewBox="0 0 180 180">
@@ -86,6 +94,7 @@
       </svg>
       <span class="loading-logo-text">SubFrame</span>
       <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+      <span class="loading-stage-text">Loading workspace...</span>
     </div>
   </div>
 
@@ -94,19 +103,18 @@
 
   <script src="dist/renderer.js"></script>
   <script>
-    // Dismiss loading screen once React has mounted
-    window.addEventListener('DOMContentLoaded', () => {
-      // Give React a moment to render
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          const loadingEl = document.getElementById('app-loading');
-          if (loadingEl) {
-            loadingEl.classList.add('fade-out');
-            loadingEl.addEventListener('transitionend', () => loadingEl.remove(), { once: true });
-          }
-        }, 200);
-      });
-    });
+    // Dismiss loading screen — called by React after first render.
+    // Using a global callback ensures the overlay stays visible until
+    // the UI is actually painted, avoiding a flash of blank content.
+    window.__dismissLoadingScreen = function() {
+      var loadingEl = document.getElementById('app-loading');
+      if (loadingEl) {
+        loadingEl.classList.add('fade-out');
+        loadingEl.addEventListener('transitionend', function() { loadingEl.remove(); }, { once: true });
+      }
+    };
+    // Fallback: if React never calls it (e.g. render error), dismiss after 5s
+    setTimeout(function() { if (window.__dismissLoadingScreen) window.__dismissLoadingScreen(); }, 5000);
   </script>
 </body>
 </html>

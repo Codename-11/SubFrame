@@ -103,6 +103,8 @@ interface RegistryEntry extends TerminalInstance {
   holderDiv: HTMLDivElement;
   ipcCleanup: () => void;
   userMessageMarkers: UserMessageMarker[];
+  /** Timestamp when Claude was last detected as active — used for grace period */
+  lastActiveTimestamp: number;
 }
 
 const registry = new Map<string, RegistryEntry>();
@@ -211,7 +213,7 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
   ipcRenderer.on(IPC.TERMINAL_OUTPUT_ID, handler);
   const ipcCleanup = () => ipcRenderer.removeListener(IPC.TERMINAL_OUTPUT_ID, handler);
 
-  const entry: RegistryEntry = { terminal, fitAddon, searchAddon, holderDiv, ipcCleanup, userMessageMarkers: [] };
+  const entry: RegistryEntry = { terminal, fitAddon, searchAddon, holderDiv, ipcCleanup, userMessageMarkers: [], lastActiveTimestamp: 0 };
   registry.set(id, entry);
   return entry;
 }
@@ -344,4 +346,17 @@ export function clearUserMessageMarkers(id: string): void {
     umm.marker.dispose();
   }
   entry.userMessageMarkers = [];
+}
+
+/** Mark terminal as recently active (Claude detected). Timestamp persists across React remounts. */
+export function setLastActive(id: string): void {
+  const entry = registry.get(id);
+  if (entry) entry.lastActiveTimestamp = Date.now();
+}
+
+/** Check if Claude was active within the grace window (default 60s). Survives component remount. */
+export function wasRecentlyActive(id: string, windowMs = 60_000): boolean {
+  const entry = registry.get(id);
+  if (!entry) return false;
+  return (Date.now() - entry.lastActiveTimestamp) < windowMs;
 }

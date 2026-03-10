@@ -3,7 +3,7 @@
  * Single source of truth for all keyboard shortcuts in SubFrame.
  *
  * Components consume this registry:
- * - KeyboardShortcuts.tsx  — auto-generates the shortcuts help modal
+ * - ShortcutsPanel.tsx     — auto-generates the shortcuts full-view panel
  * - CommandPalette.tsx     — displays shortcut badges next to commands
  * - App.tsx / TerminalArea.tsx — event handlers reference key combos
  *
@@ -136,7 +136,7 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutEntry> = {
   COMMAND_PALETTE_ALT: { keys: 'Ctrl+Shift+P',  description: 'Command palette (alt)', category: 'Other' },
   QUICK_TASKS:         { keys: 'Ctrl+\'',       description: 'Quick tasks',           category: 'Other' },
   SETTINGS:            { keys: 'Ctrl+,',        description: 'Settings',              category: 'Other' },
-  SHORTCUTS_HELP:      { keys: 'Ctrl+Shift+/',  description: 'Keyboard shortcuts',    category: 'Other' },
+  SHORTCUTS_HELP:      { keys: 'Ctrl+Shift+/',  description: 'Keyboard shortcuts',    category: 'Views' },
   EDITOR_FULLSCREEN:   { keys: 'F11',           description: 'Editor fullscreen',     category: 'Other' },
 };
 

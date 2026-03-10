@@ -30,6 +30,7 @@ import { useIpcQuery } from '../hooks/useIpc';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
+import { Kbd } from './ui/kbd';
 import type { WorkspaceListEntry, WorkspaceListResult } from '../../shared/ipcChannels';
 
 /**
@@ -194,7 +195,9 @@ export function WorkspaceSelector() {
                   <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
                 )}
                 {idx <= 9 && (
-                  <span className="ml-auto text-[10px] font-mono text-text-muted opacity-60 pl-3">Ctrl+Alt+{idx}</span>
+                  <span className="ml-auto pl-3">
+                    <Kbd compact>{`Ctrl+Alt+${idx}`}</Kbd>
+                  </span>
                 )}
               </DropdownMenuItem>
             );

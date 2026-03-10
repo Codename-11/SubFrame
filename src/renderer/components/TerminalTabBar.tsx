@@ -271,7 +271,7 @@ export function TerminalTabBar({
         as="div"
       >
         <AnimatePresence initial={false}>
-          {terminalList.map((t) => (
+          {terminalList.map((t, idx) => (
             <Reorder.Item
               key={t.id}
               value={t}
@@ -334,6 +334,9 @@ export function TerminalTabBar({
                         />
                       ) : (
                         <>
+                          {idx < 9 && (
+                            <span className="font-mono text-[10px] text-text-muted opacity-70 mr-0.5">{idx + 1}</span>
+                          )}
                           <span className="truncate max-w-[120px]">{t.name}</span>
                           {gridOverflowIds?.has(t.id) && (
                             <span

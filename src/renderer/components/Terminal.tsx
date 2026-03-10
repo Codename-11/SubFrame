@@ -6,7 +6,7 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowDown, ArrowUp, Copy, ClipboardPaste, MousePointerClick, Trash2, Search, X, MessageSquare } from 'lucide-react';
+import { ArrowDown, ArrowDownToLine, ArrowUp, Copy, ClipboardPaste, MousePointerClick, Trash2, Search, X, MessageSquare } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -80,10 +80,9 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const userMessageColor = (generalSettings.userMessageColor as string) || '#ff6eb4';
   const claudeActive = useTerminalStore((s) => s.terminals.get(terminalId)?.claudeActive ?? false);
   const [userMessageCount, setUserMessageCount] = useState(0);
+  const [hasMessageAbove, setHasMessageAbove] = useState(false);
+  const [hasMessageBelow, setHasMessageBelow] = useState(false);
   const inputBufferRef = useRef('');
-  // Grace period: keep tracking user input for 60s after claudeActive goes false
-  // (users often take >8s to compose messages while Claude waits at its prompt)
-  const wasRecentlyActiveRef = useRef(false);
 
   // Capture IPC output for overlay display (terminal.write handled by registry)
   // Throttled: accumulate data in ref, flush to state at most every 100ms
@@ -113,52 +112,50 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     };
   }, [terminalId]);
 
-  // Track claudeActive with a grace period so input listener survives prompt wait
+  // Persist activity timestamp in registry — survives component remount during workspace switch.
+  // Set timestamp on true→false transition so the 60s grace period starts when Claude goes INACTIVE.
+  const prevClaudeActiveRef = useRef(false);
   useEffect(() => {
-    if (claudeActive) {
-      wasRecentlyActiveRef.current = true;
-      return;
+    if (claudeActive && !prevClaudeActiveRef.current) {
+      // Claude just became active — set timestamp (also covers fresh mounts with active terminal)
+      terminalRegistry.setLastActive(terminalId);
     }
-    // After claudeActive goes false, keep grace period for 60s
-    // (Claude's prompt detection timeout is 8s, but users may take much longer to type)
-    const timeout = setTimeout(() => {
-      wasRecentlyActiveRef.current = false;
-    }, 60_000);
-    return () => clearTimeout(timeout);
-  }, [claudeActive]);
+    if (!claudeActive && prevClaudeActiveRef.current) {
+      // Claude just became inactive — refresh timestamp so grace period starts from NOW
+      terminalRegistry.setLastActive(terminalId);
+    }
+    prevClaudeActiveRef.current = claudeActive;
+  }, [claudeActive, terminalId]);
 
   // Track user messages — detect Enter during agent sessions (with grace period)
-  // Listener stays alive while setting is enabled; checks activity at submit time
+  // Reads terminal from registry (not ref) to avoid race condition during terminal switch
   useEffect(() => {
     if (!highlightUserMessages) {
       inputBufferRef.current = '';
       return;
     }
-    const terminal = terminalRef.current;
-    if (!terminal) return;
+    const instance = terminalRegistry.get(terminalId);
+    if (!instance) return;
 
-    const disposable = terminal.onData((data: string) => {
-      // Accumulate input to detect non-empty submissions
+    const disposable = instance.terminal.onData((data: string) => {
       if (data === '\r' || data === '\n') {
         const typed = inputBufferRef.current.trim();
         inputBufferRef.current = '';
-        // Check activity at submit time (not at listener setup time)
-        if (typed.length > 0 && wasRecentlyActiveRef.current) {
+        // Check activity at submit time — registry timestamp survives component remount
+        if (typed.length > 0 && terminalRegistry.wasRecentlyActive(terminalId)) {
           terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor);
         }
       } else if (data === '\x7f' || data === '\b') {
-        // Backspace
         inputBufferRef.current = inputBufferRef.current.slice(0, -1);
       } else if (data.length === 1 && data >= ' ') {
         inputBufferRef.current += data;
       } else if (data.length > 1 && !data.startsWith('\x1b')) {
-        // Pasted text
         inputBufferRef.current += data;
       }
     });
 
     return () => disposable.dispose();
-  }, [highlightUserMessages, terminalId, terminalRef]);
+  }, [highlightUserMessages, terminalId, userMessageColor]);
 
   // Wire xterm input → IPC and resize → IPC
   useEffect(() => {
@@ -204,14 +201,54 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     inputBufferRef.current = '';
     // Sync marker count from registry (markers persist on the xterm instance)
     setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
+    // Defer nav state until terminal is attached and buffer is ready
+    requestAnimationFrame(() => computeMessageNavRef.current());
   }, [terminalId]);
 
   // Subscribe to marker count changes (covers both add and scrollback-dispose)
   useEffect(() => {
     return terminalRegistry.onMarkerChange(terminalId, () => {
       setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
+      computeMessageNavRef.current();
     });
   }, [terminalId]);
+
+  // Reset nav state when user message highlighting is toggled off
+  useEffect(() => {
+    if (!highlightUserMessages) {
+      setHasMessageAbove(false);
+      setHasMessageBelow(false);
+    }
+  }, [highlightUserMessages]);
+
+  // Compute message navigation state (above/below viewport) — stored in ref so
+  // scroll handler and marker handler can call without stale closures
+  const computeMessageNavRef = useRef<() => void>(() => {});
+  computeMessageNavRef.current = () => {
+    if (!highlightUserMessages) {
+      setHasMessageAbove(false);
+      setHasMessageBelow(false);
+      return;
+    }
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    const markers = terminalRegistry.getUserMessageMarkers(terminalId);
+    if (markers.length === 0) {
+      setHasMessageAbove(false);
+      setHasMessageBelow(false);
+      return;
+    }
+    const vY = terminal.buffer.active.viewportY;
+    const vBottom = vY + terminal.rows;
+    let above = false, below = false;
+    for (const m of markers) {
+      if (m.marker.line < vY) above = true;
+      if (m.marker.line >= vBottom) below = true;
+      if (above && below) break;
+    }
+    setHasMessageAbove(above);
+    setHasMessageBelow(below);
+  };
 
   // Scroll-to-bottom tracking via xterm viewport DOM element
   useEffect(() => {
@@ -235,6 +272,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
           setRecentOutput([]);
           outputBufferRef.current = '';
         }
+        computeMessageNavRef.current();
       }, SCROLL_THROTTLE_MS);
     };
 
@@ -349,29 +387,40 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     outputBufferRef.current = '';
   }, [terminalRef]);
 
-  // Scroll to the last user message marker
-  const handleScrollToLastMessage = useCallback(() => {
+  // Navigate to previous user message (above viewport)
+  const handleScrollToPrevMessage = useCallback(() => {
     const terminal = terminalRef.current;
     if (!terminal) return;
+    // Fit before reading viewport to avoid stale positions after reattach reflow
+    try { fitAddonRef.current?.fit(); } catch { /* ignore */ }
     const markers = terminalRegistry.getUserMessageMarkers(terminalId);
     if (markers.length === 0) return;
 
-    // Use xterm's buffer viewportY (top visible line in scrollback) for accurate position
-    const buf = terminal.buffer.active;
-    const topVisibleLine = buf.viewportY;
-
-    // Find the nearest marker above the top of the viewport, or the last one
-    let target = markers[markers.length - 1];
+    const viewportY = terminal.buffer.active.viewportY;
     for (let i = markers.length - 1; i >= 0; i--) {
-      const markerLine = markers[i].marker.line;
-      if (markerLine < topVisibleLine) {
-        target = markers[i];
-        break;
+      if (markers[i].marker.line < viewportY) {
+        terminal.scrollToLine(Math.max(0, markers[i].marker.line - 2));
+        return;
       }
     }
+  }, [terminalRef, fitAddonRef, terminalId]);
 
-    terminal.scrollToLine(Math.max(0, target.marker.line - 2));
-  }, [terminalRef, terminalId]);
+  // Navigate to next user message (below viewport)
+  const handleScrollToNextMessage = useCallback(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    try { fitAddonRef.current?.fit(); } catch { /* ignore */ }
+    const markers = terminalRegistry.getUserMessageMarkers(terminalId);
+    if (markers.length === 0) return;
+
+    const viewportBottom = terminal.buffer.active.viewportY + terminal.rows;
+    for (const m of markers) {
+      if (m.marker.line >= viewportBottom) {
+        terminal.scrollToLine(Math.max(0, m.marker.line - 2));
+        return;
+      }
+    }
+  }, [terminalRef, fitAddonRef, terminalId]);
 
   // Search helpers
   const handleSearchNext = useCallback(() => {
@@ -489,33 +538,58 @@ export function Terminal({ terminalId, className }: TerminalProps) {
                   ))}
                 </div>
                 <div className="flex items-center justify-center gap-1 mt-1 text-[10px] text-accent/70">
-                  <ArrowDown className="h-3 w-3" />
+                  <ArrowDownToLine className="h-3 w-3" />
                   <span>Click to scroll to bottom</span>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Scroll-to-last-message button — visible when scrolled up and messages exist */}
+          {/* Message stepping buttons — navigate between user messages */}
           <AnimatePresence>
-            {showScrollBtn && highlightUserMessages && userMessageCount > 0 && (
+            {highlightUserMessages && hasMessageAbove && (
               <motion.button
+                key="prev-msg"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleScrollToLastMessage();
+                  handleScrollToPrevMessage();
                 }}
-                className={`absolute right-4 z-20 flex h-8 items-center gap-1.5 px-2.5
+                style={{ bottom: `${((showScrollBtn ? (hasMessageBelow ? 2 : 1) : (hasMessageBelow ? 1 : 0)) * 2.5 + (recentOutput.length > 0 ? 6 : 1))}rem` }}
+                className="absolute right-4 z-20 flex h-8 items-center gap-1.5 px-2.5
                            rounded-full bg-bg-elevated border border-border-subtle
                            text-text-secondary hover:text-accent hover:border-accent/60
-                           transition-all shadow-lg cursor-pointer
-                           ${recentOutput.length > 0 ? 'bottom-36' : 'bottom-14'}`}
-                title="Scroll to last message"
+                           transition-all shadow-lg cursor-pointer"
+                title="Previous user message"
               >
                 <ArrowUp className="h-3.5 w-3.5" />
+                <MessageSquare className="h-3 w-3" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {highlightUserMessages && hasMessageBelow && (
+              <motion.button
+                key="next-msg"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleScrollToNextMessage();
+                }}
+                style={{ bottom: `${((showScrollBtn ? 1 : 0) * 2.5 + (recentOutput.length > 0 ? 6 : 1))}rem` }}
+                className="absolute right-4 z-20 flex h-8 items-center gap-1.5 px-2.5
+                           rounded-full bg-bg-elevated border border-border-subtle
+                           text-text-secondary hover:text-accent hover:border-accent/60
+                           transition-all shadow-lg cursor-pointer"
+                title="Next user message"
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
                 <MessageSquare className="h-3 w-3" />
               </motion.button>
             )}
@@ -547,7 +621,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
                            ${recentOutput.length > 0 ? 'bottom-24' : 'bottom-4'}`}
                 title="Scroll to bottom"
               >
-                <ArrowDown className="h-4 w-4" />
+                <ArrowDownToLine className="h-4 w-4" />
               </motion.button>
             )}
           </AnimatePresence>
