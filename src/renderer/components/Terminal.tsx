@@ -123,6 +123,15 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     if (!claudeActive && prevClaudeActiveRef.current) {
       // Claude just became inactive — refresh timestamp so grace period starts from NOW
       terminalRegistry.setLastActive(terminalId);
+      // Force scroll button re-evaluation — during active output we freeze showScrollBtn,
+      // so after output stops we need one final check in case no more render events fire
+      setTimeout(() => {
+        const viewport = containerRef.current?.querySelector('.xterm-viewport');
+        if (viewport) {
+          const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2;
+          setShowScrollBtn(!atBottom);
+        }
+      }, 150);
     }
     prevClaudeActiveRef.current = claudeActive;
   }, [claudeActive, terminalId]);
@@ -267,7 +276,12 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         scrollThrottleTimer = null;
         if (!viewport) return;
         const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2;
-        setShowScrollBtn(!atBottom);
+        // When Claude is actively writing and terminal is at bottom, don't toggle
+        // showScrollBtn — prevents rapid true/false flicker that bounces stepping buttons
+        const isActive = useTerminalStore.getState().terminals.get(terminalId)?.claudeActive ?? false;
+        if (!(isActive && atBottom)) {
+          setShowScrollBtn(!atBottom);
+        }
         if (atBottom) {
           setRecentOutput([]);
           outputBufferRef.current = '';
@@ -551,14 +565,17 @@ export function Terminal({ terminalId, className }: TerminalProps) {
               <motion.button
                 key="prev-msg"
                 initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  bottom: `${((showScrollBtn ? (hasMessageBelow ? 2 : 1) : (hasMessageBelow ? 1 : 0)) * 2.5 + (recentOutput.length > 0 ? 6 : 1))}rem`,
+                }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleScrollToPrevMessage();
                 }}
-                style={{ bottom: `${((showScrollBtn ? (hasMessageBelow ? 2 : 1) : (hasMessageBelow ? 1 : 0)) * 2.5 + (recentOutput.length > 0 ? 6 : 1))}rem` }}
                 className="absolute right-4 z-20 flex h-8 items-center gap-1.5 px-2.5
                            rounded-full bg-bg-elevated border border-border-subtle
                            text-text-secondary hover:text-accent hover:border-accent/60
@@ -575,14 +592,17 @@ export function Terminal({ terminalId, className }: TerminalProps) {
               <motion.button
                 key="next-msg"
                 initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  bottom: `${((showScrollBtn ? 1 : 0) * 2.5 + (recentOutput.length > 0 ? 6 : 1))}rem`,
+                }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleScrollToNextMessage();
                 }}
-                style={{ bottom: `${((showScrollBtn ? 1 : 0) * 2.5 + (recentOutput.length > 0 ? 6 : 1))}rem` }}
                 className="absolute right-4 z-20 flex h-8 items-center gap-1.5 px-2.5
                            rounded-full bg-bg-elevated border border-border-subtle
                            text-text-secondary hover:text-accent hover:border-accent/60

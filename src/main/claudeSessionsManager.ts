@@ -328,15 +328,27 @@ function applyFriendlyNames(sessions: GroupedSession[], projectPath: string): Gr
 }
 
 /**
- * Set a friendly name for a session
+ * Set a friendly name for a session.
+ * Stores alias under BOTH sessionId and slug so the name survives
+ * session compaction (which creates a new segment with a new sessionId
+ * but the same slug).
  */
 function renameSession(projectPath: string, sessionId: string, name: string): boolean {
   try {
     const meta = loadMeta(projectPath);
-    if (name.trim()) {
-      meta.aliases[sessionId] = name.trim();
+    const trimmed = name.trim();
+
+    // Find the slug for this session so we can key by slug too
+    const sessions = getSessionsForProject(projectPath);
+    const session = sessions.find(s => s.sessionId === sessionId);
+    const slug = session?.slug;
+
+    if (trimmed) {
+      meta.aliases[sessionId] = trimmed;
+      if (slug) meta.aliases[slug] = trimmed;
     } else {
       delete meta.aliases[sessionId];
+      if (slug) delete meta.aliases[slug];
     }
     saveMeta(projectPath, meta);
     return true;
@@ -465,16 +477,29 @@ function hasActiveSession(projectPath: string): boolean {
 /**
  * Get the best display name for a terminal's active Claude session.
  * Priority: friendlyName > customTitle > firstPrompt > slug
+ *
+ * When sessionId is provided, we look for that specific session to avoid
+ * "name bleed" where all terminals in a project get the same name.
+ * Falls back to the most recently modified session if sessionId is not
+ * found or not provided.
  */
-function getSessionNameForTerminal(terminalId: string): string | null {
+function getSessionNameForTerminal(terminalId: string, sessionId?: string): string | null {
   const info = ptyManager.getTerminalInfo(terminalId);
   if (!info?.projectPath) return null;
 
   const sessions = getSessionsForProject(info.projectPath);
   if (sessions.length === 0) return null;
 
-  // Use the most recently modified session
-  const session = sessions[0];
+  // Prefer the specific correlated session for this terminal
+  let session: GroupedSession | undefined;
+  if (sessionId) {
+    session = sessions.find(s => s.sessionId === sessionId);
+  }
+  // Fall back to most recently modified session
+  if (!session) {
+    session = sessions[0];
+  }
+
   const name = session.friendlyName || session.customTitle || session.firstPrompt || session.slug;
   if (!name) return null;
 
@@ -511,8 +536,8 @@ function setupIPC(ipcMain: IpcMain): void {
     return deleteAllSessions(projectPath);
   });
 
-  ipcMain.handle(IPC.GET_TERMINAL_SESSION_NAME, async (_event, payload: { terminalId: string }) => {
-    return { name: getSessionNameForTerminal(payload.terminalId) };
+  ipcMain.handle(IPC.GET_TERMINAL_SESSION_NAME, async (_event, payload: { terminalId: string; sessionId?: string }) => {
+    return { name: getSessionNameForTerminal(payload.terminalId, payload.sessionId) };
   });
 }
 

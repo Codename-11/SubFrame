@@ -52,6 +52,9 @@ export const GITHOOKS_DIR: string = '.githooks';
 /** Tasks directory for individual markdown task files */
 export const FRAME_TASKS_DIR: string = path.join('.subframe', 'tasks');
 
+/** Private tasks directory (gitignored) */
+export const FRAME_TASKS_PRIVATE_DIR: string = path.join('.subframe', 'tasks', 'private');
+
 /** Pipeline workflows directory */
 export const FRAME_WORKFLOWS_DIR: string = path.join('.subframe', 'workflows');
 

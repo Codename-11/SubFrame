@@ -83,20 +83,28 @@ export function insertPromptIntoTerminal(
 }
 
 /**
- * Send a command string to the active terminal and execute it.
+ * Send a command string to a terminal and execute it.
+ * When targetTerminalId is provided, the command is sent to that specific
+ * terminal (used for session resume to avoid sending to the wrong terminal).
+ * Falls back to the active terminal when no target is specified.
  * Returns true if the command was sent successfully.
  */
-export function sendCommandToTerminal(command: string): boolean {
-  const { activeTerminalId } = useTerminalStore.getState();
-  if (!activeTerminalId) {
+export function sendCommandToTerminal(command: string, targetTerminalId?: string): boolean {
+  const store = useTerminalStore.getState();
+  const terminalId = targetTerminalId ?? store.activeTerminalId;
+  if (!terminalId || !store.terminals.has(terminalId)) {
     toast.warning('No active terminal', { description: 'Open a terminal first.' });
     return false;
   }
-  typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: command + '\r' });
+  typedSend(IPC.TERMINAL_INPUT_ID, { terminalId, data: command + '\r' });
+  // Focus the target terminal and make it active
+  if (terminalId !== store.activeTerminalId) {
+    store.setActiveTerminal(terminalId);
+  }
   // Focus the xterm instance so the terminal is ready for interaction.
   // 100ms delay ensures Radix Dialog/Dropdown focus-restore completes first.
   setTimeout(() => {
-    const instance = terminalRegistry.get(activeTerminalId);
+    const instance = terminalRegistry.get(terminalId);
     if (instance) instance.terminal.focus();
   }, 100);
   return true;

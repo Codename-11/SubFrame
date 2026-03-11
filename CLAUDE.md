@@ -92,8 +92,8 @@ node scripts/task.js list [--all]          # Show active sub-tasks
 node scripts/task.js get <id>              # Full sub-task details (with step progress)
 node scripts/task.js start <id>            # pending → in_progress
 node scripts/task.js complete <id>         # → completed
-node scripts/task.js add --title "..." [--description "..." --priority medium --category feature --blocked-by id1,id2 --blocks id3 --user-request "..." --acceptance-criteria "..." --add-step "Step 1" --add-step "Step 2"]
-node scripts/task.js update <id> [--status pending --notes "..." --add-note "..." --add-step "..." --complete-step <index>]
+node scripts/task.js add --title "..." [--description "..." --priority medium --category feature --blocked-by id1,id2 --blocks id3 --user-request "..." --acceptance-criteria "..." --add-step "Step 1" --add-step "Step 2" --private]
+node scripts/task.js update <id> [--status pending --notes "..." --add-note "..." --add-step "..." --complete-step <index> --private|--public]
 node scripts/task.js open <id>             # Print absolute path to .md file
 node scripts/task.js archive               # Move completed .md files to .subframe/tasks/archive/YYYY/
 ```

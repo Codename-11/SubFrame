@@ -408,6 +408,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const [formSteps, setFormSteps] = useState<TaskStep[]>([]);
   const [formAcceptanceCriteria, setFormAcceptanceCriteria] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formPrivate, setFormPrivate] = useState(false);
   const [formBlockedBy, setFormBlockedBy] = useState<string[]>([]);
   const [formBlocks, setFormBlocks] = useState<string[]>([]);
   const [blockedBySelect, setBlockedBySelect] = useState('');
@@ -519,8 +520,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       {
         accessorKey: 'title',
         header: ({ column }) => <SortHeader column={column} label="Title" />,
-        cell: ({ getValue }) => (
-          <span className="text-text-primary font-medium line-clamp-2 leading-tight" title={getValue() as string}>
+        cell: ({ row, getValue }) => (
+          <span className="text-text-primary font-medium line-clamp-2 leading-tight flex items-center gap-1.5" title={getValue() as string}>
+            {row.original.private && <Lock className="w-3 h-3 text-amber-500/70 shrink-0" />}
             {getValue() as string}
           </span>
         ),
@@ -659,6 +661,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormSteps([]);
     setFormAcceptanceCriteria('');
     setFormNotes('');
+    setFormPrivate(false);
     setFormBlockedBy([]);
     setFormBlocks([]);
     setBlockedBySelect('');
@@ -680,6 +683,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormSteps(task.steps?.map((s) => ({ ...s })) || []);
     setFormAcceptanceCriteria(task.acceptanceCriteria || '');
     setFormNotes(task.notes || '');
+    setFormPrivate(!!task.private);
     setFormBlockedBy(task.blockedBy ?? []);
     setFormBlocks(task.blocks ?? []);
     setBlockedBySelect('');
@@ -716,6 +720,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       steps: steps.filter((s) => s.label.trim()), // Drop empty-label steps
       acceptanceCriteria: acceptanceCriteria || undefined,
       notes: notes || undefined,
+      private: formPrivate || undefined,
       blockedBy: formBlockedBy.length ? formBlockedBy : undefined,
       blocks: formBlocks.length ? formBlocks : undefined,
     };
@@ -1321,6 +1326,26 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                 </select>
               </div>
             )}
+
+            {/* Private toggle */}
+            <label className="flex items-center gap-2 cursor-pointer select-none group">
+              <div
+                role="checkbox"
+                aria-checked={formPrivate}
+                tabIndex={0}
+                onClick={() => setFormPrivate(!formPrivate)}
+                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setFormPrivate(!formPrivate); } }}
+                className={cn(
+                  'w-4 h-4 rounded border flex items-center justify-center transition-colors',
+                  formPrivate
+                    ? 'bg-amber-600/80 border-amber-500'
+                    : 'bg-bg-deep border-border-subtle group-hover:border-border-default'
+                )}
+              >
+                {formPrivate && <Lock className="w-2.5 h-2.5 text-white" />}
+              </div>
+              <span className="text-xs text-text-secondary">Private <span className="text-text-muted">(local only, excluded from git)</span></span>
+            </label>
           </div>
           </ScrollArea>
 

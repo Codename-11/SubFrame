@@ -1,3 +1,5 @@
+<!-- @subframe-version 0.2.5-beta -->
+<!-- @subframe-managed -->
 ---
 name: sub-tasks
 description: View and manage SubFrame Sub-Tasks. Use when starting work, completing tasks, checking what's pending, or creating new tasks from conversation.
@@ -30,6 +32,7 @@ title: My task title
 status: pending
 priority: medium
 category: feature
+private: true          # optional — stored in .subframe/tasks/private/ (gitignored)
 description: What needs to be done
 userRequest: The user's original words
 acceptanceCriteria: How to verify completion
@@ -70,6 +73,7 @@ Create a new `.subframe/tasks/<id>.md` file with:
 - Set `status: pending`, `createdAt` and `updatedAt` to current ISO timestamp
 - `completedAt: null`
 - Include all required fields in frontmatter
+- If private: set `private: true` in frontmatter and save to `.subframe/tasks/private/<id>.md`
 
 #### Update a task
 Edit the frontmatter fields as needed. Always update `updatedAt`.
@@ -79,7 +83,7 @@ Move completed `.md` files to `.subframe/tasks/archive/YYYY/` (create directory 
 
 ### After Any Write Operation
 
-Regenerate the `.subframe/tasks.json` index by reading all `.subframe/tasks/*.md` files (excluding archive/) and building the JSON structure with tasks grouped by status (pending, inProgress, completed).
+Regenerate the `.subframe/tasks.json` index by reading all `.subframe/tasks/*.md` files (excluding archive/) and building the JSON structure with tasks grouped by status (pending, inProgress, completed). **Private tasks** (those in `.subframe/tasks/private/`) are excluded from the index since it's git-tracked.
 
 ### If invoked without arguments
 
@@ -99,36 +103,6 @@ When the user says things like "let's do this later", "add a task for...", or "w
 1. Capture the user's exact words as `userRequest`
 2. Write a detailed `description` explaining what, how, and which files
 3. Set appropriate `priority` and `category`
-4. **Break down the work into steps** — add a `## Steps` section with `- [ ] Step label` checkboxes for each discrete piece of work. This enables the TaskTimeline UI stepper in SubFrame.
-5. Include `acceptanceCriteria` describing how to verify completion
-6. Create the .md file
-7. Regenerate the index
-8. Confirm the task was created
-
-### Writing rich task files
-
-Always include these sections when they add value:
-- **`## Steps`** — Checklist of discrete work items (`- [ ] Label`). The UI renders these as an interactive stepper with progress tracking.
-- **`## User Request`** — The user's original words as blockquotes (`> words`).
-- **`## Acceptance Criteria`** — How to verify the task is complete.
-- **`## Notes`** — Session notes, context, links to related files.
-
-Example of a well-structured task body:
-```markdown
-Implement platform-aware download buttons on the docs landing page.
-
-## Steps
-
-- [ ] Add platform detection via navigator.userAgent
-- [ ] Create download button component with OS-specific label
-- [ ] Add fallback download links for all platforms
-- [ ] Test on mobile viewports
-
-## User Request
-
-> Enhance the download section to detect the user's platform
-
-## Acceptance Criteria
-
-Download button shows correct OS label; all platforms remain accessible via secondary links.
-```
+4. Create the .md file
+5. Regenerate the index
+6. Confirm the task was created

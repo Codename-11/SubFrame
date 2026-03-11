@@ -206,9 +206,14 @@ export function TerminalTabBar({
 
   const refreshSessionName = useCallback(async (terminalId: string) => {
     try {
-      const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, { terminalId });
+      const terminal = useTerminalStore.getState().terminals.get(terminalId);
+      const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, {
+        terminalId,
+        sessionId: terminal?.claudeSessionId,
+      });
       if (result.name) {
         renameTerminal(terminalId, result.name, 'session');
+        toast.success(`Tab renamed: ${result.name}`, { duration: 2000 });
       } else {
         toast.info('No Claude session found for this terminal');
       }
@@ -219,7 +224,9 @@ export function TerminalTabBar({
 
   const resetTerminalName = useCallback((terminal: TerminalInfo) => {
     const index = terminalList.indexOf(terminal) + 1;
-    renameTerminal(terminal.id, `Terminal ${index}`, 'default');
+    const defaultName = `Terminal ${index}`;
+    renameTerminal(terminal.id, defaultName, 'default');
+    toast.info(`Tab reset: ${defaultName}`, { duration: 2000 });
   }, [terminalList, renameTerminal]);
 
   const handleReorder = useCallback(

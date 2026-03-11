@@ -564,6 +564,7 @@ export function getTasksTemplate(projectName: string): TasksTemplate {
       blockedBy: "Array of task IDs this task depends on",
       blocks: "Array of task IDs that depend on this task",
       steps: "Array of { label, completed } — parsed from ## Steps checkboxes",
+      private: "boolean — if true, task is stored locally and excluded from git",
       createdAt: "ISO timestamp",
       updatedAt: "ISO timestamp",
       completedAt: "ISO timestamp | null"
@@ -1083,20 +1084,63 @@ export function getSessionStartHookTemplate(): string {
 const fs = require('fs');
 const path = require('path');
 
-function findTasksFile(startDir) {
+function findProjectRoot(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== path.dirname(dir)) {
     const tasksPath = path.join(dir, '.subframe', 'tasks.json');
-    if (fs.existsSync(tasksPath)) return tasksPath;
+    if (fs.existsSync(tasksPath)) return dir;
     dir = path.dirname(dir);
   }
   return null;
 }
 
-function main() {
-  const tasksPath = findTasksFile();
-  if (!tasksPath) process.exit(0);
+/**
+ * Read private tasks from .subframe/tasks/private/ (if it exists).
+ * Minimal parser — extracts id, title, status, priority, private flag from frontmatter.
+ */
+function readPrivateTasks(root) {
+  const privateDir = path.join(root, '.subframe', 'tasks', 'private');
+  if (!fs.existsSync(privateDir)) return [];
+  const tasks = [];
+  try {
+    const files = fs.readdirSync(privateDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(path.join(privateDir, file), 'utf8');
+        // Quick YAML frontmatter extraction (no dependency on gray-matter)
+        const fmMatch = content.match(/^---\\n([\\s\\S]*?)\\n---/);
+        if (!fmMatch) continue;
+        const fm = {};
+        for (const line of fmMatch[1].split('\\n')) {
+          const m = line.match(/^(\\w+):\\s*(.+)$/);
+          if (m) fm[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+        }
+        tasks.push({
+          id: fm.id || path.basename(file, '.md'),
+          title: fm.title || '(untitled)',
+          status: fm.status || 'pending',
+          priority: fm.priority || 'medium',
+          private: true,
+        });
+      } catch { /* skip unreadable files */ }
+    }
+  } catch { /* directory read error */ }
+  return tasks;
+}
 
+function main() {
+  // Read stdin for hookData.cwd if available (consistent with other hooks)
+  let cwd = process.cwd();
+  try {
+    const input = fs.readFileSync(0, 'utf8');
+    const hookData = JSON.parse(input);
+    if (hookData && hookData.cwd) cwd = hookData.cwd;
+  } catch { /* no stdin or bad JSON — fall back to process.cwd() */ }
+
+  const root = findProjectRoot(cwd) || findProjectRoot(process.cwd());
+  if (!root) process.exit(0);
+
+  const tasksPath = path.join(root, '.subframe', 'tasks.json');
   let data;
   try {
     const raw = fs.readFileSync(tasksPath, 'utf8').replace(/,\\s*([\\]}])/g, '$1');
@@ -1105,8 +1149,15 @@ function main() {
     process.exit(0);
   }
 
-  const inProgress = data.tasks?.inProgress || [];
-  const pending = data.tasks?.pending || [];
+  const inProgress = [...(data.tasks?.inProgress || [])];
+  const pending = [...(data.tasks?.pending || [])];
+
+  // Merge private tasks (not in index)
+  const privateTasks = readPrivateTasks(root);
+  for (const t of privateTasks) {
+    if (t.status === 'in_progress') inProgress.push(t);
+    else if (t.status === 'pending') pending.push(t);
+  }
 
   // Priority icons
   function pi(p) { return p === 'high' ? '\\u25B2' : p === 'low' ? '\\u25BD' : '\\u25C7'; }
@@ -1135,7 +1186,8 @@ function main() {
       lines.push('  ' + pi(t.priority) + ' [' + t.id + '] ' + t.title);
     }
     if (pending.length > 5) {
-      lines.push('  \\u2026 +' + (pending.length - 5) + ' more \\u2192 node scripts/task.js list');
+      const taskCmd = fs.existsSync(path.join(root, 'scripts', 'task.js')) ? 'node scripts/task.js' : 'npx subframe task';
+      lines.push('  \\u2026 +' + (pending.length - 5) + ' more \\u2192 ' + taskCmd + ' list');
     }
   }
 
@@ -1170,14 +1222,53 @@ export function getPromptSubmitHookTemplate(): string {
 const fs = require('fs');
 const path = require('path');
 
-function findTasksFile(startDir) {
+function findProjectRoot(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== path.dirname(dir)) {
     const tasksPath = path.join(dir, '.subframe', 'tasks.json');
-    if (fs.existsSync(tasksPath)) return tasksPath;
+    if (fs.existsSync(tasksPath)) return dir;
     dir = path.dirname(dir);
   }
   return null;
+}
+
+function findTasksFile(startDir) {
+  const root = findProjectRoot(startDir);
+  return root ? path.join(root, '.subframe', 'tasks.json') : null;
+}
+
+/** Read pending private tasks from .subframe/tasks/private/ */
+function readPrivatePending(root) {
+  const privateDir = path.join(root, '.subframe', 'tasks', 'private');
+  if (!fs.existsSync(privateDir)) return [];
+  const tasks = [];
+  try {
+    for (const file of fs.readdirSync(privateDir).filter(f => f.endsWith('.md'))) {
+      try {
+        const content = fs.readFileSync(path.join(privateDir, file), 'utf8');
+        const fmMatch = content.match(/^---\\n([\\s\\S]*?)\\n---/);
+        if (!fmMatch) continue;
+        const fm = {};
+        for (const line of fmMatch[1].split('\\n')) {
+          const m = line.match(/^(\\w+):\\s*(.+)$/);
+          if (m) fm[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+        }
+        if (fm.status === 'pending') {
+          // Extract description from body (text after frontmatter, before first ##)
+          const body = content.split('---').slice(2).join('---').trim();
+          const desc = body.split(/^## /m)[0].trim();
+          tasks.push({
+            id: fm.id || path.basename(file, '.md'),
+            title: fm.title || '(untitled)',
+            description: desc,
+            priority: fm.priority || 'medium',
+            private: true,
+          });
+        }
+      } catch { /* skip */ }
+    }
+  } catch { /* skip */ }
+  return tasks;
 }
 
 function matchScore(prompt, title) {
@@ -1201,8 +1292,11 @@ function main() {
   if (!prompt || typeof prompt !== 'string' || prompt.length < 10) process.exit(0);
   if (prompt.startsWith('/')) process.exit(0);
 
-  const tasksPath = findTasksFile(hookData.cwd) || findTasksFile(process.cwd());
-  if (!tasksPath) process.exit(0);
+  const root = findProjectRoot(hookData.cwd) || findProjectRoot(process.cwd());
+  if (!root) process.exit(0);
+
+  const tasksPath = path.join(root, '.subframe', 'tasks.json');
+  if (!fs.existsSync(tasksPath)) process.exit(0);
 
   let data;
   try {
@@ -1210,7 +1304,7 @@ function main() {
     data = JSON.parse(raw);
   } catch { process.exit(0); }
 
-  const pending = data.tasks?.pending || [];
+  const pending = [...(data.tasks?.pending || []), ...readPrivatePending(root)];
   if (pending.length === 0) process.exit(0);
 
   let bestTask = null;
@@ -1229,7 +1323,8 @@ function main() {
   if (bestScore >= 0.4 && bestTask) {
     console.log('<sub-task-match>');
     console.log('\\u25C6 SubFrame \\u2500 \\uD83C\\uDFAF Matches sub-task [' + bestTask.id + ']: "' + bestTask.title + '" (' + bestTask.priority + ')');
-    console.log('\\u2192 Start: node scripts/task.js start ' + bestTask.id);
+    const taskCmd = fs.existsSync(path.join(root, 'scripts', 'task.js')) ? 'node scripts/task.js' : 'npx subframe task';
+    console.log('\\u2192 Start: ' + taskCmd + ' start ' + bestTask.id);
     console.log('</sub-task-match>');
   }
 }
@@ -1278,14 +1373,15 @@ function findTasksFile(startDir) {
 
 function getModifiedSourceFiles(projectRoot) {
   try {
-    const output = execSync('git diff --name-only HEAD -- src/', {
+    const output = execSync('git diff --name-only HEAD', {
       cwd: projectRoot,
       encoding: 'utf8',
       timeout: 3000,
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
     if (!output) return [];
-    return output.split('\\n').filter(f => /\\.(ts|tsx|js|jsx)$/.test(f));
+    // Exclude common non-source files to reduce noise
+    return output.split('\\n').filter(f => !f.startsWith('.subframe/') && !f.startsWith('.claude/') && !f.startsWith('.githooks/') && f !== 'package-lock.json');
   } catch {
     return [];
   }
@@ -1309,7 +1405,30 @@ function main() {
     data = JSON.parse(raw);
   } catch { process.exit(0); }
 
-  const inProgress = data.tasks?.inProgress || [];
+  const inProgress = [...(data.tasks?.inProgress || [])];
+
+  // Include private in-progress tasks (not in the git-tracked index)
+  const privateDir = path.join(projectRoot, '.subframe', 'tasks', 'private');
+  if (fs.existsSync(privateDir)) {
+    try {
+      for (const file of fs.readdirSync(privateDir).filter(f => f.endsWith('.md'))) {
+        try {
+          const content = fs.readFileSync(path.join(privateDir, file), 'utf8');
+          const fmMatch = content.match(/^---\\n([\\s\\S]*?)\\n---/);
+          if (!fmMatch) continue;
+          const fm = {};
+          for (const line of fmMatch[1].split('\\n')) {
+            const m = line.match(/^(\\w+):\\s*(.+)$/);
+            if (m) fm[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+          }
+          if (fm.status === 'in_progress') {
+            inProgress.push({ id: fm.id || path.basename(file, '.md'), title: fm.title || '(untitled)', private: true });
+          }
+        } catch { /* skip */ }
+      }
+    } catch { /* skip */ }
+  }
+
   const lines = [];
 
   if (inProgress.length > 0) {
@@ -1328,7 +1447,8 @@ function main() {
       lines.push('<sync-check>');
       lines.push('\\u25C6 SubFrame \\u2500 \\u26A0 ' + modifiedFiles.length + ' source file(s) changed but no sub-task is tracking this work.');
       lines.push('  Before wrapping up, consider:');
-      lines.push('  \\u2022 Track: node scripts/task.js add --title "..." && node scripts/task.js complete <id>');
+      const taskCmd = fs.existsSync(path.join(projectRoot, 'scripts', 'task.js')) ? 'node scripts/task.js' : 'npx subframe task';
+      lines.push('  \\u2022 Track: ' + taskCmd + ' add --title "..." && ' + taskCmd + ' complete <id>');
       lines.push('  \\u2022 Decisions \\u2192 .subframe/PROJECT_NOTES.md');
       lines.push('  \\u2022 Changes \\u2192 .subframe/docs-internal/changelog.md');
       lines.push('</sync-check>');

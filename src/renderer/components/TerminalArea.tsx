@@ -41,6 +41,7 @@ interface SessionData {
   viewMode: 'tabs' | 'grid';
   activeTerminalId: string | null;
   terminalNames: Record<string, string>;
+  terminalNameSources?: Record<string, 'default' | 'user' | 'session'>;
   gridLayout?: string;
   gridSlots?: (string | null)[];
   tabOrder?: string[];
@@ -65,6 +66,9 @@ function saveSession(projectPath: string | null, store: ReturnType<typeof useTer
       ? (store.activeByProject.get(normalizedPath) ?? store.activeTerminalId)
       : null,
     terminalNames: Object.fromEntries(terminals.map((t) => [t.id, t.name])),
+    terminalNameSources: Object.fromEntries(
+      terminals.filter((t) => t.nameSource).map((t) => [t.id, t.nameSource!])
+    ),
     gridLayout: store.gridLayout,
     gridSlots: store.gridSlots,
     tabOrder,
@@ -228,11 +232,20 @@ export function TerminalArea() {
       if (data.active) {
         const terminal = useTerminalStore.getState().terminals.get(data.terminalId);
         if (terminal && terminal.nameSource !== 'user') {
+          const capturedTerminalId = data.terminalId;
+          const capturedSessionId = data.sessionId;
           setTimeout(async () => {
+            // Re-check: terminal may have been closed or user-renamed during the delay
+            const current = useTerminalStore.getState().terminals.get(capturedTerminalId);
+            if (!current || current.nameSource === 'user') return;
             try {
-              const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, { terminalId: data.terminalId });
+              const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, {
+                terminalId: capturedTerminalId,
+                sessionId: capturedSessionId,
+              });
               if (result.name) {
-                renameTerminal(data.terminalId, result.name, 'session');
+                renameTerminal(capturedTerminalId, result.name, 'session');
+                toast.success(`Tab renamed: ${result.name}`, { duration: 2000 });
               }
             } catch {
               // Session may not be registered yet
@@ -279,9 +292,14 @@ export function TerminalArea() {
       const session = loadSession(currentProjectPath);
       if (session) {
         if (session.viewMode) setViewMode(session.viewMode);
-        // Restore names for any terminals that already exist
+        // Restore names for any terminals that already exist (preserve original nameSource)
         for (const [id, name] of Object.entries(session.terminalNames)) {
-          if (terminals.has(id)) renameTerminal(id, name, 'session');
+          if (terminals.has(id)) {
+            // Default to 'default' for old session data that didn't persist nameSource,
+            // so user-renamed tabs aren't accidentally overwritten by auto-rename
+            const source = session.terminalNameSources?.[id] ?? 'default';
+            renameTerminal(id, name, source);
+          }
         }
         // Gap 2: Restore per-project grid layout
         if (session.gridLayout) {

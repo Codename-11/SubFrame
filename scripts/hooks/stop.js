@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.2.4-beta
+// @subframe-version 0.2.5-beta
 // @subframe-managed
 /**
  * SubFrame Stop Hook
@@ -33,14 +33,15 @@ function findTasksFile(startDir) {
 
 function getModifiedSourceFiles(projectRoot) {
   try {
-    const output = execSync('git diff --name-only HEAD -- src/', {
+    const output = execSync('git diff --name-only HEAD', {
       cwd: projectRoot,
       encoding: 'utf8',
       timeout: 3000,
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
     if (!output) return [];
-    return output.split('\n').filter(f => /\.(ts|tsx|js|jsx)$/.test(f));
+    // Exclude common non-source files to reduce noise
+    return output.split('\n').filter(f => !f.startsWith('.subframe/') && !f.startsWith('.claude/') && !f.startsWith('.githooks/') && f !== 'package-lock.json');
   } catch {
     return [];
   }
@@ -64,7 +65,30 @@ function main() {
     data = JSON.parse(raw);
   } catch { process.exit(0); }
 
-  const inProgress = data.tasks?.inProgress || [];
+  const inProgress = [...(data.tasks?.inProgress || [])];
+
+  // Include private in-progress tasks (not in the git-tracked index)
+  const privateDir = path.join(projectRoot, '.subframe', 'tasks', 'private');
+  if (fs.existsSync(privateDir)) {
+    try {
+      for (const file of fs.readdirSync(privateDir).filter(f => f.endsWith('.md'))) {
+        try {
+          const content = fs.readFileSync(path.join(privateDir, file), 'utf8');
+          const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+          if (!fmMatch) continue;
+          const fm = {};
+          for (const line of fmMatch[1].split('\n')) {
+            const m = line.match(/^(\w+):\s*(.+)$/);
+            if (m) fm[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+          }
+          if (fm.status === 'in_progress') {
+            inProgress.push({ id: fm.id || path.basename(file, '.md'), title: fm.title || '(untitled)', private: true });
+          }
+        } catch { /* skip */ }
+      }
+    } catch { /* skip */ }
+  }
+
   const lines = [];
 
   if (inProgress.length > 0) {
@@ -83,7 +107,8 @@ function main() {
       lines.push('<sync-check>');
       lines.push('\u25C6 SubFrame \u2500 \u26A0 ' + modifiedFiles.length + ' source file(s) changed but no sub-task is tracking this work.');
       lines.push('  Before wrapping up, consider:');
-      lines.push('  \u2022 Track: node scripts/task.js add --title "..." && node scripts/task.js complete <id>');
+      const taskCmd = fs.existsSync(path.join(projectRoot, 'scripts', 'task.js')) ? 'node scripts/task.js' : 'npx subframe task';
+      lines.push('  \u2022 Track: ' + taskCmd + ' add --title "..." && ' + taskCmd + ' complete <id>');
       lines.push('  \u2022 Decisions \u2192 .subframe/PROJECT_NOTES.md');
       lines.push('  \u2022 Changes \u2192 .subframe/docs-internal/changelog.md');
       lines.push('</sync-check>');

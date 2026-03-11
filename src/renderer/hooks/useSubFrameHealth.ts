@@ -2,6 +2,9 @@
  * TanStack Query hook for SubFrame health status.
  * Uses the send/on pattern since GET_SUBFRAME_HEALTH is a send channel.
  * Provides health status, component updates, and uninstall mutations.
+ *
+ * Auto-updates outdated managed components on project load and shows
+ * a summary toast. User-managed files (@subframe-managed: false) are skipped.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +17,7 @@ import {
   type UninstallResult,
 } from '../../shared/ipcChannels';
 import { useCallback, useRef, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const { ipcRenderer } = require('electron');
 
@@ -28,12 +32,35 @@ export function useSubFrameHealth() {
   // ── Uninstall result state ──
   const [uninstallResult, setUninstallResult] = useState<UninstallResult | null>(null);
 
+  // ── Auto-update tracking ──
+  // Tracks which project path has been auto-updated this session (prevents loops)
+  const autoUpdatedForRef = useRef<string | null>(null);
+  // True when an auto-update is in flight (distinguishes auto vs manual in result handler)
+  const pendingAutoUpdateRef = useRef(false);
+
+  // Reset auto-update tracking when project changes
+  useEffect(() => {
+    autoUpdatedForRef.current = null;
+  }, [projectPath]);
+
   // ── Health data listener ──
   useEffect(() => {
     const handler = (_event: unknown, data: { projectPath: string; health: SubFrameHealthStatus | null; error?: string }) => {
       if (data.health) {
         latestData.current = data.health;
         queryClient.setQueryData(['subframeHealth', projectPath], data.health);
+
+        // Auto-update outdated managed components (once per project load)
+        if (data.projectPath === projectPath && autoUpdatedForRef.current !== projectPath) {
+          const outdatedIds = data.health.components
+            .filter(c => (c.needsUpdate || !c.exists) && !c.managedOptOut)
+            .map(c => c.id);
+          if (outdatedIds.length > 0) {
+            autoUpdatedForRef.current = projectPath;
+            pendingAutoUpdateRef.current = true;
+            typedSend(IPC.UPDATE_SUBFRAME_COMPONENTS, { projectPath, componentIds: outdatedIds });
+          }
+        }
       }
     };
     ipcRenderer.on(IPC.SUBFRAME_HEALTH_DATA, handler);
@@ -44,6 +71,25 @@ export function useSubFrameHealth() {
   useEffect(() => {
     const handler = (_event: unknown, data: { projectPath: string; updated: string[]; failed: string[]; skipped?: string[]; error?: string }) => {
       setUpdateResult({ updated: data.updated || [], failed: data.failed || [], skipped: data.skipped });
+
+      // Show toast — auto-updates get a summary, manual updates are handled by the panel
+      const isAutoUpdate = pendingAutoUpdateRef.current;
+      pendingAutoUpdateRef.current = false;
+
+      if (isAutoUpdate) {
+        const updated = data.updated?.length || 0;
+        const skipped = data.skipped?.length || 0;
+        const failed = data.failed?.length || 0;
+
+        if (updated > 0 && failed === 0 && skipped === 0) {
+          toast.info(`SubFrame synced ${updated} component${updated > 1 ? 's' : ''}`);
+        } else if (updated > 0 && skipped > 0) {
+          toast.info(`Synced ${updated} component${updated > 1 ? 's' : ''}, ${skipped} user-managed unchanged`);
+        } else if (failed > 0) {
+          toast.warning(`SubFrame updated ${updated}, ${failed} failed — check Health panel`);
+        }
+      }
+
       // Refresh health after update
       reload();
     };

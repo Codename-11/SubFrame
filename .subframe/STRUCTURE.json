@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-10",
+  "lastUpdated": "2026-03-11",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -513,20 +513,21 @@
           ]
         },
         "renameSession": {
-          "line": 333,
+          "line": 336,
           "params": [
             "projectPath",
             "sessionId",
             "name"
           ],
-          "purpose": "Set a friendly name for a session",
+          "purpose": "but the same slug).",
           "calls": [
+            "getSessionsForProject",
             "loadMeta",
             "saveMeta"
           ]
         },
         "deleteSession": {
-          "line": 352,
+          "line": 364,
           "params": [
             "projectPath",
             "sessionId",
@@ -540,14 +541,14 @@
           ]
         },
         "deleteAllSessions": {
-          "line": 403,
+          "line": 415,
           "params": [
             "projectPath"
           ],
           "purpose": "Delete all sessions for a project"
         },
         "hasActiveSession": {
-          "line": 437,
+          "line": 449,
           "params": [
             "projectPath"
           ],
@@ -557,17 +558,18 @@
           ]
         },
         "getSessionNameForTerminal": {
-          "line": 469,
+          "line": 486,
           "params": [
-            "terminalId"
+            "terminalId",
+            "sessionId"
           ],
-          "purpose": "Priority: friendlyName > customTitle > firstPrompt > slug",
+          "purpose": "found or not provided.",
           "calls": [
             "getSessionsForProject"
           ]
         },
         "setupIPC": {
-          "line": 489,
+          "line": 514,
           "params": [
             "ipcMain"
           ],
@@ -582,7 +584,7 @@
           ]
         }
       },
-      "loc": 520,
+      "loc": 545,
       "ipc": {
         "listens": [
           "LOAD_CLAUDE_SESSIONS",
@@ -992,12 +994,13 @@
         "isFrameProject",
         "getFrameConfig",
         "initializeFrameProject",
+        "updateSubFrameComponents",
         "setupIPC"
       ],
       "depends": [
-        "child_process",
         "fs",
         "path",
+        "child_process",
         "electron",
         "shared/ipcChannels",
         "shared/frameConstants",
@@ -1010,28 +1013,28 @@
       ],
       "functions": {
         "init": {
-          "line": 26,
+          "line": 27,
           "params": [
             "window"
           ],
           "purpose": "Initialize frame project module"
         },
         "isFrameProject": {
-          "line": 33,
+          "line": 34,
           "params": [
             "projectPath"
           ],
           "purpose": "Check if a project is a SubFrame project"
         },
         "getFrameConfig": {
-          "line": 41,
+          "line": 42,
           "params": [
             "projectPath"
           ],
           "purpose": "Get SubFrame config from project"
         },
         "showInitializeConfirmation": {
-          "line": 54,
+          "line": 55,
           "params": [
             "projectPath"
           ],
@@ -1043,7 +1046,7 @@
           ]
         },
         "initializeFrameProject": {
-          "line": 119,
+          "line": 120,
           "params": [
             "projectPath",
             "projectName"
@@ -1053,27 +1056,39 @@
             "initializeProject"
           ]
         },
+        "cleanupBackups": {
+          "line": 133,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Called at the start of each update cycle so only the most recent backups survive."
+        },
+        "updateSubFrameComponents": {
+          "line": 174,
+          "params": [
+            "projectPath",
+            "componentIds: string[]"
+          ],
+          "purpose": "Update SubFrame components in a project. Extracted from the IPC handler for testability."
+        },
         "setupIPC": {
-          "line": 131,
+          "line": 291,
           "params": [
             "ipcMain"
           ],
           "purpose": "Setup IPC handlers",
           "calls": [
-            "getComponentRegistry",
             "getFrameConfig",
             "getSubFrameHealth",
             "initializeFrameProject",
             "isFrameProject",
-            "mergeSubFrameHooks",
-            "readClaudeSettings",
             "showInitializeConfirmation",
             "uninstallSubFrame",
-            "writeClaudeSettings"
+            "updateSubFrameComponents"
           ]
         },
         "uninstallSubFrame": {
-          "line": 342,
+          "line": 387,
           "params": [
             "projectPath",
             "options"
@@ -1087,7 +1102,7 @@
           ]
         }
       },
-      "loc": 485,
+      "loc": 529,
       "ipc": {
         "listens": [
           "CHECK_IS_FRAME_PROJECT",
@@ -3272,14 +3287,14 @@
           ]
         },
         "serializeTaskMarkdown": {
-          "line": 145,
+          "line": 146,
           "params": [
             "task"
           ],
           "purpose": "Serialize a Task object back to markdown with YAML frontmatter."
         }
       },
-      "loc": 218
+      "loc": 220
     },
     "main/tasksManager": {
       "file": "src\\main\\tasksManager.ts",
@@ -3306,85 +3321,103 @@
       ],
       "functions": {
         "init": {
-          "line": 51,
+          "line": 52,
           "params": [
             "window"
           ],
           "purpose": "Initialize tasks manager"
         },
         "setProjectPath": {
-          "line": 58,
+          "line": 59,
           "params": [
             "projectPath"
           ],
           "purpose": "Set current project path"
         },
         "getTasksDir": {
-          "line": 65,
+          "line": 66,
           "params": [
             "projectPath"
           ],
           "purpose": "Get the .subframe/tasks/ directory for a project"
         },
+        "getPrivateTasksDir": {
+          "line": 73,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Get the .subframe/tasks/private/ directory for a project"
+        },
         "getTaskFilePath": {
-          "line": 72,
+          "line": 81,
+          "params": [
+            "projectPath",
+            "taskId",
+            "isPrivate"
+          ],
+          "purpose": "Private tasks are stored in .subframe/tasks/private/."
+        },
+        "findTaskFile": {
+          "line": 92,
           "params": [
             "projectPath",
             "taskId"
           ],
-          "purpose": "Get the full path for a task's markdown file"
+          "purpose": "Returns the file path if found, null otherwise."
         },
         "getTasksJsonPath": {
-          "line": 79,
+          "line": 103,
           "params": [
             "projectPath"
           ],
           "purpose": "Get tasks.json file path for a project (for index / backward compat)"
         },
         "ensureTasksDir": {
-          "line": 86,
+          "line": 111,
           "params": [
-            "projectPath"
+            "projectPath",
+            "isPrivate"
           ],
-          "purpose": "Ensure the .subframe/tasks/ directory exists",
+          "purpose": "If isPrivate, also ensures the private subdirectory exists.",
           "calls": [
+            "getPrivateTasksDir",
             "getTasksDir"
           ]
         },
         "statusToGroupKey": {
-          "line": 96,
+          "line": 121,
           "params": [
             "status"
           ],
           "purpose": "Map task status to the grouped key used in TasksData"
         },
         "generateTaskId": {
-          "line": 105,
+          "line": 130,
           "purpose": "Generate unique task ID"
         },
         "computeTasksFingerprint": {
-          "line": 114,
+          "line": 139,
           "params": [
             "tasksData"
           ],
           "purpose": "(which come from .md files and are stable unless the task actually changes)."
         },
         "stripInternalFields": {
-          "line": 129,
+          "line": 154,
           "params": [
             "tasks"
           ],
           "purpose": "`filePath` leaks absolute local paths; `_unknownSections` is parser-internal."
         },
         "getProjectName": {
-          "line": 144,
+          "line": 169,
           "params": [
             "projectPath"
           ],
           "purpose": "Derive the project name from the project path"
         },
         "buildTasksData": {
-          "line": 151,
+          "line": 176,
           "params": [
             "projectPath",
             "allTasks"
@@ -3396,20 +3429,21 @@
           ]
         },
         "loadTasks": {
-          "line": 207,
+          "line": 233,
           "params": [
             "projectPath"
           ],
           "purpose": "Falls back to tasks.json if the directory doesn't exist (backward compat).",
           "calls": [
             "buildTasksData",
+            "getPrivateTasksDir",
             "getTasksDir",
             "getTasksJsonPath",
             "parseTaskMarkdown"
           ]
         },
         "regenerateIndex": {
-          "line": 278,
+          "line": 325,
           "params": [
             "projectPath",
             "tasksData"
@@ -3422,7 +3456,7 @@
           ]
         },
         "addTask": {
-          "line": 325,
+          "line": 379,
           "params": [
             "projectPath",
             "task"
@@ -3438,7 +3472,7 @@
           ]
         },
         "updateTask": {
-          "line": 369,
+          "line": 425,
           "params": [
             "projectPath",
             "taskId",
@@ -3446,6 +3480,8 @@
           ],
           "purpose": "then regenerates the index.",
           "calls": [
+            "ensureTasksDir",
+            "findTaskFile",
             "getTaskFilePath",
             "loadTasks",
             "parseTaskMarkdown",
@@ -3454,37 +3490,38 @@
           ]
         },
         "deleteTask": {
-          "line": 422,
+          "line": 490,
           "params": [
             "projectPath",
             "taskId"
           ],
           "purpose": "Delete a task — removes the .md file, then regenerates the index.",
           "calls": [
-            "getTaskFilePath",
+            "findTaskFile",
             "loadTasks",
             "regenerateIndex"
           ]
         },
         "watchTasksFile": {
-          "line": 447,
+          "line": 515,
           "params": [
             "projectPath"
           ],
           "purpose": "Keeps the exported name `watchTasksFile` for IPC compat.",
           "calls": [
             "computeTasksFingerprint",
+            "getPrivateTasksDir",
             "getTasksDir",
             "loadTasks",
             "unwatchTasksFile"
           ]
         },
         "unwatchTasksFile": {
-          "line": 491,
+          "line": 576,
           "purpose": "Stop watching tasks directory"
         },
         "setupIPC": {
-          "line": 502,
+          "line": 591,
           "params": [
             "ipcMain"
           ],
@@ -3500,7 +3537,7 @@
           ]
         }
       },
-      "loc": 675,
+      "loc": 764,
       "ipc": {
         "listens": [
           "LOAD_TASKS",
@@ -5118,7 +5155,7 @@
           ]
         }
       },
-      "loc": 378
+      "loc": 380
     },
     "renderer/components/SessionsPanel": {
       "file": "src\\renderer\\components\\SessionsPanel.tsx",
@@ -5139,17 +5176,18 @@
         "lib/promptUtils",
         "hooks/useSessions",
         "hooks/useSettings",
-        "stores/useProjectStore"
+        "stores/useProjectStore",
+        "stores/useTerminalStore"
       ],
       "functions": {
         "formatRelativeTime": {
-          "line": 37,
+          "line": 38,
           "params": [
             "dateString"
           ]
         },
         "RenameInput": {
-          "line": 63,
+          "line": 64,
           "params": [
             "{\r\n  initial",
             "onSubmit",
@@ -5158,7 +5196,7 @@
           ]
         },
         "SegmentTimeline": {
-          "line": 103,
+          "line": 104,
           "params": [
             "{\r\n  segments",
             "showAll",
@@ -5168,7 +5206,7 @@
           ]
         },
         "SessionsPanel": {
-          "line": 185,
+          "line": 186,
           "calls": [
             "cn",
             "deleteAllSessions",
@@ -5182,7 +5220,7 @@
           ]
         }
       },
-      "loc": 525
+      "loc": 538
     },
     "renderer/components/SettingsPanel": {
       "file": "src\\renderer\\components\\SettingsPanel.tsx",
@@ -5287,7 +5325,7 @@
           ]
         },
         "CollapsedWorkspaceSwitcher": {
-          "line": 551,
+          "line": 553,
           "calls": [
             "cn",
             "typedInvoke",
@@ -5296,26 +5334,26 @@
           ]
         },
         "GitStatusBar": {
-          "line": 662,
+          "line": 664,
           "calls": [
             "useGitStatus"
           ]
         },
         "CollapsedGitStatus": {
-          "line": 687,
+          "line": 689,
           "calls": [
             "cn",
             "useGitStatus"
           ]
         },
         "GitBranchIcon": {
-          "line": 728,
+          "line": 730,
           "params": [
             "{ className }"
           ]
         }
       },
-      "loc": 736,
+      "loc": 738,
       "ipc": {
         "listens": [
           "IS_FRAME_PROJECT_RESULT",
@@ -5782,26 +5820,26 @@
           ]
         },
         "markdownToForm": {
-          "line": 132,
+          "line": 133,
           "params": [
             "md"
           ]
         },
         "formatDate": {
-          "line": 191,
+          "line": 202,
           "params": [
             "iso"
           ]
         },
         "SortHeader": {
-          "line": 219,
+          "line": 230,
           "params": [
             "{ column",
             "label }"
           ]
         },
         "TaskActions": {
-          "line": 241,
+          "line": 252,
           "params": [
             "{\r\n  task",
             "onUpdateStatus",
@@ -5814,21 +5852,23 @@
           ]
         },
         "TasksPanel": {
-          "line": 338,
+          "line": 349,
           "params": [
             "{ isFullView"
           ]
         },
         "TaskDetail": {
-          "line": 1326,
+          "line": 1366,
           "params": [
             "{ task",
             "updateTask",
-            "allTasks }"
+            "allTasks",
+            "isFullView",
+            "onEdit }"
           ]
         }
       },
-      "loc": 1477,
+      "loc": 1549,
       "ipc": {
         "listens": [],
         "emits": [
@@ -5892,7 +5932,7 @@
           ]
         }
       },
-      "loc": 653,
+      "loc": 673,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -5935,20 +5975,20 @@
       ],
       "functions": {
         "saveSession": {
-          "line": 50,
+          "line": 51,
           "params": [
             "projectPath",
             "store"
           ]
         },
         "loadSession": {
-          "line": 83,
+          "line": 87,
           "params": [
             "projectPath"
           ]
         },
         "TerminalArea": {
-          "line": 93,
+          "line": 97,
           "calls": [
             "createTerminal",
             "getLogoSVG",
@@ -5961,7 +6001,7 @@
           ]
         }
       },
-      "loc": 685,
+      "loc": 701,
       "ipc": {
         "listens": [
           "TERMINAL_CREATED",
@@ -6028,7 +6068,7 @@
           ]
         },
         "UsageItem": {
-          "line": 657,
+          "line": 664,
           "params": [
             "{ label",
             "utilization",
@@ -6036,13 +6076,13 @@
           ]
         },
         "ResetTime": {
-          "line": 680,
+          "line": 687,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 699,
+      "loc": 706,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -6110,10 +6150,13 @@
       ],
       "functions": {
         "ViewTabBar": {
-          "line": 28
+          "line": 28,
+          "calls": [
+            "getTabIdForContent"
+          ]
         }
       },
-      "loc": 79
+      "loc": 80
     },
     "renderer/components/WhatsNew": {
       "file": "src\\renderer\\components\\WhatsNew.tsx",
@@ -6751,17 +6794,18 @@
         "@tanstack/react-query",
         "lib/ipc",
         "stores/useProjectStore",
-        "react"
+        "react",
+        "sonner"
       ],
       "functions": {
         "useSubFrameHealth": {
-          "line": 20,
+          "line": 24,
           "calls": [
             "typedSend"
           ]
         }
       },
-      "loc": 108,
+      "loc": 154,
       "ipc": {
         "listens": [
           "SUBFRAME_HEALTH_DATA",
@@ -6829,11 +6873,12 @@
       ],
       "depends": [
         "react",
-        "lib/terminalRegistry"
+        "lib/terminalRegistry",
+        "stores/useUIStore"
       ],
       "functions": {
         "useTerminal": {
-          "line": 29,
+          "line": 30,
           "params": [
             "containerRef",
             "terminalId",
@@ -6842,7 +6887,7 @@
           "purpose": "The terminal survives unmount — only detaches from the DOM, preserving scrollback."
         }
       },
-      "loc": 82
+      "loc": 103
     },
     "renderer/hooks/useUpdater": {
       "file": "src\\renderer\\hooks\\useUpdater.ts",
@@ -7178,9 +7223,10 @@
           ]
         },
         "sendCommandToTerminal": {
-          "line": 89,
+          "line": 92,
           "params": [
-            "command"
+            "command",
+            "targetTerminalId"
           ],
           "purpose": "Returns true if the command was sent successfully.",
           "calls": [
@@ -7188,26 +7234,26 @@
           ]
         },
         "copyPromptToClipboard": {
-          "line": 106,
+          "line": 114,
           "params": [
             "prompt"
           ]
         },
         "parseTags": {
-          "line": 112,
+          "line": 120,
           "params": [
             "input"
           ]
         },
         "sortPrompts": {
-          "line": 123,
+          "line": 131,
           "params": [
             "prompts",
             "mode"
           ]
         }
       },
-      "loc": 138
+      "loc": 146
     },
     "renderer/lib/shortcuts": {
       "file": "src\\renderer\\lib\\shortcuts.ts",
@@ -7439,14 +7485,22 @@
       "file": "src\\renderer\\stores\\useUIStore.ts",
       "description": "",
       "exports": [
+        "getTabIdForContent",
         "VIEW_TAB_LABELS",
         "useUIStore"
       ],
       "depends": [
         "zustand"
       ],
-      "functions": {},
-      "loc": 250
+      "functions": {
+        "getTabIdForContent": {
+          "line": 34,
+          "params": [
+            "content"
+          ]
+        }
+      },
+      "loc": 268
     },
     "shared/agentStateTypes": {
       "file": "src\\shared\\agentStateTypes.ts",
@@ -7679,6 +7733,7 @@
         "FRAME_BIN_DIR",
         "GITHOOKS_DIR",
         "FRAME_TASKS_DIR",
+        "FRAME_TASKS_PRIVATE_DIR",
         "FRAME_WORKFLOWS_DIR",
         "FRAME_PIPELINES_DIR",
         "FRAME_VERSION",
@@ -7689,7 +7744,7 @@
         "path"
       ],
       "functions": {},
-      "loc": 96
+      "loc": 99
     },
     "shared/frameTemplates": {
       "file": "src\\shared\\frameTemplates.ts",
@@ -8026,7 +8081,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1187
+      "loc": 1188
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -8128,7 +8183,7 @@
       ],
       "functions": {
         "isVersionOlder": {
-          "line": 229,
+          "line": 269,
           "params": [
             "deployed",
             "current"
@@ -8136,7 +8191,7 @@
           "purpose": "Returns true if `deployed` is older than `current`."
         },
         "checkComponent": {
-          "line": 260,
+          "line": 318,
           "params": [
             "projectPath",
             "entry: ComponentRegistryEntry"
@@ -8149,7 +8204,7 @@
           ]
         },
         "getSubFrameHealth": {
-          "line": 447,
+          "line": 505,
           "params": [
             "projectPath"
           ],
@@ -8161,15 +8216,15 @@
           ]
         },
         "getComponentRegistry": {
-          "line": 481,
+          "line": 539,
           "purpose": "Get the component registry (for use by update handlers)."
         },
         "getHooksDir": {
-          "line": 488,
+          "line": 546,
           "purpose": "Get the hooks directory path constant."
         }
       },
-      "loc": 491
+      "loc": 549
     },
     "shared/themeTypes": {
       "file": "src\\shared\\themeTypes.ts",

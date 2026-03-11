@@ -1,3 +1,5 @@
+<!-- @subframe-version 0.2.5-beta -->
+<!-- @subframe-managed -->
 ---
 name: sub-audit
 description: Run a code review and documentation audit on recent changes. Finds bugs, edge cases, missing docs, and type safety issues.

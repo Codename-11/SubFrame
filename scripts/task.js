@@ -11,8 +11,8 @@
  *   node scripts/task.js get <id>              Show full task details
  *   node scripts/task.js start <id>            Mark pending -> in_progress
  *   node scripts/task.js complete <id>         Mark -> completed
- *   node scripts/task.js add --title "..." [--description "..." --priority medium --category feature]
- *   node scripts/task.js update <id> [--status pending --notes "..." --title "..." --add-step "..." --complete-step <index>]
+ *   node scripts/task.js add --title "..." [--description "..." --priority medium --category feature --private]
+ *   node scripts/task.js update <id> [--status pending --notes "..." --title "..." --add-step "..." --complete-step <index> --private|--public]
  *   node scripts/task.js open <id>             Print absolute path to the .md file
  *   node scripts/task.js archive               Move completed tasks to .subframe/tasks/archive/YYYY/
  */
@@ -132,6 +132,7 @@ function parseTaskMd(content, filePath) {
     priority: fm.priority || 'medium',
     category: fm.category || undefined,
     context: fm.context || undefined,
+    private: fm.private === true ? true : undefined,
     blockedBy: Array.isArray(fm.blockedBy) ? fm.blockedBy : [],
     blocks: Array.isArray(fm.blocks) ? fm.blocks : [],
     createdAt: fm.createdAt ? new Date(fm.createdAt).toISOString() : new Date().toISOString(),
@@ -165,6 +166,7 @@ function serializeTaskMd(task) {
   };
 
   if (task.context) fm.context = task.context;
+  if (task.private) fm.private = true;
 
   const bodyParts = [];
 
@@ -252,8 +254,13 @@ function getTasksDir(root) {
   return path.join(root, '.subframe', 'tasks');
 }
 
+function getPrivateTasksDir(root) {
+  return path.join(root, '.subframe', 'tasks', 'private');
+}
+
 function readTasksFromMd(root) {
   const tasksDir = getTasksDir(root);
+  const privateDir = getPrivateTasksDir(root);
   const pending = [];
   const inProgress = [];
   const completed = [];
@@ -273,6 +280,25 @@ function readTasksFromMd(root) {
       completed.push(task);
     } else {
       pending.push(task);
+    }
+  }
+
+  // Also read private tasks
+  if (fs.existsSync(privateDir)) {
+    const privateFiles = fs.readdirSync(privateDir).filter(f => f.endsWith('.md'));
+    for (const file of privateFiles) {
+      const filePath = path.join(privateDir, file);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const task = parseTaskMd(content, filePath);
+      task.private = true;
+
+      if (task.status === 'in_progress') {
+        inProgress.push(task);
+      } else if (task.status === 'completed') {
+        completed.push(task);
+      } else {
+        pending.push(task);
+      }
     }
   }
 
@@ -306,25 +332,40 @@ function readTasks(root) {
 // ── Write a single task .md file ─────────────────────────────────────────────
 
 function writeTaskMd(root, task) {
-  const tasksDir = getTasksDir(root);
-  fs.mkdirSync(tasksDir, { recursive: true });
-  const filePath = path.join(tasksDir, `${task.id}.md`);
+  const dir = task.private ? getPrivateTasksDir(root) : getTasksDir(root);
+  fs.mkdirSync(dir, { recursive: true });
+  const filePath = path.join(dir, `${task.id}.md`);
   const content = serializeTaskMd(task);
   fs.writeFileSync(filePath, content);
   return filePath;
+}
+
+/**
+ * Find a task's .md file across both public and private directories.
+ */
+function findTaskFile(root, taskId) {
+  const publicPath = path.join(getTasksDir(root), `${taskId}.md`);
+  if (fs.existsSync(publicPath)) return publicPath;
+  const privatePath = path.join(getPrivateTasksDir(root), `${taskId}.md`);
+  if (fs.existsSync(privatePath)) return privatePath;
+  return null;
 }
 
 // ── Regenerate index (tasks.json) ────────────────────────────────────────────
 
 function regenerateIndex(root, allTasks) {
   // allTasks is { pending, inProgress, completed }
-  // Strip filePath and _unknownSections from index entries
+  // Strip filePath, _unknownSections, and private field from index entries
   function stripInternalFields(task) {
     const copy = { ...task };
     delete copy.filePath;
     delete copy._unknownSections;
+    delete copy.private;
     return copy;
   }
+
+  // Exclude private tasks from the git-tracked index
+  const publicOnly = (arr) => (arr || []).filter(t => !t.private);
 
   const indexData = {
     _frame_metadata: {
@@ -337,9 +378,9 @@ function regenerateIndex(root, allTasks) {
     version: '1.2',
     lastUpdated: new Date().toISOString(),
     tasks: {
-      pending: (allTasks.pending || []).map(stripInternalFields),
-      inProgress: (allTasks.inProgress || []).map(stripInternalFields),
-      completed: (allTasks.completed || []).map(stripInternalFields),
+      pending: publicOnly(allTasks.pending).map(stripInternalFields),
+      inProgress: publicOnly(allTasks.inProgress).map(stripInternalFields),
+      completed: publicOnly(allTasks.completed).map(stripInternalFields),
     },
   };
 
@@ -474,24 +515,27 @@ function cmdList(root, args) {
     return;
   }
 
+  // Helper: append lock icon if task is private
+  const pvt = (t) => t.private ? ' \uD83D\uDD12' : '';
+
   if (inProgress.length > 0) {
     console.log(`\n\u25C6 SubFrame \u2500 \uD83D\uDD04 In Progress (${inProgress.length})`);
     for (const t of inProgress) {
-      console.log(`  ${priorityIcon(t.priority)} [${t.id}] ${t.title}`);
+      console.log(`  ${priorityIcon(t.priority)} [${t.id}] ${t.title}${pvt(t)}`);
     }
   }
 
   if (pending.length > 0) {
     console.log(`\n\u25C6 SubFrame \u2500 \uD83D\uDCCB Pending (${pending.length})`);
     for (const t of sortByPriority(pending)) {
-      console.log(`  ${priorityIcon(t.priority)} [${t.id}] ${t.title}`);
+      console.log(`  ${priorityIcon(t.priority)} [${t.id}] ${t.title}${pvt(t)}`);
     }
   }
 
   if (showAll && completed.length > 0) {
     console.log(`\n\u25C6 SubFrame \u2500 \u2705 Completed (${completed.length})`);
     for (const t of completed) {
-      console.log(`  \u2022 [${t.id}] ${t.title}`);
+      console.log(`  \u2022 [${t.id}] ${t.title}${pvt(t)}`);
     }
   }
 
@@ -545,6 +589,7 @@ function cmdGet(root, taskId, args) {
     `Priority: ${priorityColor(priorityIcon(t.priority) + ' ' + t.priority)}`,
   ];
   if (t.category) parts.push(`Category: ${t.category}`);
+  if (t.private) parts.push(`${c.yellow('\uD83D\uDD12 Private')}`);
   console.log(`  ${parts.join('  \u2502  ')}`);
 
   // ── Context ──
@@ -811,11 +856,14 @@ function cmdComplete(root, taskId) {
 }
 
 function cmdAdd(root, args) {
-  // Parse named arguments (--add-step can appear multiple times)
+  // Parse named arguments (--add-step can appear multiple times, --private is a flag)
   const opts = {};
   const stepLabels = [];
+  let isPrivate = false;
   for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith('--') && i + 1 < args.length) {
+    if (args[i] === '--private') {
+      isPrivate = true;
+    } else if (args[i].startsWith('--') && i + 1 < args.length) {
       const key = args[i].substring(2);
       if (key === 'add-step') {
         stepLabels.push(args[++i]);
@@ -848,6 +896,7 @@ function cmdAdd(root, args) {
     priority: opts.priority || 'medium',
     category: opts.category || 'feature',
     context: opts.context || `Session ${now.split('T')[0]}`,
+    private: isPrivate || undefined,
     blockedBy,
     blocks,
     steps: stepLabels.map(label => ({ label, completed: false })),
@@ -886,10 +935,15 @@ function cmdUpdate(root, taskId, args) {
     process.exit(1);
   }
 
-  // Parse named arguments
+  // Parse named arguments (--private and --public are boolean flags)
   const opts = {};
+  let privateFlag = undefined; // undefined = no change
   for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith('--') && i + 1 < args.length) {
+    if (args[i] === '--private') {
+      privateFlag = true;
+    } else if (args[i] === '--public') {
+      privateFlag = false;
+    } else if (args[i].startsWith('--') && i + 1 < args.length) {
       opts[args[i].substring(2)] = args[++i];
     }
   }
@@ -961,11 +1015,28 @@ function cmdUpdate(root, taskId, args) {
     task.steps[stepIdx].completed = true;
   }
 
+  // Handle --private / --public toggle
+  if (privateFlag !== undefined) {
+    const wasPrivate = !!task.private;
+    const isNowPrivate = privateFlag;
+
+    if (wasPrivate !== isNowPrivate) {
+      // Remove old file before writing to new location
+      const oldPath = task.filePath || findTaskFile(root, taskId);
+      if (oldPath && fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+      task.private = isNowPrivate || undefined;
+    }
+  }
+
   task.updatedAt = now;
 
   if (usesMarkdownFormat(root)) {
     writeTaskMd(root, task);
-    regenerateIndex(root, tasks);
+    // Re-read to ensure index reflects moved files
+    const freshTasks = readTasksFromMd(root);
+    regenerateIndex(root, freshTasks);
   } else {
     // Legacy JSON mode
     const data = readLegacyJsonRaw(root);
@@ -996,9 +1067,9 @@ function cmdOpen(root, taskId) {
     process.exit(1);
   }
 
-  const filePath = path.join(getTasksDir(root), `${taskId}.md`);
-  if (!fs.existsSync(filePath)) {
-    console.error(`\u25C6 SubFrame \u2500 File not found: ${filePath}`);
+  const filePath = findTaskFile(root, taskId);
+  if (!filePath) {
+    console.error(`\u25C6 SubFrame \u2500 File not found for: ${taskId}`);
     process.exit(1);
   }
 
@@ -1023,9 +1094,9 @@ function cmdArchive(root) {
 
     let count = 0;
     for (const task of completed) {
-      const srcPath = path.join(getTasksDir(root), `${task.id}.md`);
+      const srcPath = findTaskFile(root, task.id);
       const destPath = path.join(archiveDir, `${task.id}.md`);
-      if (fs.existsSync(srcPath)) {
+      if (srcPath && fs.existsSync(srcPath)) {
         fs.renameSync(srcPath, destPath);
         count++;
       }
@@ -1106,7 +1177,9 @@ Options (add/update):
   --title, --description, --user-request, --acceptance-criteria
   --notes, --add-note, --priority, --category, --status, --context
   --id (add only), --blocked-by <ids>, --blocks <ids> (comma-separated)
-  --add-step "label", --complete-step <index> (0-based)`);
+  --add-step "label", --complete-step <index> (0-based)
+  --private (add: create as private, update: make private)
+  --public  (update: make public — removes private flag)`);
     return;
   }
 

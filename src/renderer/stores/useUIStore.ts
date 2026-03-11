@@ -22,6 +22,18 @@ export const VIEW_TAB_LABELS: Record<string, string> = {
   agentState: 'Agent Activity',
   shortcuts: 'Keyboard Shortcuts',
 };
+
+/** Sub-views that render within a parent tab instead of getting their own tab */
+const SUB_VIEW_PARENT: Record<string, string> = {
+  stats: 'overview',
+  decisions: 'overview',
+  structureMap: 'overview',
+};
+
+/** Resolve a content type to its tab ID (maps sub-views to parent) */
+export function getTabIdForContent(content: string): string {
+  return SUB_VIEW_PARENT[content] ?? content;
+}
 export type StatusFilter = 'all' | 'pending' | 'in_progress' | 'completed' | 'blocked';
 
 interface UIState {
@@ -130,9 +142,12 @@ export const useUIStore = create<UIState>((set, get) => ({
     const prev = get().fullViewContent;
     let { openTabs } = get();
 
-    // When opening a view, ensure it has a tab
-    if (content !== null && !openTabs.some(t => t.id === content)) {
-      openTabs = [...openTabs, { id: content, label: VIEW_TAB_LABELS[content] || content, closable: true }];
+    // When opening a view, ensure it has a tab — but sub-views use their parent tab
+    if (content !== null) {
+      const tabId = getTabIdForContent(content);
+      if (!openTabs.some(t => t.id === tabId)) {
+        openTabs = [...openTabs, { id: tabId, label: VIEW_TAB_LABELS[tabId] || tabId, closable: true }];
+      }
     }
 
     // Sync shortcutsHelpOpen
@@ -156,9 +171,10 @@ export const useUIStore = create<UIState>((set, get) => ({
         set({ fullViewContent: null });
       }
     } else {
-      // Switch to this view — add tab if needed
-      if (!openTabs.some(t => t.id === content)) {
-        openTabs = [...openTabs, { id: content, label: VIEW_TAB_LABELS[content] || content, closable: true }];
+      // Switch to this view — add tab if needed (sub-views use parent tab)
+      const tabId = getTabIdForContent(content);
+      if (!openTabs.some(t => t.id === tabId)) {
+        openTabs = [...openTabs, { id: tabId, label: VIEW_TAB_LABELS[tabId] || tabId, closable: true }];
       }
       if (content === 'shortcuts') {
         set({ fullViewContent: content, shortcutsHelpOpen: true, openTabs });
@@ -169,11 +185,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
   openTab: (id, label) => {
     const { openTabs } = get();
+    // Sub-views use their parent tab (e.g., stats → overview)
+    const tabId = getTabIdForContent(id);
     let next = openTabs;
-    if (!openTabs.some(t => t.id === id)) {
-      next = [...openTabs, { id, label: label || VIEW_TAB_LABELS[id] || id, closable: id !== 'terminal' }];
+    if (!openTabs.some(t => t.id === tabId)) {
+      next = [...openTabs, { id: tabId, label: label || VIEW_TAB_LABELS[tabId] || tabId, closable: tabId !== 'terminal' }];
     }
-    // Switch to this tab by setting fullViewContent
+    // Switch to this content (may be a sub-view rendered within the parent tab)
     const content = id === 'terminal' ? null : id as FullViewContent;
     if (id === 'shortcuts') {
       set({ openTabs: next, fullViewContent: content, shortcutsHelpOpen: true });
@@ -186,8 +204,8 @@ export const useUIStore = create<UIState>((set, get) => ({
     if (id === 'terminal') return; // Can't close terminal
     const { openTabs, fullViewContent } = get();
     const next = openTabs.filter(t => t.id !== id);
-    // If closing the active tab, switch to the previous tab or terminal
-    const currentActiveId = fullViewContent ?? 'terminal';
+    // If closing the active tab (or its parent for sub-views), switch to fallback
+    const currentActiveId = fullViewContent ? getTabIdForContent(fullViewContent) : 'terminal';
     if (currentActiveId === id) {
       const closedIdx = openTabs.findIndex(t => t.id === id);
       const fallback = (closedIdx > 0 ? openTabs[closedIdx - 1] : next[0]) ?? next[0];

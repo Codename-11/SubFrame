@@ -12,7 +12,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC, type Task } from '../shared/ipcChannels';
-import { FRAME_FILES, FRAME_TASKS_DIR } from '../shared/frameConstants';
+import { FRAME_FILES, FRAME_TASKS_DIR, FRAME_TASKS_PRIVATE_DIR } from '../shared/frameConstants';
 import { parseTaskMarkdown, serializeTaskMarkdown } from './taskMarkdownParser';
 import { getActiveTool } from './aiToolManager';
 
@@ -42,6 +42,7 @@ interface TasksData {
 let mainWindow: BrowserWindow | null = null;
 let currentProjectPath: string | null = null;
 let tasksWatcher: fs.FSWatcher | null = null;
+let privateTasksWatcher: fs.FSWatcher | null = null;
 let watchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let lastWatchedHash: string | null = null; // Dedup: skip sending unchanged data
 
@@ -67,10 +68,33 @@ function getTasksDir(projectPath?: string): string {
 }
 
 /**
- * Get the full path for a task's markdown file
+ * Get the .subframe/tasks/private/ directory for a project
  */
-function getTaskFilePath(projectPath: string, taskId: string): string {
+function getPrivateTasksDir(projectPath?: string): string {
+  return path.join(projectPath || currentProjectPath || '', FRAME_TASKS_PRIVATE_DIR);
+}
+
+/**
+ * Get the full path for a task's markdown file.
+ * Private tasks are stored in .subframe/tasks/private/.
+ */
+function getTaskFilePath(projectPath: string, taskId: string, isPrivate?: boolean): string {
+  if (isPrivate) {
+    return path.join(projectPath, FRAME_TASKS_PRIVATE_DIR, `${taskId}.md`);
+  }
   return path.join(projectPath, FRAME_TASKS_DIR, `${taskId}.md`);
+}
+
+/**
+ * Find a task's .md file across both public and private directories.
+ * Returns the file path if found, null otherwise.
+ */
+function findTaskFile(projectPath: string, taskId: string): string | null {
+  const publicPath = path.join(projectPath, FRAME_TASKS_DIR, `${taskId}.md`);
+  if (fs.existsSync(publicPath)) return publicPath;
+  const privatePath = path.join(projectPath, FRAME_TASKS_PRIVATE_DIR, `${taskId}.md`);
+  if (fs.existsSync(privatePath)) return privatePath;
+  return null;
 }
 
 /**
@@ -81,10 +105,11 @@ function getTasksJsonPath(projectPath?: string): string {
 }
 
 /**
- * Ensure the .subframe/tasks/ directory exists
+ * Ensure the .subframe/tasks/ directory exists.
+ * If isPrivate, also ensures the private subdirectory exists.
  */
-function ensureTasksDir(projectPath: string): void {
-  const dir = getTasksDir(projectPath);
+function ensureTasksDir(projectPath: string, isPrivate?: boolean): void {
+  const dir = isPrivate ? getPrivateTasksDir(projectPath) : getTasksDir(projectPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -185,6 +210,7 @@ function buildTasksData(projectPath: string, allTasks: Task[]): TasksData {
       blockedBy: 'Array of task IDs this task is blocked by',
       blocks: 'Array of task IDs this task blocks',
       steps: 'Array of { label, completed } step objects',
+      private: 'boolean — if true, task is stored locally and excluded from git',
       createdAt: 'ISO timestamp',
       updatedAt: 'ISO timestamp',
       completedAt: 'ISO timestamp | null',
@@ -225,6 +251,27 @@ function loadTasks(projectPath?: string): TasksData | null {
             `Error parsing task file ${filePath}:`,
             (err as Error).message
           );
+        }
+      }
+
+      // Also read private tasks from .subframe/tasks/private/
+      const privateDir = getPrivateTasksDir(resolvedPath);
+      if (fs.existsSync(privateDir)) {
+        const privateFiles = fs.readdirSync(privateDir).filter((f) => f.endsWith('.md'));
+        for (const file of privateFiles) {
+          const filePath = path.join(privateDir, file);
+          try {
+            const content = fs.readFileSync(filePath, 'utf8');
+            const task = parseTaskMarkdown(content, filePath);
+            // Ensure private flag is set (even if missing from frontmatter)
+            task.private = true;
+            allTasks.push(task);
+          } catch (err) {
+            console.error(
+              `Error parsing private task file ${filePath}:`,
+              (err as Error).message
+            );
+          }
         }
       }
 
@@ -279,6 +326,13 @@ function regenerateIndex(projectPath: string, tasksData: TasksData): boolean {
   const tasksJsonPath = getTasksJsonPath(projectPath);
 
   try {
+    // Exclude private tasks from the git-tracked index
+    const publicOnly = (tasks: Task[]) => tasks.filter((t) => !t.private);
+
+    const publicPending = publicOnly(tasksData.tasks.pending);
+    const publicInProgress = publicOnly(tasksData.tasks.inProgress);
+    const publicCompleted = publicOnly(tasksData.tasks.completed);
+
     // Build a clean copy for the index — don't mutate the caller's object
     const indexData: TasksData = {
       ...tasksData,
@@ -292,18 +346,18 @@ function regenerateIndex(projectPath: string, tasksData: TasksData): boolean {
       },
       version: '1.2',
       project: getProjectName(projectPath),
-      // Strip internal fields (filePath, _unknownSections) from index tasks
+      // Strip internal fields and exclude private tasks from index
       tasks: {
-        pending: stripInternalFields(tasksData.tasks.pending),
-        inProgress: stripInternalFields(tasksData.tasks.inProgress),
-        completed: stripInternalFields(tasksData.tasks.completed),
+        pending: stripInternalFields(publicPending),
+        inProgress: stripInternalFields(publicInProgress),
+        completed: stripInternalFields(publicCompleted),
       },
       metadata: {
         totalCreated:
-          tasksData.tasks.pending.length +
-          tasksData.tasks.inProgress.length +
-          tasksData.tasks.completed.length,
-        totalCompleted: tasksData.tasks.completed.length,
+          publicPending.length +
+          publicInProgress.length +
+          publicCompleted.length,
+        totalCompleted: publicCompleted.length,
       },
     };
 
@@ -323,7 +377,8 @@ function regenerateIndex(projectPath: string, tasksData: TasksData): boolean {
  * Add a new task — writes a .md file, then regenerates the index.
  */
 function addTask(projectPath: string, task: Partial<Task>): Task | null {
-  ensureTasksDir(projectPath);
+  const isPrivate = task.private === true;
+  ensureTasksDir(projectPath, isPrivate);
 
   const newTask: Task = {
     id: generateTaskId(),
@@ -336,6 +391,7 @@ function addTask(projectPath: string, task: Partial<Task>): Task | null {
     priority: task.priority || 'medium',
     category: task.category || 'feature',
     context: task.context || '',
+    private: isPrivate || undefined,
     blockedBy: task.blockedBy ?? [],
     blocks: task.blocks ?? [],
     steps: task.steps ?? [],
@@ -345,7 +401,7 @@ function addTask(projectPath: string, task: Partial<Task>): Task | null {
   };
 
   try {
-    const filePath = getTaskFilePath(projectPath, newTask.id);
+    const filePath = getTaskFilePath(projectPath, newTask.id, isPrivate);
     const markdown = serializeTaskMarkdown(newTask);
     fs.writeFileSync(filePath, markdown, 'utf8');
 
@@ -371,12 +427,12 @@ function updateTask(
   taskId: string,
   updates: Partial<Task>
 ): Task | null {
-  const filePath = getTaskFilePath(projectPath, taskId);
+  const filePath = findTaskFile(projectPath, taskId);
 
   try {
     // Read the specific .md file
-    if (!fs.existsSync(filePath)) {
-      console.error(`Task file not found: ${filePath}`);
+    if (!filePath || !fs.existsSync(filePath)) {
+      console.error(`Task file not found: ${taskId}`);
       return null;
     }
 
@@ -399,9 +455,21 @@ function updateTask(
       updatedTask.completedAt = null;
     }
 
+    // Handle privacy change — move file between public/private directories
+    const wasPrivate = !!task.private;
+    const isNowPrivate = updatedTask.private === true;
+    let writePath = filePath;
+
+    if (wasPrivate !== isNowPrivate) {
+      ensureTasksDir(projectPath, isNowPrivate);
+      writePath = getTaskFilePath(projectPath, taskId, isNowPrivate);
+      // Remove the old file after writing the new one
+      fs.unlinkSync(filePath);
+    }
+
     // Write updated .md file back
     const markdown = serializeTaskMarkdown(updatedTask);
-    fs.writeFileSync(filePath, markdown, 'utf8');
+    fs.writeFileSync(writePath, markdown, 'utf8');
 
     // Regenerate index
     const tasksData = loadTasks(projectPath);
@@ -420,10 +488,10 @@ function updateTask(
  * Delete a task — removes the .md file, then regenerates the index.
  */
 function deleteTask(projectPath: string, taskId: string): boolean {
-  const filePath = getTaskFilePath(projectPath, taskId);
+  const filePath = findTaskFile(projectPath, taskId);
 
   try {
-    if (fs.existsSync(filePath)) {
+    if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
@@ -448,40 +516,57 @@ function watchTasksFile(projectPath: string): void {
   unwatchTasksFile();
 
   const tasksDir = getTasksDir(projectPath);
+  const privateDir = getPrivateTasksDir(projectPath);
 
-  // If the tasks directory doesn't exist yet, nothing to watch
-  if (!fs.existsSync(tasksDir)) return;
+  // Shared handler for changes in either directory
+  function onTaskFileChange(_eventType: string, filename: string | null) {
+    // Only react to .md file changes (ignore subdirectories like 'private/', 'archive/')
+    if (filename && !filename.endsWith('.md')) return;
 
-  try {
-    tasksWatcher = fs.watch(tasksDir, (_eventType, filename) => {
-      // Only react to .md file changes
-      if (filename && !filename.endsWith('.md')) return;
+    // Debounce to avoid firing multiple times for a single save
+    if (watchDebounceTimer) clearTimeout(watchDebounceTimer);
+    watchDebounceTimer = setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const tasks = loadTasks(projectPath);
+        if (!tasks) return;
 
-      // Debounce to avoid firing multiple times for a single save
-      if (watchDebounceTimer) clearTimeout(watchDebounceTimer);
-      watchDebounceTimer = setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          const tasks = loadTasks(projectPath);
-          if (!tasks) return;
+        // Deduplicate: only send if task content actually changed
+        const fingerprint = computeTasksFingerprint(tasks);
+        if (fingerprint === lastWatchedHash) return;
+        lastWatchedHash = fingerprint;
 
-          // Deduplicate: only send if task content actually changed
-          const fingerprint = computeTasksFingerprint(tasks);
-          if (fingerprint === lastWatchedHash) return;
-          lastWatchedHash = fingerprint;
+        mainWindow.webContents.send(IPC.TASKS_DATA, {
+          projectPath,
+          tasks,
+        });
+      }
+    }, 300);
+  }
 
-          mainWindow.webContents.send(IPC.TASKS_DATA, {
-            projectPath,
-            tasks,
-          });
-        }
-      }, 300);
-    });
-    tasksWatcher.on('error', (err) => {
-      console.warn('[Tasks] Watcher error (path may have been deleted):', (err as NodeJS.ErrnoException).code);
-      unwatchTasksFile();
-    });
-  } catch (err) {
-    console.error('Error watching tasks directory:', err);
+  // Watch public tasks directory
+  if (fs.existsSync(tasksDir)) {
+    try {
+      tasksWatcher = fs.watch(tasksDir, onTaskFileChange);
+      tasksWatcher.on('error', (err) => {
+        console.warn('[Tasks] Watcher error (path may have been deleted):', (err as NodeJS.ErrnoException).code);
+        unwatchTasksFile();
+      });
+    } catch (err) {
+      console.error('Error watching tasks directory:', err);
+    }
+  }
+
+  // Watch private tasks directory
+  if (fs.existsSync(privateDir)) {
+    try {
+      privateTasksWatcher = fs.watch(privateDir, onTaskFileChange);
+      privateTasksWatcher.on('error', (err) => {
+        console.warn('[Tasks] Private watcher error:', (err as NodeJS.ErrnoException).code);
+        if (privateTasksWatcher) { privateTasksWatcher.close(); privateTasksWatcher = null; }
+      });
+    } catch (err) {
+      console.error('Error watching private tasks directory:', err);
+    }
   }
 }
 
@@ -493,6 +578,10 @@ function unwatchTasksFile(): void {
   if (tasksWatcher) {
     tasksWatcher.close();
     tasksWatcher = null;
+  }
+  if (privateTasksWatcher) {
+    privateTasksWatcher.close();
+    privateTasksWatcher = null;
   }
 }
 

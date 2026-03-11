@@ -10,6 +10,7 @@ import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 import { useAgentState } from '../hooks/useAgentState';
 import { useUIStore } from '../stores/useUIStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
@@ -177,6 +178,7 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
         return;
       }
     }
+    toast.info('No terminal linked to this session', { duration: 2000 });
   }, [isFullView]);
 
   // Check if a session has an associated terminal (reactive via terminals subscription)

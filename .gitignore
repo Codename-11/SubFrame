@@ -46,6 +46,9 @@ docs/.vitepress/cache/
 .subframe/agent-state.json.tmp.*
 .subframe/tasks.json.pre-migration-backup
 
+# Private sub-tasks (local only, not shared via git)
+.subframe/tasks/private/
+
 # Pipeline run history (contains local paths)
 .subframe/pipelines/runs.json
 

@@ -1,3 +1,5 @@
+# @subframe-version 0.2.5-beta
+# @subframe-managed
 name: review
 on:
   push:

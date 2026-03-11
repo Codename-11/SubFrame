@@ -1,3 +1,5 @@
+<!-- @subframe-version 0.2.5-beta -->
+<!-- @subframe-managed -->
 ---
 name: sub-docs
 description: Sync all SubFrame documentation after feature work. Updates CLAUDE.md lists, changelog, PROJECT_NOTES decisions, and STRUCTURE.json.

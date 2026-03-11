@@ -1,11 +1,10 @@
 #!/bin/bash
+# @subframe-version 0.2.5-beta
+# @subframe-managed
 #
 # SubFrame pre-commit hook
-# 1. Auto-updates STRUCTURE.json when source files in src/ are committed
-# 2. Verifies scripts/hooks/ match canonical templates (prevents drift)
+# Auto-updates STRUCTURE.json when JS files in src/ are committed.
 #
-
-# --- STRUCTURE.json auto-update ---
 
 # Check if any JS files in src/ are staged
 STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep -E '^src/.*\.(js|ts|tsx|jsx)$' || true)
@@ -13,35 +12,29 @@ STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep -E '^src/.*
 # Also check for deleted source files
 DELETED_JS=$(git diff --cached --name-only --diff-filter=D | grep -E '^src/.*\.(js|ts|tsx|jsx)$' || true)
 
-if [ -n "$STAGED_JS" ] || [ -n "$DELETED_JS" ]; then
-  # Only update if .subframe/STRUCTURE.json exists (SubFrame project)
-  if [ -f ".subframe/STRUCTURE.json" ]; then
-    UPDATER=".githooks/update-structure.js"
-    if [ -f "$UPDATER" ]; then
-      echo "[SubFrame] Source files changed, updating .subframe/STRUCTURE.json..."
-      STAGED_FILES="$STAGED_JS" DELETED_FILES="$DELETED_JS" node "$UPDATER"
-      git add .subframe/STRUCTURE.json
-      echo "[SubFrame] .subframe/STRUCTURE.json updated and staged."
-    fi
-  fi
+if [ -z "$STAGED_JS" ] && [ -z "$DELETED_JS" ]; then
+  exit 0
 fi
 
-# --- Hooks drift check ---
-
-# Check if hook-related files are staged (frameTemplates or scripts/hooks/)
-STAGED_HOOKS=$(git diff --cached --name-only | grep -E '(frameTemplates\.(js|ts)|scripts/hooks/)' || true)
-
-if [ -n "$STAGED_HOOKS" ]; then
-  if [ -f "scripts/verify-hooks.js" ]; then
-    echo "[SubFrame] Hook-related files changed, verifying scripts/hooks/ sync..."
-    if ! node scripts/verify-hooks.js; then
-      echo ""
-      echo "COMMIT BLOCKED: scripts/hooks/ is out of sync with frameTemplates."
-      echo "Run 'npm run generate:hooks' to fix."
-      exit 1
-    fi
-    echo "[SubFrame] scripts/hooks/ is in sync."
-  fi
+# Only update if .subframe/STRUCTURE.json exists (SubFrame project)
+if [ ! -f ".subframe/STRUCTURE.json" ]; then
+  exit 0
 fi
+
+# Only update if the updater script exists
+UPDATER=".githooks/update-structure.js"
+if [ ! -f "$UPDATER" ]; then
+  exit 0
+fi
+
+echo "[SubFrame] Source files changed, updating .subframe/STRUCTURE.json..."
+
+# Run the updater with staged/deleted file lists as env vars
+STAGED_FILES="$STAGED_JS" DELETED_FILES="$DELETED_JS" node "$UPDATER"
+
+# Stage the updated .subframe/STRUCTURE.json
+git add .subframe/STRUCTURE.json
+
+echo "[SubFrame] .subframe/STRUCTURE.json updated and staged."
 
 exit 0

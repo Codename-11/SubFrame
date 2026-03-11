@@ -121,6 +121,7 @@ export function parseTaskMarkdown(content: string, filePath: string): Task {
     priority: fm.priority ?? 'medium',
     category: fm.category ?? undefined,
     context: fm.context ?? undefined,
+    private: fm.private === true ? true : undefined,
     blockedBy: Array.isArray(fm.blockedBy) ? fm.blockedBy : [],
     blocks: Array.isArray(fm.blocks) ? fm.blocks : [],
     createdAt: fm.createdAt ? new Date(fm.createdAt).toISOString() : new Date().toISOString(),
@@ -158,6 +159,7 @@ export function serializeTaskMarkdown(task: Task): string {
   };
 
   if (task.context) fm.context = task.context;
+  if (task.private) fm.private = true;
 
   // Build body sections
   const bodyParts: string[] = [];

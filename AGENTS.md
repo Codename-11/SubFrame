@@ -121,6 +121,7 @@ title: Short and clear title (max 60 characters)
 status: pending | in_progress | completed
 priority: high | medium | low
 category: feature | enhancement | bug | fix | refactor | research | docs | test | chore
+private: true          # optional — stored in .subframe/tasks/private/ (gitignored)
 description: AI's detailed explanation — what, how, which files affected
 userRequest: User's original prompt/request — copy exactly
 acceptanceCriteria: When is this task done? Concrete testable criteria
@@ -142,6 +143,8 @@ completedAt: ISO timestamp | null
 ```
 
 A generated index is kept at `.subframe/tasks.json` for hooks and quick lookups. After creating or modifying task `.md` files, regenerate the index by reading all `.subframe/tasks/*.md` files (excluding `archive/`) and building the JSON with tasks grouped by status.
+
+**Private tasks** are stored in `.subframe/tasks/private/` (gitignored). They work identically to regular tasks — visible in UI, CLI, and hooks — but are excluded from the git-tracked `tasks.json` index and the `private/` directory itself. Use `--private` when creating via CLI, or toggle the checkbox in the UI. To make a private task public: `node scripts/task.js update <id> --public`.
 
 ### Sub-Task Recognition Rules
 

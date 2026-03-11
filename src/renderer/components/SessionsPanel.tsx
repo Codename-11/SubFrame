@@ -32,6 +32,7 @@ import { sendCommandToTerminal } from '../lib/promptUtils';
 import { useSessions } from '../hooks/useSessions';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useTerminalStore } from '../stores/useTerminalStore';
 import type { ClaudeSession, SessionSegment } from '../../shared/ipcChannels';
 
 function formatRelativeTime(dateString: string | undefined): string {
@@ -206,10 +207,22 @@ export function SessionsPanel() {
     setIsRefreshing(false);
   }
 
-  function resumeSession(session: ClaudeSession, command?: string) {
+  function resumeSession(session: ClaudeSession, command?: string, segmentSessionId?: string) {
     const cmd = command ?? defaultStartCommand;
-    const target = session.sessionId;
-    sendCommandToTerminal(`${cmd} --resume ${target}`);
+    const target = segmentSessionId ?? session.sessionId;
+
+    // Find the terminal correlated to this session (if any) to avoid
+    // sending the resume command to the wrong terminal
+    const { terminals } = useTerminalStore.getState();
+    let correlatedTerminalId: string | undefined;
+    for (const [, info] of terminals) {
+      if (info.claudeSessionId === session.sessionId) {
+        correlatedTerminalId = info.id;
+        break;
+      }
+    }
+
+    sendCommandToTerminal(`${cmd} --resume ${target}`, correlatedTerminalId);
   }
 
   function handleRename(session: ClaudeSession, name: string) {
@@ -404,7 +417,15 @@ export function SessionsPanel() {
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
-                            onClick={() => sendCommandToTerminal(`${defaultStartCommand} --continue`)}
+                            onClick={() => {
+                              // Find correlated terminal for this session
+                              const { terminals: allTerminals } = useTerminalStore.getState();
+                              let tid: string | undefined;
+                              for (const [, info] of allTerminals) {
+                                if (info.claudeSessionId === s.sessionId) { tid = info.id; break; }
+                              }
+                              sendCommandToTerminal(`${defaultStartCommand} --continue`, tid);
+                            }}
                             className="text-xs cursor-pointer"
                           >
                             <Play size={12} className="mr-1.5 opacity-0" />
@@ -457,7 +478,7 @@ export function SessionsPanel() {
                           showAll={showAllSegments}
                           onToggleShowAll={() => setShowAllSegments(prev => !prev)}
                           onResume={(seg) => {
-                            sendCommandToTerminal(`${defaultStartCommand} --resume ${seg.sessionId}`);
+                            resumeSession(s, undefined, seg.sessionId);
                           }}
                         />
                       </motion.div>

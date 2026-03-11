@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.2.4-beta
+// @subframe-version 0.2.5-beta
 // @subframe-managed
 /**
  * SubFrame PreToolUse Hook

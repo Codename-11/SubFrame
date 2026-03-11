@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// @subframe-version 0.2.5-beta
+// @subframe-managed
 /**
  * SubFrame STRUCTURE.json Updater
  * Called by .githooks/pre-commit when source files in src/ are staged.

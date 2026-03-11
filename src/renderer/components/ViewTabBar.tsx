@@ -1,5 +1,5 @@
 import React from 'react';
-import { useUIStore, type FullViewContent } from '../stores/useUIStore';
+import { useUIStore, type FullViewContent, getTabIdForContent } from '../stores/useUIStore';
 import {
   X,
   TerminalSquare,
@@ -31,7 +31,8 @@ export function ViewTabBar() {
   const setFullViewContent = useUIStore(s => s.setFullViewContent);
   const closeTab = useUIStore(s => s.closeTab);
 
-  const activeTabId = fullViewContent ?? 'terminal';
+  // Map sub-views to their parent tab for active highlighting
+  const activeTabId = fullViewContent ? getTabIdForContent(fullViewContent) : 'terminal';
 
   // Don't render if only terminal tab is open
   if (openTabs.length <= 1) return null;

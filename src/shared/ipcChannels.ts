@@ -294,6 +294,7 @@ export interface Task {
   priority: 'high' | 'medium' | 'low';
   category?: string;
   context?: string;
+  private?: boolean;
   blockedBy: string[];
   blocks: string[];
   steps: TaskStep[];
@@ -968,7 +969,7 @@ export interface IPCHandleMap {
   [IPC.IS_TERMINAL_CLAUDE_ACTIVE]: { args: [terminalId: string]; return: boolean };
 
   // Terminal Session Name
-  [IPC.GET_TERMINAL_SESSION_NAME]: { args: [payload: { terminalId: string }]; return: { name: string | null } };
+  [IPC.GET_TERMINAL_SESSION_NAME]: { args: [payload: { terminalId: string; sessionId?: string }]; return: { name: string | null } };
 
   // Skills
   [IPC.LOAD_SKILLS]: { args: [projectPath: string]; return: SkillInfo[] };

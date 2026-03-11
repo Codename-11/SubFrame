@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-10",
+    "lastUpdated": "2026-03-11",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-10T20:40:48.800Z",
+  "lastUpdated": "2026-03-11T00:48:56.207Z",
   "tasks": {
     "pending": [
       {
@@ -92,20 +92,6 @@
         "updatedAt": "2026-03-10T00:17:15.342Z",
         "completedAt": null,
         "description": "",
-        "steps": []
-      },
-      {
-        "id": "task-1773106251873-jkr6061nr",
-        "title": "Allow Sub-Tasks to be private",
-        "status": "pending",
-        "priority": "high",
-        "category": "enhancement",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-10T01:30:51.873Z",
-        "updatedAt": "2026-03-10T01:30:51.873Z",
-        "completedAt": null,
-        "description": "Sub-Tasks should be allowed to be marked private and not tracked via git. All UI/Sub-Frame features should still work as normal otherwise. We should include enhancements to skils/hooks, etc if needed.",
         "steps": []
       },
       {
@@ -507,6 +493,76 @@
         "description": "Verify the onboarding AI analysis pipeline works correctly with non-Claude tools (Codex, Gemini CLI). These still use the pipe/tee approach since they may not support interactive mode. Confirm: streaming output appears, sentinel detection works, timeout is sufficient, and parseAnalysisResponse handles their output formats.",
         "userRequest": "Add a sub-task to test/verify this with codex/gemini",
         "acceptanceCriteria": "Analysis completes successfully with Codex CLI,Analysis completes successfully with Gemini CLI,Output is parsed correctly from tee file,Timeout does not fire prematurely,Error patterns detected correctly for each tool",
+        "steps": []
+      },
+      {
+        "id": "task-mml9nktcgb29o",
+        "title": "Add step management UI to task creation dialog",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T23:53:47.808Z",
+        "updatedAt": "2026-03-10T23:53:47.808Z",
+        "completedAt": null,
+        "description": "The task creation/edit dialog only supports title, description, priority, and category. Steps can be added via CLI (--add-step) and are rendered in TaskTimeline, but there is no UI for creating or editing steps in the modal. Add a step list editor with add/remove/reorder capabilities.",
+        "steps": []
+      },
+      {
+        "id": "task-mml9nktclwt0p",
+        "title": "Expand test coverage for core managers",
+        "status": "pending",
+        "priority": "high",
+        "category": "test",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T23:53:47.808Z",
+        "updatedAt": "2026-03-10T23:53:47.808Z",
+        "completedAt": null,
+        "description": "The project has Vitest configured but main process managers (ptyManager, tasksManager, settingsManager, agentStateManager) likely need more unit test coverage. Add tests for IPC handler logic, task CRUD operations, and markdown parser edge cases to prevent regressions.",
+        "steps": []
+      },
+      {
+        "id": "task-mml9nktd7c6n4",
+        "title": "Cross-platform testing and CI for macOS and Linux",
+        "status": "pending",
+        "priority": "medium",
+        "category": "test",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T23:53:47.808Z",
+        "updatedAt": "2026-03-10T23:53:47.808Z",
+        "completedAt": null,
+        "description": "README states macOS and Linux builds are generated but untested. Add CI matrix builds for all three platforms and document platform-specific prerequisites and known issues to support the community testing effort.",
+        "steps": []
+      },
+      {
+        "id": "task-mml9nktdcbkiz",
+        "title": "Add markdown preview to task description field",
+        "status": "pending",
+        "priority": "low",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T23:53:47.808Z",
+        "updatedAt": "2026-03-10T23:53:47.808Z",
+        "completedAt": null,
+        "description": "Task descriptions support markdown at the storage/parser level (taskMarkdownParser.ts) and MarkdownPreview component exists, but the task dialog uses a plain textarea. Integrate a split-view or toggle preview using the existing MarkdownPreview component for richer task descriptions.",
+        "steps": []
+      },
+      {
+        "id": "task-mml9nkteuiepx",
+        "title": "Document IPC channel contract and data flow patterns",
+        "status": "pending",
+        "priority": "low",
+        "category": "docs",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T23:53:47.808Z",
+        "updatedAt": "2026-03-10T23:53:47.808Z",
+        "completedAt": null,
+        "description": "While ipcChannels.ts serves as the source of truth for channel definitions, add developer documentation (in .subframe/docs-internal/) explaining the end-to-end IPC pattern: channel definition → main handler → renderer hook → component usage, with examples for adding new channels.",
         "steps": []
       }
     ],
@@ -1267,6 +1323,23 @@
         ]
       },
       {
+        "id": "task-mml2rax8-ovzn",
+        "title": "Version-stamped component update system",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-10",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T20:40:44.300Z",
+        "updatedAt": "2026-03-10T20:40:48.797Z",
+        "completedAt": "2026-03-10T20:40:48.797Z",
+        "description": "Add version stamps (@subframe-version, @subframe-managed) to all deployed templates. Improve health check with version-aware detection, structural claude-settings validation, user-edit resilience (opt-out via @subframe-managed: false). Add build pipeline safety (verify:hooks in check/CI/pre-commit). Ensures projects initialized with SubFrame can be reliably updated when SubFrame itself is updated.",
+        "userRequest": "Ensure that if we make changes or enhancements or add more hooks, anything we initialize in other projects can be updated along with the version of SubFrame.",
+        "acceptanceCriteria": "All deployed files contain @subframe-version header. Health panel detects outdated versions. Users can opt out of managed updates. Build pipeline prevents scripts/hooks/ drift.",
+        "steps": []
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -1469,20 +1542,17 @@
         "steps": []
       },
       {
-        "id": "task-mml2rax8-ovzn",
-        "title": "Version-stamped component update system",
+        "id": "task-1773106251873-jkr6061nr",
+        "title": "Allow Sub-Tasks to be private",
         "status": "completed",
         "priority": "high",
-        "category": "feature",
-        "context": "Session 2026-03-10",
+        "category": "enhancement",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-10T20:40:44.300Z",
-        "updatedAt": "2026-03-10T20:40:48.797Z",
-        "completedAt": "2026-03-10T20:40:48.797Z",
-        "description": "Add version stamps (@subframe-version, @subframe-managed) to all deployed templates. Improve health check with version-aware detection, structural claude-settings validation, user-edit resilience (opt-out via @subframe-managed: false). Add build pipeline safety (verify:hooks in check/CI/pre-commit). Ensures projects initialized with SubFrame can be reliably updated when SubFrame itself is updated.",
-        "userRequest": "Ensure that if we make changes or enhancements or add more hooks, anything we initialize in other projects can be updated along with the version of SubFrame.",
-        "acceptanceCriteria": "All deployed files contain @subframe-version header. Health panel detects outdated versions. Users can opt out of managed updates. Build pipeline prevents scripts/hooks/ drift.",
+        "createdAt": "2026-03-10T01:30:51.873Z",
+        "updatedAt": "2026-03-11T00:48:56.203Z",
+        "completedAt": "2026-03-11T00:48:56.203Z",
+        "description": "Sub-Tasks should be allowed to be marked private and not tracked via git. All UI/Sub-Frame features should still work as normal otherwise. We should include enhancements to skils/hooks, etc if needed.",
         "steps": []
       }
     ]
