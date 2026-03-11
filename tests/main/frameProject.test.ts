@@ -5,10 +5,17 @@
  * and additional scenarios (opt-out, claude-settings merge, missing component, new file creation).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
+// Mock electron — not available in CI (npm ci --ignore-scripts skips binary download)
+vi.mock('electron', () => ({
+  dialog: { showMessageBox: vi.fn() },
+  ipcMain: { handle: vi.fn(), on: vi.fn() },
+}));
+
 import { updateSubFrameComponents } from '../../src/main/frameProject';
 import { getComponentRegistry } from '../../src/shared/subframeHealth';
 import { writeClaudeSettings, readClaudeSettings } from '../../src/shared/claudeSettingsUtils';
