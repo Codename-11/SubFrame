@@ -17,7 +17,20 @@ const { execSync } = require('child_process');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const STRUCTURE_FILE = path.join(ROOT_DIR, '.subframe', 'STRUCTURE.json');
-const SRC_DIR = path.join(ROOT_DIR, 'src');
+
+// Resolve source directory: CLI arg > config.json > default 'src'
+function resolveSourceDir() {
+  // Check CLI arg: --src-dir=<path>
+  const cliArg = process.argv.find(a => a.startsWith('--src-dir='));
+  if (cliArg) return cliArg.split('=')[1];
+  // Check .subframe/config.json
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, '.subframe', 'config.json'), 'utf-8'));
+    if (cfg.settings && cfg.settings.sourceDir) return cfg.settings.sourceDir;
+  } catch (e) { /* ignore */ }
+  return 'src';
+}
+const SRC_DIR = path.join(ROOT_DIR, resolveSourceDir());
 
 // File extensions to process
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
@@ -493,8 +506,9 @@ function getChangedFiles() {
       encoding: 'utf-8'
     });
 
+    const srcPrefix = path.relative(ROOT_DIR, SRC_DIR).replace(/\\/g, '/') + '/';
     const files = [...staged.split('\n'), ...unstaged.split('\n')]
-      .filter(f => f.startsWith('src/') && isSourceFile(f))
+      .filter(f => f.startsWith(srcPrefix) && isSourceFile(f))
       .map(f => path.join(ROOT_DIR, f))
       .filter(f => !isExcluded(f));
 
@@ -515,8 +529,9 @@ function getDeletedFiles() {
       encoding: 'utf-8'
     });
 
+    const srcPrefix = path.relative(ROOT_DIR, SRC_DIR).replace(/\\/g, '/') + '/';
     return deleted.split('\n')
-      .filter(f => f.startsWith('src/') && isSourceFile(f))
+      .filter(f => f.startsWith(srcPrefix) && isSourceFile(f))
       .filter(f => !isExcluded(path.join(ROOT_DIR, f)));
   } catch (e) {
     return [];

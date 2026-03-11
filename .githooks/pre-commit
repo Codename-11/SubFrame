@@ -6,11 +6,18 @@
 # Auto-updates STRUCTURE.json when JS files in src/ are committed.
 #
 
-# Check if any JS files in src/ are staged
-STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep -E '^src/.*\.(js|ts|tsx|jsx)$' || true)
+# Resolve source directory from .subframe/config.json or default to 'src'
+if [ -f ".subframe/config.json" ]; then
+  SRC_DIR=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('.subframe/config.json','utf-8'));console.log((c.settings&&c.settings.sourceDir)||'src')}catch(e){console.log('src')}" 2>/dev/null || echo "src")
+else
+  SRC_DIR="src"
+fi
+
+# Check if any JS files in the source dir are staged
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACMRD | grep -E "^${SRC_DIR}/.*\.(js|ts|tsx|jsx)$" || true)
 
 # Also check for deleted source files
-DELETED_JS=$(git diff --cached --name-only --diff-filter=D | grep -E '^src/.*\.(js|ts|tsx|jsx)$' || true)
+DELETED_JS=$(git diff --cached --name-only --diff-filter=D | grep -E "^${SRC_DIR}/.*\.(js|ts|tsx|jsx)$" || true)
 
 if [ -z "$STAGED_JS" ] && [ -z "$DELETED_JS" ]; then
   exit 0

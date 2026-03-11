@@ -7,7 +7,8 @@
   "settings": {
     "autoUpdateStructure": true,
     "autoUpdateNotes": false,
-    "taskRecognition": true
+    "taskRecognition": true,
+    "sourceDir": "src"
   },
   "files": {
     "agents": "AGENTS.md",

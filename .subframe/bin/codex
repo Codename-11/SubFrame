@@ -5,6 +5,26 @@
 # This script injects AGENTS.md as initial prompt
 
 AGENTS_FILE="AGENTS.md"
+SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
+# Find the real codex binary, skipping this wrapper to avoid infinite recursion
+find_real_codex() {
+  local IFS=':'
+  for dir in $PATH; do
+    local candidate="$dir/codex"
+    if [ -x "$candidate" ] && [ "$(cd "$(dirname "$candidate")" && pwd)/$(basename "$candidate")" != "$SCRIPT_PATH" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+REAL_CODEX=$(find_real_codex)
+if [ -z "$REAL_CODEX" ]; then
+  echo "Error: could not find real codex binary on PATH (only found this wrapper)" >&2
+  exit 1
+fi
 
 # Find AGENTS.md in current directory or parent directories
 find_agents_file() {
@@ -23,7 +43,7 @@ AGENTS_PATH=$(find_agents_file)
 
 # Run codex with initial prompt to read AGENTS.md
 if [ -n "$AGENTS_PATH" ]; then
-  exec codex "Please read AGENTS.md and follow the project instructions. This file contains important rules for this project." "$@"
+  exec "$REAL_CODEX" "Please read AGENTS.md and follow the project instructions. This file contains important rules for this project." "$@"
 else
-  exec codex "$@"
+  exec "$REAL_CODEX" "$@"
 fi

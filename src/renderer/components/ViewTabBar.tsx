@@ -1,5 +1,6 @@
 import React from 'react';
 import { useUIStore, type FullViewContent, getTabIdForContent } from '../stores/useUIStore';
+import { useProjectStore } from '../stores/useProjectStore';
 import {
   X,
   TerminalSquare,
@@ -14,6 +15,7 @@ import {
   ListTodo,
   Activity,
   PanelLeft,
+  FolderOpen,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -50,12 +52,49 @@ export function ViewTabBar() {
   const toggleFullView = useUIStore(s => s.toggleFullView);
   const sidebarState = useUIStore(s => s.sidebarState);
   const setSidebarState = useUIStore(s => s.setSidebarState);
+  const currentProjectPath = useProjectStore(s => s.currentProjectPath);
+  const workspaceName = useProjectStore(s => s.workspaceName);
 
   // Map sub-views to their parent tab for active highlighting
   const activeTabId = fullViewContent ? getTabIdForContent(fullViewContent) : 'terminal';
 
+  // Extract project folder name from path
+  const projectName = currentProjectPath
+    ? currentProjectPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? null
+    : null;
+
   return (
     <div className="flex items-center bg-bg-secondary border-b border-border-subtle shrink-0">
+      {/* Workspace + project badge — visible when sidebar is not expanded */}
+      {sidebarState !== 'expanded' && (
+        <TooltipProvider delayDuration={400}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setSidebarState('expanded')}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs
+                           hover:bg-bg-hover transition-colors cursor-pointer
+                           border-r border-border-subtle shrink-0"
+              >
+                <FolderOpen className="w-3.5 h-3.5 text-accent flex-shrink-0" />
+                {workspaceName && workspaceName !== 'default' && (
+                  <>
+                    <span className="font-semibold text-text-primary truncate max-w-[100px]">{workspaceName}</span>
+                    {projectName && <span className="text-text-muted">/</span>}
+                  </>
+                )}
+                {projectName && (
+                  <span className="text-text-secondary truncate max-w-[120px]">{projectName}</span>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{workspaceName && workspaceName !== 'default' ? `${workspaceName} — ` : ''}{currentProjectPath}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
       {/* Open tabs */}
       <div className="flex items-center overflow-x-auto scrollbar-none flex-1 min-w-0">
         {openTabs.map(tab => {

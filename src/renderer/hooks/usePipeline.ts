@@ -31,6 +31,12 @@ export function usePipeline() {
   // Deduplicate by timestamp to prevent re-render loops.
   const lastUpdateTs = useRef<string | null>(null);
 
+  // Clear stale refs on project switch
+  useEffect(() => {
+    latestData.current = null;
+    lastUpdateTs.current = null;
+  }, [projectPath]);
+
   useEffect(() => {
     const handler = (_event: unknown, data: PipelineRunsPayload) => {
       // Only accept data for the current project

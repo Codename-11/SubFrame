@@ -14,7 +14,7 @@ import {
   type SortingState,
   type SortingFn,
 } from '@tanstack/react-table';
-import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X, Copy, Lock, Link, Sparkles, Loader2, Pencil } from 'lucide-react';
+import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X, Copy, Lock, Link, Sparkles, Loader2, Pencil, RefreshCw } from 'lucide-react';
 import { TaskTimeline } from './TaskTimeline';
 import { TaskGraph } from './TaskGraph';
 import { TaskKanban } from './TaskKanban';
@@ -347,7 +347,7 @@ interface TasksPanelProps {
 }
 
 export function TasksPanel({ isFullView = false }: TasksPanelProps) {
-  const { tasks, addTask, updateTask, deleteTask, isLoading } = useTasks();
+  const { tasks, addTask, updateTask, deleteTask, isLoading, refetch } = useTasks();
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
 
@@ -815,6 +815,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
             <Maximize2 size={14} />
           </Button>
         )}
+        <Button size="sm" variant="ghost" onClick={refetch} className="h-7 px-2 text-text-tertiary hover:text-accent cursor-pointer shrink-0" title="Refresh tasks">
+          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+        </Button>
         <Button size="sm" variant="ghost" onClick={openAddDialog} className="h-7 px-2 text-accent cursor-pointer shrink-0">
           <Plus size={14} />
         </Button>

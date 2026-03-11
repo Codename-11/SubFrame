@@ -27,6 +27,12 @@ export function useAgentState() {
   const projectPathRef = useRef(projectPath);
   projectPathRef.current = projectPath;
 
+  // Clear stale refs on project switch
+  useEffect(() => {
+    latestData.current = null;
+    lastUpdateTs.current = '';
+  }, [projectPath]);
+
   // Register IPC listener FIRST (empty deps — always active, avoids race condition)
   useEffect(() => {
     const handler = (_event: unknown, data: AgentStatePayload) => {

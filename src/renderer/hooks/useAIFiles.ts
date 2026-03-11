@@ -23,6 +23,9 @@ export function useAIFiles() {
   const queryClient = useQueryClient();
   const latestData = useRef<AIFilesStatus | null>(null);
 
+  // Clear stale ref on project switch
+  useEffect(() => { latestData.current = null; }, [projectPath]);
+
   // ── Backlink verification state ──
   const [verificationResult, setVerificationResult] = useState<BacklinkVerificationResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);

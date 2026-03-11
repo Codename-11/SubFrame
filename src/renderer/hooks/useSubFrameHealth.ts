@@ -26,6 +26,9 @@ export function useSubFrameHealth() {
   const queryClient = useQueryClient();
   const latestData = useRef<SubFrameHealthStatus | null>(null);
 
+  // Clear stale ref on project switch
+  useEffect(() => { latestData.current = null; }, [projectPath]);
+
   // ── Update result state ──
   const [updateResult, setUpdateResult] = useState<{ updated: string[]; failed: string[]; skipped?: string[] } | null>(null);
 

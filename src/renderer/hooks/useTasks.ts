@@ -46,6 +46,12 @@ export function useTasks() {
   // from file-watcher events that send identical data repeatedly).
   const lastUpdateTs = useRef<string | null>(null);
 
+  // Clear stale refs on project switch — prevents serving old project data to new queryFn
+  useEffect(() => {
+    latestData.current = null;
+    lastUpdateTs.current = null;
+  }, [projectPath]);
+
   useEffect(() => {
     const handler = (_event: unknown, data: TasksPayload) => {
       latestData.current = data;
