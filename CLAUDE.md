@@ -50,7 +50,7 @@ npm run watch        # Watch React renderer only (no Electron)
 npm run typecheck    # TypeScript strict-mode check (main + renderer)
 npm test             # Run Vitest test suite
 npm run lint         # ESLint check (TS/TSX only)
-npm run check        # typecheck + lint + test + verify:hooks (all quality gates)
+npm run check        # typecheck + lint + test + verify:hooks + build (all quality gates — mirrors CI)
 npm run verify:hooks # Verify scripts/hooks/ match templates (drift detection)
 npm start            # Build then launch
 npm run structure    # Update .subframe/STRUCTURE.json (supports TS/TSX)
@@ -128,7 +128,7 @@ Project-level hooks in `.claude/settings.json` automate sub-task awareness:
 
 After significant work (code changes, architecture decisions, new tooling), verify the SubFrame system is in sync:
 
-1. **Quality gates** — Run `npm run check` (typecheck + lint + test + verify:hooks) **before every commit/push**. Fix all errors before proceeding — warnings are acceptable, errors are not.
+1. **Quality gates** — Run `npm run check` (typecheck + lint + test + verify:hooks + build) **before every commit/push**. Fix all errors before proceeding — warnings are acceptable, errors are not.
 2. **Sub-Task** — Was this work tracked? `node scripts/task.js list` → create/complete as needed
 3. **PROJECT_NOTES.md** — Any decisions worth preserving? Ask the user
 4. **Changelog** — Does `CHANGELOG.md` (keepachangelog) have entries under `[Unreleased]`? Also update `.subframe/docs-internal/changelog.md` for detailed internal notes

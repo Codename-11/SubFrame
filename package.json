@@ -21,7 +21,7 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
-    "check": "npm run verify:templates && npm run typecheck && npm run lint && npm test && npm run verify:hooks",
+    "check": "npm run verify:templates && npm run typecheck && npm run lint && npm test && npm run verify:hooks && npm run build",
     "build:templates": "node scripts/build-templates.js",
     "verify:templates": "node scripts/verify-templates.js",
     "generate:hooks": "node scripts/generate-hooks.js",
