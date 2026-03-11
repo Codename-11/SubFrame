@@ -48,6 +48,9 @@ updates:
       - dependency-name: "electron-builder"
         update-types: ["version-update:semver-major"]
       # Deferred — requires coordinated eslint ecosystem bump
+      # eslint 10 blocked by eslint-plugin-react-hooks peer dep (only supports ^9)
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "@eslint/js"
         update-types: ["version-update:semver-major"]
       # Deferred — recharts v3 has breaking API changes in chart.tsx
