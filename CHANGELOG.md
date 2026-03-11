@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0-beta] - 2026-03-11
+
+### Added
+- **Global prompts in PromptsPanel**: Sidebar panel now shows both global and project prompts with scope toggle (All/Global/Project), scope badges, scope-aware CRUD, and scope-change-as-move semantics
+- **Seed prompts**: 7 starter prompts auto-seeded on first launch — Quick Audit, Explain This, Refactor Suggestions, Write Tests, PR Description, Security Review, Summarize Session
+- **Template variables**: 3 new prompt variables — `{{branch}}` (current git branch), `{{date}}` (today's date), `{{aiTool}}` (active AI tool name) — resolved at insert time from live data
+- **AI tool install guards**: All AI tool spawn paths (task enhance, pipeline, onboarding) now check install status and fail gracefully with actionable error messages
+- **AI tool recheck button**: Settings panel shows a compact recheck button to re-detect tool installation status
+- **Agent state types**: Shared type definitions for agent state tracking
+- **AIToolPalette**: Renamed from AIToolSelector with install warning toast when binding an uninstalled tool
+
+### Fixed
+- **Async AI tool detection**: Converted blocking `execSync` to async `execFile` across the full call chain (aiToolManager → menu → onboarding → pipeline → tasks) — eliminates UI freezes during tool detection
+- **Menu Start disabled for uninstalled tools**: Start menu item grayed out when the active AI tool is not installed
+- **Onboarding duplicate install check**: Replaced standalone `checkAIToolAvailable()` with delegation to shared `aiToolManager.getActiveTool()` + install cache
+- **Recheck toast timing**: Settings and AIToolPalette now `await refetch()` before showing success toast, ensuring accurate feedback
+
+### Changed
+- **"Agent Activity" tab renamed to "Agents"**: Shorter label in ViewTabBar
+
 ## [0.2.7-beta] - 2026-03-11
 
 ### Fixed
@@ -294,7 +314,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.7-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.3.0-beta...HEAD
+[0.3.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.7-beta...v0.3.0-beta
 [0.2.7-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.6-beta...v0.2.7-beta
 [0.2.6-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.5-beta...v0.2.6-beta
 [0.2.5-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.4-beta...v0.2.5-beta

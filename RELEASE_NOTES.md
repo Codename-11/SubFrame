@@ -1,18 +1,20 @@
-Bug fix release targeting tab naming reliability, UI layout consistency, and usage pill placement.
+This release adds global prompt management to the sidebar, first-launch seed prompts, new template variables for prompt content, and safety guards on all AI tool spawn paths.
 
 ## What's Changed
 
-### Bug Fixes
-- **Tab Name Cross-Contamination** - Terminals no longer swap names with each other; removed a fallback that picked the most recent project session when the correct session wasn't immediately available
-- **Duplicate Rename Toasts** - Auto-rename events no longer fire multiple toasts from retry broadcasts; added deduplication guard and sessionId validation
-- **Sub-View Close Button** - X button in Stats, Decisions, and Structure Map views now correctly closes the parent Overview tab instead of silently failing
-- **Panel Buttons Restored to Sidebar** - ViewTabBar shortcut buttons (Sub-Tasks, Agent Activity, Pipeline, Overview) open the right sidebar panel again, restoring the original open/collapse/hide cycle
-- **Agent Activity Stale Selection** - Removed fallback that could display an unrelated idle session when no active agent session exists
+### Features
+- **Global Prompts in Sidebar** - PromptsPanel now shows both global and project prompts with a scope toggle (All / Global / Project), scope badges, and full scope-aware CRUD including scope-change-as-move
+- **Seed Prompts** - 7 starter prompts auto-seeded on first launch: Quick Audit, Explain This, Refactor Suggestions, Write Tests, PR Description, Security Review, and Summarize Session
+- **New Template Variables** - `{{branch}}` (current git branch), `{{date}}` (today's date), `{{aiTool}}` (active AI tool name) join existing `{{project}}`, `{{projectPath}}`, `{{file}}` — all resolved at insert time from live data
+- **AI Tool Install Guards** - Task enhance, pipeline stages, and onboarding now verify the AI tool is installed before spawning, with actionable error messages
+- **AI Tool Recheck** - Settings panel shows a recheck button to re-detect tool installation without restarting
 
 ### Improvements
-- **Usage Pill in Main Tab Bar** - Session and weekly usage indicators moved from the terminal tab bar to the main tab bar for persistent visibility
-- **Full Text+Icon Shortcut Buttons** - View shortcuts restored to showing both icon and label instead of compact icon-only squares
+- **Async Tool Detection** - AI tool install detection converted from blocking `execSync` to async `execFile` across the full call chain, eliminating UI freezes
+- **AIToolPalette** - Renamed from AIToolSelector, now warns when binding an uninstalled tool to a project
+- **"Agents" Tab** - "Agent Activity" tab shortened to "Agents" in the view tab bar
 
-### Other Changes
-- Dependency bumps: @eslint/js, esbuild, CodeMirror, postcss, react-resizable-panels, actions/github-script, actions/upload-pages-artifact, electron-builder
-- CI improvements: upgraded actions/checkout and actions/setup-node to v5, added build step to quality gates
+### Bug Fixes
+- **Menu Start for Uninstalled Tools** - Start menu item now disabled when the active AI tool is not installed
+- **Onboarding Duplicate Check** - Removed standalone install check in favor of shared aiToolManager cache
+- **Recheck Toast Timing** - Settings and AIToolPalette now await refetch before showing success toast
