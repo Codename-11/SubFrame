@@ -1,4 +1,4 @@
-<!-- @subframe-version 0.2.5-beta -->
+<!-- @subframe-version 0.2.7-beta -->
 <!-- @subframe-managed -->
 ---
 name: sub-tasks
@@ -32,7 +32,6 @@ title: My task title
 status: pending
 priority: medium
 category: feature
-private: true          # optional — stored in .subframe/tasks/private/ (gitignored)
 description: What needs to be done
 userRequest: The user's original words
 acceptanceCriteria: How to verify completion
@@ -73,7 +72,6 @@ Create a new `.subframe/tasks/<id>.md` file with:
 - Set `status: pending`, `createdAt` and `updatedAt` to current ISO timestamp
 - `completedAt: null`
 - Include all required fields in frontmatter
-- If private: set `private: true` in frontmatter and save to `.subframe/tasks/private/<id>.md`
 
 #### Update a task
 Edit the frontmatter fields as needed. Always update `updatedAt`.
@@ -83,7 +81,7 @@ Move completed `.md` files to `.subframe/tasks/archive/YYYY/` (create directory 
 
 ### After Any Write Operation
 
-Regenerate the `.subframe/tasks.json` index by reading all `.subframe/tasks/*.md` files (excluding archive/) and building the JSON structure with tasks grouped by status (pending, inProgress, completed). **Private tasks** (those in `.subframe/tasks/private/`) are excluded from the index since it's git-tracked.
+Regenerate the `.subframe/tasks.json` index by reading all `.subframe/tasks/*.md` files (excluding archive/) and building the JSON structure with tasks grouped by status (pending, inProgress, completed).
 
 ### If invoked without arguments
 

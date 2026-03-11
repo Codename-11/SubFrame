@@ -64,7 +64,4 @@ updates:
     labels:
       - dependencies
       - ci
-    ignore:
-      # Deferred — needs coordinated bump with download-artifact
-      - dependency-name: "actions/upload-artifact"
-        update-types: ["version-update:semver-major"]
+    ignore: []

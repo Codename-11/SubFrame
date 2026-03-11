@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.2.6-beta
+// @subframe-version 0.2.7-beta
 // @subframe-managed
 /**
  * SubFrame UserPromptSubmit Hook
@@ -74,6 +74,37 @@ function matchScore(prompt, title) {
   return matches / titleWords.length;
 }
 
+/** Write user message signal to agent-state.json for terminal marker detection */
+function writeUserMessageSignal(root, terminalId, prompt) {
+  try {
+    const statePath = path.join(root, '.subframe', 'agent-state.json');
+    const stateDir = path.dirname(statePath);
+    if (!fs.existsSync(stateDir)) fs.mkdirSync(stateDir, { recursive: true });
+
+    let state;
+    try {
+      state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    } catch {
+      state = { projectPath: root, sessions: [], lastUpdated: new Date().toISOString() };
+    }
+
+    state.lastUserMessage = {
+      terminalId: terminalId,
+      timestamp: new Date().toISOString(),
+      promptPreview: typeof prompt === 'string' ? prompt.substring(0, 100) : '',
+    };
+    state.lastUpdated = new Date().toISOString();
+
+    // Atomic write (temp + rename)
+    const tmp = statePath + '.tmp.' + process.pid;
+    const content = JSON.stringify(state, null, 2);
+    try { fs.writeFileSync(tmp, content, 'utf8'); fs.renameSync(tmp, statePath); } catch {
+      try { fs.writeFileSync(statePath, content, 'utf8'); } catch { /* ignore */ }
+      try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+    }
+  } catch { /* ignore — signal is best-effort */ }
+}
+
 function main() {
   let input = '';
   try { input = fs.readFileSync(0, 'utf8'); } catch { process.exit(0); }
@@ -81,10 +112,18 @@ function main() {
   try { hookData = JSON.parse(input); } catch { process.exit(0); }
 
   const prompt = hookData.prompt;
-  if (!prompt || typeof prompt !== 'string' || prompt.length < 10) process.exit(0);
-  if (prompt.startsWith('/')) process.exit(0);
+  if (!prompt || typeof prompt !== 'string') process.exit(0);
 
   const root = findProjectRoot(hookData.cwd) || findProjectRoot(process.cwd());
+
+  // Write user message signal FIRST — fires for ALL prompts regardless of length/type
+  const sfTerminalId = process.env.SUBFRAME_TERMINAL_ID;
+  if (sfTerminalId && root) {
+    writeUserMessageSignal(root, sfTerminalId, prompt);
+  }
+
+  // Task matching requires longer prompts and tasks.json
+  if (prompt.length < 10 || prompt.startsWith('/')) process.exit(0);
   if (!root) process.exit(0);
 
   const tasksPath = path.join(root, '.subframe', 'tasks.json');

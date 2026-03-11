@@ -1,14 +1,3 @@
 {
-  "prompts": [
-    {
-      "id": "prompt-mmgzdhe0-s5t3",
-      "title": "Quick-Similar-Audit",
-      "content": "  \"Audit: same-pattern bugs elsewhere, edge cases, fix tradeoffs, and anything I missed.\"",
-      "tags": [],
-      "category": "General",
-      "usageCount": 20,
-      "createdAt": "2026-03-07T23:54:55.944Z",
-      "updatedAt": "2026-03-11T00:34:12.026Z"
-    }
-  ]
+  "prompts": []
 }

@@ -130,7 +130,7 @@ function writeState(statePath, state) {
 function cleanStaleSessions(state, now) {
   for (const session of state.sessions) {
     const lastActivity = new Date(session.lastActivityAt).getTime();
-    if (now - lastActivity > STALE_MS && session.status === 'active') {
+    if (now - lastActivity > STALE_MS && (session.status === 'active' || session.status === 'busy')) {
       session.status = 'idle';
       session.currentTool = undefined;
       for (const step of session.steps || []) {
@@ -197,6 +197,10 @@ function main() {
     };
     state.sessions.push(session);
   }
+
+  // Bind terminal ID from SubFrame's PTY env var (enables direct correlation)
+  const sfTerminalId = process.env.SUBFRAME_TERMINAL_ID;
+  if (sfTerminalId) session.terminalId = sfTerminalId;
 
   // Update session
   session.status = 'active';

@@ -75,19 +75,31 @@ Before making changes, check whether other AI sessions or agent teams are alread
 
 ## Hooks (Automatic Awareness)
 
-SubFrame can configure project-level hooks that automate sub-task awareness. These hooks fire automatically — no manual intervention needed.
+SubFrame deploys 5 Claude Code hooks to `.subframe/hooks/` in each project. These fire automatically — no manual intervention needed.
 
 | Hook | When it fires | What it does |
 |------|---------------|--------------|
 | **SessionStart** | Startup, resume, after compaction | Injects pending/in-progress sub-tasks into context |
-| **UserPromptSubmit** | Each user prompt | Fuzzy-matches prompt against pending sub-tasks, suggests starting a match |
+| **UserPromptSubmit** | Each user prompt | Fuzzy-matches prompt against sub-tasks; writes user message signal to `agent-state.json` for terminal marker detection |
 | **Stop** | When AI finishes responding | Reminds about in-progress sub-tasks; flags untracked work if source files changed |
-| **PreToolUse** | Before tool execution | Project-specific guardrails (if configured) |
-| **PostToolUse** | After tool execution | Project-specific follow-ups (if configured) |
+| **PreToolUse** | Before each tool invocation | Writes real-time agent activity to `agent-state.json` (session, step, terminal ID binding) |
+| **PostToolUse** | After each tool invocation | Marks steps completed in `agent-state.json`; ensures terminal ID binding |
 
-These hooks ensure sub-task awareness even after context compaction. Hook configuration lives in `.claude/settings.json`.
+Hook configuration lives in `.claude/settings.json` (merged automatically on project init/healthcheck). Hooks use `node .subframe/hooks/<name>.js` commands.
 
-**Important:** Hook commands use `$(git rev-parse --show-toplevel)` to resolve paths from the repo root. This ensures hooks work correctly when the AI session's working directory is a subdirectory (e.g., `promo/`). Never use bare relative paths like `node .subframe/hooks/stop.js` — always anchor to the git root.
+### Hook Template Deployment
+
+Hook source of truth: `src/shared/frameTemplates.ts` → compiled to `src/shared/frameTemplates.js` → generated to `scripts/hooks/*.js`.
+
+When hook templates change, **all user projects need updating**:
+
+1. `node scripts/build-templates.js` — compile TS → JS
+2. `npm run generate:hooks` — regenerate `scripts/hooks/` and `.subframe/hooks/` from templates
+3. `npm run verify:hooks && npm run verify:templates` — confirm sync
+4. Commit the updated `frameTemplates.js` and `scripts/hooks/*.js`
+5. User projects: SubFrame Health Panel detects outdated hooks (via `@subframe-version` stamps) and offers "Update All"
+
+The `/release` skill handles steps 1–4 automatically.
 
 ---
 

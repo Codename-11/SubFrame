@@ -1,4 +1,4 @@
-# @subframe-version 0.2.5-beta
+# @subframe-version 0.2.7-beta
 # @subframe-managed
 name: health-check
 on:

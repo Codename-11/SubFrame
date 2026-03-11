@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.2.5-beta
+// @subframe-version 0.2.7-beta
 // @subframe-managed
 /**
  * SubFrame STRUCTURE.json Updater
@@ -12,20 +12,7 @@ const path = require('path');
 
 const ROOT = process.cwd();
 const STRUCTURE_FILE = path.join(ROOT, '.subframe', 'STRUCTURE.json');
-
-// Resolve source directory: CLI arg > config.json > default 'src'
-function resolveSourceDir() {
-  // Check CLI arg: --src-dir=<path>
-  const cliArg = process.argv.find(a => a.startsWith('--src-dir='));
-  if (cliArg) return cliArg.split('=')[1];
-  // Check .subframe/config.json
-  try {
-    const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, '.subframe', 'config.json'), 'utf-8'));
-    if (cfg.settings && cfg.settings.sourceDir) return cfg.settings.sourceDir;
-  } catch (e) { /* ignore */ }
-  return 'src';
-}
-const SRC_DIR = path.join(ROOT, resolveSourceDir());
+const SRC_DIR = path.join(ROOT, 'src');
 
 // Strip any JS/TS extension for module key
 function stripExt(p) {

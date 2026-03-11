@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-11T00:54:12.403Z",
+  "lastUpdated": "2026-03-11T20:33:20.877Z",
   "tasks": {
     "pending": [
       {
@@ -90,34 +90,6 @@
         "blocks": [],
         "createdAt": "2026-03-10T00:17:15.342Z",
         "updatedAt": "2026-03-10T00:17:15.342Z",
-        "completedAt": null,
-        "description": "",
-        "steps": []
-      },
-      {
-        "id": "task-1773106558697-vynen76ga",
-        "title": "AI Tool install status/availibility",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-10T01:35:58.697Z",
-        "updatedAt": "2026-03-10T01:35:58.697Z",
-        "completedAt": null,
-        "description": "",
-        "steps": []
-      },
-      {
-        "id": "task-1773106569050-gj4oqprxk",
-        "title": "AI Tool command pallet/overlay",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-10T01:36:09.050Z",
-        "updatedAt": "2026-03-10T01:36:09.050Z",
         "completedAt": null,
         "description": "",
         "steps": []
@@ -424,12 +396,9 @@
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-07T23:45:09.101Z",
-        "updatedAt": "2026-03-11T00:54:12.389Z",
+        "updatedAt": "2026-03-07T23:45:09.101Z",
         "completedAt": null,
         "description": "Have Claude hook scripts (pre-tool-use.js, post-tool-use.js) write terminal PID or env var into agent-state.json session entries, enabling deterministic terminal↔session mapping instead of timestamp heuristic.",
-        "userRequest": "Improve session↔terminal correlation accuracy",
-        "acceptanceCriteria": "agent-state.json sessions include terminal identifier; ptyManager uses it for exact matching instead of timestamp heuristic",
-        "notes": "[2026-03-11] Audit finding: broadcastClaudeStatus() uses a single 5s retry for correlation (ptyManager.ts:111-122). If agent-state.json isn't written by then, session never correlates. Deterministic terminal ID injection (this task's goal) would eliminate the retry entirely, but as interim hardening, consider exponential backoff (e.g. 2s, 5s, 10s) with max 3 attempts.",
         "steps": []
       },
       {
@@ -535,6 +504,116 @@
         "completedAt": null,
         "description": "While ipcChannels.ts serves as the source of truth for channel definitions, add developer documentation (in .subframe/docs-internal/) explaining the end-to-end IPC pattern: channel definition → main handler → renderer hook → component usage, with examples for adding new channels.",
         "steps": []
+      },
+      {
+        "id": "task-mmm27632-pqku",
+        "title": "E2E testing with Playwright/Electron",
+        "status": "pending",
+        "priority": "medium",
+        "category": "testing",
+        "context": "Session 2026-03-11",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-11T13:12:51.086Z",
+        "updatedAt": "2026-03-11T13:12:51.086Z",
+        "completedAt": null,
+        "description": "Set up end-to-end testing for SubFrame using Playwright with Electron support. Cover critical user flows: project switching, terminal creation, task management, settings persistence. This catches runtime/visual regressions that unit tests miss — especially important for dependency updates that pass typecheck but break UI behavior.",
+        "steps": []
+      },
+      {
+        "id": "task-mmm27f0z-mgqt",
+        "title": "Expand unit test coverage for renderer hooks and components",
+        "status": "pending",
+        "priority": "medium",
+        "category": "testing",
+        "context": "Session 2026-03-11",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-11T13:13:02.675Z",
+        "updatedAt": "2026-03-11T13:13:02.675Z",
+        "completedAt": null,
+        "description": "Current test suite (190 tests) covers main-process logic well but has no renderer-side tests. Add unit tests for critical hooks (useTasks, useSettings, useSubFrameHealth) and key components (ViewTabBar, TasksPanel, RightPanel). Use React Testing Library + Vitest. Goal: catch prop/state regressions from dependency updates before they reach production.",
+        "steps": []
+      },
+      {
+        "id": "task-mmm3ir6v-fi3v",
+        "title": "Upgrade @eslint/js to v10 (coordinated eslint ecosystem bump)",
+        "status": "pending",
+        "priority": "medium",
+        "category": "chore",
+        "context": "Session 2026-03-11",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-11T13:49:51.270Z",
+        "updatedAt": "2026-03-11T13:49:51.270Z",
+        "completedAt": null,
+        "description": "Dependabot PR #14 closed — @eslint/js 9→10 requires coordinated bump of eslint, @eslint/js, and typescript-eslint together due to peer dependency conflicts. Currently deferred in dependabot.yml ignore rules.",
+        "userRequest": "Deferred dependency upgrade identified during Dependabot PR triage",
+        "acceptanceCriteria": "All three packages upgraded together, eslint config updated if needed, npm run check passes, dependabot.yml ignore rule removed",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Check latest compatible versions of eslint, @eslint/js, typescript-eslint"
+          },
+          {
+            "completed": false,
+            "label": "Update all three packages simultaneously"
+          },
+          {
+            "completed": false,
+            "label": "Fix any eslint config breaking changes"
+          },
+          {
+            "completed": false,
+            "label": "Run npm run check — all gates pass"
+          },
+          {
+            "completed": false,
+            "label": "Remove @eslint/js ignore rule from dependabot.yml"
+          }
+        ]
+      },
+      {
+        "id": "task-mmm3ivrs-7w35",
+        "title": "Upgrade recharts to v3 (breaking API migration)",
+        "status": "pending",
+        "priority": "medium",
+        "category": "chore",
+        "context": "Session 2026-03-11",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-11T13:49:57.207Z",
+        "updatedAt": "2026-03-11T13:49:57.207Z",
+        "completedAt": null,
+        "description": "Dependabot PR #11 closed — recharts 2→3 has breaking API changes affecting src/renderer/components/ui/chart.tsx. Tooltip payload/label props removed from type, legend payload type changed. Currently deferred in dependabot.yml ignore rules.",
+        "userRequest": "Deferred dependency upgrade identified during Dependabot PR triage",
+        "acceptanceCriteria": "recharts upgraded to v3, chart.tsx updated for new API, all charts render correctly, npm run check passes, dependabot.yml ignore rule removed",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Review recharts v3 migration guide"
+          },
+          {
+            "completed": false,
+            "label": "Audit chart.tsx for all breaking API usage"
+          },
+          {
+            "completed": false,
+            "label": "Update chart.tsx tooltip and legend types/props"
+          },
+          {
+            "completed": false,
+            "label": "Visually verify all charts render correctly"
+          },
+          {
+            "completed": false,
+            "label": "Run npm run check — all gates pass"
+          },
+          {
+            "completed": false,
+            "label": "Remove recharts ignore rule from dependabot.yml"
+          }
+        ]
       }
     ],
     "inProgress": [],
@@ -680,6 +759,20 @@
         "updatedAt": "2026-03-11T00:48:56.203Z",
         "completedAt": "2026-03-11T00:48:56.203Z",
         "description": "Sub-Tasks should be allowed to be marked private and not tracked via git. All UI/Sub-Frame features should still work as normal otherwise. We should include enhancements to skils/hooks, etc if needed.",
+        "steps": []
+      },
+      {
+        "id": "task-1773106569050-gj4oqprxk",
+        "title": "AI Tool command pallet/overlay",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:36:09.050Z",
+        "updatedAt": "2026-03-11T20:06:03.858Z",
+        "completedAt": "2026-03-11T20:06:03.858Z",
+        "description": "",
         "steps": []
       },
       {
@@ -1325,6 +1418,40 @@
         "steps": []
       },
       {
+        "id": "task-mmm3ix0s-pmuk",
+        "title": "Upgrade actions/upload-artifact to v7 (coordinated with download-artifact)",
+        "status": "completed",
+        "priority": "low",
+        "category": "chore",
+        "context": "Session 2026-03-11",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-11T13:49:58.827Z",
+        "updatedAt": "2026-03-11T14:20:17.266Z",
+        "completedAt": "2026-03-11T14:20:17.266Z",
+        "description": "Dependabot PR closed — upload-artifact v4→v7 requires coordinated bump with download-artifact v4→v8 (incompatible artifact formats between major versions). Currently deferred in dependabot.yml ignore rules.",
+        "userRequest": "Deferred dependency upgrade identified during Dependabot PR triage",
+        "acceptanceCriteria": "Both upload-artifact and download-artifact upgraded together across all workflows, CI passes on all workflows, dependabot.yml ignore rule removed",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Identify all workflows using upload-artifact and download-artifact"
+          },
+          {
+            "completed": false,
+            "label": "Upgrade both actions to v7/v8 simultaneously in all workflows"
+          },
+          {
+            "completed": false,
+            "label": "Test CI pipeline (push a test tag or use workflow_dispatch)"
+          },
+          {
+            "completed": false,
+            "label": "Remove upload-artifact ignore rule from dependabot.yml"
+          }
+        ]
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -1524,6 +1651,20 @@
         "completedAt": "2026-03-08T02:31:08.401Z",
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
+        "steps": []
+      },
+      {
+        "id": "task-1773106558697-vynen76ga",
+        "title": "AI Tool install status/availibility",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:35:58.697Z",
+        "updatedAt": "2026-03-11T20:33:20.874Z",
+        "completedAt": "2026-03-11T20:33:20.874Z",
+        "description": "",
         "steps": []
       }
     ]

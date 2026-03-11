@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.2.6-beta
+// @subframe-version 0.2.7-beta
 // @subframe-managed
 /**
  * SubFrame PostToolUse Hook
@@ -57,7 +57,7 @@ function writeState(statePath, state) {
 function cleanStaleSessions(state, now) {
   for (const session of state.sessions) {
     const lastActivity = new Date(session.lastActivityAt).getTime();
-    if (now - lastActivity > STALE_MS && session.status === 'active') {
+    if (now - lastActivity > STALE_MS && (session.status === 'active' || session.status === 'busy')) {
       session.status = 'idle';
       session.currentTool = undefined;
       for (const step of session.steps || []) {
@@ -108,6 +108,10 @@ function main() {
   // Find session
   const session = state.sessions.find(s => s.sessionId === sessionId);
   if (!session) process.exit(0);
+
+  // Ensure terminal ID binding (mirrors pre-tool-use; covers edge cases)
+  const sfTerminalId = process.env.SUBFRAME_TERMINAL_ID;
+  if (sfTerminalId && !session.terminalId) session.terminalId = sfTerminalId;
 
   session.lastActivityAt = nowISO;
 
