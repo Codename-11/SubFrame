@@ -44,3 +44,6 @@ jobs:
 
       - name: Verify hooks
         run: npm run verify:hooks
+
+      - name: Build
+        run: npm run build
