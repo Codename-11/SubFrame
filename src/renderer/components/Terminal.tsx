@@ -83,6 +83,9 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const [hasMessageAbove, setHasMessageAbove] = useState(false);
   const [hasMessageBelow, setHasMessageBelow] = useState(false);
   const inputBufferRef = useRef('');
+  // Stable refs for message stepping — avoids stale closures in attachCustomKeyEventHandler
+  const prevMessageRef = useRef<() => void>(() => {});
+  const nextMessageRef = useRef<() => void>(() => {});
 
   // Capture IPC output for overlay display (terminal.write handled by registry)
   // Throttled: accumulate data in ref, flush to state at most every 100ms
@@ -136,8 +139,14 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     prevClaudeActiveRef.current = claudeActive;
   }, [claudeActive, terminalId]);
 
-  // Track user messages — detect Enter during agent sessions (with grace period)
-  // Reads terminal from registry (not ref) to avoid race condition during terminal switch
+  // Track user messages — detect Enter during agent sessions (with grace period).
+  // Reads terminal from registry (not ref) to avoid race condition during terminal switch.
+  //
+  // To avoid false positives (tool-use confirmations, TUI navigation like ctrl+o),
+  // we check the terminal buffer line at the cursor for the `❯` prompt marker that
+  // Claude Code displays. Only lines with the prompt marker are treated as real user
+  // messages.  To avoid false negatives (long typing delays, slash commands), we also
+  // accept any line that starts with a `/` command pattern.
   useEffect(() => {
     if (!highlightUserMessages) {
       inputBufferRef.current = '';
@@ -150,8 +159,25 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       if (data === '\r' || data === '\n') {
         const typed = inputBufferRef.current.trim();
         inputBufferRef.current = '';
-        // Check activity at submit time — registry timestamp survives component remount
-        if (typed.length > 0 && terminalRegistry.wasRecentlyActive(terminalId)) {
+        if (typed.length === 0) return;
+        if (!terminalRegistry.wasRecentlyActive(terminalId)) return;
+
+        // Check the buffer line at cursor-1 (where the marker will be placed)
+        // for the Claude prompt marker `❯` to distinguish real user prompts
+        // from TUI interactions (tool expand, y/n confirms, etc.)
+        const terminal = instance.terminal;
+        const cursorY = terminal.buffer.active.cursorY + terminal.buffer.active.baseY;
+        const lineIndex = Math.max(0, cursorY - 1);
+        const line = terminal.buffer.active.getLine(lineIndex);
+        const lineText = line?.translateToString(true) ?? '';
+
+        // Accept if: line contains Claude prompt `❯`, or typed input looks like
+        // a slash command, or typed input is substantial (>10 chars, not just y/n)
+        const hasPromptMarker = lineText.includes('❯');
+        const isSlashCommand = /^\/\w/.test(typed);
+        const isSubstantial = typed.length > 10;
+
+        if (hasPromptMarker || isSlashCommand || isSubstantial) {
           terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor);
         }
       } else if (data === '\x7f' || data === '\b') {
@@ -202,16 +228,27 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     };
   }, [terminalId, terminalRef, fitAddonRef]);
 
-  // Reset overlay state when terminal changes (e.g. grid slot swap)
+  // Reset overlay state when terminal changes (e.g. grid slot swap, tab switch, view return)
   useEffect(() => {
-    setShowScrollBtn(false);
     setRecentOutput([]);
     outputBufferRef.current = '';
     inputBufferRef.current = '';
     // Sync marker count from registry (markers persist on the xterm instance)
     setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
-    // Defer nav state until terminal is attached and buffer is ready
-    requestAnimationFrame(() => computeMessageNavRef.current());
+    // After attach + fit completes, check actual scroll position so the overlay
+    // shows immediately if the terminal is scrolled up (fixes hidden overlay after view switch)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const viewport = containerRef.current?.querySelector('.xterm-viewport');
+        if (viewport) {
+          const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2;
+          setShowScrollBtn(!atBottom);
+        } else {
+          setShowScrollBtn(false);
+        }
+        computeMessageNavRef.current();
+      });
+    });
   }, [terminalId]);
 
   // Subscribe to marker count changes (covers both add and scrollback-dispose)
@@ -342,6 +379,17 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         return false;
       }
 
+      // Ctrl+Up/Down: message stepping (navigate between user messages)
+      if (modKey && !event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        event.preventDefault();
+        if (event.key === 'ArrowUp') {
+          prevMessageRef.current();
+        } else {
+          nextMessageRef.current();
+        }
+        return false;
+      }
+
       // Copy: Ctrl+C when there is a selection (otherwise let SIGINT go through)
       if (modKey && key === 'c' && !event.shiftKey && terminal.hasSelection()) {
         event.preventDefault();
@@ -418,6 +466,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       }
     }
   }, [terminalRef, fitAddonRef, terminalId]);
+  prevMessageRef.current = handleScrollToPrevMessage;
 
   // Navigate to next user message (below viewport)
   const handleScrollToNextMessage = useCallback(() => {
@@ -435,6 +484,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       }
     }
   }, [terminalRef, fitAddonRef, terminalId]);
+  nextMessageRef.current = handleScrollToNextMessage;
 
   // Search helpers
   const handleSearchNext = useCallback(() => {

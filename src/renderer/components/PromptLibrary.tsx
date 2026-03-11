@@ -2,10 +2,11 @@
  * PromptLibrary — Command-palette-style overlay for saved prompts.
  * Triggered by Ctrl+Shift+L. Fuzzy searches across title + content + tags,
  * inserts selected prompt into the active terminal via PTY write.
+ * Supports both global (user-level) and project-level prompts.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Pencil, Send, Tag, Copy } from 'lucide-react';
+import { Plus, Trash2, Pencil, Send, Tag, Copy, Globe, FolderOpen, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import {
   CommandDialog,
   CommandInput,
@@ -47,6 +48,8 @@ import {
   TEMPLATE_VAR_REGEX,
 } from '../lib/promptUtils';
 
+type PromptScope = 'global' | 'project';
+
 /** Highlight {{variable}} tokens in text with accent color */
 function highlightVars(text: string, maxLen: number): React.ReactNode {
   const truncated = text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
@@ -61,17 +64,51 @@ function highlightVars(text: string, maxLen: number): React.ReactNode {
   );
 }
 
+/** Scope badge component */
+function ScopeBadge({ scope }: { scope: PromptScope }) {
+  if (scope === 'global') {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-medium bg-blue-900/60 text-blue-300 flex-shrink-0">
+        <Globe className="w-2 h-2" />
+        Global
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-medium bg-amber-900/60 text-amber-300 flex-shrink-0">
+      <FolderOpen className="w-2 h-2" />
+      Project
+    </span>
+  );
+}
+
 export function PromptLibrary() {
   const [open, setOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<SavedPrompt | null>(null);
+  const [editingScope, setEditingScope] = useState<PromptScope>('project');
   const [showEditor, setShowEditor] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingScope, setDeletingScope] = useState<PromptScope>('project');
 
-  const { prompts, savePrompt, deletePrompt } = usePrompts();
+  const {
+    prompts,
+    globalPrompts,
+    savePrompt,
+    deletePrompt,
+    saveGlobalPrompt,
+    deleteGlobalPrompt,
+    promoteToGlobal,
+    demoteToProject,
+  } = usePrompts();
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const projectPath = useProjectStore((s) => s.currentProjectPath);
 
-  const deletingPrompt = prompts.find((p) => p.id === deletingId);
+  const allPrompts = useMemo(
+    () => [...globalPrompts, ...prompts],
+    [globalPrompts, prompts]
+  );
+
+  const deletingPrompt = allPrompts.find((p) => p.id === deletingId);
 
   // Register Ctrl+Shift+L keyboard shortcut
   useEffect(() => {
@@ -92,8 +129,18 @@ export function PromptLibrary() {
     return () => window.removeEventListener('open-prompt-library', handler);
   }, []);
 
-  // Group prompts by category
-  const grouped = useMemo(() => {
+  // Group prompts by scope, then by category
+  const groupedGlobal = useMemo(() => {
+    const map = new Map<string, SavedPrompt[]>();
+    for (const p of globalPrompts) {
+      const cat = p.category || 'General';
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(p);
+    }
+    return map;
+  }, [globalPrompts]);
+
+  const groupedProject = useMemo(() => {
     const map = new Map<string, SavedPrompt[]>();
     for (const p of prompts) {
       const cat = p.category || 'General';
@@ -107,15 +154,21 @@ export function PromptLibrary() {
   const handleInsert = useCallback(
     (prompt: SavedPrompt) => {
       const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath);
-      if (ok && projectPath) {
-        savePrompt.mutate([{
-          projectPath,
-          prompt: { ...prompt, usageCount: (prompt.usageCount || 0) + 1 },
-        }]);
+      if (ok) {
+        // Increment usage count in the appropriate store
+        const scope = prompt.scope ?? 'project';
+        if (scope === 'global') {
+          saveGlobalPrompt.mutate([{ ...prompt, usageCount: (prompt.usageCount || 0) + 1 }]);
+        } else if (projectPath) {
+          savePrompt.mutate([{
+            projectPath,
+            prompt: { ...prompt, usageCount: (prompt.usageCount || 0) + 1 },
+          }]);
+        }
       }
       setOpen(false);
     },
-    [activeTerminalId, projectPath, savePrompt]
+    [activeTerminalId, projectPath, savePrompt, saveGlobalPrompt]
   );
 
   // Copy prompt to clipboard
@@ -125,35 +178,155 @@ export function PromptLibrary() {
   }, []);
 
   const handleNewPrompt = useCallback(() => {
-    setEditingPrompt(createBlankPrompt());
+    const blank = createBlankPrompt();
+    setEditingPrompt(blank);
+    // Default scope: 'project' if a project is open, else 'global'
+    setEditingScope(projectPath ? 'project' : 'global');
     setShowEditor(true);
     setOpen(false);
-  }, []);
+  }, [projectPath]);
 
   const handleEditPrompt = useCallback((prompt: SavedPrompt) => {
     setEditingPrompt({ ...prompt });
+    setEditingScope((prompt.scope ?? 'project') as PromptScope);
     setShowEditor(true);
     setOpen(false);
   }, []);
 
-  const handleRequestDelete = useCallback((promptId: string) => {
+  const handleRequestDelete = useCallback((promptId: string, scope: PromptScope) => {
     setDeletingId(promptId);
+    setDeletingScope(scope);
     setOpen(false);
   }, []);
 
   const handleConfirmDelete = useCallback(() => {
-    if (!deletingId || !projectPath) return;
-    deletePrompt.mutate([{ projectPath, promptId: deletingId }]);
+    if (!deletingId) return;
+    if (deletingScope === 'global') {
+      deleteGlobalPrompt.mutate([deletingId]);
+    } else if (projectPath) {
+      deletePrompt.mutate([{ projectPath, promptId: deletingId }]);
+    }
     setDeletingId(null);
     toast.success('Prompt deleted');
-  }, [deletingId, projectPath, deletePrompt]);
+  }, [deletingId, deletingScope, projectPath, deletePrompt, deleteGlobalPrompt]);
 
   const handleSavePrompt = useCallback(() => {
-    if (!editingPrompt || !projectPath || !editingPrompt.title.trim()) return;
-    savePrompt.mutate([{ projectPath, prompt: editingPrompt }]);
+    if (!editingPrompt || !editingPrompt.title.trim()) return;
+
+    const promptToSave = { ...editingPrompt, scope: editingScope };
+
+    // Determine if the scope changed from the original
+    const originalScope = (editingPrompt.scope ?? 'project') as PromptScope;
+    const isNewPrompt = editingPrompt.createdAt === editingPrompt.updatedAt;
+
+    if (editingScope === 'global') {
+      saveGlobalPrompt.mutate([promptToSave], {
+        onSuccess: () => {
+          // If scope changed from project to global, remove from project
+          if (!isNewPrompt && originalScope === 'project' && projectPath) {
+            deletePrompt.mutate([{ projectPath, promptId: editingPrompt.id }]);
+          }
+        },
+      });
+    } else if (projectPath) {
+      savePrompt.mutate([{ projectPath, prompt: promptToSave }], {
+        onSuccess: () => {
+          // If scope changed from global to project, remove from global
+          if (!isNewPrompt && originalScope === 'global') {
+            deleteGlobalPrompt.mutate([editingPrompt.id]);
+          }
+        },
+      });
+    } else {
+      toast.warning('No project selected', { description: 'Select a project to save project-level prompts.' });
+      return;
+    }
+
     setShowEditor(false);
     setEditingPrompt(null);
-  }, [editingPrompt, projectPath, savePrompt]);
+  }, [editingPrompt, editingScope, projectPath, savePrompt, saveGlobalPrompt, deletePrompt, deleteGlobalPrompt]);
+
+  const handlePromote = useCallback((prompt: SavedPrompt) => {
+    promoteToGlobal(prompt);
+    toast.success('Promoted to global');
+  }, [promoteToGlobal]);
+
+  const handleDemote = useCallback((prompt: SavedPrompt) => {
+    demoteToProject(prompt);
+    toast.success('Moved to project');
+  }, [demoteToProject]);
+
+  /** Render a single prompt item in the command list */
+  const renderPromptItem = (prompt: SavedPrompt, scope: PromptScope) => (
+    <CommandItem
+      key={prompt.id}
+      value={`${prompt.title} ${prompt.content} ${prompt.tags.join(' ')} ${scope}`}
+      onSelect={() => handleInsert(prompt)}
+      className="group"
+    >
+      <Send className="text-text-tertiary w-3.5 h-3.5 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate font-medium">{prompt.title}</span>
+          <ScopeBadge scope={scope} />
+          {prompt.tags.length > 0 && (
+            <span className="flex items-center gap-0.5 flex-shrink-0">
+              <Tag className="w-2.5 h-2.5 text-text-muted" />
+              <span className="text-[10px] text-text-muted truncate max-w-[100px]">
+                {prompt.tags.join(', ')}
+              </span>
+            </span>
+          )}
+        </div>
+        <div className="text-[10px] text-text-tertiary truncate">
+          {highlightVars(prompt.content, 80)}
+        </div>
+      </div>
+      {/* Action buttons — visible on hover */}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); handleCopy(prompt); }}
+          className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
+          title="Copy to clipboard"
+        >
+          <Copy className="w-3 h-3 text-text-tertiary" />
+        </button>
+        {/* Promote/Demote button */}
+        {scope === 'project' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handlePromote(prompt); }}
+            className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
+            title="Promote to global"
+          >
+            <ArrowUpRight className="w-3 h-3 text-blue-400" />
+          </button>
+        )}
+        {scope === 'global' && projectPath && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDemote(prompt); }}
+            className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
+            title="Move to project"
+          >
+            <ArrowDownLeft className="w-3 h-3 text-amber-400" />
+          </button>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); handleEditPrompt(prompt); }}
+          className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
+          title="Edit prompt"
+        >
+          <Pencil className="w-3 h-3 text-text-tertiary" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleRequestDelete(prompt.id, scope); }}
+          className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
+          title="Delete prompt"
+        >
+          <Trash2 className="w-3 h-3 text-error/60" />
+        </button>
+      </div>
+    </CommandItem>
+  );
 
   return (
     <>
@@ -186,61 +359,43 @@ export function PromptLibrary() {
             </CommandItem>
           </CommandGroup>
 
-          {/* Prompts by category */}
-          {Array.from(grouped.entries()).map(([category, categoryPrompts]) => (
-            <CommandGroup key={category} heading={category}>
-              {categoryPrompts.map((prompt) => (
-                <CommandItem
-                  key={prompt.id}
-                  value={`${prompt.title} ${prompt.content} ${prompt.tags.join(' ')}`}
-                  onSelect={() => handleInsert(prompt)}
-                  className="group"
+          {/* Global Prompts */}
+          {globalPrompts.length > 0 && (
+            <>
+              {Array.from(groupedGlobal.entries()).map(([category, categoryPrompts]) => (
+                <CommandGroup
+                  key={`global-${category}`}
+                  heading={
+                    <span className="flex items-center gap-1.5">
+                      <Globe className="w-3 h-3 text-blue-400" />
+                      <span>Global &mdash; {category}</span>
+                    </span>
+                  }
                 >
-                  <Send className="text-text-tertiary w-3.5 h-3.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate font-medium">{prompt.title}</span>
-                      {prompt.tags.length > 0 && (
-                        <span className="flex items-center gap-0.5 flex-shrink-0">
-                          <Tag className="w-2.5 h-2.5 text-text-muted" />
-                          <span className="text-[10px] text-text-muted truncate max-w-[100px]">
-                            {prompt.tags.join(', ')}
-                          </span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[10px] text-text-tertiary truncate">
-                      {highlightVars(prompt.content, 80)}
-                    </div>
-                  </div>
-                  {/* Action buttons — visible on hover */}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCopy(prompt); }}
-                      className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
-                      title="Copy to clipboard"
-                    >
-                      <Copy className="w-3 h-3 text-text-tertiary" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleEditPrompt(prompt); }}
-                      className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
-                      title="Edit prompt"
-                    >
-                      <Pencil className="w-3 h-3 text-text-tertiary" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleRequestDelete(prompt.id); }}
-                      className="p-0.5 rounded hover:bg-bg-hover cursor-pointer"
-                      title="Delete prompt"
-                    >
-                      <Trash2 className="w-3 h-3 text-error/60" />
-                    </button>
-                  </div>
-                </CommandItem>
+                  {categoryPrompts.map((prompt) => renderPromptItem(prompt, 'global'))}
+                </CommandGroup>
               ))}
-            </CommandGroup>
-          ))}
+            </>
+          )}
+
+          {/* Project Prompts */}
+          {prompts.length > 0 && (
+            <>
+              {Array.from(groupedProject.entries()).map(([category, categoryPrompts]) => (
+                <CommandGroup
+                  key={`project-${category}`}
+                  heading={
+                    <span className="flex items-center gap-1.5">
+                      <FolderOpen className="w-3 h-3 text-amber-400" />
+                      <span>Project &mdash; {category}</span>
+                    </span>
+                  }
+                >
+                  {categoryPrompts.map((prompt) => renderPromptItem(prompt, 'project'))}
+                </CommandGroup>
+              ))}
+            </>
+          )}
         </CommandList>
       </CommandDialog>
 
@@ -313,6 +468,41 @@ export function PromptLibrary() {
                   placeholder="debug, typescript, fix"
                   className="bg-bg-deep border-border-subtle text-text-primary text-xs"
                 />
+              </div>
+              {/* Scope selector */}
+              <div>
+                <label className="text-xs text-text-secondary mb-1 block">Scope</label>
+                <div className="flex rounded-md overflow-hidden border border-border-subtle">
+                  <button
+                    onClick={() => setEditingScope('global')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                      editingScope === 'global'
+                        ? 'bg-blue-900/60 text-blue-300'
+                        : 'bg-bg-deep text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
+                    }`}
+                  >
+                    <Globe className="w-3 h-3" />
+                    Global
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!projectPath) {
+                        toast.warning('No project selected', { description: 'Open a project to use project scope.' });
+                        return;
+                      }
+                      setEditingScope('project');
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                      editingScope === 'project'
+                        ? 'bg-amber-900/60 text-amber-300'
+                        : 'bg-bg-deep text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
+                    } ${!projectPath ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    disabled={!projectPath}
+                  >
+                    <FolderOpen className="w-3 h-3" />
+                    Project
+                  </button>
+                </div>
               </div>
             </div>
           )}

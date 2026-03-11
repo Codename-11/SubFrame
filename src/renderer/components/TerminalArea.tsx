@@ -107,7 +107,6 @@ export function TerminalArea() {
   const switchToProject = useTerminalStore((s) => s.switchToProject);
 
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
-  const togglePanel = useUIStore((s) => s.togglePanel);
   const fullViewContent = useUIStore((s) => s.fullViewContent);
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
   const toggleFullView = useUIStore((s) => s.toggleFullView);
@@ -544,8 +543,6 @@ export function TerminalArea() {
         <TerminalTabBar
           onCreateTerminal={createTerminal}
           onCloseTerminal={closeTerminal}
-          onOverviewToggle={() => togglePanel('overview')}
-          onTogglePanel={(panel) => togglePanel(panel)}
           projectTerminals={projectTerminals}
           gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
             ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))

@@ -36,6 +36,29 @@ export function getTabIdForContent(content: string): string {
 }
 export type StatusFilter = 'all' | 'pending' | 'in_progress' | 'completed' | 'blocked';
 
+/** Load persisted openTabs from localStorage (cold start = Terminal only) */
+function loadPersistedTabs(): ViewTab[] {
+  try {
+    const raw = localStorage.getItem('subframe-open-tabs');
+    if (raw) {
+      const parsed = JSON.parse(raw) as ViewTab[];
+      // Ensure terminal tab is always present and non-closable
+      if (!parsed.some(t => t.id === 'terminal')) {
+        parsed.unshift({ id: 'terminal', label: 'Terminal', closable: false });
+      }
+      return parsed.map(t => ({ ...t, closable: t.id !== 'terminal' }));
+    }
+  } catch { /* ignore */ }
+  return [{ id: 'terminal', label: 'Terminal', closable: false }];
+}
+
+/** Persist openTabs to localStorage */
+function persistTabs(tabs: ViewTab[]) {
+  try {
+    localStorage.setItem('subframe-open-tabs', JSON.stringify(tabs));
+  } catch { /* ignore */ }
+}
+
 interface UIState {
   // Sidebar
   sidebarState: SidebarState;
@@ -137,7 +160,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   closeRightPanel: () => set({ activePanel: null, rightPanelVisible: false, rightPanelCollapsed: false }),
 
   fullViewContent: null,
-  openTabs: [{ id: 'terminal', label: 'Terminal', closable: false }],
+  openTabs: loadPersistedTabs(),
   setFullViewContent: (content) => {
     const prev = get().fullViewContent;
     let { openTabs } = get();
@@ -158,6 +181,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     } else {
       set({ fullViewContent: content, openTabs });
     }
+    persistTabs(openTabs);
   },
   toggleFullView: (content) => {
     const current = get().fullViewContent;
@@ -181,6 +205,7 @@ export const useUIStore = create<UIState>((set, get) => ({
       } else {
         set({ fullViewContent: content, openTabs, ...(current === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
       }
+      persistTabs(openTabs);
     }
   },
   openTab: (id, label) => {
@@ -199,6 +224,7 @@ export const useUIStore = create<UIState>((set, get) => ({
       const prev = get().fullViewContent;
       set({ openTabs: next, fullViewContent: content, ...(prev === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
     }
+    persistTabs(next);
   },
   closeTab: (id) => {
     if (id === 'terminal') return; // Can't close terminal
@@ -214,6 +240,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     } else {
       set({ openTabs: next, ...(id === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
     }
+    persistTabs(next);
   },
 
   editorFilePath: null,
@@ -251,9 +278,11 @@ export const useUIStore = create<UIState>((set, get) => ({
         openTabs = [...openTabs, { id: 'shortcuts', label: VIEW_TAB_LABELS['shortcuts'], closable: true }];
       }
       set({ shortcutsHelpOpen: true, fullViewContent: 'shortcuts', openTabs });
+      persistTabs(openTabs);
     } else {
       const tabs = get().openTabs.filter(t => t.id !== 'shortcuts');
       set({ shortcutsHelpOpen: false, fullViewContent: get().fullViewContent === 'shortcuts' ? null : get().fullViewContent, openTabs: tabs });
+      persistTabs(tabs);
     }
   },
 

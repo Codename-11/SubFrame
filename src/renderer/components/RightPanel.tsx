@@ -31,7 +31,14 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Maximize2,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 import { useUIStore } from '../stores/useUIStore';
 import { cn } from '../lib/utils';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -126,6 +133,14 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   pipeline: PipelinePanel,
 };
 
+/** Panels that can be opened as a full-view tab (maps panel ID to FullViewContent ID) */
+const PANEL_TO_FULLVIEW: Partial<Record<PanelId, string>> = {
+  tasks: 'tasks',
+  overview: 'overview',
+  agentState: 'agentState',
+  pipeline: 'pipeline',
+};
+
 export function RightPanel() {
   const activePanel = useUIStore((s) => s.activePanel) as PanelId | null;
   const setActivePanel = useUIStore((s) => s.setActivePanel);
@@ -134,6 +149,7 @@ export function RightPanel() {
   const rightPanelWidth = useUIStore((s) => s.rightPanelWidth);
   const setRightPanelWidth = useUIStore((s) => s.setRightPanelWidth);
   const closeRightPanel = useUIStore((s) => s.closeRightPanel);
+  const openTab = useUIStore((s) => s.openTab);
   const [expandedDrawer, setExpandedDrawer] = useState<number | null>(null);
 
   if (!activePanel) return null;
@@ -352,6 +368,29 @@ export function RightPanel() {
               })}
             </div>
           </div>
+        )}
+
+        {/* Open in tab button — only for panels that support full-view */}
+        {PANEL_TO_FULLVIEW[activePanel] && (
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    const fullViewId = PANEL_TO_FULLVIEW[activePanel]!;
+                    openTab(fullViewId);
+                  }}
+                  className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer ml-auto flex-shrink-0"
+                  aria-label="Open in tab"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Open in tab</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
 

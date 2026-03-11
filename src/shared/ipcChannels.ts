@@ -200,6 +200,11 @@ export const IPC = {
   SAVE_PROMPT: 'save-prompt',
   DELETE_PROMPT: 'delete-prompt',
 
+  // Global Prompt Library (user-level, ~/.subframe/prompts.json)
+  LOAD_GLOBAL_PROMPTS: 'load-global-prompts',
+  SAVE_GLOBAL_PROMPT: 'save-global-prompt',
+  DELETE_GLOBAL_PROMPT: 'delete-global-prompt',
+
   // What's New / Changelog
   GET_RELEASE_NOTES: 'get-release-notes',
 
@@ -294,10 +299,10 @@ export interface Task {
   priority: 'high' | 'medium' | 'low';
   category?: string;
   context?: string;
-  private?: boolean;
   blockedBy: string[];
   blocks: string[];
   steps: TaskStep[];
+  private?: boolean;
   filePath?: string;
   createdAt: string;
   updatedAt: string;
@@ -428,6 +433,8 @@ export interface SavedPrompt {
   usageCount: number;
   createdAt: string;
   updatedAt: string;
+  /** Whether this prompt is global (user-level) or project-level. Defaults to 'project' for backward compat. */
+  scope?: 'global' | 'project';
 }
 
 /** Result from loading prompts */
@@ -985,6 +992,11 @@ export interface IPCHandleMap {
   [IPC.LOAD_PROMPTS]: { args: [projectPath: string]; return: PromptsResult };
   [IPC.SAVE_PROMPT]: { args: [payload: { projectPath: string; prompt: SavedPrompt }]; return: PromptsResult };
   [IPC.DELETE_PROMPT]: { args: [payload: { projectPath: string; promptId: string }]; return: PromptsResult };
+
+  // Global Prompt Library
+  [IPC.LOAD_GLOBAL_PROMPTS]: { args: []; return: PromptsResult };
+  [IPC.SAVE_GLOBAL_PROMPT]: { args: [prompt: SavedPrompt]; return: PromptsResult };
+  [IPC.DELETE_GLOBAL_PROMPT]: { args: [promptId: string]; return: PromptsResult };
 
   // What's New
   [IPC.GET_RELEASE_NOTES]: { args: []; return: { version: string; content: string } };

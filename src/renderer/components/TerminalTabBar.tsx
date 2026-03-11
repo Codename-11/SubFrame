@@ -1,7 +1,7 @@
 /**
  * Terminal tab bar component.
  * Renders animated tabs with drag-to-reorder (Framer Motion), shell selector dropdown,
- * view mode toggle, and panel toggle buttons.
+ * and view mode toggle. View-switching buttons live in ViewTabBar.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -11,17 +11,9 @@ import {
   X,
   Grid2x2,
   Columns2,
-  Eye,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronsRight,
-  ChevronsLeft,
-  ListTodo,
-  Github,
-  Activity,
-  LayoutDashboard,
-  Workflow,
   Bot,
   Loader2,
 } from 'lucide-react';
@@ -48,7 +40,6 @@ import {
   TooltipTrigger,
 } from './ui/tooltip';
 import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore';
-import { useUIStore } from '../stores/useUIStore';
 import { IPC } from '../../shared/ipcChannels';
 import type { ShellInfo } from '../../shared/ipcChannels';
 import { typedInvoke } from '../lib/ipc';
@@ -60,8 +51,6 @@ const { ipcRenderer } = require('electron');
 interface TerminalTabBarProps {
   onCreateTerminal: (shell?: string) => void;
   onCloseTerminal: (id: string) => void;
-  onOverviewToggle?: () => void;
-  onTogglePanel?: (panel: 'tasks' | 'gitChanges' | 'agentState' | 'overview' | 'pipeline') => void;
   projectTerminals: TerminalInfo[];
   /** Terminal IDs that overflow the grid (not visible in grid view) */
   gridOverflowIds?: Set<string>;
@@ -70,8 +59,6 @@ interface TerminalTabBarProps {
 export function TerminalTabBar({
   onCreateTerminal,
   onCloseTerminal,
-  onOverviewToggle,
-  onTogglePanel,
   projectTerminals,
   gridOverflowIds,
 }: TerminalTabBarProps) {
@@ -83,16 +70,11 @@ export function TerminalTabBar({
   const reorderTerminals = useTerminalStore((s) => s.reorderTerminals);
   const gridLayout = useTerminalStore((s) => s.gridLayout);
   const setGridLayout = useTerminalStore((s) => s.setGridLayout);
-  const toggleFullView = useUIStore((s) => s.toggleFullView);
-  const fullViewContent = useUIStore((s) => s.fullViewContent);
   const { updateSetting } = useSettings();
 
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [usageFetching, setUsageFetching] = useState(false);
-  const [panelLabelsExpanded, setPanelLabelsExpanded] = useState(
-    () => localStorage.getItem('terminal-panel-labels') !== 'collapsed'
-  );
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -535,112 +517,6 @@ export function TerminalTabBar({
           </DropdownMenu>
         )}
 
-        {/* Panel toggle separator */}
-        <div className="h-4 w-px bg-border-subtle mx-0.5" />
-
-        {/* Panel toggles — labeled pills by default, icon-only when collapsed */}
-        {onTogglePanel && (
-          <>
-            {([
-              { id: 'tasks' as const, label: 'Sub-Tasks', icon: ListTodo, shortcut: 'Ctrl+Shift+S' },
-              { id: 'agentState' as const, label: 'Agent', icon: Activity, shortcut: 'Ctrl+Shift+A' },
-              { id: 'gitChanges' as const, label: 'GitHub', icon: Github, shortcut: 'Ctrl+Shift+G' },
-              { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
-            ] as const).map((panel) => {
-              const Icon = panel.icon;
-              return (
-                <TooltipProvider key={panel.id} delayDuration={400}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => onTogglePanel(panel.id)}
-                        className="flex items-center gap-1.5 h-7 px-2 rounded-md text-text-secondary
-                                   hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer
-                                   border border-transparent hover:border-border-subtle whitespace-nowrap"
-                        aria-label={`${panel.label}${panel.shortcut ? ` (${panel.shortcut})` : ''}`}
-                      >
-                        <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-                        {panelLabelsExpanded && <span className="text-xs">{panel.label}</span>}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>{panel.label}{panel.shortcut ? ` (${panel.shortcut})` : ''}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            })}
-            <TooltipProvider delayDuration={400}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => toggleFullView('overview')}
-                    className={`flex items-center gap-1.5 h-7 px-2 rounded-md transition-colors cursor-pointer
-                               border whitespace-nowrap
-                      ${fullViewContent === 'overview'
-                        ? 'text-accent bg-accent-subtle border-accent/20'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover border-transparent hover:border-border-subtle'
-                      }`}
-                    aria-label="Overview (Ctrl+Shift+O)"
-                  >
-                    <LayoutDashboard className="h-3.5 w-3.5 flex-shrink-0" />
-                    {panelLabelsExpanded && <span className="text-xs">Overview</span>}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>Overview (Ctrl+Shift+O)</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </>
-        )}
-
-        {/* Overview toggle — only show if no panel toggles (fallback) */}
-        {onOverviewToggle && !onTogglePanel && (
-          <TooltipProvider delayDuration={400}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onOverviewToggle}
-                  className="flex items-center h-7 px-1.5 rounded-md text-text-secondary
-                             hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                  aria-label="Project overview"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Project Overview</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Collapse/expand panel labels chevron */}
-        {onTogglePanel && (
-          <TooltipProvider delayDuration={400}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => {
-                    const next = !panelLabelsExpanded;
-                    localStorage.setItem('terminal-panel-labels', next ? 'expanded' : 'collapsed');
-                    setPanelLabelsExpanded(next);
-                  }}
-                  className="flex items-center h-7 px-0.5 rounded-md text-text-tertiary
-                             hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                  aria-label={panelLabelsExpanded ? 'Collapse labels' : 'Show labels'}
-                >
-                  {panelLabelsExpanded
-                    ? <ChevronsRight className="h-3 w-3" />
-                    : <ChevronsLeft className="h-3 w-3" />
-                  }
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{panelLabelsExpanded ? 'Collapse labels' : 'Show labels'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
       </div>
     </div>
   );

@@ -66,6 +66,12 @@ const CLAUDE_PATTERNS: RegExp[] = [
   /\$\d+\.\d{2}\s+[│|]/,
   // Claude's "Thinking" indicator
   /\bThinking\.\.\./,
+  // Subagent / slash command output (e.g. "feature-dev:code-reviewer(...)")
+  /\b\w+(?::\w+)?\([^)]*\)/,
+  // Claude status line patterns: "Mustering...", "Crunched for", "Done ("
+  /\b(?:Mustering|Crunched for|Done \()/,
+  // Tool use count indicators (e.g. "30 tool uses", "50.9k tokens")
+  /\d+\s+tool\s+uses/i,
 ];
 
 /** Maps terminalId → sessionId for jump-to-terminal correlation */
