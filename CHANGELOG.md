@@ -7,8 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6-beta] - 2026-03-10
+
 ### Added
-- **Private sub-tasks**: Tasks can be marked private — stored in `.subframe/tasks/private/` (gitignored), excluded from the `tasks.json` index, but fully functional in UI, CLI, and hooks. Toggle via `--private`/`--public` CLI flags or the checkbox in the task dialog.
+- **Private sub-tasks**: Tasks can be marked private — stored in `.subframe/tasks/private/` (gitignored), excluded from the `tasks.json` index, but fully functional in UI, CLI, and hooks
+- **Tab bar restructure**: View shortcuts (Overview, Sub-Tasks, Agent Activity, Pipeline) moved from terminal tab bar to main ViewTabBar with sidebar toggle
+- **Workspace/project badge**: Shows workspace and project name in tab bar when sidebar is collapsed
+- **Open in tab button**: Sidebar panels with full-view equivalents show a maximize icon to open as a tab
+- **Tab persistence**: Open tabs saved to localStorage and restored across sessions
+- **Tasks refresh button**: Manual refresh icon in TasksPanel toolbar
+- **Global prompts**: User-level prompts stored at `~/.subframe/prompts.json` with promote/demote between project and global scope
+- **Configurable source directory**: STRUCTURE.json updater reads `sourceDir` from `.subframe/config.json` instead of hardcoding `src/`
+
+### Fixed
+- **Terminal bounce**: Message stepping indicators no longer flicker during active Claude output
+- **Sub-view tab leak**: Stats, Decisions, Structure Map render within Overview tab instead of creating separate tabs
+- **Stale data on project switch**: 5 hooks (tasks, agent state, AI files, pipeline, health) now clear cached refs when project changes
+- **Auto-update managed components**: Outdated SubFrame components auto-synced on project load with loop prevention
+- **Cross-project hook portability**: Hooks detect `scripts/task.js` existence and fall back to `npx subframe task`
+- **Codex wrapper recursion**: Self-detection via PATH comparison prevents infinite recursion
+- **Task timeline pulse**: 3-keyframe seamless loop replacing 2-keyframe flash
+- **IPC type mismatch**: `GET_TERMINAL_SESSION_NAME` type updated to include optional `sessionId`
 
 ## [0.2.5-beta] - 2026-03-10
 

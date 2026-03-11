@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.2.6-beta
+// @subframe-version 0.2.4-beta
 // @subframe-managed
 /**
  * SubFrame UserPromptSubmit Hook
@@ -14,53 +14,14 @@
 const fs = require('fs');
 const path = require('path');
 
-function findProjectRoot(startDir) {
+function findTasksFile(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== path.dirname(dir)) {
     const tasksPath = path.join(dir, '.subframe', 'tasks.json');
-    if (fs.existsSync(tasksPath)) return dir;
+    if (fs.existsSync(tasksPath)) return tasksPath;
     dir = path.dirname(dir);
   }
   return null;
-}
-
-function findTasksFile(startDir) {
-  const root = findProjectRoot(startDir);
-  return root ? path.join(root, '.subframe', 'tasks.json') : null;
-}
-
-/** Read pending private tasks from .subframe/tasks/private/ */
-function readPrivatePending(root) {
-  const privateDir = path.join(root, '.subframe', 'tasks', 'private');
-  if (!fs.existsSync(privateDir)) return [];
-  const tasks = [];
-  try {
-    for (const file of fs.readdirSync(privateDir).filter(f => f.endsWith('.md'))) {
-      try {
-        const content = fs.readFileSync(path.join(privateDir, file), 'utf8');
-        const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-        if (!fmMatch) continue;
-        const fm = {};
-        for (const line of fmMatch[1].split('\n')) {
-          const m = line.match(/^(\w+):\s*(.+)$/);
-          if (m) fm[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
-        }
-        if (fm.status === 'pending') {
-          // Extract description from body (text after frontmatter, before first ##)
-          const body = content.split('---').slice(2).join('---').trim();
-          const desc = body.split(/^## /m)[0].trim();
-          tasks.push({
-            id: fm.id || path.basename(file, '.md'),
-            title: fm.title || '(untitled)',
-            description: desc,
-            priority: fm.priority || 'medium',
-            private: true,
-          });
-        }
-      } catch { /* skip */ }
-    }
-  } catch { /* skip */ }
-  return tasks;
 }
 
 function matchScore(prompt, title) {
@@ -84,11 +45,8 @@ function main() {
   if (!prompt || typeof prompt !== 'string' || prompt.length < 10) process.exit(0);
   if (prompt.startsWith('/')) process.exit(0);
 
-  const root = findProjectRoot(hookData.cwd) || findProjectRoot(process.cwd());
-  if (!root) process.exit(0);
-
-  const tasksPath = path.join(root, '.subframe', 'tasks.json');
-  if (!fs.existsSync(tasksPath)) process.exit(0);
+  const tasksPath = findTasksFile(hookData.cwd) || findTasksFile(process.cwd());
+  if (!tasksPath) process.exit(0);
 
   let data;
   try {
@@ -96,7 +54,7 @@ function main() {
     data = JSON.parse(raw);
   } catch { process.exit(0); }
 
-  const pending = [...(data.tasks?.pending || []), ...readPrivatePending(root)];
+  const pending = data.tasks?.pending || [];
   if (pending.length === 0) process.exit(0);
 
   let bestTask = null;
@@ -115,8 +73,7 @@ function main() {
   if (bestScore >= 0.4 && bestTask) {
     console.log('<sub-task-match>');
     console.log('\u25C6 SubFrame \u2500 \uD83C\uDFAF Matches sub-task [' + bestTask.id + ']: "' + bestTask.title + '" (' + bestTask.priority + ')');
-    const taskCmd = fs.existsSync(path.join(root, 'scripts', 'task.js')) ? 'node scripts/task.js' : 'npx subframe task';
-    console.log('\u2192 Start: ' + taskCmd + ' start ' + bestTask.id);
+    console.log('\u2192 Start: node scripts/task.js start ' + bestTask.id);
     console.log('</sub-task-match>');
   }
 }
