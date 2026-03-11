@@ -14,6 +14,7 @@ import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ThemeProvider } from './ThemeProvider';
 import { TasksPalette } from './TasksPalette';
+import { AIToolPalette } from './AIToolPalette';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
@@ -52,7 +53,8 @@ export function App() {
   const onboarding = useOnboarding();
   const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
-  const { config: aiToolConfig } = useAIToolConfig();
+  const { config: aiToolConfig, setAITool } = useAIToolConfig();
+  const projects = useProjectStore((s) => s.projects);
   // Guard: prevents auto-reopen from fighting with user's explicit close
   const userDismissedAnalysisRef = useRef(false);
 
@@ -68,6 +70,18 @@ export function App() {
     activeWorkspaceKeyRef.current = parsed?.active ?? null;
   }, [workspaceData]);
 
+  // Auto-switch AI tool when selecting a project with a per-project binding
+  useEffect(() => {
+    if (!currentProjectPath || !aiToolConfig) return;
+    const project = projects.find(p => p.path === currentProjectPath);
+    if (project?.aiTool && project.aiTool !== aiToolConfig.activeTool.id) {
+      // Only switch if the bound tool still exists
+      if (aiToolConfig.availableTools[project.aiTool]) {
+        setAITool.mutate([project.aiTool]);
+      }
+    }
+  }, [currentProjectPath]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Persistent workspace data listener — ensures project store is updated
   // even when Sidebar/ProjectList are not mounted (collapsed or hidden sidebar).
   // When ProjectList IS mounted it also handles these events; the duplicate
@@ -77,7 +91,7 @@ export function App() {
       const store = useProjectStore.getState();
       // Filter out scanned (discovered) projects — only show workspace projects
       const manual = (projects || []).filter((p) => (p as WorkspaceProject & { source?: string }).source !== 'scanned');
-      store.setProjects(manual.map((p) => ({ path: p.path, name: p.name, isFrameProject: p.isFrameProject ?? false })));
+      store.setProjects(manual.map((p) => ({ path: p.path, name: p.name, isFrameProject: p.isFrameProject ?? false, aiTool: p.aiTool })));
       if (workspaceName) store.setWorkspaceName(workspaceName);
 
       // Auto-select first project if current selection is not in the new list
@@ -448,6 +462,9 @@ export function App() {
 
       {/* Quick tasks palette (Ctrl+') */}
       <TasksPalette />
+
+      {/* AI Tool palette (Ctrl+.) */}
+      <AIToolPalette />
 
       {/* What's New dialog (auto-shows after updates) */}
       <WhatsNew />

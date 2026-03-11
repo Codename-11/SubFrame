@@ -51,7 +51,7 @@ import { toast } from 'sonner';
 /** Read version at module level — avoids importing frameConstants.ts which uses Node's `path` */
 const FRAME_VERSION: string = require('../../../package.json').version;
 
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, shell } = require('electron');
 
 type SidebarTab = 'projects' | 'files';
 
@@ -160,6 +160,18 @@ export function Sidebar() {
         // Get start command — use active tool's command (or custom override from settings)
         const config = await ipcRenderer.invoke(IPC.GET_AI_TOOL_CONFIG);
         const activeTool = config?.activeTool as AITool | undefined;
+
+        // Warn if tool is not installed
+        if (activeTool && activeTool.installed === false) {
+          toast.error(`${activeTool.name} is not installed`, {
+            description: activeTool.installUrl ? 'Click to view install instructions' : 'Install it and try again',
+            action: activeTool.installUrl ? {
+              label: 'Install',
+              onClick: () => shell.openExternal(activeTool.installUrl),
+            } : undefined,
+          });
+          return;
+        }
         const settings = await ipcRenderer.invoke(IPC.LOAD_SETTINGS);
         const aiToolSettings = (settings?.aiTools as Record<string, Record<string, string>>) || {};
         const customCmd = aiToolSettings[activeTool?.id || 'claude']?.customCommand;
@@ -320,13 +332,13 @@ export function Sidebar() {
   return (
     <div className="relative h-full flex flex-col bg-bg-primary border-r border-border-subtle overflow-hidden">
       {/* Header — animated logo, brand, help, settings, collapse, hide */}
-      <div className="flex items-center gap-2 px-2 py-2 border-b border-border-subtle flex-shrink-0">
+      <div className="flex items-start gap-2 px-2 py-2 border-b border-border-subtle flex-shrink-0">
         <div
           className="flex-shrink-0"
           style={{ width: 56, height: 56, minWidth: 56 }}
           dangerouslySetInnerHTML={{ __html: getLogoSVG({ size: 56, id: 'sb-exp', frame: false }) }}
         />
-        <div className="flex flex-col min-w-0 gap-0.5">
+        <div className="flex flex-col min-w-0 gap-0.5 flex-1">
           <span className="text-sm font-semibold tracking-tight truncate leading-none">SubFrame</span>
           {FRAME_VERSION.includes('-') && (
             <span className="text-[9px] font-mono font-medium text-warning leading-none">
@@ -336,41 +348,40 @@ export function Sidebar() {
           <span className="text-[10px] font-mono text-text-muted leading-none">
             v{FRAME_VERSION}
           </span>
-        </div>
-
-        <div className="ml-auto flex items-center">
-          <button
-            onClick={() => setShortcutsHelpOpen(true)}
-            className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-            title="Keyboard shortcuts (Ctrl+Shift+/)"
-            aria-label="Keyboard shortcuts"
-          >
-            <CircleHelp className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-            title="Settings (Ctrl+,)"
-            aria-label="Settings"
-          >
-            <Settings className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setSidebarState('collapsed')}
-            className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-            title="Collapse sidebar"
-            aria-label="Collapse sidebar"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setSidebarState('hidden')}
-            className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-            title="Hide sidebar (Ctrl+B)"
-            aria-label="Hide sidebar"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-0.5 mt-0.5">
+            <button
+              onClick={() => setShortcutsHelpOpen(true)}
+              className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+              title="Keyboard shortcuts (Ctrl+Shift+/)"
+              aria-label="Keyboard shortcuts"
+            >
+              <CircleHelp className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+              title="Settings (Ctrl+,)"
+              aria-label="Settings"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setSidebarState('collapsed')}
+              className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setSidebarState('hidden')}
+              className="p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+              title="Hide sidebar (Ctrl+B)"
+              aria-label="Hide sidebar"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 

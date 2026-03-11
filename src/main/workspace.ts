@@ -17,6 +17,8 @@ interface WorkspaceProject {
   addedAt: string | null;
   lastOpenedAt: string | null;
   source?: 'manual' | 'scanned';
+  /** Per-project AI tool binding (tool ID) */
+  aiTool?: string;
 }
 
 interface WorkspaceEntry {
@@ -312,6 +314,40 @@ function updateProjectFrameStatus(projectPath: string, isFrame: boolean): void {
 }
 
 /**
+ * Set or clear per-project AI tool binding
+ */
+function setProjectAITool(projectPath: string, aiTool: string | null): boolean {
+  const workspace = loadWorkspace();
+  const active = workspace.activeWorkspace;
+
+  const project = workspace.workspaces[active]?.projects.find(
+    p => p.path === projectPath
+  );
+  if (!project) return false;
+
+  if (aiTool) {
+    project.aiTool = aiTool;
+  } else {
+    delete project.aiTool;
+  }
+  saveWorkspace(workspace);
+  return true;
+}
+
+/**
+ * Get per-project AI tool binding (if any)
+ */
+function getProjectAITool(projectPath: string): string | null {
+  const workspace = loadWorkspace();
+  const active = workspace.activeWorkspace;
+
+  const project = workspace.workspaces[active]?.projects.find(
+    p => p.path === projectPath
+  );
+  return project?.aiTool || null;
+}
+
+/**
  * Convert workspace name to slug key
  */
 function slugify(name: string): string {
@@ -451,6 +487,12 @@ function setupIPC(ipcMain: IpcMain): void {
     event.sender.send(IPC.WORKSPACE_UPDATED, result);
   });
 
+  ipcMain.on(IPC.SET_PROJECT_AI_TOOL, (event, { projectPath, aiTool }: { projectPath: string; aiTool: string | null }) => {
+    setProjectAITool(projectPath, aiTool);
+    const result = getProjectsWithScanned();
+    event.sender.send(IPC.WORKSPACE_UPDATED, result);
+  });
+
   ipcMain.handle(IPC.SCAN_PROJECT_DIR, (_event, dirPath: string) => {
     return scanProjectDir(dirPath);
   });
@@ -467,5 +509,6 @@ export {
   init, loadWorkspace, getProjects, getProjectsWithScanned, scanProjectDir,
   addProject, removeProject, renameProject, updateProjectLastOpened,
   updateProjectFrameStatus, getWorkspaceList, switchWorkspace,
-  createWorkspace, renameWorkspace, deleteWorkspace, setupIPC
+  createWorkspace, renameWorkspace, deleteWorkspace, setProjectAITool,
+  getProjectAITool, setupIPC
 };

@@ -38,6 +38,8 @@ import { toast } from 'sonner';
 import { usePrompts } from '../hooks/usePrompts';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useGitStatus } from '../hooks/useGithub';
+import { useAIToolConfig } from '../hooks/useSettings';
 import type { SavedPrompt } from '../../shared/ipcChannels';
 import {
   createBlankPrompt,
@@ -54,7 +56,7 @@ type PromptScope = 'global' | 'project';
 function highlightVars(text: string, maxLen: number): React.ReactNode {
   const truncated = text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
   const parts = truncated.split(TEMPLATE_VAR_REGEX);
-  const tokens = new Set(['project', 'projectPath', 'file']);
+  const tokens = new Set(['project', 'projectPath', 'file', 'branch', 'date', 'aiTool']);
   return parts.map((part, i) =>
     tokens.has(part) ? (
       <span key={i} className="text-accent">{`{{${part}}}`}</span>
@@ -89,6 +91,7 @@ export function PromptLibrary() {
   const [showEditor, setShowEditor] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingScope, setDeletingScope] = useState<PromptScope>('project');
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   const {
     prompts,
@@ -102,6 +105,13 @@ export function PromptLibrary() {
   } = usePrompts();
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const projectPath = useProjectStore((s) => s.currentProjectPath);
+  const { branch } = useGitStatus();
+  const { config: aiToolConfig } = useAIToolConfig();
+
+  const templateContext = useMemo(
+    () => ({ branch, aiTool: aiToolConfig?.activeTool?.name ?? '' }),
+    [branch, aiToolConfig]
+  );
 
   const allPrompts = useMemo(
     () => [...globalPrompts, ...prompts],
@@ -153,7 +163,7 @@ export function PromptLibrary() {
   // Insert prompt text into active terminal
   const handleInsert = useCallback(
     (prompt: SavedPrompt) => {
-      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath);
+      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath, templateContext);
       if (ok) {
         // Increment usage count in the appropriate store
         const scope = prompt.scope ?? 'project';
@@ -168,7 +178,7 @@ export function PromptLibrary() {
       }
       setOpen(false);
     },
-    [activeTerminalId, projectPath, savePrompt, saveGlobalPrompt]
+    [activeTerminalId, projectPath, templateContext, savePrompt, saveGlobalPrompt]
   );
 
   // Copy prompt to clipboard
@@ -182,6 +192,7 @@ export function PromptLibrary() {
     setEditingPrompt(blank);
     // Default scope: 'project' if a project is open, else 'global'
     setEditingScope(projectPath ? 'project' : 'global');
+    setIsCreatingNew(true);
     setShowEditor(true);
     setOpen(false);
   }, [projectPath]);
@@ -189,6 +200,7 @@ export function PromptLibrary() {
   const handleEditPrompt = useCallback((prompt: SavedPrompt) => {
     setEditingPrompt({ ...prompt });
     setEditingScope((prompt.scope ?? 'project') as PromptScope);
+    setIsCreatingNew(false);
     setShowEditor(true);
     setOpen(false);
   }, []);
@@ -217,13 +229,12 @@ export function PromptLibrary() {
 
     // Determine if the scope changed from the original
     const originalScope = (editingPrompt.scope ?? 'project') as PromptScope;
-    const isNewPrompt = editingPrompt.createdAt === editingPrompt.updatedAt;
 
     if (editingScope === 'global') {
       saveGlobalPrompt.mutate([promptToSave], {
         onSuccess: () => {
           // If scope changed from project to global, remove from project
-          if (!isNewPrompt && originalScope === 'project' && projectPath) {
+          if (!isCreatingNew &&originalScope === 'project' && projectPath) {
             deletePrompt.mutate([{ projectPath, promptId: editingPrompt.id }]);
           }
         },
@@ -232,7 +243,7 @@ export function PromptLibrary() {
       savePrompt.mutate([{ projectPath, prompt: promptToSave }], {
         onSuccess: () => {
           // If scope changed from global to project, remove from global
-          if (!isNewPrompt && originalScope === 'global') {
+          if (!isCreatingNew &&originalScope === 'global') {
             deleteGlobalPrompt.mutate([editingPrompt.id]);
           }
         },
@@ -244,7 +255,8 @@ export function PromptLibrary() {
 
     setShowEditor(false);
     setEditingPrompt(null);
-  }, [editingPrompt, editingScope, projectPath, savePrompt, saveGlobalPrompt, deletePrompt, deleteGlobalPrompt]);
+    setIsCreatingNew(false);
+  }, [editingPrompt, editingScope, isCreatingNew, projectPath, savePrompt, saveGlobalPrompt, deletePrompt, deleteGlobalPrompt]);
 
   const handlePromote = useCallback((prompt: SavedPrompt) => {
     promoteToGlobal(prompt);
@@ -400,7 +412,7 @@ export function PromptLibrary() {
       </CommandDialog>
 
       {/* Prompt editor dialog */}
-      <Dialog open={showEditor} onOpenChange={(o) => { if (!o) { setShowEditor(false); setEditingPrompt(null); } }}>
+      <Dialog open={showEditor} onOpenChange={(o) => { if (!o) { setShowEditor(false); setEditingPrompt(null); setIsCreatingNew(false); } }}>
         <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-sm">
@@ -508,7 +520,7 @@ export function PromptLibrary() {
           )}
           <DialogFooter>
             <button
-              onClick={() => { setShowEditor(false); setEditingPrompt(null); }}
+              onClick={() => { setShowEditor(false); setEditingPrompt(null); setIsCreatingNew(false); }}
               className="px-3 py-1.5 text-xs rounded-md text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer"
             >
               Cancel

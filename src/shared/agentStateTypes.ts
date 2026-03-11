@@ -41,6 +41,8 @@ export type AgentSessionStatus = 'idle' | 'active' | 'busy' | 'completed';
 export interface AgentSession {
   /** Claude session ID (from hook stdin) */
   sessionId: string;
+  /** SubFrame terminal ID (from SUBFRAME_TERMINAL_ID env var) — enables direct correlation */
+  terminalId?: string;
   /** Friendly agent name (e.g., "main", "subagent-1") */
   agentName?: string;
   /** Parent session ID for subagent hierarchy */
@@ -59,6 +61,17 @@ export interface AgentSession {
   lastActivityAt: string;
 }
 
+// ─── User Message Signal (from prompt-submit hook) ───────────────────────────
+
+export interface UserMessageSignal {
+  /** SubFrame terminal ID (from SUBFRAME_TERMINAL_ID env var) */
+  terminalId: string;
+  /** When the message was submitted */
+  timestamp: string;
+  /** First 100 chars of the prompt (for debugging/display) */
+  promptPreview?: string;
+}
+
 // ─── Agent State Payload (full state sent over IPC) ──────────────────────────
 
 export interface AgentStatePayload {
@@ -68,4 +81,6 @@ export interface AgentStatePayload {
   sessions: AgentSession[];
   /** When this state was last updated */
   lastUpdated: string;
+  /** Last user message signal (written by prompt-submit hook) */
+  lastUserMessage?: UserMessageSignal;
 }

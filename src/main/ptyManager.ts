@@ -77,9 +77,21 @@ const CLAUDE_PATTERNS: RegExp[] = [
 /** Maps terminalId → sessionId for jump-to-terminal correlation */
 const terminalSessionMap = new Map<string, string>();
 
+/** Max age (ms) for a session to be considered "fresh" — matches claudeSessionsManager's 2-min active threshold */
+const SESSION_STALE_MS = 2 * 60 * 1000;
+
+/** Check if a session's lastActivityAt is recent enough to be from the current run */
+function isSessionFresh(lastActivityAt: string): boolean {
+  return (Date.now() - new Date(lastActivityAt).getTime()) < SESSION_STALE_MS;
+}
+
 /**
  * When a terminal becomes claude-active, try to correlate it with
- * the most recently active session in agent-state.json.
+ * a session in agent-state.json.
+ *
+ * Priority:
+ * 1. Direct match by terminalId (written by hooks via SUBFRAME_TERMINAL_ID env var)
+ * 2. Heuristic: most recently active unclaimed session (fresh only, <2 min)
  */
 function correlateSession(terminalId: string): string | undefined {
   const instance = ptyInstances.get(terminalId);
@@ -89,15 +101,31 @@ function correlateSession(terminalId: string): string | undefined {
     const state = agentStateManager.loadAgentState(instance.projectPath);
     if (!state.sessions.length) return undefined;
 
-    // Sessions already claimed by other terminals
+    // 1. Direct match — hooks wrote our SUBFRAME_TERMINAL_ID into the session
+    //    Must also be fresh (prevents cross-session ID reuse after app restart)
+    //    Sort by lastActivityAt to handle subagents sharing the same terminalId
+    const directMatches = state.sessions
+      .filter((s) =>
+        s.terminalId === terminalId &&
+        (s.status === 'active' || s.status === 'busy') &&
+        isSessionFresh(s.lastActivityAt)
+      )
+      .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime());
+    if (directMatches.length > 0) return directMatches[0].sessionId;
+
+    // 2. Heuristic fallback — most recently active unclaimed fresh session
     const claimed = new Set<string>();
     for (const [tid, sid] of terminalSessionMap) {
       if (tid !== terminalId) claimed.add(sid);
     }
 
-    // Find the most recently active unclaimed session
     const candidates = state.sessions
-      .filter((s) => (s.status === 'active' || s.status === 'busy') && !claimed.has(s.sessionId))
+      .filter((s) =>
+        (s.status === 'active' || s.status === 'busy') &&
+        !claimed.has(s.sessionId) &&
+        !s.terminalId && // Skip sessions already bound to a terminal
+        isSessionFresh(s.lastActivityAt)
+      )
       .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime());
 
     return candidates[0]?.sessionId;
@@ -111,7 +139,32 @@ function broadcastClaudeStatus(terminalId: string, active: boolean): void {
 
   let sessionId: string | undefined;
   if (active) {
-    sessionId = correlateSession(terminalId);
+    // Check if we already have a valid mapping for this terminal
+    const existingId = terminalSessionMap.get(terminalId);
+    if (existingId) {
+      // Validate: is the mapped session still active/busy? If so, keep it.
+      // If it's gone idle/completed, the user may have started a new session — re-correlate.
+      const instance = ptyInstances.get(terminalId);
+      if (instance?.projectPath) {
+        try {
+          const state = agentStateManager.loadAgentState(instance.projectPath);
+          const mapped = state.sessions.find((s) => s.sessionId === existingId);
+          if (mapped && (mapped.status === 'active' || mapped.status === 'busy') && isSessionFresh(mapped.lastActivityAt)) {
+            sessionId = existingId; // Existing mapping is still valid and fresh
+          } else {
+            // Mapped session went idle — may be a new Claude session in this terminal
+            sessionId = correlateSession(terminalId);
+          }
+        } catch {
+          sessionId = existingId; // On error, keep existing mapping
+        }
+      } else {
+        sessionId = existingId;
+      }
+    } else {
+      sessionId = correlateSession(terminalId);
+    }
+
     if (sessionId) {
       terminalSessionMap.set(terminalId, sessionId);
     } else if (!terminalSessionMap.has(terminalId)) {
@@ -126,10 +179,13 @@ function broadcastClaudeStatus(terminalId: string, active: boolean): void {
         }
       }, 5000);
     }
-  } else {
-    terminalSessionMap.delete(terminalId);
   }
+  // Don't delete the mapping when going inactive — preserve terminal↔session association
+  // across idle transitions to prevent cross-contamination. Mapping is cleared only when
+  // the terminal is destroyed (PTY exit handler / destroyTerminal).
 
+  // When inactive, include the existing mapping so the renderer retains the session name
+  sessionId = sessionId ?? terminalSessionMap.get(terminalId);
   mainWindow.webContents.send(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active, sessionId });
 }
 
@@ -323,7 +379,8 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     env: {
       ...process.env,
       TERM: 'xterm-256color',
-      COLORTERM: 'truecolor'
+      COLORTERM: 'truecolor',
+      SUBFRAME_TERMINAL_ID: terminalId,
     } as Record<string, string>
   });
 
@@ -415,10 +472,11 @@ function destroyTerminal(terminalId: string): void {
   if (instance) {
     instance.pty.kill();
     ptyInstances.delete(terminalId);
-    // Clean up Claude detection + capture state
+    // Clean up Claude detection + capture + session correlation state
     CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
     captureBuffers.delete(terminalId);
     outputHandlers.delete(terminalId);
+    terminalSessionMap.delete(terminalId);
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
     if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     console.log(`Destroyed terminal ${terminalId}`);
@@ -434,10 +492,11 @@ function destroyAll(): void {
     console.log(`Destroyed terminal ${terminalId}`);
   }
   ptyInstances.clear();
-  // Clean up all detection + capture state
+  // Clean up all detection + capture + session correlation state
   CLAUDE_OUTPUT_BUFFERS.clear();
   captureBuffers.clear();
   outputHandlers.clear();
+  terminalSessionMap.clear();
   for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
   CLAUDE_TIMEOUT_HANDLES.clear();
 }

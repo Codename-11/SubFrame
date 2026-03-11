@@ -4,7 +4,7 @@
  * Full mode shows stage nodes connected by lines with status indicators.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, SkipForward, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -107,12 +107,18 @@ interface StageNodeProps {
   onClick?: (stageId: string) => void;
 }
 
-/** Live elapsed time for running stages */
-function useElapsed(startedAt: string | null, isRunning: boolean): string | null {
+/** Live elapsed time for running stages.
+ * Pauses the interval when the host element is hidden (display: none from keep-alive panels)
+ * to avoid CPU waste from ticking timers on invisible components.
+ */
+function useElapsed(startedAt: string | null, isRunning: boolean): [string | null, React.RefObject<HTMLDivElement | null>] {
   const [elapsed, setElapsed] = useState<string | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!isRunning || !startedAt) { setElapsed(null); return; }
     const update = () => {
+      // Skip updates when hidden (display: none → offsetParent is null)
+      if (hostRef.current && !hostRef.current.offsetParent) return;
       const ms = Date.now() - new Date(startedAt).getTime();
       setElapsed(formatDuration(ms));
     };
@@ -120,7 +126,7 @@ function useElapsed(startedAt: string | null, isRunning: boolean): string | null
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, [startedAt, isRunning]);
-  return elapsed;
+  return [elapsed, hostRef];
 }
 
 function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps) {
@@ -130,10 +136,10 @@ function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps)
   const isFailed = status === 'failed';
   const isSkipped = status === 'skipped';
   const isMaxTurns = isFailed && stage.failureReason === 'max-turns';
-  const elapsed = useElapsed(stage.startedAt, isRunning);
+  const [elapsed, elapsedHostRef] = useElapsed(stage.startedAt, isRunning);
 
   return (
-    <div className="flex flex-col items-center flex-1 min-w-0">
+    <div ref={elapsedHostRef} className="flex flex-col items-center flex-1 min-w-0">
       {/* Circle + connectors row */}
       <div className="flex items-center w-full">
         {/* Left connector */}

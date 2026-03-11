@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUIStore, type FullViewContent, getTabIdForContent } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
-import { useSettings } from '../hooks/useSettings';
+import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import {
   X,
   TerminalSquare,
@@ -15,9 +15,11 @@ import {
   Keyboard,
   ListTodo,
   Activity,
-  PanelLeft,
+  PanelRight,
   FolderOpen,
   Loader2,
+  Terminal,
+  Pin,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -27,6 +29,7 @@ import {
 } from './ui/tooltip';
 import { toast } from 'sonner';
 import { IPC } from '../../shared/ipcChannels';
+import { SHORTCUTS } from '../lib/shortcuts';
 
 const { ipcRenderer } = require('electron');
 
@@ -44,10 +47,10 @@ const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 
 /** Panel shortcut buttons shown on the right side of the tab bar — open right sidebar */
 const PANEL_SHORTCUTS = [
-  { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard, shortcut: 'Ctrl+Shift+O' },
   { id: 'tasks' as const, label: 'Sub-Tasks', icon: ListTodo, shortcut: 'Ctrl+Shift+S' },
-  { id: 'agentState' as const, label: 'Agent Activity', icon: Activity, shortcut: 'Ctrl+Shift+A' },
+  { id: 'agentState' as const, label: 'Agents', icon: Activity, shortcut: 'Ctrl+Shift+A' },
   { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
+  { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard, shortcut: 'Ctrl+Shift+O' },
 ] as const;
 
 /** Usage data shape from claudeUsageManager */
@@ -71,11 +74,20 @@ export function ViewTabBar() {
   const closeTab = useUIStore(s => s.closeTab);
   const activePanel = useUIStore(s => s.activePanel);
   const togglePanel = useUIStore(s => s.togglePanel);
+  const closeRightPanel = useUIStore(s => s.closeRightPanel);
   const sidebarState = useUIStore(s => s.sidebarState);
   const setSidebarState = useUIStore(s => s.setSidebarState);
   const currentProjectPath = useProjectStore(s => s.currentProjectPath);
   const workspaceName = useProjectStore(s => s.workspaceName);
   const { updateSetting } = useSettings();
+  const { config: aiToolConfig } = useAIToolConfig();
+  const projects = useProjectStore(s => s.projects);
+
+  // Derive per-project tool binding
+  const currentProject = currentProjectPath ? projects.find(p => p.path === currentProjectPath) : null;
+  const projectToolBinding = currentProject?.aiTool ?? null;
+  const activeToolName = aiToolConfig?.activeTool?.name ?? 'Claude Code';
+  const activeToolInstalled = aiToolConfig?.activeTool?.installed !== false;
 
   // Usage data state (moved from TerminalTabBar)
   const [usageData, setUsageData] = useState<UsageData | null>(null);
@@ -166,6 +178,36 @@ export function ViewTabBar() {
           </Tooltip>
         </TooltipProvider>
       )}
+
+      {/* Active AI tool indicator */}
+      <TooltipProvider delayDuration={400}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => window.dispatchEvent(new Event('open-ai-tool-palette'))}
+              className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium
+                         hover:bg-bg-hover transition-colors cursor-pointer
+                         border-r border-border-subtle shrink-0 text-text-secondary hover:text-text-primary"
+            >
+              <Terminal className={`w-3 h-3 flex-shrink-0 ${activeToolInstalled ? 'text-accent' : 'text-error'}`} />
+              <span className="truncate max-w-[100px]">{activeToolName}</span>
+              {!activeToolInstalled && (
+                <span className="w-1.5 h-1.5 rounded-full bg-error flex-shrink-0" title="Not installed" />
+              )}
+              {projectToolBinding && (
+                <Pin className="w-2.5 h-2.5 text-accent flex-shrink-0" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>
+              {activeToolName}
+              {projectToolBinding ? ' (bound to project)' : ''}
+              {` — ${SHORTCUTS.AI_TOOL_PALETTE.keys}`}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       {/* Open tabs */}
       <div className="flex items-center overflow-x-auto scrollbar-none flex-1 min-w-0">
@@ -279,24 +321,31 @@ export function ViewTabBar() {
 
         <div className="h-4 w-px bg-border-subtle mx-0.5" />
 
-        {/* Sidebar toggle */}
+        {/* Right panel toggle */}
         <TooltipProvider delayDuration={400}>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => setSidebarState(sidebarState === 'expanded' ? 'collapsed' : 'expanded')}
+                onClick={() => {
+                  if (activePanel) {
+                    closeRightPanel();
+                  } else {
+                    // Re-open overview panel as default (or last-used could be tracked later)
+                    togglePanel('overview');
+                  }
+                }}
                 className={`flex items-center justify-center h-6 w-6 rounded transition-colors cursor-pointer ${
-                  sidebarState === 'collapsed'
+                  activePanel
                     ? 'text-accent bg-accent-subtle'
                     : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
                 }`}
-                aria-label={sidebarState === 'expanded' ? 'Collapse sidebar' : 'Expand sidebar'}
+                aria-label={activePanel ? 'Close right panel' : 'Open right panel'}
               >
-                <PanelLeft className="w-3.5 h-3.5" />
+                <PanelRight className="w-3.5 h-3.5" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>{sidebarState === 'expanded' ? 'Collapse Sidebar' : 'Expand Sidebar'} (Ctrl+B)</p>
+              <p>{activePanel ? 'Close Panel' : 'Open Panel'}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

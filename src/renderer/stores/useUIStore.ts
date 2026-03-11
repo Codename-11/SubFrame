@@ -12,7 +12,7 @@ export interface ViewTab {
 }
 
 export const VIEW_TAB_LABELS: Record<string, string> = {
-  terminal: 'Terminal',
+  terminal: 'Terminals',
   overview: 'Overview',
   structureMap: 'Structure Map',
   tasks: 'Tasks',
@@ -44,12 +44,12 @@ function loadPersistedTabs(): ViewTab[] {
       const parsed = JSON.parse(raw) as ViewTab[];
       // Ensure terminal tab is always present and non-closable
       if (!parsed.some(t => t.id === 'terminal')) {
-        parsed.unshift({ id: 'terminal', label: 'Terminal', closable: false });
+        parsed.unshift({ id: 'terminal', label: 'Terminals', closable: false });
       }
       return parsed.map(t => ({ ...t, closable: t.id !== 'terminal' }));
     }
   } catch { /* ignore */ }
-  return [{ id: 'terminal', label: 'Terminal', closable: false }];
+  return [{ id: 'terminal', label: 'Terminals', closable: false }];
 }
 
 /** Persist openTabs to localStorage */

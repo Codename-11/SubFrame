@@ -4,6 +4,7 @@
  */
 
 import { ipcMain, type App, type BrowserWindow } from 'electron';
+import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC } from '../shared/ipcChannels';
@@ -21,6 +22,8 @@ interface AITool {
   commands: AIToolCommands;
   menuLabel: string;
   supportsPlugins: boolean;
+  installUrl?: string;
+  installed?: boolean;
 }
 
 interface AIToolConfig {
@@ -35,6 +38,7 @@ interface AIToolConfigResponse {
 
 let mainWindow: BrowserWindow | null = null;
 let configPath: string | null = null;
+let onToolChanged: (() => void) | null = null;
 
 // Default AI tools configuration
 const AI_TOOLS: Record<string, AITool> = {
@@ -50,7 +54,8 @@ const AI_TOOLS: Record<string, AITool> = {
       help: '/help'
     },
     menuLabel: 'Claude Commands',
-    supportsPlugins: true
+    supportsPlugins: true,
+    installUrl: 'https://docs.anthropic.com/en/docs/claude-code/overview'
   },
   codex: {
     id: 'codex',
@@ -65,7 +70,8 @@ const AI_TOOLS: Record<string, AITool> = {
       help: '/help'
     },
     menuLabel: 'Codex Commands',
-    supportsPlugins: false
+    supportsPlugins: false,
+    installUrl: 'https://github.com/openai/codex'
   },
   gemini: {
     id: 'gemini',
@@ -81,7 +87,8 @@ const AI_TOOLS: Record<string, AITool> = {
       help: '/help'
     },
     menuLabel: 'Gemini Commands',
-    supportsPlugins: false
+    supportsPlugins: false,
+    installUrl: 'https://github.com/google-gemini/gemini-cli'
   }
 };
 
@@ -129,34 +136,94 @@ function saveConfig(): void {
   }
 }
 
+// Cache for install status (avoids repeated `where`/`which` calls)
+const installCache = new Map<string, { installed: boolean; checkedAt: number }>();
+const CACHE_TTL_MS = 60_000; // 1 minute
+
 /**
- * Get all available AI tools
+ * Check if a command is available on PATH.
+ * Uses `where.exe` on Windows, `which` on Unix.
+ * Results are cached for 1 minute.
+ * Uses async execFile (no shell) to avoid blocking the main thread.
  */
-function getAvailableTools(): Record<string, AITool> {
-  return { ...AI_TOOLS, ...config.customTools };
+async function isCommandInstalledAsync(command: string): Promise<boolean> {
+  // Relative paths (e.g. ./.subframe/bin/codex) — check the fallback command instead
+  const checkCmd = command.startsWith('.') ? undefined : command;
+  if (!checkCmd) return true; // relative paths are project-local, skip check
+
+  const cached = installCache.get(checkCmd);
+  if (cached && Date.now() - cached.checkedAt < CACHE_TTL_MS) {
+    return cached.installed;
+  }
+
+  let installed = false;
+  try {
+    const whichCmd = process.platform === 'win32' ? 'where.exe' : 'which';
+    await new Promise<void>((resolve, reject) => {
+      execFile(whichCmd, [checkCmd], { timeout: 3000 }, (error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+    installed = true;
+  } catch {
+    installed = false;
+  }
+
+  installCache.set(checkCmd, { installed, checkedAt: Date.now() });
+  return installed;
+}
+
+/**
+ * Check install status for a single tool (considers fallbackCommand)
+ */
+async function checkToolInstalled(tool: AITool): Promise<boolean> {
+  if (await isCommandInstalledAsync(tool.command)) return true;
+  if (tool.fallbackCommand && await isCommandInstalledAsync(tool.fallbackCommand)) return true;
+  return false;
+}
+
+/**
+ * Get all available AI tools (with install status)
+ */
+async function getAvailableTools(): Promise<Record<string, AITool>> {
+  const merged = { ...AI_TOOLS, ...config.customTools };
+  const entries = Object.entries(merged);
+  const installResults = await Promise.all(
+    entries.map(([, tool]) => checkToolInstalled(tool))
+  );
+  const tools: Record<string, AITool> = {};
+  for (let i = 0; i < entries.length; i++) {
+    const [id, tool] = entries[i];
+    tools[id] = { ...tool, installed: installResults[i] };
+  }
+  return tools;
 }
 
 /**
  * Get the currently active tool
  */
-function getActiveTool(): AITool {
-  const tools = getAvailableTools();
+async function getActiveTool(): Promise<AITool> {
+  const tools = await getAvailableTools();
   return tools[config.activeTool] || tools.claude;
 }
 
 /**
  * Set the active AI tool
  */
-function setActiveTool(toolId: string): boolean {
-  const tools = getAvailableTools();
+async function setActiveTool(toolId: string): Promise<boolean> {
+  const tools = await getAvailableTools();
   if (tools[toolId]) {
     config.activeTool = toolId;
     saveConfig();
 
     // Notify renderer about the change
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, getActiveTool());
+      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, await getActiveTool());
     }
+
+    // Notify main-process listeners (e.g. menu rebuild)
+    onToolChanged?.();
 
     return true;
   }
@@ -164,12 +231,20 @@ function setActiveTool(toolId: string): boolean {
 }
 
 /**
+ * Register a callback that fires when the active tool changes.
+ * Used by index.ts to rebuild the application menu.
+ */
+function onActiveToolChanged(callback: () => void): void {
+  onToolChanged = callback;
+}
+
+/**
  * Get full configuration for renderer
  */
-function getConfig(): AIToolConfigResponse {
+async function getConfig(): Promise<AIToolConfigResponse> {
   return {
-    activeTool: getActiveTool(),
-    availableTools: getAvailableTools()
+    activeTool: await getActiveTool(),
+    availableTools: await getAvailableTools()
   };
 }
 
@@ -210,36 +285,41 @@ function removeCustomTool(toolId: string): boolean {
  * Setup IPC handlers
  */
 function setupIPC(): void {
-  ipcMain.handle(IPC.GET_AI_TOOL_CONFIG, () => {
+  ipcMain.handle(IPC.GET_AI_TOOL_CONFIG, async () => {
     return getConfig();
   });
 
-  ipcMain.handle(IPC.SET_AI_TOOL, (_event, toolId: string) => {
+  ipcMain.handle(IPC.SET_AI_TOOL, async (_event, toolId: string) => {
     return setActiveTool(toolId);
   });
 
-  ipcMain.handle(IPC.ADD_CUSTOM_AI_TOOL, (_event, tool: { id: string; name: string; command: string; description?: string }) => {
+  ipcMain.handle(IPC.ADD_CUSTOM_AI_TOOL, async (_event, tool: { id: string; name: string; command: string; description?: string }) => {
     const result = addCustomTool(tool);
     if (result && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, getActiveTool());
+      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, await getActiveTool());
     }
     return result;
   });
 
-  ipcMain.handle(IPC.REMOVE_CUSTOM_AI_TOOL, (_event, toolId: string) => {
+  ipcMain.handle(IPC.REMOVE_CUSTOM_AI_TOOL, async (_event, toolId: string) => {
     const result = removeCustomTool(toolId);
     if (result && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, getActiveTool());
+      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, await getActiveTool());
     }
     return result;
+  });
+
+  ipcMain.handle(IPC.RECHECK_AI_TOOLS, async () => {
+    installCache.clear();
+    return getConfig();
   });
 }
 
 /**
  * Get command for specific action
  */
-function getCommand(action: string): string | null {
-  const tool = getActiveTool();
+async function getCommand(action: string): Promise<string | null> {
+  const tool = await getActiveTool();
   return tool.commands[action] || null;
 }
 
@@ -260,14 +340,14 @@ function getCustomCommand(toolId: string): string | null {
 /**
  * Get the start command for active tool
  */
-function getStartCommand(): string {
-  const tool = getActiveTool();
+async function getStartCommand(): Promise<string> {
+  const tool = await getActiveTool();
   const custom = getCustomCommand(tool.id);
   return custom || tool.command;
 }
 
 export {
   init, getAvailableTools, getActiveTool, setActiveTool,
-  getConfig, getCommand, getStartCommand,
-  addCustomTool, removeCustomTool, AI_TOOLS
+  getConfig, getCommand, getStartCommand, checkToolInstalled,
+  addCustomTool, removeCustomTool, onActiveToolChanged, AI_TOOLS
 };

@@ -99,12 +99,22 @@ function notifyMarkerChange(id: string): void {
   if (set) for (const cb of set) cb();
 }
 
+/** Saved scroll state — captured on detach, consumed on next attach */
+export interface SavedScrollState {
+  /** True if terminal was at the bottom of its buffer when detached */
+  wasAtBottom: boolean;
+  /** xterm buffer viewportY (line-based, survives reflows better than pixel scrollTop) */
+  viewportY: number;
+}
+
 interface RegistryEntry extends TerminalInstance {
   holderDiv: HTMLDivElement;
   ipcCleanup: () => void;
   userMessageMarkers: UserMessageMarker[];
   /** Timestamp when Claude was last detected as active — used for grace period */
   lastActiveTimestamp: number;
+  /** Scroll position saved on detach — consumed (and cleared) on next attach */
+  savedScrollState?: SavedScrollState;
 }
 
 const registry = new Map<string, RegistryEntry>();
@@ -221,25 +231,36 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
 /**
  * Attach a terminal's DOM to a visible container.
  * Moves the holder div (which contains the xterm DOM tree) into the container.
+ * Returns the instance plus any saved scroll state from the last detach (consumed once).
  */
-export function attach(id: string, container: HTMLDivElement): TerminalInstance | null {
+export function attach(id: string, container: HTMLDivElement): (TerminalInstance & { savedScrollState?: SavedScrollState }) | null {
   const entry = registry.get(id);
   if (!entry) return null;
 
   // Move holder div into the visible container
   container.appendChild(entry.holderDiv);
 
+  // Pop saved scroll state (one-time consumption)
+  const savedScrollState = entry.savedScrollState;
+  entry.savedScrollState = undefined;
+
   // Fit is handled by the component's resize effect (which also syncs PTY dimensions)
-  return entry;
+  return { terminal: entry.terminal, fitAddon: entry.fitAddon, searchAddon: entry.searchAddon, savedScrollState };
 }
 
 /**
  * Detach a terminal from its visible container back to the off-screen holder.
- * Instance and scrollback remain alive.
+ * Instance and scrollback remain alive. Saves scroll state for restoration on next attach.
  */
 export function detach(id: string): void {
   const entry = registry.get(id);
   if (!entry) return;
+
+  // Save scroll state before moving DOM — browser may reset scrollTop during reparent
+  const terminal = entry.terminal;
+  const buf = terminal.buffer.active;
+  const wasAtBottom = buf.viewportY >= buf.baseY;
+  entry.savedScrollState = { wasAtBottom, viewportY: buf.viewportY };
 
   getHolderRoot().appendChild(entry.holderDiv);
 }

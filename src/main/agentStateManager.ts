@@ -18,6 +18,7 @@ let mainWindow: BrowserWindow | null = null;
 let stateWatcher: fs.FSWatcher | null = null;
 let watchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let lastUpdatedTimestamp: string | null = null; // Dedup: skip sending unchanged data
+let lastUserMessageTimestamp: string | null = null; // Track user message signals
 
 /**
  * Initialize agent state manager
@@ -88,6 +89,17 @@ function watchAgentState(projectPath: string): void {
           lastUpdatedTimestamp = state.lastUpdated;
 
           mainWindow.webContents.send(IPC.AGENT_STATE_DATA, state);
+
+          // Emit dedicated user message signal when a new one is detected
+          if (state.lastUserMessage?.timestamp &&
+              state.lastUserMessage.timestamp !== lastUserMessageTimestamp) {
+            lastUserMessageTimestamp = state.lastUserMessage.timestamp;
+            mainWindow.webContents.send(IPC.USER_MESSAGE_SIGNAL, {
+              terminalId: state.lastUserMessage.terminalId,
+              timestamp: state.lastUserMessage.timestamp,
+              promptPreview: state.lastUserMessage.promptPreview,
+            });
+          }
         }
       }, DEBOUNCE_MS);
     });
@@ -111,6 +123,7 @@ function unwatchAgentState(): void {
     stateWatcher = null;
   }
   lastUpdatedTimestamp = null;
+  lastUserMessageTimestamp = null;
 }
 
 /**

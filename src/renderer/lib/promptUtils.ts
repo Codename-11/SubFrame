@@ -16,10 +16,13 @@ export const TEMPLATE_VARIABLES = [
   { token: '{{project}}', label: 'Project', description: 'Project folder name' },
   { token: '{{projectPath}}', label: 'Path', description: 'Full project path' },
   { token: '{{file}}', label: 'File', description: 'Currently open file' },
+  { token: '{{branch}}', label: 'Branch', description: 'Current git branch' },
+  { token: '{{date}}', label: 'Date', description: 'Today\'s date (YYYY-MM-DD)' },
+  { token: '{{aiTool}}', label: 'AI Tool', description: 'Active AI tool name' },
 ] as const;
 
 /** Regex that matches all template variable tokens */
-export const TEMPLATE_VAR_REGEX = /\{\{(project|projectPath|file)\}\}/g;
+export const TEMPLATE_VAR_REGEX = /\{\{(project|projectPath|file|branch|date|aiTool)\}\}/g;
 
 /** Generate a unique prompt ID */
 export function generatePromptId(): string {
@@ -41,10 +44,17 @@ export function createBlankPrompt(): SavedPrompt {
   };
 }
 
+/** Additional context for template variable resolution */
+export interface TemplateContext {
+  branch?: string;
+  aiTool?: string;
+}
+
 /** Resolve template variables in prompt content */
 export function resolveTemplateVariables(
   content: string,
-  projectPath: string | null
+  projectPath: string | null,
+  context?: TemplateContext
 ): string {
   let text = content;
   if (projectPath) {
@@ -54,6 +64,9 @@ export function resolveTemplateVariables(
   }
   const editorFile = useUIStore.getState().editorFilePath;
   text = text.replace(/\{\{file\}\}/g, editorFile || '');
+  text = text.replace(/\{\{branch\}\}/g, context?.branch || '');
+  text = text.replace(/\{\{date\}\}/g, new Date().toISOString().split('T')[0]);
+  text = text.replace(/\{\{aiTool\}\}/g, context?.aiTool || '');
   return text;
 }
 
@@ -64,13 +77,14 @@ export function resolveTemplateVariables(
 export function insertPromptIntoTerminal(
   prompt: SavedPrompt,
   activeTerminalId: string | null,
-  projectPath: string | null
+  projectPath: string | null,
+  context?: TemplateContext
 ): boolean {
   if (!activeTerminalId) {
     toast.warning('No active terminal', { description: 'Open a terminal first.' });
     return false;
   }
-  const text = resolveTemplateVariables(prompt.content, projectPath);
+  const text = resolveTemplateVariables(prompt.content, projectPath, context);
   typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: text });
   // Focus the xterm instance so the user can immediately edit or press Enter.
   // 100ms delay ensures Radix Dialog focus-restore (on close) completes first.

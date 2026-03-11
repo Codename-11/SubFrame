@@ -6,6 +6,7 @@
  * - Attaching the terminal DOM to the container on mount
  * - Detaching (not destroying) on unmount
  * - Auto-fitting via debounced ResizeObserver
+ * - Capturing saved scroll state from previous detach for restoration
  */
 
 import { useEffect, useRef } from 'react';
@@ -13,6 +14,7 @@ import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import type { SearchAddon } from 'xterm-addon-search';
 import * as terminalRegistry from '../lib/terminalRegistry';
+import type { SavedScrollState } from '../lib/terminalRegistry';
 import { useUIStore } from '../stores/useUIStore';
 
 export type { TerminalOptions as UseTerminalOptions } from '../lib/terminalRegistry';
@@ -21,6 +23,8 @@ export interface UseTerminalResult {
   terminalRef: React.MutableRefObject<Terminal | null>;
   fitAddonRef: React.MutableRefObject<FitAddon | null>;
   searchAddonRef: React.MutableRefObject<SearchAddon | null>;
+  /** Scroll state saved during last detach — consumed once after attach + fit */
+  savedScrollStateRef: React.MutableRefObject<SavedScrollState | undefined>;
 }
 
 /**
@@ -35,6 +39,7 @@ export function useTerminal(
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
+  const savedScrollStateRef = useRef<SavedScrollState | undefined>(undefined);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -46,8 +51,9 @@ export function useTerminal(
     fitAddonRef.current = instance.fitAddon;
     searchAddonRef.current = instance.searchAddon;
 
-    // Attach terminal DOM to this container
-    terminalRegistry.attach(terminalId, container);
+    // Attach terminal DOM to this container — returns saved scroll state from last detach
+    const attachResult = terminalRegistry.attach(terminalId, container);
+    savedScrollStateRef.current = attachResult?.savedScrollState;
 
     // Auto-fit on container resize — skips fit() during active panel/sidebar drag
     // to avoid continuous buffer reflow + PTY resize cascades. Fits once on drag end.
@@ -93,10 +99,11 @@ export function useTerminal(
       terminalRef.current = null;
       fitAddonRef.current = null;
       searchAddonRef.current = null;
+      savedScrollStateRef.current = undefined;
     };
     // Re-run only when terminalId changes (options are read-once on creation)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalId]);
 
-  return { terminalRef, fitAddonRef, searchAddonRef };
+  return { terminalRef, fitAddonRef, searchAddonRef, savedScrollStateRef };
 }

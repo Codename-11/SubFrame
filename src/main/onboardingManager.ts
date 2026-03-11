@@ -385,27 +385,21 @@ function findBashShell(): string | null {
 
 /**
  * Verify that the active AI tool command is available on the system.
- * Uses `where` on Windows, `which` on Unix.
+ * Delegates to aiToolManager which caches install checks for 1 minute.
  */
-function checkAIToolAvailable(): { available: boolean; command: string; error?: string } {
-  const command = aiToolManager.getStartCommand();
-  // Extract the executable: first token (before any flags), then strip path prefixes
-  // e.g. "claude --dangerously-skip-permissions" → "claude"
-  // e.g. "./.subframe/bin/codex --quiet" → "codex"
-  const firstToken = command.split(/\s+/)[0] || command;
-  const baseCommand = firstToken.split(/[/\\]/).pop() || firstToken;
+async function checkAIToolAvailable(): Promise<{ available: boolean; command: string; error?: string }> {
+  const tool = await aiToolManager.getActiveTool();
+  const command = await aiToolManager.getStartCommand();
+  const available = tool.installed ?? false;
 
-  try {
-    const whichCmd = process.platform === 'win32' ? 'where' : 'which';
-    execSync(`${whichCmd} ${baseCommand}`, { stdio: 'ignore' });
+  if (available) {
     return { available: true, command };
-  } catch {
-    return {
-      available: false,
-      command,
-      error: `"${baseCommand}" not found on your system. Make sure it is installed and on your PATH.`,
-    };
   }
+  return {
+    available: false,
+    command,
+    error: `"${tool.command}" not found on your system. Make sure it is installed and on your PATH.`,
+  };
 }
 
 // ─── Terminal Analysis Pipeline ──────────────────────────────────────────────
@@ -447,8 +441,8 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
   const toUnixPath = (p: string) => p.replace(/\\/g, '/');
 
   // Build the AI command
-  const tool = aiToolManager.getActiveTool();
-  const command = aiToolManager.getStartCommand();
+  const tool = await aiToolManager.getActiveTool();
+  const command = await aiToolManager.getStartCommand();
   const shellPromptFile = toUnixPath(promptFile);
   const shellResultFile = toUnixPath(resultFile);
 
@@ -1032,7 +1026,7 @@ function setupIPC(ipcMain: IpcMain): void {
       }
 
       // Pre-flight: check AI tool is installed
-      const toolCheck = checkAIToolAvailable();
+      const toolCheck = await checkAIToolAvailable();
       if (!toolCheck.available) {
         sendProgress(projectPath, 'error', toolCheck.error || `AI tool "${toolCheck.command}" not found.`, 15);
         return { terminalId: '' };
@@ -1088,11 +1082,12 @@ function setupIPC(ipcMain: IpcMain): void {
           const logDir = path.join(projectPath, '.subframe');
           fs.mkdirSync(logDir, { recursive: true });
           const logPath = path.join(projectPath, '.subframe', 'analysis.log');
+          const aiToolCmd = await aiToolManager.getStartCommand();
           const logContent = [
             `# SubFrame AI Analysis Log`,
             `# Date: ${new Date().toISOString()}`,
             `# Project: ${projectPath}`,
-            `# AI Tool: ${aiToolManager.getStartCommand()}`,
+            `# AI Tool: ${aiToolCmd}`,
             `# Status: Error`,
             '',
             `Error: ${msg}`,
@@ -1111,11 +1106,12 @@ function setupIPC(ipcMain: IpcMain): void {
         const logDir = path.join(projectPath, '.subframe');
         fs.mkdirSync(logDir, { recursive: true });
         const logPath = path.join(projectPath, '.subframe', 'analysis.log');
+        const aiToolCmd2 = await aiToolManager.getStartCommand();
         const logContent = [
           `# SubFrame AI Analysis Log`,
           `# Date: ${new Date().toISOString()}`,
           `# Project: ${projectPath}`,
-          `# AI Tool: ${aiToolManager.getStartCommand()}`,
+          `# AI Tool: ${aiToolCmd2}`,
           `# Status: ${parsed ? 'Success' : 'Parse failed'}`,
           '',
           raw,

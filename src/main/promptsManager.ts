@@ -127,12 +127,94 @@ function deletePrompt(projectPath: string, promptId: string): PromptsResult {
   return removePrompt(path.join(projectPath, PROMPTS_FILE), promptId);
 }
 
+// ─── Seed prompts (first-launch defaults) ───────────────────────────────────
+
+function generateSeedId(): string {
+  return `prompt-seed-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/** Starter prompts seeded on first launch */
+function getSeedPrompts(): SavedPrompt[] {
+  const now = new Date().toISOString();
+  const base = { usageCount: 0, createdAt: now, updatedAt: now, scope: 'global' as const };
+
+  return [
+    {
+      ...base, id: generateSeedId(),
+      title: 'Quick Audit',
+      content: 'Audit: same-pattern bugs elsewhere, edge cases, fix tradeoffs, other considerations, and anything I missed.',
+      tags: ['audit', 'starter'],
+      category: 'Review',
+    },
+    {
+      ...base, id: generateSeedId(),
+      title: 'Explain This',
+      content: 'Explain what this code does, why it\'s written this way, and any non-obvious design decisions.',
+      tags: ['learning', 'starter'],
+      category: 'Understand',
+    },
+    {
+      ...base, id: generateSeedId(),
+      title: 'Refactor Suggestions',
+      content: 'Suggest refactoring opportunities in this code. Focus on readability, maintainability, and removing duplication. Don\'t implement — just list.',
+      tags: ['refactor', 'starter'],
+      category: 'Review',
+    },
+    {
+      ...base, id: generateSeedId(),
+      title: 'Write Tests',
+      content: 'Write unit tests for the most recent changes. Follow existing test patterns in {{project}}. Cover happy path, edge cases, and error states.',
+      tags: ['testing', 'starter'],
+      category: 'Code',
+    },
+    {
+      ...base, id: generateSeedId(),
+      title: 'PR Description',
+      content: 'Write a PR description for all changes on this branch. Include: summary (2-3 bullets), what changed, and how to test.',
+      tags: ['git', 'starter'],
+      category: 'Workflow',
+    },
+    {
+      ...base, id: generateSeedId(),
+      title: 'Security Review',
+      content: 'Review this code for security vulnerabilities: injection, XSS, auth bypass, secrets exposure, OWASP top 10. Report only real concerns with confidence levels.',
+      tags: ['security', 'starter'],
+      category: 'Review',
+    },
+    {
+      ...base, id: generateSeedId(),
+      title: 'Summarize Session',
+      content: 'Summarize everything we did this session: tasks completed, files changed, decisions made, and anything left in progress.',
+      tags: ['workflow', 'starter'],
+      category: 'Workflow',
+    },
+  ];
+}
+
+/**
+ * Seed global prompts file on first launch.
+ * Only writes if the file does not exist yet.
+ */
+function seedGlobalPromptsIfNeeded(): void {
+  const globalPath = getGlobalPromptsPath();
+  if (fs.existsSync(globalPath)) return;
+
+  const dir = path.dirname(globalPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const seeds = getSeedPrompts();
+  fs.writeFileSync(globalPath, JSON.stringify({ prompts: seeds }, null, 2), 'utf8');
+}
+
 // ─── Global prompts ─────────────────────────────────────────────────────────
 
 /**
  * Load global prompts from ~/.subframe/prompts.json
  */
 function loadGlobalPrompts(): PromptsResult {
+  seedGlobalPromptsIfNeeded();
   return readPromptsFile(getGlobalPromptsPath());
 }
 

@@ -39,6 +39,7 @@ export const IPC = {
   ADD_PROJECT_TO_WORKSPACE: 'add-project-to-workspace',
   REMOVE_PROJECT_FROM_WORKSPACE: 'remove-project-from-workspace',
   RENAME_PROJECT: 'rename-project',
+  SET_PROJECT_AI_TOOL: 'set-project-ai-tool',
   WORKSPACE_LIST: 'workspace-list',
   WORKSPACE_LIST_DATA: 'workspace-list-data',
   WORKSPACE_SWITCH: 'workspace-switch',
@@ -80,6 +81,7 @@ export const IPC = {
   CLAUDE_ACTIVE_STATUS: 'claude-active-status',
   IS_TERMINAL_CLAUDE_ACTIVE: 'is-terminal-claude-active',
   GET_TERMINAL_SESSION_NAME: 'get-terminal-session-name',
+  USER_MESSAGE_SIGNAL: 'user-message-signal',
 
   // Tasks Panel
   LOAD_TASKS: 'load-tasks',
@@ -142,6 +144,7 @@ export const IPC = {
   SET_AI_TOOL: 'set-ai-tool',
   ADD_CUSTOM_AI_TOOL: 'add-custom-ai-tool',
   REMOVE_CUSTOM_AI_TOOL: 'remove-custom-ai-tool',
+  RECHECK_AI_TOOLS: 'recheck-ai-tools',
   AI_TOOL_CHANGED: 'ai-tool-changed',
 
   // Settings Panel
@@ -251,6 +254,8 @@ export interface WorkspaceProject {
   path: string;
   name: string;
   isFrameProject?: boolean;
+  /** Optional per-project AI tool binding (tool ID, e.g. 'claude', 'gemini', 'codex') */
+  aiTool?: string;
 }
 
 /** Shape returned by workspace data */
@@ -478,6 +483,10 @@ export interface AITool {
   commands: Record<string, string>;
   menuLabel: string;
   supportsPlugins: boolean;
+  /** URL to install/setup page */
+  installUrl?: string;
+  /** Whether the tool's command is available on PATH (checked at runtime) */
+  installed?: boolean;
 }
 
 /** AI tool config response from GET_AI_TOOL_CONFIG */
@@ -963,6 +972,7 @@ export interface IPCHandleMap {
   [IPC.SET_AI_TOOL]: { args: [toolId: string]; return: boolean };
   [IPC.ADD_CUSTOM_AI_TOOL]: { args: [tool: { id: string; name: string; command: string; description?: string }]; return: boolean };
   [IPC.REMOVE_CUSTOM_AI_TOOL]: { args: [toolId: string]; return: boolean };
+  [IPC.RECHECK_AI_TOOLS]: { args: []; return: AIToolConfig };
 
   // Claude Sessions
   [IPC.LOAD_CLAUDE_SESSIONS]: { args: [projectPath: string]; return: ClaudeSession[] };
@@ -1055,6 +1065,7 @@ export interface IPCSendMap {
   [IPC.ADD_PROJECT_TO_WORKSPACE]: { projectPath: string; name: string; isFrameProject?: boolean };
   [IPC.REMOVE_PROJECT_FROM_WORKSPACE]: string; // projectPath
   [IPC.RENAME_PROJECT]: { projectPath: string; newName: string };
+  [IPC.SET_PROJECT_AI_TOOL]: { projectPath: string; aiTool: string | null };
 
   // Multi-Terminal
   [IPC.TERMINAL_CREATE]: { projectPath?: string; shell?: string; cwd?: string };
@@ -1170,6 +1181,7 @@ export interface IPCEventMap {
 
   // Agent State
   [IPC.AGENT_STATE_DATA]: AgentStatePayload;
+  [IPC.USER_MESSAGE_SIGNAL]: { terminalId: string; timestamp: string; promptPreview?: string };
 
   // Onboarding
   [IPC.ONBOARDING_PROGRESS]: OnboardingProgressEvent;

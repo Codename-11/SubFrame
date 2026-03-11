@@ -9,6 +9,10 @@ import type { BrowserWindow, App, MenuItemConstructorOptions } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IPC } from '../shared/ipcChannels';
+import { checkForUpdates } from './updaterManager';
+
+const REPO_URL = 'https://github.com/Codename-11/SubFrame';
+const DOCS_URL = 'https://codename-11.github.io/SubFrame';
 
 interface AIToolCommands {
   [key: string]: string;
@@ -21,12 +25,13 @@ interface AITool {
   commands: AIToolCommands;
   menuLabel: string;
   supportsPlugins: boolean;
+  installed?: boolean;
 }
 
 interface AIToolManagerLike {
-  getActiveTool(): AITool;
-  getAvailableTools(): Record<string, AITool>;
-  setActiveTool(toolId: string): boolean;
+  getActiveTool(): Promise<AITool>;
+  getAvailableTools(): Promise<Record<string, AITool>>;
+  setActiveTool(toolId: string): Promise<boolean>;
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -54,8 +59,8 @@ function sendToRenderer(channel: string, ...args: unknown[]): void {
 /**
  * Get menu template based on active AI tool
  */
-function getMenuTemplate(): MenuItemConstructorOptions[] {
-  const activeTool: AITool = aiToolManager ? aiToolManager.getActiveTool() : {
+async function getMenuTemplate(): Promise<MenuItemConstructorOptions[]> {
+  const activeTool: AITool = aiToolManager ? await aiToolManager.getActiveTool() : {
     id: 'claude',
     name: 'Claude Code',
     menuLabel: 'AI Commands',
@@ -64,7 +69,7 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
     supportsPlugins: true
   };
 
-  const aiCommandsSubmenu = buildAICommandsSubmenu(activeTool);
+  const aiCommandsSubmenu = await buildAICommandsSubmenu(activeTool);
 
   const template: MenuItemConstructorOptions[] = [
     // ── File menu (standard editor convention) ──
@@ -98,9 +103,9 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
           : { role: 'quit' as const }
       ]
     },
-    // ── AI Commands menu ──
+    // ── AI Commands menu (tool-agnostic label, tool-specific contents) ──
     {
-      label: activeTool.menuLabel,
+      label: 'AI Commands',
       submenu: aiCommandsSubmenu
     },
     // ── Edit menu ──
@@ -112,7 +117,9 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
         { type: 'separator' },
         { role: 'cut' },
         { role: 'copy' },
-        { role: 'paste' }
+        { role: 'paste' },
+        { type: 'separator' },
+        { role: 'selectAll' }
       ]
     },
     // ── View menu ──
@@ -144,6 +151,33 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
         { role: 'forceReload' },
         { role: 'toggleDevTools' }
       ]
+    },
+    // ── Help menu ──
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Documentation',
+          click: () => shell.openExternal(DOCS_URL)
+        },
+        {
+          label: 'Report Issue...',
+          click: () => shell.openExternal(`${REPO_URL}/issues/new`)
+        },
+        {
+          label: 'View on GitHub',
+          click: () => shell.openExternal(REPO_URL)
+        },
+        { type: 'separator' },
+        {
+          label: 'Check for Updates...',
+          click: () => checkForUpdates()
+        },
+        ...(process.platform !== 'darwin' ? [
+          { type: 'separator' as const },
+          { role: 'about' as const }
+        ] : [])
+      ]
     }
   ];
 
@@ -153,6 +187,11 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
       label: 'SubFrame',
       submenu: [
         { role: 'about' },
+        { type: 'separator' },
+        {
+          label: 'Check for Updates...',
+          click: () => checkForUpdates()
+        },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -165,14 +204,35 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
     });
   }
 
+  // macOS Window menu (standard convention)
+  if (process.platform === 'darwin') {
+    // Insert before Help (last item)
+    template.splice(template.length - 1, 0, {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        { role: 'front' }
+      ]
+    });
+  }
+
   return template;
 }
 
 /**
  * Build AI commands submenu based on active tool
  */
-function buildAICommandsSubmenu(tool: AITool): MenuItemConstructorOptions[] {
+async function buildAICommandsSubmenu(tool: AITool): Promise<MenuItemConstructorOptions[]> {
   const submenu: MenuItemConstructorOptions[] = [];
+
+  // Active tool indicator
+  submenu.push({
+    label: `Active: ${tool.name}`,
+    enabled: false
+  });
+  submenu.push({ type: 'separator' });
 
   // Tool-specific commands
   if (tool.commands.init) {
@@ -246,6 +306,7 @@ function buildAICommandsSubmenu(tool: AITool): MenuItemConstructorOptions[] {
   submenu.push({
     label: `Start ${tool.name}`,
     accelerator: 'CmdOrCtrl+K',
+    enabled: tool.installed !== false,
     click: () => sendCommand(tool.command)
   });
 
@@ -269,7 +330,7 @@ function buildAICommandsSubmenu(tool: AITool): MenuItemConstructorOptions[] {
     submenu.push({ type: 'separator' });
     submenu.push({
       label: 'Switch AI Tool...',
-      submenu: buildToolSwitcherSubmenu()
+      submenu: await buildToolSwitcherSubmenu()
     });
   }
 
@@ -279,11 +340,11 @@ function buildAICommandsSubmenu(tool: AITool): MenuItemConstructorOptions[] {
 /**
  * Build tool switcher submenu
  */
-function buildToolSwitcherSubmenu(): MenuItemConstructorOptions[] {
+async function buildToolSwitcherSubmenu(): Promise<MenuItemConstructorOptions[]> {
   if (!aiToolManager) return [];
 
-  const tools = aiToolManager.getAvailableTools();
-  const activeTool = aiToolManager.getActiveTool();
+  const tools = await aiToolManager.getAvailableTools();
+  const activeTool = await aiToolManager.getActiveTool();
 
   return Object.values(tools).map(tool => ({
     label: tool.name,
@@ -329,8 +390,8 @@ function openHistoryFile(): void {
 /**
  * Create and set application menu
  */
-function createMenu(): Electron.Menu {
-  const template = getMenuTemplate();
+async function createMenu(): Promise<Electron.Menu> {
+  const template = await getMenuTemplate();
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
   return menu;

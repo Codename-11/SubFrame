@@ -60,6 +60,7 @@ export type ShortcutId =
   | 'WORKSPACE_8'
   | 'WORKSPACE_9'
   // Terminal
+  | 'AI_TOOL_PALETTE'
   | 'START_AI_TOOL'
   | 'NEW_TERMINAL'
   | 'CLOSE_TERMINAL'
@@ -113,6 +114,7 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutEntry> = {
   WORKSPACE_9:         { keys: 'Ctrl+Alt+9',    description: 'Workspace #9',         category: 'Workspaces' },
 
   // ── Terminal ──────────────────────────────────────
+  AI_TOOL_PALETTE:     { keys: 'Ctrl+.',            description: 'Switch AI tool',     category: 'Terminal' },
   START_AI_TOOL:       { keys: 'Ctrl+Shift+Enter', description: 'Start AI tool',     category: 'Terminal' },
   NEW_TERMINAL:        { keys: 'Ctrl+Shift+T',  description: 'New terminal',         category: 'Terminal' },
   CLOSE_TERMINAL:      { keys: 'Ctrl+Shift+W',  description: 'Close terminal',       category: 'Terminal' },

@@ -319,7 +319,28 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
   run.updatedAt = now();
   broadcastRunUpdate(run);
 
-  const aiTool = aiToolManager.getStartCommand();
+  // Verify the active AI tool is installed before proceeding
+  const activeTool = await aiToolManager.getActiveTool();
+  if (!await aiToolManager.checkToolInstalled(activeTool)) {
+    const installHint = activeTool.installUrl ? ` Install: ${activeTool.installUrl}` : '';
+    const errMsg = `AI tool '${activeTool.name}' is not installed.${installHint}`;
+    run.status = 'failed';
+    run.updatedAt = now();
+    run.completedAt = now();
+    for (const job of run.jobs) {
+      job.status = 'skipped';
+      for (const stage of job.stages) {
+        stage.status = 'skipped';
+      }
+    }
+    broadcastRunUpdate(run);
+    persistRuns(projectPath);
+    activeRuns.delete(run.id);
+    console.error(`Pipeline run aborted: ${errMsg}`);
+    return;
+  }
+
+  const aiTool = await aiToolManager.getStartCommand();
   let frozen = false;
 
   try {

@@ -4,6 +4,8 @@ export interface ProjectInfo {
   path: string;
   name: string;
   isFrameProject: boolean;
+  /** Per-project AI tool binding (tool ID) */
+  aiTool?: string;
 }
 
 interface ProjectState {

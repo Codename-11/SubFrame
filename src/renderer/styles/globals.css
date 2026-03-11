@@ -158,6 +158,16 @@
   z-index: 6;
 }
 
+/* ── Sonner toast — pass-through container so toasts don't block terminal ─ */
+/* The toaster container is a fixed overlay; without this, it captures
+   clicks/paste in the gaps between toasts, blocking the terminal beneath. */
+[data-sonner-toaster] {
+  pointer-events: none !important;
+}
+[data-sonner-toast] {
+  pointer-events: auto !important;
+}
+
 /* Green pulse animation for active project dots */
 @keyframes pulse-green {
   0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.5); }

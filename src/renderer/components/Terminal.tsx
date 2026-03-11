@@ -52,7 +52,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const { settings } = useSettings();
   const terminalSettings = (settings?.terminal as Record<string, unknown>) || {};
 
-  const { terminalRef, fitAddonRef, searchAddonRef } = useTerminal(containerRef, terminalId, {
+  const { terminalRef, fitAddonRef, searchAddonRef, savedScrollStateRef } = useTerminal(containerRef, terminalId, {
     fontSize: (terminalSettings.fontSize as number) || 14,
     fontFamily: (terminalSettings.fontFamily as string) || undefined,
     scrollback: (terminalSettings.scrollback as number) || 10000,
@@ -139,14 +139,35 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     prevClaudeActiveRef.current = claudeActive;
   }, [claudeActive, terminalId]);
 
-  // Track user messages — detect Enter during agent sessions (with grace period).
-  // Reads terminal from registry (not ref) to avoid race condition during terminal switch.
+  // Track user messages via hook-based IPC signal (primary, foolproof) + pattern fallback.
+  // The prompt-submit hook writes to agent-state.json on every user message, which the
+  // main process detects and emits USER_MESSAGE_SIGNAL with the terminal ID.
   //
-  // To avoid false positives (tool-use confirmations, TUI navigation like ctrl+o),
-  // we check the terminal buffer line at the cursor for the `❯` prompt marker that
-  // Claude Code displays. Only lines with the prompt marker are treated as real user
-  // messages.  To avoid false negatives (long typing delays, slash commands), we also
-  // accept any line that starts with a `/` command pattern.
+  // Fallback: pattern detection via xterm onData — for terminals without hooks installed.
+
+  // Ref to suppress duplicate markers when both IPC and pattern fire for the same message
+  const lastIpcMarkerTime = useRef(0);
+  const lastPatternMarkerTime = useRef(0);
+
+  // Primary: IPC-based detection from prompt-submit hook
+  useEffect(() => {
+    if (!highlightUserMessages) return;
+
+    const handler = (_event: unknown, data: { terminalId: string; timestamp: string }) => {
+      if (data.terminalId !== terminalId) return;
+
+      const now = Date.now();
+      // Suppress if a pattern-based marker was placed in the last 2 seconds (same message)
+      if (now - lastPatternMarkerTime.current < 2000) return;
+
+      lastIpcMarkerTime.current = now;
+      terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor);
+    };
+    ipcRenderer.on(IPC.USER_MESSAGE_SIGNAL, handler);
+    return () => { ipcRenderer.removeListener(IPC.USER_MESSAGE_SIGNAL, handler); };
+  }, [highlightUserMessages, terminalId, userMessageColor]);
+
+  // Fallback: pattern-based detection via xterm onData (for terminals without hooks)
   useEffect(() => {
     if (!highlightUserMessages) {
       inputBufferRef.current = '';
@@ -162,22 +183,23 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         if (typed.length === 0) return;
         if (!terminalRegistry.wasRecentlyActive(terminalId)) return;
 
-        // Check the buffer line at cursor-1 (where the marker will be placed)
-        // for the Claude prompt marker `❯` to distinguish real user prompts
-        // from TUI interactions (tool expand, y/n confirms, etc.)
+        // Check the buffer line at cursor-1 for the Claude prompt marker `❯`
         const terminal = instance.terminal;
         const cursorY = terminal.buffer.active.cursorY + terminal.buffer.active.baseY;
         const lineIndex = Math.max(0, cursorY - 1);
         const line = terminal.buffer.active.getLine(lineIndex);
         const lineText = line?.translateToString(true) ?? '';
 
-        // Accept if: line contains Claude prompt `❯`, or typed input looks like
-        // a slash command, or typed input is substantial (>10 chars, not just y/n)
         const hasPromptMarker = lineText.includes('❯');
         const isSlashCommand = /^\/\w/.test(typed);
         const isSubstantial = typed.length > 10;
 
         if (hasPromptMarker || isSlashCommand || isSubstantial) {
+          const now = Date.now();
+          // Suppress if IPC already placed a marker in the last 2 seconds (same message)
+          if (now - lastIpcMarkerTime.current < 2000) return;
+
+          lastPatternMarkerTime.current = now;
           terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor);
         }
       } else if (data === '\x7f' || data === '\b') {
@@ -205,7 +227,9 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       typedSend(IPC.TERMINAL_RESIZE_ID, { terminalId, cols, rows });
     });
 
-    // Fit + sync PTY dimensions + auto-focus after (re)attach
+    // Fit + sync PTY dimensions + restore scroll + auto-focus after (re)attach
+    const scrollState = savedScrollStateRef.current;
+    savedScrollStateRef.current = undefined; // consume once
     requestAnimationFrame(() => {
       if (fitAddonRef.current) {
         try {
@@ -218,6 +242,14 @@ export function Terminal({ terminalId, className }: TerminalProps) {
           cols: terminal.cols,
           rows: terminal.rows,
         });
+      }
+      // Restore scroll position after fit reflow — browser may have reset scrollTop during DOM move
+      if (scrollState) {
+        if (scrollState.wasAtBottom) {
+          terminal.scrollToBottom();
+        } else {
+          terminal.scrollToLine(scrollState.viewportY);
+        }
       }
       terminal.focus();
     });
@@ -235,18 +267,21 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     inputBufferRef.current = '';
     // Sync marker count from registry (markers persist on the xterm instance)
     setUserMessageCount(terminalRegistry.getUserMessageMarkers(terminalId).length);
-    // After attach + fit completes, check actual scroll position so the overlay
-    // shows immediately if the terminal is scrolled up (fixes hidden overlay after view switch)
+    // After attach + fit + scroll restoration completes (all in the first rAF above),
+    // check actual scroll position so the overlay shows immediately if scrolled up.
+    // Triple rAF ensures we run after the attach effect's rAF + one layout pass.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const viewport = containerRef.current?.querySelector('.xterm-viewport');
-        if (viewport) {
-          const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2;
-          setShowScrollBtn(!atBottom);
-        } else {
-          setShowScrollBtn(false);
-        }
-        computeMessageNavRef.current();
+        requestAnimationFrame(() => {
+          const viewport = containerRef.current?.querySelector('.xterm-viewport');
+          if (viewport) {
+            const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2;
+            setShowScrollBtn(!atBottom);
+          } else {
+            setShowScrollBtn(false);
+          }
+          computeMessageNavRef.current();
+        });
       });
     });
   }, [terminalId]);

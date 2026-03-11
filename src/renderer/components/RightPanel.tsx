@@ -8,7 +8,7 @@
  *   - Overview → full-view (handled by TerminalArea, not here)
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ListTodo,
@@ -98,10 +98,8 @@ const PANEL_GROUPS: PanelGroup[] = [
   { panels: ['tasks'],                                                                      label: 'Sub-Tasks' },
   { panels: ['agentState', 'sessions', 'history', 'prompts', 'skills', 'plugins'],          label: 'Agent' },
   { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees'], label: 'GitHub' },
-  { panels: ['overview'],                                                                   label: 'Overview' },
-  { panels: ['aiFiles'],                                                                    label: 'AI Files' },
-  { panels: ['subframeHealth'],                                                             label: 'Health' },
   { panels: ['pipeline'],                                                                   label: 'Pipeline' },
+  { panels: ['overview', 'aiFiles', 'subframeHealth'],                                      label: 'Project' },
 ];
 
 /** Find which group a panel belongs to */
@@ -151,6 +149,16 @@ export function RightPanel() {
   const closeRightPanel = useUIStore((s) => s.closeRightPanel);
   const openTab = useUIStore((s) => s.openTab);
   const [expandedDrawer, setExpandedDrawer] = useState<number | null>(null);
+  // Keep-alive: track panels that have been mounted at least once
+  const visitedPanelsRef = useRef<Set<PanelId>>(new Set());
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    if (activePanel && !visitedPanelsRef.current.has(activePanel)) {
+      visitedPanelsRef.current.add(activePanel);
+      forceUpdate((n) => n + 1);
+    }
+  }, [activePanel]);
 
   if (!activePanel) return null;
 
@@ -281,7 +289,6 @@ export function RightPanel() {
   }
 
   // ── Expanded ────────────────────────────────────────────────────────────
-  const ActiveComponent = panelComponents[activePanel];
   const ActiveIcon = activeDef.icon;
 
   return (
@@ -394,24 +401,22 @@ export function RightPanel() {
         )}
       </div>
 
-      {/* Panel content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activePanel}
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -8 }}
-            transition={{ duration: 0.15 }}
-            className="h-full"
-          >
-            {ActiveComponent && (
-              <ErrorBoundary name={activeDef.label} key={activePanel}>
-                <ActiveComponent />
+      {/* Panel content — keep-alive: visited panels stay mounted, inactive hidden */}
+      <div className="flex-1 min-h-0 overflow-hidden relative">
+        {Array.from(visitedPanelsRef.current).map((panelId) => {
+          const Component = panelComponents[panelId];
+          const isActive = activePanel === panelId;
+          return (
+            <div
+              key={panelId}
+              className={cn('h-full', isActive ? 'block' : 'hidden')}
+            >
+              <ErrorBoundary name={ALL_PANELS[panelId].label}>
+                <Component />
               </ErrorBoundary>
-            )}
-          </motion.div>
-        </AnimatePresence>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

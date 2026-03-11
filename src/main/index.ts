@@ -270,8 +270,9 @@ function createWindow(): BrowserWindow {
     mainWindow = null;
   });
 
-  // Create application menu
-  menu.createMenu();
+  // Create application menu (rebuild when AI tool changes)
+  void menu.createMenu();
+  aiToolManager.onActiveToolChanged(() => void menu.createMenu());
 
   return mainWindow;
 }

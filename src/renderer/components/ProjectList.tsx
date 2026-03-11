@@ -73,7 +73,7 @@ export function ProjectList() {
     const manual = (list || []).filter((p: any) => p.source !== 'scanned');
     const sorted = sortProjects(manual);
     setProjects(sorted as ProjectWithSource[]);
-    setProjectsInStore(sorted.map((p) => ({ path: p.path, name: p.name, isFrameProject: p.isFrameProject ?? false })));
+    setProjectsInStore(sorted.map((p) => ({ path: p.path, name: p.name, isFrameProject: p.isFrameProject ?? false, aiTool: p.aiTool })));
 
     // Auto-select first project when current selection is not in the new list
     const current = useProjectStore.getState().currentProjectPath;

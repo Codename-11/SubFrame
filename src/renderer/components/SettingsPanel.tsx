@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink, Github, FileText, Sparkles, Scale, Info, Palette, Check, RotateCcw, Save } from 'lucide-react';
+import { FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink, Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke } from '../lib/ipc';
@@ -51,7 +51,8 @@ export function SettingsPanel() {
   const settingsOpen = useUIStore((s) => s.settingsOpen);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const { settings, updateSetting } = useSettings();
-  const { config: aiToolConfig, setAITool, addCustomTool, removeCustomTool } = useAIToolConfig();
+  const { config: aiToolConfig, setAITool, addCustomTool, removeCustomTool, refetch: refetchAITools } = useAIToolConfig();
+  const [recheckingTools, setRecheckingTools] = useState(false);
 
   // Local form state
   const [activeTab, setActiveTab] = useState('general');
@@ -979,12 +980,44 @@ export function SettingsPanel() {
                 >
                   {aiToolConfig && Object.values(aiToolConfig.availableTools).map((tool) => (
                     <option key={tool.id} value={tool.id}>
-                      {tool.name}
+                      {tool.name}{tool.installed === false ? ' (not installed)' : ''}
                     </option>
                   ))}
                 </select>
-                <div className="text-xs text-text-tertiary mt-1">
-                  {aiToolConfig?.activeTool.description || ''}
+                <div className="text-xs text-text-tertiary mt-1 flex items-center gap-1.5">
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${aiToolConfig?.activeTool.installed === false ? 'bg-error' : 'bg-success'}`} />
+                  {aiToolConfig?.activeTool.installed === false
+                    ? <span className="text-error">
+                        Not installed
+                        {aiToolConfig.activeTool.installUrl && (
+                          <> — <a
+                            href="#"
+                            className="underline hover:text-accent"
+                            onClick={(e) => { e.preventDefault(); require('electron').shell.openExternal(aiToolConfig.activeTool.installUrl!); }}
+                          >view install guide</a></>
+                        )}
+                      </span>
+                    : <span>{aiToolConfig?.activeTool.description || ''}</span>
+                  }
+                  <button
+                    onClick={async () => {
+                      setRecheckingTools(true);
+                      try {
+                        await typedInvoke(IPC.RECHECK_AI_TOOLS);
+                        await refetchAITools();
+                        toast.success('Install status refreshed');
+                      } catch {
+                        toast.error('Failed to check tools');
+                      } finally {
+                        setRecheckingTools(false);
+                      }
+                    }}
+                    disabled={recheckingTools}
+                    className="ml-auto text-text-muted hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
+                    title="Recheck install status"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${recheckingTools ? 'animate-spin' : ''}`} />
+                  </button>
                 </div>
               </div>
               <div>

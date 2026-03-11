@@ -167,6 +167,23 @@ function setupIPC(): void {
 }
 
 /**
+ * Trigger an update check from within the main process (e.g. menu click).
+ * In dev mode, sends a no-op status to the renderer.
+ */
+async function checkForUpdates(): Promise<void> {
+  if (!isPackaged) {
+    sendStatus({ status: 'not-available' });
+    return;
+  }
+  const { autoUpdater } = require('electron-updater');
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (err) {
+    console.error('[updater] Manual check failed:', err);
+  }
+}
+
+/**
  * Cleanup on shutdown
  */
 function destroy(): void {
@@ -176,4 +193,4 @@ function destroy(): void {
   }
 }
 
-export { init, setupIPC, destroy };
+export { init, setupIPC, destroy, checkForUpdates };

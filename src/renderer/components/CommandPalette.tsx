@@ -231,6 +231,11 @@ export function CommandPalette() {
 
         {/* Terminal Actions */}
         <CommandGroup heading="Terminal">
+          <CommandItem onSelect={() => runAction(() => window.dispatchEvent(new Event('open-ai-tool-palette')))}>
+            <Play className="text-text-tertiary" />
+            <span>Switch AI Tool</span>
+            <CommandShortcut>{SHORTCUTS.AI_TOOL_PALETTE.keys}</CommandShortcut>
+          </CommandItem>
           <CommandItem onSelect={() => runAction(() => window.dispatchEvent(new Event('start-ai-tool')))}>
             <Play className="text-text-tertiary" />
             <span>Start AI Tool</span>

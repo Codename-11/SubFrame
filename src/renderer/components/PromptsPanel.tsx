@@ -2,6 +2,7 @@
  * PromptsPanel — Right-panel view for saved prompts.
  * Shows prompts grouped by category with inline editing, tag filtering,
  * sort toggles, variable highlighting, keyboard navigation, and category rename.
+ * Supports both global and project-scoped prompts with scope toggle.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,6 +18,8 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Globe,
+  FolderOpen,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -44,6 +47,8 @@ import { toast } from 'sonner';
 import { usePrompts } from '../hooks/usePrompts';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useGitStatus } from '../hooks/useGithub';
+import { useAIToolConfig } from '../hooks/useSettings';
 import type { SavedPrompt } from '../../shared/ipcChannels';
 import {
   createBlankPrompt,
@@ -56,10 +61,12 @@ import {
   type PromptSortMode,
 } from '../lib/promptUtils';
 
+type ScopeFilter = 'all' | 'global' | 'project';
+
 /** Highlight {{variable}} tokens in text with accent-colored spans */
 function HighlightedContent({ text }: { text: string }) {
   const parts = text.split(TEMPLATE_VAR_REGEX);
-  const tokens = new Set(['project', 'projectPath', 'file']);
+  const tokens = new Set(['project', 'projectPath', 'file', 'branch', 'date', 'aiTool']);
 
   return (
     <>
@@ -74,27 +81,61 @@ function HighlightedContent({ text }: { text: string }) {
   );
 }
 
+/** Scope badge matching PromptLibrary overlay style */
+function ScopeBadge({ scope }: { scope: 'global' | 'project' }) {
+  if (scope === 'global') {
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-semibold uppercase tracking-wider bg-blue-900/60 text-blue-300">
+        <Globe className="h-2 w-2" />
+        Global
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-semibold uppercase tracking-wider bg-amber-900/60 text-amber-300">
+      <FolderOpen className="h-2 w-2" />
+      Project
+    </span>
+  );
+}
+
 export function PromptsPanel() {
-  const { prompts, savePrompt, deletePrompt } = usePrompts();
+  const {
+    prompts,
+    savePrompt,
+    deletePrompt,
+    globalPrompts,
+    saveGlobalPrompt,
+    deleteGlobalPrompt,
+  } = usePrompts();
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const projectPath = useProjectStore((s) => s.currentProjectPath);
+  const { branch } = useGitStatus();
+  const { config: aiToolConfig } = useAIToolConfig();
+
+  const templateContext = useMemo(
+    () => ({ branch, aiTool: aiToolConfig?.activeTool?.name ?? '' }),
+    [branch, aiToolConfig]
+  );
 
   // Search and filter state
   const [search, setSearch] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<PromptSortMode>('usage');
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('all');
 
   // Inline editor state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<SavedPrompt | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [editOriginalScope, setEditOriginalScope] = useState<'global' | 'project' | null>(null);
 
   // Delete confirmation state
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const deletingPrompt = prompts.find((p) => p.id === deletingId);
+  const [deletingScope, setDeletingScope] = useState<'global' | 'project'>('project');
 
-  // Category rename state
-  const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
+  // Category rename state (stores scope-prefixed key like "global:General")
+  const [renamingCategoryKey, setRenamingCategoryKey] = useState<string | null>(null);
   const [categoryRenameValue, setCategoryRenameValue] = useState('');
   const categoryInputRef = useRef<HTMLInputElement>(null);
 
@@ -105,18 +146,38 @@ export function PromptsPanel() {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // Combine prompts based on scope filter
+  const allPrompts = useMemo(() => {
+    const result: SavedPrompt[] = [];
+    if (scopeFilter === 'all' || scopeFilter === 'global') {
+      result.push(...globalPrompts);
+    }
+    if ((scopeFilter === 'all' || scopeFilter === 'project') && projectPath) {
+      result.push(...prompts);
+    }
+    return result;
+  }, [scopeFilter, globalPrompts, prompts, projectPath]);
+
+  // Find deleting prompt across both scopes (search full lists, not filtered)
+  const deletingPrompt = useMemo(() => {
+    if (!deletingId) return null;
+    return globalPrompts.find((p) => p.id === deletingId)
+      ?? prompts.find((p) => p.id === deletingId)
+      ?? null;
+  }, [deletingId, globalPrompts, prompts]);
+
   // Collect all unique tags for display
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
-    for (const p of prompts) {
+    for (const p of allPrompts) {
       p.tags?.forEach((t) => tagSet.add(t));
     }
     return Array.from(tagSet).sort();
-  }, [prompts]);
+  }, [allPrompts]);
 
   // Filter + sort prompts
   const filtered = useMemo(() => {
-    let result = prompts;
+    let result = allPrompts;
 
     // Tag filter
     if (activeTag) {
@@ -135,55 +196,117 @@ export function PromptsPanel() {
     }
 
     return sortPrompts(result, sortMode);
-  }, [prompts, search, activeTag, sortMode]);
+  }, [allPrompts, search, activeTag, sortMode]);
 
-  // Group filtered prompts by category
+  // Group filtered prompts by scope then category
   const grouped = useMemo(() => {
-    const map = new Map<string, SavedPrompt[]>();
-    for (const p of filtered) {
-      const cat = p.category || 'General';
-      if (!map.has(cat)) map.set(cat, []);
-      map.get(cat)!.push(p);
+    const scopeGroups: { scope: 'global' | 'project'; categories: Map<string, SavedPrompt[]> }[] = [];
+
+    if (scopeFilter === 'all') {
+      // Separate by scope
+      const globalItems = filtered.filter((p) => p.scope === 'global');
+      const projectItems = filtered.filter((p) => p.scope !== 'global');
+
+      if (globalItems.length > 0) {
+        const globalCats = new Map<string, SavedPrompt[]>();
+        for (const p of globalItems) {
+          const cat = p.category || 'General';
+          if (!globalCats.has(cat)) globalCats.set(cat, []);
+          globalCats.get(cat)!.push(p);
+        }
+        scopeGroups.push({ scope: 'global', categories: globalCats });
+      }
+
+      if (projectItems.length > 0) {
+        const projectCats = new Map<string, SavedPrompt[]>();
+        for (const p of projectItems) {
+          const cat = p.category || 'General';
+          if (!projectCats.has(cat)) projectCats.set(cat, []);
+          projectCats.get(cat)!.push(p);
+        }
+        scopeGroups.push({ scope: 'project', categories: projectCats });
+      }
+    } else {
+      // Single scope
+      const scope = scopeFilter;
+      const cats = new Map<string, SavedPrompt[]>();
+      for (const p of filtered) {
+        const cat = p.category || 'General';
+        if (!cats.has(cat)) cats.set(cat, []);
+        cats.get(cat)!.push(p);
+      }
+      if (cats.size > 0) {
+        scopeGroups.push({ scope, categories: cats });
+      }
     }
-    return map;
-  }, [filtered]);
+
+    return scopeGroups;
+  }, [filtered, scopeFilter]);
 
   // Flat list for keyboard navigation
   const flatList = useMemo(() => {
     const items: SavedPrompt[] = [];
-    for (const [category, categoryPrompts] of grouped) {
-      if (!collapsedCategories.has(category)) {
-        items.push(...categoryPrompts);
+    for (const group of grouped) {
+      for (const [category, categoryPrompts] of group.categories) {
+        const key = `${group.scope}:${category}`;
+        if (!collapsedCategories.has(key)) {
+          items.push(...categoryPrompts);
+        }
       }
     }
     return items;
   }, [grouped, collapsedCategories]);
 
+  // Scope-aware save helper
+  const handleScopedSave = useCallback(
+    (prompt: SavedPrompt) => {
+      if (prompt.scope === 'global') {
+        saveGlobalPrompt.mutate([prompt]);
+      } else if (projectPath) {
+        savePrompt.mutate([{ projectPath, prompt }]);
+      }
+    },
+    [saveGlobalPrompt, savePrompt, projectPath]
+  );
+
+  // Scope-aware delete helper
+  const handleScopedDelete = useCallback(
+    (promptId: string, scope: 'global' | 'project') => {
+      if (scope === 'global') {
+        deleteGlobalPrompt.mutate([promptId]);
+      } else if (projectPath) {
+        deletePrompt.mutate([{ projectPath, promptId }]);
+      }
+    },
+    [deleteGlobalPrompt, deletePrompt, projectPath]
+  );
+
   // Insert prompt
   const handleInsert = useCallback(
     (prompt: SavedPrompt) => {
-      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath);
-      if (ok && projectPath) {
-        savePrompt.mutate([
-          { projectPath, prompt: { ...prompt, usageCount: (prompt.usageCount || 0) + 1 } },
-        ]);
+      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath, templateContext);
+      if (ok) {
+        handleScopedSave({ ...prompt, usageCount: (prompt.usageCount || 0) + 1 });
       }
     },
-    [activeTerminalId, projectPath, savePrompt]
+    [activeTerminalId, projectPath, templateContext, handleScopedSave]
   );
 
   // Start creating a new prompt (inline)
   const handleNew = useCallback(() => {
     const blank = createBlankPrompt();
-    setEditDraft(blank);
+    // Default scope: project if available and not in global-only filter, else global
+    const newScope = scopeFilter === 'global' || !projectPath ? 'global' : 'project';
+    setEditDraft({ ...blank, scope: newScope });
     setEditingId(blank.id);
     setIsCreating(true);
-  }, []);
+  }, [scopeFilter, projectPath]);
 
   // Start editing an existing prompt (inline)
   const handleEdit = useCallback((prompt: SavedPrompt) => {
     setEditDraft({ ...prompt });
     setEditingId(prompt.id);
+    setEditOriginalScope(prompt.scope ?? 'project');
     setIsCreating(false);
   }, []);
 
@@ -196,56 +319,88 @@ export function PromptsPanel() {
 
   // Save edited/new prompt
   const handleSave = useCallback(() => {
-    if (!editDraft || !projectPath || !editDraft.title.trim()) return;
-    savePrompt.mutate([{ projectPath, prompt: editDraft }]);
+    if (!editDraft || !editDraft.title.trim()) return;
+    // Validate: project scope needs projectPath
+    if (editDraft.scope !== 'global' && !projectPath) {
+      toast.error('Select a project to save project prompts');
+      return;
+    }
+    const newScope = editDraft.scope ?? 'project';
+    const scopeChanged = !isCreating && editOriginalScope && editOriginalScope !== newScope;
+
+    if (newScope === 'global') {
+      saveGlobalPrompt.mutate([editDraft], {
+        onSuccess: () => {
+          // Scope changed from project → global: delete old project copy
+          if (scopeChanged && editOriginalScope === 'project' && projectPath) {
+            deletePrompt.mutate([{ projectPath, promptId: editDraft.id }]);
+          }
+        },
+      });
+    } else if (projectPath) {
+      savePrompt.mutate([{ projectPath, prompt: editDraft }], {
+        onSuccess: () => {
+          // Scope changed from global → project: delete old global copy
+          if (scopeChanged && editOriginalScope === 'global') {
+            deleteGlobalPrompt.mutate([editDraft.id]);
+          }
+        },
+      });
+    }
+
     setEditingId(null);
     setEditDraft(null);
+    setEditOriginalScope(null);
     setIsCreating(false);
     toast.success(isCreating ? 'Prompt created' : 'Prompt saved');
-  }, [editDraft, projectPath, savePrompt, isCreating]);
+  }, [editDraft, projectPath, isCreating, editOriginalScope, saveGlobalPrompt, savePrompt, deletePrompt, deleteGlobalPrompt]);
 
   // Confirm delete
   const handleConfirmDelete = useCallback(() => {
-    if (!deletingId || !projectPath) return;
-    deletePrompt.mutate([{ projectPath, promptId: deletingId }]);
+    if (!deletingId) return;
+    handleScopedDelete(deletingId, deletingScope);
     setDeletingId(null);
     toast.success('Prompt deleted');
-  }, [deletingId, projectPath, deletePrompt]);
+  }, [deletingId, deletingScope, handleScopedDelete]);
 
-  // Category rename — save
+  // Category rename — save (scope-aware via prefixed key)
   const handleCategoryRename = useCallback(() => {
-    if (!renamingCategory || !categoryRenameValue.trim() || !projectPath) return;
+    if (!renamingCategoryKey || !categoryRenameValue.trim()) return;
+    const [renameScope, ...catParts] = renamingCategoryKey.split(':');
+    const oldName = catParts.join(':'); // Handle category names with colons
     const newName = categoryRenameValue.trim();
-    if (newName === renamingCategory) {
-      setRenamingCategory(null);
+    if (newName === oldName) {
+      setRenamingCategoryKey(null);
       return;
     }
-    // Batch update all prompts in this category
-    const inCategory = prompts.filter((p) => (p.category || 'General') === renamingCategory);
+    // Only rename prompts in the target scope + category
+    const inCategory = allPrompts.filter(
+      (p) => (p.scope ?? 'project') === renameScope && (p.category || 'General') === oldName
+    );
     for (const p of inCategory) {
-      savePrompt.mutate([{ projectPath, prompt: { ...p, category: newName } }]);
+      handleScopedSave({ ...p, category: newName });
     }
-    setRenamingCategory(null);
+    setRenamingCategoryKey(null);
     toast.success(`Renamed category to "${newName}"`);
-  }, [renamingCategory, categoryRenameValue, prompts, projectPath, savePrompt]);
+  }, [renamingCategoryKey, categoryRenameValue, allPrompts, handleScopedSave]);
 
-  // Toggle category collapse
-  const toggleCategory = useCallback((category: string) => {
+  // Toggle category collapse (scope-prefixed keys to avoid collisions)
+  const toggleCategory = useCallback((key: string) => {
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(category)) next.delete(category);
-      else next.add(category);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
 
   // Focus category rename input when it opens
   useEffect(() => {
-    if (renamingCategory && categoryInputRef.current) {
+    if (renamingCategoryKey && categoryInputRef.current) {
       categoryInputRef.current.focus();
       categoryInputRef.current.select();
     }
-  }, [renamingCategory]);
+  }, [renamingCategoryKey]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -275,10 +430,13 @@ export function PromptsPanel() {
     return () => el.removeEventListener('keydown', handler);
   }, [flatList, focusedIndex, editingId, handleInsert, handleEdit]);
 
-  if (!projectPath) {
+  // Show placeholder only when no project AND filtering to project-only
+  const showNoProjectPlaceholder = !projectPath && scopeFilter === 'project';
+
+  if (showNoProjectPlaceholder) {
     return (
       <div className="flex h-full items-center justify-center p-4">
-        <p className="text-xs text-text-muted text-center">Select a project to manage prompts.</p>
+        <p className="text-xs text-text-muted text-center">Select a project to manage project prompts.</p>
       </div>
     );
   }
@@ -330,6 +488,35 @@ export function PromptsPanel() {
         </Button>
       </div>
 
+      {/* Scope toggle bar */}
+      <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle shrink-0">
+        {(['all', 'global', 'project'] as ScopeFilter[]).map((scope) => {
+          const isActive = scopeFilter === scope;
+          const isDisabled = scope === 'project' && !projectPath;
+          const label = scope === 'all' ? 'All' : scope === 'global' ? 'Global' : 'Project';
+          const Icon = scope === 'global' ? Globe : scope === 'project' ? FolderOpen : null;
+          return (
+            <button
+              key={scope}
+              onClick={() => !isDisabled && setScopeFilter(scope)}
+              disabled={isDisabled}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors cursor-pointer ${
+                isActive
+                  ? 'bg-accent/15 text-accent border border-accent/30'
+                  : isDisabled
+                    ? 'text-text-muted/40 cursor-not-allowed'
+                    : 'text-text-muted hover:text-text-secondary hover:bg-bg-hover border border-transparent'
+              }`}
+              title={isDisabled ? 'Select a project first' : `Show ${label.toLowerCase()} prompts`}
+            >
+              {Icon && <Icon className="h-3 w-3" />}
+              {label}
+            </button>
+          );
+        })}
+        <span className="ml-auto text-[9px] text-text-muted">{filtered.length}</span>
+      </div>
+
       {/* Tag filter bar */}
       {allTags.length > 0 && (
         <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle overflow-x-auto shrink-0">
@@ -371,6 +558,7 @@ export function PromptsPanel() {
                 onSave={handleSave}
                 onCancel={handleCancelEdit}
                 isNew
+                showScopeSelector={!!projectPath}
               />
             </div>
           )}
@@ -389,170 +577,204 @@ export function PromptsPanel() {
             </div>
           ) : (
             <div className="p-2 space-y-3">
-              {Array.from(grouped.entries()).map(([category, items]) => (
-                <div key={category}>
-                  {/* Category header */}
-                  <div className="flex items-center gap-1 px-1 mb-1 group">
-                    <button
-                      onClick={() => toggleCategory(category)}
-                      className="flex items-center gap-0.5 text-[10px] uppercase tracking-wider text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
-                    >
-                      {collapsedCategories.has(category) ? (
-                        <ChevronRight className="h-3 w-3" />
+              {grouped.map((group) => (
+                <div key={group.scope}>
+                  {/* Scope section header (only in "all" mode) */}
+                  {scopeFilter === 'all' && (
+                    <div className="flex items-center gap-2 px-1 mb-2">
+                      {group.scope === 'global' ? (
+                        <Globe className="h-3 w-3 text-blue-400" />
                       ) : (
-                        <ChevronDown className="h-3 w-3" />
+                        <FolderOpen className="h-3 w-3 text-amber-400" />
                       )}
-                      {renamingCategory === category ? null : category}
-                    </button>
-
-                    {renamingCategory === category ? (
-                      <div className="flex items-center gap-1 flex-1">
-                        <input
-                          ref={categoryInputRef}
-                          value={categoryRenameValue}
-                          onChange={(e) => setCategoryRenameValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleCategoryRename();
-                            if (e.key === 'Escape') setRenamingCategory(null);
-                          }}
-                          className="text-[10px] uppercase tracking-wider bg-bg-secondary border border-border-subtle rounded px-1 py-0.5 text-text-primary outline-none w-24"
-                        />
-                        <button
-                          onClick={handleCategoryRename}
-                          className="p-0.5 text-success hover:bg-success/10 rounded cursor-pointer"
-                        >
-                          <Check className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => setRenamingCategory(null)}
-                          className="p-0.5 text-text-muted hover:bg-bg-hover rounded cursor-pointer"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setRenamingCategory(category);
-                          setCategoryRenameValue(category);
-                        }}
-                        className="p-0.5 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-secondary transition-all cursor-pointer"
-                        title="Rename category"
-                      >
-                        <Pencil className="h-2.5 w-2.5" />
-                      </button>
-                    )}
-
-                    <span className="text-[9px] text-text-muted ml-auto">
-                      {items.length}
-                    </span>
-                  </div>
-
-                  {/* Category items */}
-                  {!collapsedCategories.has(category) && (
-                    <div className="space-y-1">
-                      {items.map((prompt) => {
-                        const flatIdx = flatList.indexOf(prompt);
-                        const isFocused = flatIdx === focusedIndex;
-                        const isEditing = editingId === prompt.id && !isCreating;
-
-                        if (isEditing && editDraft) {
-                          return (
-                            <InlineEditor
-                              key={prompt.id}
-                              draft={editDraft}
-                              onChange={setEditDraft}
-                              onSave={handleSave}
-                              onCancel={handleCancelEdit}
-                            />
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={prompt.id}
-                            className={`group rounded-md border transition-colors p-2 ${
-                              isFocused
-                                ? 'border-accent/40 bg-accent/5'
-                                : 'border-border-subtle bg-bg-secondary hover:border-border-default'
-                            }`}
-                            onClick={() => setFocusedIndex(flatIdx)}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-medium text-text-primary truncate">
-                                  {prompt.title}
-                                </p>
-                                <p className="text-[11px] text-text-tertiary mt-0.5 line-clamp-2 leading-relaxed">
-                                  <HighlightedContent text={prompt.content} />
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Tags — clickable for filtering */}
-                            {prompt.tags && prompt.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                {prompt.tags.map((tag) => (
-                                  <Badge
-                                    key={tag}
-                                    variant="outline"
-                                    className={`text-[9px] px-1 py-0 h-4 cursor-pointer transition-colors ${
-                                      activeTag === tag
-                                        ? 'border-accent/40 text-accent bg-accent/10'
-                                        : 'hover:border-accent/30 hover:text-accent'
-                                    }`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveTag(activeTag === tag ? null : tag);
-                                    }}
-                                  >
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Actions — visible on hover */}
-                            <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => handleInsert(prompt)}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-success hover:bg-success/10 transition-colors cursor-pointer"
-                                title="Insert into terminal (Enter)"
-                              >
-                                <Send className="h-3 w-3" /> Insert
-                              </button>
-                              <button
-                                onClick={() => copyPromptToClipboard(prompt)}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                                title="Copy to clipboard"
-                              >
-                                <Copy className="h-3 w-3" /> Copy
-                              </button>
-                              <button
-                                onClick={() => handleEdit(prompt)}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                                title="Edit (e)"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </button>
-                              <button
-                                onClick={() => setDeletingId(prompt.id)}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-tertiary hover:text-error hover:bg-error/10 transition-colors cursor-pointer"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                              {prompt.usageCount > 0 && (
-                                <span className="ml-auto text-[9px] text-text-muted">
-                                  used {prompt.usageCount}x
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-text-secondary">
+                        {group.scope === 'global' ? 'Global Prompts' : 'Project Prompts'}
+                      </span>
+                      <div className="flex-1 h-px bg-border-subtle" />
+                      <span className="text-[9px] text-text-muted">
+                        {Array.from(group.categories.values()).reduce((n, arr) => n + arr.length, 0)}
+                      </span>
                     </div>
                   )}
+
+                  {Array.from(group.categories.entries()).map(([category, items]) => {
+                    const collapseKey = `${group.scope}:${category}`;
+                    return (
+                      <div key={collapseKey} className={scopeFilter === 'all' ? 'ml-2' : ''}>
+                        {/* Category header */}
+                        <div className="flex items-center gap-1 px-1 mb-1 group">
+                          <button
+                            onClick={() => toggleCategory(collapseKey)}
+                            className="flex items-center gap-0.5 text-[10px] uppercase tracking-wider text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+                          >
+                            {collapsedCategories.has(collapseKey) ? (
+                              <ChevronRight className="h-3 w-3" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3" />
+                            )}
+                            {renamingCategoryKey === collapseKey ? null : category}
+                          </button>
+
+                          {renamingCategoryKey === collapseKey ? (
+                            <div className="flex items-center gap-1 flex-1">
+                              <input
+                                ref={categoryInputRef}
+                                value={categoryRenameValue}
+                                onChange={(e) => setCategoryRenameValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleCategoryRename();
+                                  if (e.key === 'Escape') setRenamingCategoryKey(null);
+                                }}
+                                className="text-[10px] uppercase tracking-wider bg-bg-secondary border border-border-subtle rounded px-1 py-0.5 text-text-primary outline-none w-24"
+                              />
+                              <button
+                                onClick={handleCategoryRename}
+                                className="p-0.5 text-success hover:bg-success/10 rounded cursor-pointer"
+                              >
+                                <Check className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => setRenamingCategoryKey(null)}
+                                className="p-0.5 text-text-muted hover:bg-bg-hover rounded cursor-pointer"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setRenamingCategoryKey(collapseKey);
+                                setCategoryRenameValue(category);
+                              }}
+                              className="p-0.5 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-secondary transition-all cursor-pointer"
+                              title="Rename category"
+                            >
+                              <Pencil className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+
+                          <span className="text-[9px] text-text-muted ml-auto">
+                            {items.length}
+                          </span>
+                        </div>
+
+                        {/* Category items */}
+                        {!collapsedCategories.has(collapseKey) && (
+                          <div className="space-y-1">
+                            {items.map((prompt) => {
+                              const flatIdx = flatList.indexOf(prompt);
+                              const isFocused = flatIdx === focusedIndex;
+                              const isEditing = editingId === prompt.id && !isCreating;
+
+                              if (isEditing && editDraft) {
+                                return (
+                                  <InlineEditor
+                                    key={prompt.id}
+                                    draft={editDraft}
+                                    onChange={setEditDraft}
+                                    onSave={handleSave}
+                                    onCancel={handleCancelEdit}
+                                    showScopeSelector={!!projectPath}
+                                  />
+                                );
+                              }
+
+                              return (
+                                <div
+                                  key={prompt.id}
+                                  className={`group rounded-md border transition-colors p-2 ${
+                                    isFocused
+                                      ? 'border-accent/40 bg-accent/5'
+                                      : 'border-border-subtle bg-bg-secondary hover:border-border-default'
+                                  }`}
+                                  onClick={() => setFocusedIndex(flatIdx)}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <p className="text-xs font-medium text-text-primary truncate">
+                                          {prompt.title}
+                                        </p>
+                                        {scopeFilter === 'all' && (
+                                          <ScopeBadge scope={prompt.scope ?? 'project'} />
+                                        )}
+                                      </div>
+                                      <p className="text-[11px] text-text-tertiary mt-0.5 line-clamp-2 leading-relaxed">
+                                        <HighlightedContent text={prompt.content} />
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Tags — clickable for filtering */}
+                                  {prompt.tags && prompt.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                      {prompt.tags.map((tag) => (
+                                        <Badge
+                                          key={tag}
+                                          variant="outline"
+                                          className={`text-[9px] px-1 py-0 h-4 cursor-pointer transition-colors ${
+                                            activeTag === tag
+                                              ? 'border-accent/40 text-accent bg-accent/10'
+                                              : 'hover:border-accent/30 hover:text-accent'
+                                          }`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveTag(activeTag === tag ? null : tag);
+                                          }}
+                                        >
+                                          {tag}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Actions — visible on hover */}
+                                  <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => handleInsert(prompt)}
+                                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-success hover:bg-success/10 transition-colors cursor-pointer"
+                                      title="Insert into terminal (Enter)"
+                                    >
+                                      <Send className="h-3 w-3" /> Insert
+                                    </button>
+                                    <button
+                                      onClick={() => copyPromptToClipboard(prompt)}
+                                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                                      title="Copy to clipboard"
+                                    >
+                                      <Copy className="h-3 w-3" /> Copy
+                                    </button>
+                                    <button
+                                      onClick={() => handleEdit(prompt)}
+                                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                                      title="Edit (e)"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setDeletingId(prompt.id);
+                                        setDeletingScope(prompt.scope ?? 'project');
+                                      }}
+                                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-tertiary hover:text-error hover:bg-error/10 transition-colors cursor-pointer"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                    {prompt.usageCount > 0 && (
+                                      <span className="ml-auto text-[9px] text-text-muted">
+                                        used {prompt.usageCount}x
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -592,9 +814,10 @@ interface InlineEditorProps {
   onSave: () => void;
   onCancel: () => void;
   isNew?: boolean;
+  showScopeSelector?: boolean;
 }
 
-function InlineEditor({ draft, onChange, onSave, onCancel, isNew }: InlineEditorProps) {
+function InlineEditor({ draft, onChange, onSave, onCancel, isNew, showScopeSelector }: InlineEditorProps) {
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -603,8 +826,36 @@ function InlineEditor({ draft, onChange, onSave, onCancel, isNew }: InlineEditor
 
   return (
     <div className="rounded-md border border-accent/30 bg-bg-secondary p-2.5 space-y-2">
-      <div className="text-[10px] uppercase tracking-wider text-accent mb-1">
-        {isNew ? 'New Prompt' : 'Editing'}
+      <div className="flex items-center gap-2">
+        <div className="text-[10px] uppercase tracking-wider text-accent">
+          {isNew ? 'New Prompt' : 'Editing'}
+        </div>
+        {showScopeSelector && (
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              onClick={() => onChange({ ...draft, scope: 'global' })}
+              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors cursor-pointer ${
+                draft.scope === 'global'
+                  ? 'bg-blue-900/60 text-blue-300 border border-blue-500/30'
+                  : 'text-text-muted hover:text-text-secondary border border-transparent'
+              }`}
+              title="Save as global prompt"
+            >
+              <Globe className="h-2.5 w-2.5" /> Global
+            </button>
+            <button
+              onClick={() => onChange({ ...draft, scope: 'project' })}
+              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors cursor-pointer ${
+                (draft.scope ?? 'project') === 'project'
+                  ? 'bg-amber-900/60 text-amber-300 border border-amber-500/30'
+                  : 'text-text-muted hover:text-text-secondary border border-transparent'
+              }`}
+              title="Save as project prompt"
+            >
+              <FolderOpen className="h-2.5 w-2.5" /> Project
+            </button>
+          </div>
+        )}
       </div>
 
       <Input

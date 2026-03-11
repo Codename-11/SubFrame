@@ -14,7 +14,7 @@ import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC, type Task } from '../shared/ipcChannels';
 import { FRAME_FILES, FRAME_TASKS_DIR, FRAME_TASKS_PRIVATE_DIR } from '../shared/frameConstants';
 import { parseTaskMarkdown, serializeTaskMarkdown } from './taskMarkdownParser';
-import { getActiveTool } from './aiToolManager';
+import { getActiveTool, checkToolInstalled } from './aiToolManager';
 
 interface TasksData {
   _frame_metadata?: {
@@ -672,7 +672,14 @@ function setupIPC(ipcMain: IpcMain): void {
     IPC.ENHANCE_TASK,
     async (_event, { projectPath, task }: { projectPath: string; task: Partial<Task> }) => {
       try {
-        const tool = getActiveTool();
+        const tool = await getActiveTool();
+        if (!await checkToolInstalled(tool)) {
+          return {
+            success: false,
+            enhanced: {},
+            error: `${tool.name} is not installed. Visit ${tool.installUrl ?? 'the tool website'} to install it.`,
+          };
+        }
         const [aiExe, ...aiBaseFlags] = tool.command.split(/\s+/);
 
         const prompt = `You are a project task scoping assistant. Given a rough task description, improve and structure it into a well-scoped sub-task.
