@@ -74,7 +74,7 @@
     "eslint-plugin-react-refresh": "^0.4.26",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.1",
+    "typescript-eslint": "^8.57.0",
     "vitepress": "^1.6.4",
     "vitest": "^3.2.4"
   },
