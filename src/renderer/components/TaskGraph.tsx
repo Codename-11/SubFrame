@@ -22,6 +22,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
+import { Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Badge } from './ui/badge';
 import type { Task, TaskStep } from '../../shared/ipcChannels';
@@ -141,7 +142,8 @@ function TaskCardNode({ data, selected, targetPosition, sourcePosition }: NodePr
         )}
       >
         <div className="flex items-start gap-2 mb-1">
-          <span className="text-[11px] font-medium text-text-primary leading-tight flex-1 line-clamp-2">
+          <span className="text-[11px] font-medium text-text-primary leading-tight flex-1 line-clamp-2 flex items-center gap-1">
+            {task.private && <Lock className="w-3 h-3 text-amber-500/70 shrink-0" />}
             {task.title}
           </span>
           <div

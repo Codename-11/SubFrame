@@ -6,6 +6,34 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Private Sub-Tasks (2026-03-11)
+
+#### Data Model & Storage
+- **ipcChannels.ts**: Added `private?: boolean` to `Task` interface
+- **frameConstants.ts**: Added `FRAME_TASKS_PRIVATE_DIR` constant (`.subframe/tasks/private/`)
+- **taskMarkdownParser.ts**: Parse/serialize `private` field in YAML frontmatter (only written when `true`)
+- **tasksManager.ts**: `loadTasks()` reads both public + private dirs; `addTask()`/`updateTask()` route files to correct dir; privacy toggle moves files between dirs; `regenerateIndex()` excludes private tasks from git-tracked `tasks.json`; file watcher monitors both dirs
+
+#### CLI (`scripts/task.js`)
+- `add --private` creates task in `.subframe/tasks/private/`
+- `update <id> --private` / `--public` toggles privacy (moves file between dirs)
+- `list` / `get` shows lock icon for private tasks
+- `archive` routes private tasks to `private/archive/` (stays gitignored)
+- All commands use `findTaskFile()` to search both directories
+
+#### UI
+- **TasksPanel.tsx**: Private checkbox in create/edit dialog; lock icon in table title column
+- **TaskKanban.tsx**: Lock icon on private task cards
+- **TaskGraph.tsx**: Lock icon on private task nodes
+
+#### Hooks & Templates
+- **session-start.js**, **stop.js**, **prompt-submit.js**: All read private tasks via lightweight frontmatter parser (no gray-matter dep) so private tasks appear in context injection, reminders, and fuzzy matching
+- **frameTemplates.ts**: All three hook templates updated to match deployed versions
+
+#### Git
+- `.gitignore`: Added `.subframe/tasks/private/` exclusion
+- Purged sensitive task files from full git history via `git filter-repo`
+
 ### Version-Stamped Component Update System (2026-03-10)
 
 #### Version Stamps in Templates

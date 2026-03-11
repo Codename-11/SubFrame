@@ -6,7 +6,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Play, Check, Pause, RotateCcw, Trash2, Send, FileText } from 'lucide-react';
+import { ChevronDown, ChevronRight, Play, Check, Pause, RotateCcw, Trash2, Send, FileText, Lock } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '../lib/utils';
@@ -132,9 +132,10 @@ function TaskCard({
         </span>
         <div className="flex-1 min-w-0">
           <span className={cn(
-            'text-xs font-medium text-text-primary block',
+            'text-xs font-medium text-text-primary flex items-center gap-1.5',
             compact ? 'truncate' : 'line-clamp-2'
           )}>
+            {task.private && <Lock className="w-3 h-3 text-amber-500/70 shrink-0" />}
             {task.title}
           </span>
           <div className="flex items-center gap-1.5 mt-1">

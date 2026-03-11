@@ -2709,74 +2709,146 @@
     },
     "main/promptsManager": {
       "file": "src\\main\\promptsManager.ts",
-      "description": "Prompts Manager Module Handles CRUD operations for saved prompts (prompt library). Prompts are stored in .subframe/prompts.json per project.",
+      "description": "Prompts Manager Module Handles CRUD operations for saved prompts (prompt library). Supports both project-level (.subframe/prompts.json) and global/user-level (~/.subframe/prompts.json) prompts.",
       "exports": [
         "setupIPC"
       ],
       "depends": [
         "fs",
         "path",
+        "os",
         "shared/ipcChannels"
       ],
       "functions": {
+        "getGlobalPromptsPath": {
+          "line": 18
+        },
+        "readPromptsFile": {
+          "line": 27,
+          "params": [
+            "filePath"
+          ],
+          "purpose": "Read prompts from a JSON file at the given path."
+        },
+        "writePromptsFile": {
+          "line": 45,
+          "params": [
+            "filePath",
+            "prompts"
+          ],
+          "purpose": "Write prompts array to a JSON file."
+        },
+        "upsertPrompt": {
+          "line": 64,
+          "params": [
+            "filePath",
+            "prompt"
+          ],
+          "purpose": "Save (create or update) a prompt in a given file.",
+          "calls": [
+            "readPromptsFile",
+            "writePromptsFile"
+          ]
+        },
+        "removePrompt": {
+          "line": 90,
+          "params": [
+            "filePath",
+            "promptId"
+          ],
+          "purpose": "Delete a prompt by ID from a given file.",
+          "calls": [
+            "readPromptsFile",
+            "writePromptsFile"
+          ]
+        },
         "loadPrompts": {
-          "line": 18,
+          "line": 109,
           "params": [
             "projectPath"
           ],
-          "purpose": "Load prompts from a project's .subframe/prompts.json"
-        },
-        "writePrompts": {
-          "line": 40,
-          "params": [
-            "projectPath",
-            "prompts"
-          ],
-          "purpose": "Save prompts array to .subframe/prompts.json"
+          "purpose": "Load prompts from a project's .subframe/prompts.json",
+          "calls": [
+            "readPromptsFile"
+          ]
         },
         "savePrompt": {
-          "line": 60,
+          "line": 117,
           "params": [
             "projectPath",
             "prompt"
           ],
-          "purpose": "Save (create or update) a prompt",
+          "purpose": "Save (create or update) a project prompt",
           "calls": [
-            "loadPrompts",
-            "writePrompts"
+            "upsertPrompt"
           ]
         },
         "deletePrompt": {
-          "line": 88,
+          "line": 125,
           "params": [
             "projectPath",
             "promptId"
           ],
-          "purpose": "Delete a prompt by ID",
+          "purpose": "Delete a project prompt by ID",
           "calls": [
-            "loadPrompts",
-            "writePrompts"
+            "removePrompt"
+          ]
+        },
+        "loadGlobalPrompts": {
+          "line": 135,
+          "purpose": "Load global prompts from ~/.subframe/prompts.json",
+          "calls": [
+            "getGlobalPromptsPath",
+            "readPromptsFile"
+          ]
+        },
+        "saveGlobalPrompt": {
+          "line": 142,
+          "params": [
+            "prompt"
+          ],
+          "purpose": "Save (create or update) a global prompt",
+          "calls": [
+            "getGlobalPromptsPath",
+            "upsertPrompt"
+          ]
+        },
+        "deleteGlobalPrompt": {
+          "line": 149,
+          "params": [
+            "promptId"
+          ],
+          "purpose": "Delete a global prompt by ID",
+          "calls": [
+            "getGlobalPromptsPath",
+            "removePrompt"
           ]
         },
         "setupIPC": {
-          "line": 107,
+          "line": 158,
           "params": [
             "ipcMain"
           ],
           "purpose": "Setup IPC handlers",
           "calls": [
+            "deleteGlobalPrompt",
             "deletePrompt",
+            "loadGlobalPrompts",
             "loadPrompts",
+            "saveGlobalPrompt",
             "savePrompt"
           ]
         }
       },
-      "loc": 122,
+      "loc": 187,
       "ipc": {
         "listens": [
           "LOAD_PROMPTS",
           "SAVE_PROMPT",
-          "DELETE_PROMPT"
+          "DELETE_PROMPT",
+          "LOAD_GLOBAL_PROMPTS",
+          "SAVE_GLOBAL_PROMPT",
+          "DELETE_GLOBAL_PROMPT"
         ],
         "emits": []
       }
@@ -2914,14 +2986,14 @@
       ],
       "functions": {
         "correlateSession": {
-          "line": 78,
+          "line": 84,
           "params": [
             "terminalId"
           ],
           "purpose": "the most recently active session in agent-state.json."
         },
         "broadcastClaudeStatus": {
-          "line": 103,
+          "line": 109,
           "params": [
             "terminalId",
             "active"
@@ -2931,7 +3003,7 @@
           ]
         },
         "detectClaudeOutput": {
-          "line": 130,
+          "line": 136,
           "params": [
             "terminalId",
             "data"
@@ -2941,25 +3013,25 @@
           ]
         },
         "init": {
-          "line": 186,
+          "line": 192,
           "params": [
             "window"
           ],
           "purpose": "Initialize PTY manager with window reference"
         },
         "getDefaultShell": {
-          "line": 193,
+          "line": 199,
           "purpose": "Get default shell based on platform"
         },
         "getAvailableShells": {
-          "line": 209,
+          "line": 215,
           "purpose": "Get available shells on the system",
           "calls": [
             "getDefaultShell"
           ]
         },
         "createTerminal": {
-          "line": 289,
+          "line": 295,
           "params": [
             "workingDir",
             "projectPath",
@@ -2973,21 +3045,21 @@
           ]
         },
         "getTerminalsByProject": {
-          "line": 363,
+          "line": 369,
           "params": [
             "projectPath"
           ],
           "purpose": "Get terminals for a specific project"
         },
         "getTerminalInfo": {
-          "line": 376,
+          "line": 382,
           "params": [
             "terminalId"
           ],
           "purpose": "Get terminal info"
         },
         "writeToTerminal": {
-          "line": 387,
+          "line": 393,
           "params": [
             "terminalId",
             "data"
@@ -2995,7 +3067,7 @@
           "purpose": "Write data to specific terminal"
         },
         "resizeTerminal": {
-          "line": 397,
+          "line": 403,
           "params": [
             "terminalId",
             "cols",
@@ -3004,40 +3076,40 @@
           "purpose": "Resize specific terminal"
         },
         "destroyTerminal": {
-          "line": 407,
+          "line": 413,
           "params": [
             "terminalId"
           ],
           "purpose": "Destroy specific terminal"
         },
         "destroyAll": {
-          "line": 425,
+          "line": 431,
           "purpose": "Destroy all terminals"
         },
         "getTerminalCount": {
-          "line": 442,
+          "line": 448,
           "purpose": "Get terminal count"
         },
         "getTerminalIds": {
-          "line": 449,
+          "line": 455,
           "purpose": "Get all terminal IDs"
         },
         "hasTerminal": {
-          "line": 456,
+          "line": 462,
           "params": [
             "terminalId"
           ],
           "purpose": "Check if terminal exists"
         },
         "isClaudeActive": {
-          "line": 463,
+          "line": 469,
           "params": [
             "terminalId"
           ],
           "purpose": "Check if Claude Code is currently active in a terminal"
         },
         "setupIPC": {
-          "line": 471,
+          "line": 477,
           "params": [
             "ipcMain"
           ],
@@ -3052,33 +3124,33 @@
           ]
         },
         "startCapturing": {
-          "line": 531,
+          "line": 537,
           "params": [
             "terminalId"
           ],
           "purpose": "─── Output Capture API ──────────────────────────────────────────────────────"
         },
         "stopCapturing": {
-          "line": 536,
+          "line": 542,
           "params": [
             "terminalId"
           ]
         },
         "addOutputHandler": {
-          "line": 543,
+          "line": 549,
           "params": [
             "terminalId",
             "handler"
           ]
         },
         "removeOutputHandler": {
-          "line": 548,
+          "line": 554,
           "params": [
             "terminalId"
           ]
         }
       },
-      "loc": 560,
+      "loc": 566,
       "ipc": {
         "listens": [
           "GET_AVAILABLE_SHELLS",
@@ -3892,6 +3964,7 @@
         "ui/scroll-area",
         "ui/separator",
         "lib/utils",
+        "sonner",
         "hooks/useAgentState",
         "stores/useUIStore",
         "stores/useTerminalStore",
@@ -3900,7 +3973,7 @@
       ],
       "functions": {
         "SessionCard": {
-          "line": 38,
+          "line": 39,
           "params": [
             "{ session",
             "hasTerminal",
@@ -3908,7 +3981,7 @@
           ]
         },
         "SessionListItem": {
-          "line": 84,
+          "line": 85,
           "params": [
             "{\r\n  session",
             "isSelected",
@@ -3917,16 +3990,16 @@
           ]
         },
         "EmptyState": {
-          "line": 135
+          "line": 136
         },
         "AgentStateView": {
-          "line": 145,
+          "line": 146,
           "params": [
             "{ isFullView"
           ]
         }
       },
-      "loc": 394
+      "loc": 396
     },
     "renderer/components/AgentTimeline": {
       "file": "src\\renderer\\components\\AgentTimeline.tsx",
@@ -5024,7 +5097,7 @@
     },
     "renderer/components/PromptLibrary": {
       "file": "src\\renderer\\components\\PromptLibrary.tsx",
-      "description": "PromptLibrary — Command-palette-style overlay for saved prompts. Triggered by Ctrl+Shift+L. Fuzzy searches across title + content + tags, inserts selected prompt into the active terminal via PTY write.",
+      "description": "PromptLibrary — Command-palette-style overlay for saved prompts. Triggered by Ctrl+Shift+L. Fuzzy searches across title + content + tags, inserts selected prompt into the active terminal via PTY write. Supports both global (user-level) and project-level prompts.",
       "exports": [
         "PromptLibrary"
       ],
@@ -5040,14 +5113,20 @@
       ],
       "functions": {
         "highlightVars": {
-          "line": 51,
+          "line": 54,
           "params": [
             "text",
             "maxLen"
           ]
         },
+        "ScopeBadge": {
+          "line": 68,
+          "params": [
+            "{ scope }"
+          ]
+        },
         "PromptLibrary": {
-          "line": 64,
+          "line": 85,
           "calls": [
             "copyPromptToClipboard",
             "createBlankPrompt",
@@ -5058,7 +5137,7 @@
           ]
         }
       },
-      "loc": 360
+      "loc": 550
     },
     "renderer/components/PromptsPanel": {
       "file": "src\\renderer\\components\\PromptsPanel.tsx",
@@ -5220,7 +5299,7 @@
           ]
         }
       },
-      "loc": 538
+      "loc": 546
     },
     "renderer/components/SettingsPanel": {
       "file": "src\\renderer\\components\\SettingsPanel.tsx",
@@ -5650,12 +5729,13 @@
       "depends": [
         "react",
         "dagre",
+        "lucide-react",
         "lib/utils",
         "ui/badge"
       ],
       "functions": {
         "getLayoutedElements": {
-          "line": 85,
+          "line": 86,
           "params": [
             "nodes",
             "edges",
@@ -5663,7 +5743,7 @@
           ]
         },
         "TaskCardNode": {
-          "line": 122,
+          "line": 123,
           "params": [
             "{ data",
             "selected",
@@ -5673,7 +5753,7 @@
           "purpose": "── Custom card node ─────────────────────────────────────────────────"
         },
         "TaskGraphInner": {
-          "line": 218,
+          "line": 220,
           "params": [
             "{ tasks",
             "onSelectTask",
@@ -5682,13 +5762,13 @@
           ]
         },
         "TaskGraph": {
-          "line": 319,
+          "line": 321,
           "params": [
             "props"
           ]
         }
       },
-      "loc": 326
+      "loc": 328
     },
     "renderer/components/TaskKanban": {
       "file": "src\\renderer\\components\\TaskKanban.tsx",
@@ -5726,7 +5806,7 @@
           ]
         },
         "TaskKanban": {
-          "line": 287,
+          "line": 288,
           "params": [
             "{\r\n  tasks",
             "onUpdateStatus",
@@ -5738,7 +5818,7 @@
           ]
         }
       },
-      "loc": 446
+      "loc": 447
     },
     "renderer/components/TasksPalette": {
       "file": "src\\renderer\\components\\TasksPalette.tsx",
@@ -5932,7 +6012,7 @@
           ]
         }
       },
-      "loc": 673,
+      "loc": 723,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -6001,7 +6081,7 @@
           ]
         }
       },
-      "loc": 701,
+      "loc": 703,
       "ipc": {
         "listens": [
           "TERMINAL_CREATED",
@@ -6687,25 +6767,28 @@
     },
     "renderer/hooks/usePrompts": {
       "file": "src\\renderer\\hooks\\usePrompts.ts",
-      "description": "TanStack Query hooks for the prompt library.",
+      "description": "TanStack Query hooks for the prompt library. Supports both project-level and global (user-level) prompts.",
       "exports": [
         "usePrompts"
       ],
       "depends": [
+        "react",
         "useIpc",
         "stores/useProjectStore",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "lib/promptUtils"
       ],
       "functions": {
         "usePrompts": {
-          "line": 9,
+          "line": 13,
           "calls": [
+            "generatePromptId",
             "useIpcMutation",
             "useIpcQuery"
           ]
         }
       },
-      "loc": 35
+      "loc": 110
     },
     "renderer/hooks/useSessions": {
       "file": "src\\renderer\\hooks\\useSessions.ts",
@@ -7498,9 +7581,18 @@
           "params": [
             "content"
           ]
+        },
+        "loadPersistedTabs": {
+          "line": 40
+        },
+        "persistTabs": {
+          "line": 56,
+          "params": [
+            "tabs"
+          ]
         }
       },
-      "loc": 268
+      "loc": 293
     },
     "shared/agentStateTypes": {
       "file": "src\\shared\\agentStateTypes.ts",
@@ -7842,14 +7934,14 @@
           ]
         },
         "getTaskMarkdownTemplate": {
-          "line": 589,
+          "line": 590,
           "params": [
             "task"
           ],
           "purpose": "Generate a blank task markdown template for a new task."
         },
         "getQuickstartTemplate": {
-          "line": 623,
+          "line": 624,
           "params": [
             "projectName"
           ],
@@ -7859,14 +7951,14 @@
           ]
         },
         "getDocsInternalReadme": {
-          "line": 701,
+          "line": 702,
           "params": [
             "projectName"
           ],
           "purpose": "docs-internal/README.md template"
         },
         "getFrameConfigTemplate": {
-          "line": 743,
+          "line": 744,
           "params": [
             "projectName"
           ],
@@ -7876,11 +7968,11 @@
           ]
         },
         "getCodexWrapperTemplate": {
-          "line": 775,
+          "line": 776,
           "purpose": "Codex CLI wrapper script"
         },
         "getGenericWrapperTemplate": {
-          "line": 811,
+          "line": 812,
           "params": [
             "toolCommand",
             "promptFlag"
@@ -7888,53 +7980,59 @@
           "purpose": "Generic AI tool wrapper template"
         },
         "getNativeFileTemplate": {
-          "line": 847,
+          "line": 848,
           "purpose": "Returns just the backlink block that references AGENTS.md",
           "calls": [
             "getBacklinkBlock"
           ]
         },
         "getPreCommitHookTemplate": {
-          "line": 856,
+          "line": 857,
           "purpose": "Pre-commit hook template for user projects"
         },
         "getPrePushHookTemplate": {
-          "line": 904,
+          "line": 905,
           "purpose": "Triggers pipeline workflows configured with \"on: { push: true }\"."
         },
         "getHookUpdaterScript": {
-          "line": 933,
+          "line": 934,
           "purpose": "Pre-commit hook updater script (Node.js)",
           "calls": [
             "stripExt"
           ]
         },
         "stripExt": {
-          "line": 951,
+          "line": 952,
           "params": [
             "p"
           ],
           "purpose": "Strip any JS/TS extension for module key"
         },
         "getSessionStartHookTemplate": {
-          "line": 1068,
+          "line": 1069,
           "purpose": "Injects pending/in-progress sub-tasks into Claude's context at session start.",
           "calls": [
-            "findTasksFile",
-            "main"
+            "findProjectRoot",
+            "main",
+            "readPrivateTasks"
           ]
         },
-        "findTasksFile": {
-          "line": 1272,
+        "findProjectRoot": {
+          "line": 1735,
           "params": [
             "startDir"
           ],
-          "calls": [
-            "findProjectRoot"
-          ]
+          "purpose": "── Helpers ─────────────────────────────────────────────────────────────────"
+        },
+        "readPrivateTasks": {
+          "line": 1101,
+          "params": [
+            "root"
+          ],
+          "purpose": "Minimal parser — extracts id, title, status, priority, private flag from frontmatter."
         },
         "main": {
-          "line": 1668,
+          "line": 1788,
           "purpose": "── Main ────────────────────────────────────────────────────────────────────",
           "calls": [
             "cleanStaleSessions",
@@ -7944,23 +8042,40 @@
           ]
         },
         "getPromptSubmitHookTemplate": {
-          "line": 1156,
+          "line": 1208,
           "purpose": "Fuzzy-matches user prompts against pending sub-task titles.",
           "calls": [
+            "findProjectRoot",
             "findTasksFile",
             "main",
-            "matchScore"
+            "matchScore",
+            "readPrivatePending"
+          ]
+        },
+        "findTasksFile": {
+          "line": 1367,
+          "params": [
+            "startDir"
+          ],
+          "calls": [
+            "findProjectRoot"
+          ]
+        },
+        "readPrivatePending": {
+          "line": 1241,
+          "params": [
+            "root"
           ]
         },
         "matchScore": {
-          "line": 1183,
+          "line": 1274,
           "params": [
             "prompt",
             "title"
           ]
         },
         "getStopHookTemplate": {
-          "line": 1245,
+          "line": 1340,
           "purpose": "Reminds about in-progress sub-tasks and detects untracked work.",
           "calls": [
             "findProjectRoot",
@@ -7969,21 +8084,14 @@
             "main"
           ]
         },
-        "findProjectRoot": {
-          "line": 1615,
-          "params": [
-            "startDir"
-          ],
-          "purpose": "── Helpers ─────────────────────────────────────────────────────────────────"
-        },
         "getModifiedSourceFiles": {
-          "line": 1279,
+          "line": 1374,
           "params": [
             "projectRoot"
           ]
         },
         "getPreToolUseHookTemplate": {
-          "line": 1351,
+          "line": 1471,
           "purpose": "Writes a \"running\" step to agent-state.json for real-time agent visualization.",
           "calls": [
             "buildLabel",
@@ -7995,34 +8103,34 @@
           ]
         },
         "buildLabel": {
-          "line": 1401,
+          "line": 1521,
           "params": [
             "toolName",
             "toolInput"
           ]
         },
         "loadState": {
-          "line": 1624,
+          "line": 1744,
           "params": [
             "statePath"
           ]
         },
         "writeState": {
-          "line": 1633,
+          "line": 1753,
           "params": [
             "statePath",
             "state"
           ]
         },
         "cleanStaleSessions": {
-          "line": 1650,
+          "line": 1770,
           "params": [
             "state",
             "now"
           ]
         },
         "getPostToolUseHookTemplate": {
-          "line": 1593,
+          "line": 1713,
           "purpose": "Marks matching running step as \"completed\" in agent-state.json.",
           "calls": [
             "cleanStaleSessions",
@@ -8033,43 +8141,43 @@
           ]
         },
         "getClaudeSettingsHooksTemplate": {
-          "line": 1759,
+          "line": 1879,
           "purpose": "Returns the hooks portion of .claude/settings.json pointing to .subframe/hooks/"
         },
         "getSubTasksSkillTemplate": {
-          "line": 1800,
+          "line": 1920,
           "purpose": "instead of the SubFrame-app-specific scripts/task.js CLI"
         },
         "getSubDocsSkillTemplate": {
-          "line": 1913,
+          "line": 2033,
           "purpose": "/sub-docs skill template — generalized for any SubFrame-managed project"
         },
         "getSubAuditSkillTemplate": {
-          "line": 2011,
+          "line": 2131,
           "purpose": "/sub-audit skill template — generalized for any SubFrame-managed project"
         },
         "getOnboardSkillTemplate": {
-          "line": 2101,
+          "line": 2221,
           "purpose": "/onboard skill template — analyze project intelligence and bootstrap SubFrame files"
         },
         "getDefaultReviewWorkflow": {
-          "line": 2320,
+          "line": 2440,
           "purpose": "─── Pipeline Workflow Templates ──────────────────────────────────────────────"
         },
         "getTaskVerifyWorkflow": {
-          "line": 2364
+          "line": 2484
         },
         "getHealthCheckWorkflow": {
-          "line": 2387
+          "line": 2507
         },
         "getDocsAuditWorkflow": {
-          "line": 2420
+          "line": 2540
         },
         "getSecurityScanWorkflow": {
-          "line": 2445
+          "line": 2565
         }
       },
-      "loc": 2469
+      "loc": 2589
     },
     "shared/ipcChannels": {
       "file": "src\\shared\\ipcChannels.ts",
@@ -8081,7 +8189,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1188
+      "loc": 1200
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -9012,7 +9120,7 @@
       {
         "module": "renderer/components/PromptLibrary",
         "file": "src\\renderer\\components\\PromptLibrary.tsx",
-        "description": "PromptLibrary — Command-palette-style overlay for saved prompts. Triggered by Ctrl+Shift+L. Fuzzy searches across title + content + tags, inserts selected prompt into the active terminal via PTY write."
+        "description": "PromptLibrary — Command-palette-style overlay for saved prompts. Triggered by Ctrl+Shift+L. Fuzzy searches across title + content + tags, inserts selected prompt into the active terminal via PTY write. Supports both global (user-level) and project-level prompts."
       }
     ],
     "prompt-utils": [
@@ -9026,7 +9134,7 @@
       {
         "module": "main/promptsManager",
         "file": "src\\main\\promptsManager.ts",
-        "description": "Prompts Manager Module Handles CRUD operations for saved prompts (prompt library). Prompts are stored in .subframe/prompts.json per project."
+        "description": "Prompts Manager Module Handles CRUD operations for saved prompts (prompt library). Supports both project-level (.subframe/prompts.json) and global/user-level (~/.subframe/prompts.json) prompts."
       },
       {
         "module": "renderer/components/PromptsPanel",
@@ -9323,7 +9431,7 @@
       {
         "module": "renderer/hooks/usePrompts",
         "file": "src\\renderer\\hooks\\usePrompts.ts",
-        "description": "TanStack Query hooks for the prompt library."
+        "description": "TanStack Query hooks for the prompt library. Supports both project-level and global (user-level) prompts."
       }
     ],
     "use-sessions": [

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Private sub-tasks**: Tasks can be marked private — stored in `.subframe/tasks/private/` (gitignored), excluded from the `tasks.json` index, but fully functional in UI, CLI, and hooks. Toggle via `--private`/`--public` CLI flags or the checkbox in the task dialog.
+
 ## [0.2.5-beta] - 2026-03-10
 
 ### Added

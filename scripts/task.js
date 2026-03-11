@@ -1095,7 +1095,12 @@ function cmdArchive(root) {
     let count = 0;
     for (const task of completed) {
       const srcPath = findTaskFile(root, task.id);
-      const destPath = path.join(archiveDir, `${task.id}.md`);
+      // Private tasks archive to private/archive/ to stay gitignored
+      const dest = task.private
+        ? path.join(getPrivateTasksDir(root), 'archive', year)
+        : archiveDir;
+      fs.mkdirSync(dest, { recursive: true });
+      const destPath = path.join(dest, `${task.id}.md`);
       if (srcPath && fs.existsSync(srcPath)) {
         fs.renameSync(srcPath, destPath);
         count++;
