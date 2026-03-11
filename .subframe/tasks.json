@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-11T00:48:56.207Z",
+  "lastUpdated": "2026-03-11T00:54:12.403Z",
   "tasks": {
     "pending": [
       {
@@ -167,21 +167,6 @@
         "steps": []
       },
       {
-        "id": "task-mm9tf4qf-lbim",
-        "title": "Opt-in telemetry and analytics",
-        "status": "pending",
-        "priority": "low",
-        "category": "feature",
-        "context": "Session 2026-03-02",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-02T23:33:51.925Z",
-        "updatedAt": "2026-03-02T23:33:51.925Z",
-        "completedAt": null,
-        "description": "Add opt-in usage analytics with first-launch prompt and Settings toggle. Track activation funnel (install → project opened → AI tool launched), feature usage, session duration, retention, and crash reports. Consider PostHog or custom endpoint. Must be transparent and privacy-respecting.",
-        "steps": []
-      },
-      {
         "id": "task-mm9tf4v9-a98g",
         "title": "First-launch onboarding wizard",
         "status": "pending",
@@ -209,21 +194,6 @@
         "updatedAt": "2026-03-02T23:33:52.412Z",
         "completedAt": null,
         "description": "Allow users to export workspace config, tasks, and session history as a zip. Provides data portability and peace of mind.",
-        "steps": []
-      },
-      {
-        "id": "task-mm9tfdtq-esl5",
-        "title": "Evaluate monetization strategy and license terms",
-        "status": "pending",
-        "priority": "low",
-        "category": "planning",
-        "context": "Session 2026-03-02",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-02T23:34:03.709Z",
-        "updatedAt": "2026-03-02T23:34:03.709Z",
-        "completedAt": null,
-        "description": "Review BUSL-1.1 change date and additional use grant terms. Define what a future Pro tier would include (team sync, cloud sessions, advanced analytics). Document the decision in PROJECT_NOTES.md. No code changes — strategy and planning only.",
         "steps": []
       },
       {
@@ -454,11 +424,12 @@
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-07T23:45:09.101Z",
-        "updatedAt": "2026-03-07T23:45:09.101Z",
+        "updatedAt": "2026-03-11T00:54:12.389Z",
         "completedAt": null,
         "description": "Have Claude hook scripts (pre-tool-use.js, post-tool-use.js) write terminal PID or env var into agent-state.json session entries, enabling deterministic terminal↔session mapping instead of timestamp heuristic.",
         "userRequest": "Improve session↔terminal correlation accuracy",
         "acceptanceCriteria": "agent-state.json sessions include terminal identifier; ptyManager uses it for exact matching instead of timestamp heuristic",
+        "notes": "[2026-03-11] Audit finding: broadcastClaudeStatus() uses a single 5s retry for correlation (ptyManager.ts:111-122). If agent-state.json isn't written by then, session never correlates. Deterministic terminal ID injection (this task's goal) would eliminate the retry entirely, but as interim hardening, consider exponential backoff (e.g. 2s, 5s, 10s) with max 3 attempts.",
         "steps": []
       },
       {
@@ -695,6 +666,20 @@
         "updatedAt": "2026-03-10T01:07:21.533Z",
         "completedAt": "2026-03-10T01:07:21.533Z",
         "description": "Terminals seem to prefer their original slot as if we swap views or change grid layouts, termina's end up reordering back to their original order.",
+        "steps": []
+      },
+      {
+        "id": "task-1773106251873-jkr6061nr",
+        "title": "Allow Sub-Tasks to be private",
+        "status": "completed",
+        "priority": "high",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:30:51.873Z",
+        "updatedAt": "2026-03-11T00:48:56.203Z",
+        "completedAt": "2026-03-11T00:48:56.203Z",
+        "description": "Sub-Tasks should be allowed to be marked private and not tracked via git. All UI/Sub-Frame features should still work as normal otherwise. We should include enhancements to skils/hooks, etc if needed.",
         "steps": []
       },
       {
@@ -1539,20 +1524,6 @@
         "completedAt": "2026-03-08T02:31:08.401Z",
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
-        "steps": []
-      },
-      {
-        "id": "task-1773106251873-jkr6061nr",
-        "title": "Allow Sub-Tasks to be private",
-        "status": "completed",
-        "priority": "high",
-        "category": "enhancement",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-10T01:30:51.873Z",
-        "updatedAt": "2026-03-11T00:48:56.203Z",
-        "completedAt": "2026-03-11T00:48:56.203Z",
-        "description": "Sub-Tasks should be allowed to be marked private and not tracked via git. All UI/Sub-Frame features should still work as normal otherwise. We should include enhancements to skils/hooks, etc if needed.",
         "steps": []
       }
     ]
