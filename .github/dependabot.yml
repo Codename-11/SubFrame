@@ -47,6 +47,12 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "electron-builder"
         update-types: ["version-update:semver-major"]
+      # Deferred — requires coordinated eslint ecosystem bump
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
+      # Deferred — recharts v3 has breaking API changes in chart.tsx
+      - dependency-name: "recharts"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions versions
   - package-ecosystem: github-actions
@@ -58,3 +64,7 @@ updates:
     labels:
       - dependencies
       - ci
+    ignore:
+      # Deferred — needs coordinated bump with download-artifact
+      - dependency-name: "actions/upload-artifact"
+        update-types: ["version-update:semver-major"]
