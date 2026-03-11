@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7-beta] - 2026-03-11
+
+### Fixed
+- **Tab name cross-contamination**: Terminals no longer adopt names from unrelated sessions — removed dangerous `sessions[0]` fallback that caused tab names to swap between terminals
+- **Duplicate rename toasts**: Auto-rename no longer fires duplicate toasts from ptyManager retry broadcasts; added `pendingRenames` guard and sessionId validation
+- **Sub-view X button not closing tab**: Clicking X while in Stats/Decisions/Structure Map sub-views now correctly closes the parent Overview tab
+- **Panel buttons opening as full-view**: ViewTabBar shortcut buttons (Sub-Tasks, Agent Activity, Pipeline, Overview) now open the right sidebar panel instead of full-view overlays, restoring the original cycle (open → collapsed → hidden)
+- **Agent Activity fallback selection**: Removed `sessions[0]` fallback in AgentStateView that could display unrelated session data when no active session exists
+
+### Changed
+- **Usage pill moved to main tab bar**: Session/weekly usage indicator relocated from TerminalTabBar to ViewTabBar for better visibility as a global status element
+- **View shortcut buttons restored to full text+icon**: Buttons show both icon and label (Overview, Sub-Tasks, etc.) instead of icon-only squares; tooltips now show just the keyboard shortcut
+
 ## [0.2.6-beta] - 2026-03-10
 
 ### Added
@@ -281,7 +294,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.5-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.2.7-beta...HEAD
+[0.2.7-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.6-beta...v0.2.7-beta
+[0.2.6-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.5-beta...v0.2.6-beta
 [0.2.5-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.4-beta...v0.2.5-beta
 [0.2.4-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.3-beta...v0.2.4-beta
 [0.2.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.2-beta...v0.2.3-beta
