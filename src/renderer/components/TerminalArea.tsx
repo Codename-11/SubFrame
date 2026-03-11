@@ -22,7 +22,7 @@ import { ViewTabBar } from './ViewTabBar';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
-import { useUIStore } from '../stores/useUIStore';
+import { useUIStore, getTabIdForContent } from '../stores/useUIStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedSend } from '../lib/ipc';
 import { typedInvoke } from '../lib/ipc';
@@ -222,32 +222,37 @@ export function TerminalArea() {
     };
   }, [removeTerminal]);
 
+  // Track which terminals have a pending auto-rename to prevent duplicate triggers
+  const pendingRenames = useRef(new Set<string>());
+
   // Listen for agent active status changes — update store + auto-rename tab
   useEffect(() => {
     const handler = (_event: unknown, data: { terminalId: string; active: boolean; sessionId?: string }) => {
       setClaudeActive(data.terminalId, data.active, data.sessionId);
 
       // Auto-rename tab when agent starts (skip user-renamed tabs)
-      if (data.active) {
+      if (data.active && data.sessionId) {
         const terminal = useTerminalStore.getState().terminals.get(data.terminalId);
-        if (terminal && terminal.nameSource !== 'user') {
+        if (terminal && terminal.nameSource !== 'user' && !pendingRenames.current.has(data.terminalId)) {
           const capturedTerminalId = data.terminalId;
           const capturedSessionId = data.sessionId;
+          pendingRenames.current.add(capturedTerminalId);
           setTimeout(async () => {
-            // Re-check: terminal may have been closed or user-renamed during the delay
-            const current = useTerminalStore.getState().terminals.get(capturedTerminalId);
-            if (!current || current.nameSource === 'user') return;
             try {
+              // Re-check: terminal may have been closed or user-renamed during the delay
+              const current = useTerminalStore.getState().terminals.get(capturedTerminalId);
+              if (!current || current.nameSource === 'user') return;
               const result = await typedInvoke(IPC.GET_TERMINAL_SESSION_NAME, {
                 terminalId: capturedTerminalId,
                 sessionId: capturedSessionId,
               });
-              if (result.name) {
+              if (result.name && current.name !== result.name) {
                 renameTerminal(capturedTerminalId, result.name, 'session');
-                toast.success(`Tab renamed: ${result.name}`, { duration: 2000 });
               }
             } catch {
               // Session may not be registered yet
+            } finally {
+              pendingRenames.current.delete(capturedTerminalId);
             }
           }, 3000);
         }
@@ -570,7 +575,7 @@ export function TerminalArea() {
                 <span className="text-xs font-medium text-text-primary">{fullViewTitle}</span>
               </div>
               <button
-                onClick={() => closeTab(fullViewContent!)}
+                onClick={() => closeTab(getTabIdForContent(fullViewContent!))}
                 className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                 title="Close (Esc)"
               >

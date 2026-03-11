@@ -155,7 +155,7 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
       const found = sessions.find((s) => s.sessionId === selectedSessionId);
       if (found) return found;
     }
-    return activeSession ?? sessions[0] ?? null;
+    return activeSession ?? null;
   }, [isFullView, sessions, selectedSessionId, activeSession]);
 
   const [selectedPanelSessionId, setSelectedPanelSessionId] = useState<string | null>(null);
@@ -211,7 +211,7 @@ export function AgentStateView({ isFullView = false }: AgentStateViewProps) {
       const found = panelSessions.find((s) => s.sessionId === selectedPanelSessionId);
       if (found) return found;
     }
-    return panelSessions.find((s) => s.status === 'active' || s.status === 'busy') ?? panelSessions[0] ?? null;
+    return panelSessions.find((s) => s.status === 'active' || s.status === 'busy') ?? null;
   }, [panelSessions, selectedPanelSessionId]);
 
   // ── Panel mode (sidebar right panel) ──────────────────────────────────────

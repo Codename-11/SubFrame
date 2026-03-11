@@ -15,7 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Bot,
-  Loader2,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -43,7 +42,6 @@ import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore'
 import { IPC } from '../../shared/ipcChannels';
 import type { ShellInfo } from '../../shared/ipcChannels';
 import { typedInvoke } from '../lib/ipc';
-import { useSettings } from '../hooks/useSettings';
 import * as terminalRegistry from '../lib/terminalRegistry';
 
 const { ipcRenderer } = require('electron');
@@ -70,11 +68,7 @@ export function TerminalTabBar({
   const reorderTerminals = useTerminalStore((s) => s.reorderTerminals);
   const gridLayout = useTerminalStore((s) => s.gridLayout);
   const setGridLayout = useTerminalStore((s) => s.setGridLayout);
-  const { updateSetting } = useSettings();
-
   const [shells, setShells] = useState<ShellInfo[]>([]);
-  const [usageData, setUsageData] = useState<UsageData | null>(null);
-  const [usageFetching, setUsageFetching] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -95,52 +89,6 @@ export function TerminalTabBar({
       ipcRenderer.removeListener(IPC.AVAILABLE_SHELLS_DATA, handler);
     };
   }, []);
-
-  // Load Claude usage data (main process handles periodic polling via settings)
-  useEffect(() => {
-    const handler = (_event: unknown, data: any) => {
-      setUsageFetching(false);
-      // On error, preserve existing usage values if backend didn't
-      if (data?.error && !(data.fiveHour || data.sevenDay)) {
-        setUsageData(prev => prev?.fiveHour || prev?.sevenDay
-          ? { ...prev, error: data.error, lastUpdated: data.lastUpdated }
-          : data
-        );
-      } else {
-        setUsageData(data);
-      }
-    };
-    ipcRenderer.on(IPC.CLAUDE_USAGE_DATA, handler);
-    setUsageFetching(true);
-    ipcRenderer.send(IPC.LOAD_CLAUDE_USAGE);
-
-    return () => {
-      ipcRenderer.removeListener(IPC.CLAUDE_USAGE_DATA, handler);
-    };
-  }, []);
-
-  // Show toast on persistent usage polling failures with option to disable
-  const persistentFailureShown = useRef(false);
-  useEffect(() => {
-    if (usageData?.persistentFailure && !persistentFailureShown.current) {
-      persistentFailureShown.current = true;
-      toast.warning('Usage polling is failing repeatedly', {
-        description: 'The Claude API usage endpoint is unreachable. You can disable auto-polling and refresh manually instead.',
-        duration: 15000,
-        action: {
-          label: 'Disable polling',
-          onClick: () => {
-            updateSetting.mutate([{ key: 'general.usagePollingInterval', value: 0 }]);
-            toast.success('Usage auto-polling disabled');
-          },
-        },
-      });
-    }
-    // Reset flag when errors clear
-    if (usageData && !usageData.error) {
-      persistentFailureShown.current = false;
-    }
-  }, [usageData?.persistentFailure, usageData?.error]);
 
   // Focus rename input when renaming starts
   useEffect(() => {
@@ -377,44 +325,6 @@ export function TerminalTabBar({
       </Reorder.Group>
       </div>
 
-      {/* Context usage bars — collapsed by default, weekly expands on hover */}
-      {(usageFetching || (usageData && (usageData.fiveHour || usageData.sevenDay || usageData.error))) && (
-        <div
-          className={`group/usage flex items-center gap-2 px-2 py-0.5 bg-bg-tertiary border border-border-subtle
-                     rounded-md cursor-pointer hover:bg-bg-hover hover:border-border-default transition-all
-                     flex-shrink-0 mr-1 overflow-hidden ${usageData?.error && usageData.fiveHour ? 'opacity-80' : ''}`}
-          onClick={() => {
-            if (!usageFetching) {
-              setUsageFetching(true);
-              ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE);
-            }
-          }}
-          title={usageFetching
-            ? 'Fetching usage data…'
-            : usageData?.error
-              ? `${usageData.error}\n${usageData.error.includes('429') ? 'Rate limited by Anthropic API — will retry automatically' : usageData.error.includes('401') ? 'OAuth token may be expired — re-authenticate Claude Code' : usageData.error.includes('No OAuth') ? 'No OAuth token found — sign in to Claude Code first' : 'Temporary error'}${usageData.fiveHour ? '\nShowing cached data' : ''}\nClick to retry now`
-              : 'Click to refresh'}
-        >
-          {usageFetching && (
-            <Loader2 className="h-3 w-3 text-text-tertiary animate-spin flex-shrink-0" />
-          )}
-          {!usageFetching && usageData?.error && (
-            <span className="h-1.5 w-1.5 rounded-full bg-warning flex-shrink-0 animate-pulse" title={usageData.fiveHour ? 'Stale data' : 'Unavailable'} />
-          )}
-          {usageData?.fiveHour ? (
-            <UsageItem label="Session" utilization={usageData.fiveHour.utilization} resetsAt={usageData.fiveHour.resetsAt} />
-          ) : usageData?.error && (
-            <span className="text-[10px] text-text-secondary whitespace-nowrap">Usage unavailable</span>
-          )}
-          {usageData?.sevenDay && (
-            <div className="max-w-0 opacity-0 overflow-hidden transition-all duration-300 ease-in-out
-                            group-hover/usage:max-w-[160px] group-hover/usage:opacity-100 group-hover/usage:ml-1">
-              <UsageItem label="Weekly" utilization={usageData.sevenDay.utilization} resetsAt={usageData.sevenDay.resetsAt} />
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Actions */}
       <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
         {/* New terminal — dropdown with shell picker */}
@@ -522,60 +432,3 @@ export function TerminalTabBar({
   );
 }
 
-/** Usage data shape from claudeUsageManager */
-interface UsageWindow {
-  utilization: number; // 0–100 (already a percentage)
-  resetsAt: string | null;
-}
-
-interface UsageData {
-  fiveHour: UsageWindow | null;
-  sevenDay: UsageWindow | null;
-  lastUpdated?: string;
-  error?: string | null;
-  persistentFailure?: boolean;
-}
-
-/** A single usage row: LABEL [BAR] PERCENT (RESET) */
-function UsageItem({ label, utilization, resetsAt }: { label: string; utilization: number; resetsAt: string | null }) {
-  // utilization is already 0–100 from the API — do NOT multiply by 100
-  const pct = Math.round(Math.min(utilization, 100));
-  const colorClass = pct >= 80 ? 'bg-error' : pct >= 50 ? 'bg-warning' : 'bg-success';
-
-  return (
-    <div className="flex items-center gap-1 pointer-events-none whitespace-nowrap">
-      <span className="text-[10px] font-medium text-text-tertiary uppercase tracking-wide">{label}</span>
-      <div className="w-10 h-[5px] rounded-[3px] bg-bg-deep overflow-hidden flex-shrink-0">
-        <div
-          className={`h-full rounded-[3px] transition-all duration-300 ${colorClass}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="text-[10px] font-semibold text-text-secondary tabular-nums font-mono min-w-[22px] text-right">
-        {pct}%
-      </span>
-      {resetsAt && <ResetTime resetsAt={resetsAt} />}
-    </div>
-  );
-}
-
-/** Formats reset time as relative countdown: "42m", "3h 15m", "2d 5h" */
-function ResetTime({ resetsAt }: { resetsAt: string }) {
-  const diff = new Date(resetsAt).getTime() - Date.now();
-  if (diff <= 0) return <span className="text-[9px] text-text-muted font-mono">(soon)</span>;
-
-  const mins = Math.floor(diff / 60000);
-  let label: string;
-  if (mins < 60) {
-    label = `${mins}m`;
-  } else {
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) {
-      label = `${hours}h ${mins % 60}m`;
-    } else {
-      const days = Math.floor(hours / 24);
-      label = `${days}d ${hours % 24}h`;
-    }
-  }
-  return <span className="text-[9px] text-text-muted font-mono">({label})</span>;
-}

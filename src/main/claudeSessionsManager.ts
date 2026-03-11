@@ -480,24 +480,25 @@ function hasActiveSession(projectPath: string): boolean {
  *
  * When sessionId is provided, we look for that specific session to avoid
  * "name bleed" where all terminals in a project get the same name.
- * Falls back to the most recently modified session if sessionId is not
- * found or not provided.
+ * Returns null if sessionId is not provided or doesn't match — never
+ * falls back to an unrelated session.
  */
 function getSessionNameForTerminal(terminalId: string, sessionId?: string): string | null {
+  if (!sessionId) return null;
+
   const info = ptyManager.getTerminalInfo(terminalId);
   if (!info?.projectPath) return null;
 
   const sessions = getSessionsForProject(info.projectPath);
   if (sessions.length === 0) return null;
 
-  // Prefer the specific correlated session for this terminal
-  let session: GroupedSession | undefined;
-  if (sessionId) {
-    session = sessions.find(s => s.sessionId === sessionId);
-  }
-  // Fall back to most recently modified session
+  // Only use the specific correlated session — no fallback to prevent cross-contamination
+  const session = sessions.find(s => s.sessionId === sessionId);
   if (!session) {
-    session = sessions[0];
+    if (sessions.length > 0) {
+      console.warn(`[sessions] sessionId "${sessionId}" not found among ${sessions.length} sessions for terminal ${terminalId}`);
+    }
+    return null;
   }
 
   const name = session.friendlyName || session.customTitle || session.firstPrompt || session.slug;
