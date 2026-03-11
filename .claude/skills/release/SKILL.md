@@ -57,6 +57,20 @@ Parse the argument:
 
 Update the `"version"` field in `package.json` to the new version string. This is the **single source of truth** — `FRAME_VERSION` in `src/shared/frameConstants.js` reads from it automatically via `require()`.
 
+### Step 2b: Rebuild templates and hooks
+
+The version stamp is embedded in `frameTemplates.js` and propagated to all hook files. After changing `package.json`, rebuild to sync:
+
+```bash
+node scripts/build-templates.js && npm run generate:hooks
+```
+
+Verify with `npm run verify:templates && npm run verify:hooks`. Both must pass or CI will fail.
+
+**Stage the generated files** alongside the release commit:
+- `src/shared/frameTemplates.js`
+- `scripts/hooks/*.js`
+
 ### Step 3: Update version references in docs
 
 Update these version strings to match the new version:
@@ -81,6 +95,8 @@ Analyze ALL commits since the last tag to build the notes. Group by category, be
 
 Stage exactly these files:
 - `package.json`
+- `src/shared/frameTemplates.js`
+- `scripts/hooks/*.js`
 - `docs/index.md`
 - `docs/.vitepress/theme/components/NavBar.vue`
 - `README.md`
