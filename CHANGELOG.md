@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1-beta] - 2026-03-12
+
+### Fixed
+- **Missing GitHub button in top bar**: Added GitHub panel shortcut to ViewTabBar alongside Sub-Tasks, Agents, Pipeline, and Overview
+- **Update check "latest version" toast**: Manual update checks no longer show a success toast when already on the latest version — the checking toast dismisses silently instead
+- **Auto-check error noise**: Background update check failures no longer show error toasts to the user — only manual checks surface errors
+
+### Changed
+- **Unified update notification flow**: Settings "Check Now" and menu "Check for Updates" now share centralized toast feedback via UpdateNotification component, with manual vs auto check distinction
+
 ## [0.3.0-beta] - 2026-03-11
 
 ### Added
