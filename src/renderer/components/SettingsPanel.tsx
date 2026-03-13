@@ -1207,18 +1207,9 @@ export function SettingsPanel() {
                   size="sm"
                   variant="outline"
                   className="cursor-pointer"
-                  onClick={async () => {
-                    toast.loading('Checking for updates...', { id: 'updater-manual' });
-                    try {
-                      const result = await typedInvoke(IPC.UPDATER_CHECK);
-                      if (result.updateAvailable) {
-                        toast.dismiss('updater-manual');
-                      } else {
-                        toast.success('You are on the latest version', { id: 'updater-manual' });
-                      }
-                    } catch {
-                      toast.error('Failed to check for updates', { id: 'updater-manual' });
-                    }
+                  onClick={() => {
+                    // Fire and forget — UpdateNotification handles all toast feedback
+                    typedInvoke(IPC.UPDATER_CHECK).catch(() => {});
                   }}
                 >
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" />

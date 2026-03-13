@@ -12,6 +12,8 @@ import { getSetting } from './settingsManager';
 let mainWindow: BrowserWindow | null = null;
 let isPackaged = false;
 let checkInterval: ReturnType<typeof setInterval> | null = null;
+/** True while a user-initiated check is in flight — included in status events so the UI can show feedback */
+let isManualCheck = false;
 
 /**
  * Send updater status to the renderer process
@@ -64,17 +66,19 @@ function init(window: BrowserWindow, app: App): void {
     autoUpdater.allowPrerelease = currentVersion.includes('-');
   }
 
-  // Wire autoUpdater events → renderer
+  // Wire autoUpdater events → renderer (include manual flag so UI knows when to show feedback)
   autoUpdater.on('checking-for-update', () => {
-    sendStatus({ status: 'checking' });
+    sendStatus({ status: 'checking', manual: isManualCheck });
   });
 
   autoUpdater.on('update-available', (info: { version?: string }) => {
-    sendStatus({ status: 'available', version: info.version });
+    sendStatus({ status: 'available', version: info.version, manual: isManualCheck });
+    isManualCheck = false;
   });
 
   autoUpdater.on('update-not-available', () => {
-    sendStatus({ status: 'not-available' });
+    sendStatus({ status: 'not-available', manual: isManualCheck });
+    isManualCheck = false;
   });
 
   autoUpdater.on('download-progress', (progress: UpdaterProgress) => {
@@ -87,7 +91,8 @@ function init(window: BrowserWindow, app: App): void {
   });
 
   autoUpdater.on('error', (err: Error) => {
-    sendStatus({ status: 'error', error: err.message });
+    sendStatus({ status: 'error', error: err.message, manual: isManualCheck });
+    isManualCheck = false;
   });
 
   // Register IPC handlers (must happen inside init so isPackaged is set)
@@ -135,6 +140,7 @@ function setupIPC(): void {
 
   ipcMain.handle(IPC.UPDATER_CHECK, async () => {
     try {
+      isManualCheck = true;
       const result = await autoUpdater.checkForUpdates();
       if (result?.updateInfo) {
         return {
@@ -172,13 +178,16 @@ function setupIPC(): void {
  */
 async function checkForUpdates(): Promise<void> {
   if (!isPackaged) {
-    sendStatus({ status: 'not-available' });
+    sendStatus({ status: 'checking', manual: true });
+    sendStatus({ status: 'not-available', manual: true });
     return;
   }
   const { autoUpdater } = require('electron-updater');
   try {
+    isManualCheck = true;
     await autoUpdater.checkForUpdates();
   } catch (err) {
+    isManualCheck = false;
     console.error('[updater] Manual check failed:', err);
   }
 }

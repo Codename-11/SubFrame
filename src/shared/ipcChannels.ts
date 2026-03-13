@@ -781,6 +781,8 @@ export interface UpdaterStatus {
   status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
   version?: string;
   error?: string;
+  /** True when triggered by user action (menu / settings "Check Now") */
+  manual?: boolean;
 }
 
 /** Download progress info */

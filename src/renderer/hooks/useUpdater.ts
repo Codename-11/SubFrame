@@ -15,6 +15,8 @@ export interface UpdaterState {
   version?: string;
   error?: string;
   progress?: UpdaterProgress;
+  /** True when the current check was triggered by the user (menu / settings) */
+  manual?: boolean;
 }
 
 export function useUpdater() {
@@ -27,6 +29,7 @@ export function useUpdater() {
       status: data.status,
       version: data.version ?? prev.version,
       error: data.error,
+      manual: data.manual,
     }));
   }, []);
 

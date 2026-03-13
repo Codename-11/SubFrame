@@ -1,6 +1,10 @@
 /**
  * UpdateNotification — side-effect component that listens for auto-updater
  * events and shows non-intrusive sonner toasts. Renders null.
+ *
+ * Manual checks (menu / settings "Check Now") show a brief "Checking..." toast
+ * then either prompt for download or dismiss silently.
+ * Auto/periodic checks only show toasts when an update IS available.
  */
 
 import { useEffect, useRef } from 'react';
@@ -8,7 +12,7 @@ import { toast } from 'sonner';
 import { useUpdater } from '../hooks/useUpdater';
 
 export function UpdateNotification() {
-  const { status, version, error, progress, downloadUpdate, installUpdate } = useUpdater();
+  const { status, version, error, progress, manual, downloadUpdate, installUpdate } = useUpdater();
   const prevStatus = useRef(status);
 
   useEffect(() => {
@@ -17,6 +21,13 @@ export function UpdateNotification() {
     prevStatus.current = status;
 
     switch (status) {
+      case 'checking':
+        // Only show "Checking..." toast for user-initiated checks
+        if (manual) {
+          toast.loading('Checking for updates...', { id: 'updater', duration: Infinity });
+        }
+        break;
+
       case 'available':
         toast.info(`Update v${version ?? '?'} available`, {
           id: 'updater',
@@ -47,18 +58,23 @@ export function UpdateNotification() {
         break;
 
       case 'error':
-        toast.error(`Update error: ${error ?? 'Unknown error'}`, {
-          id: 'updater',
-          duration: 8000,
-        });
+        // Only show error toast for manual checks — don't bother the user with auto-check failures
+        if (manual) {
+          toast.error(`Update check failed: ${error ?? 'Unknown error'}`, {
+            id: 'updater',
+            duration: 8000,
+          });
+        } else {
+          toast.dismiss('updater');
+        }
         break;
 
       case 'not-available':
-        // Dismiss any existing updater toast silently
+        // Silently dismiss — no "you're on the latest version" toast
         toast.dismiss('updater');
         break;
     }
-  }, [status, version, error, downloadUpdate, installUpdate]);
+  }, [status, version, error, manual, downloadUpdate, installUpdate]);
 
   // Update progress toast description when downloading
   useEffect(() => {

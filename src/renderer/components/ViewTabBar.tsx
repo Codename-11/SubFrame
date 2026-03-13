@@ -15,6 +15,7 @@ import {
   Keyboard,
   ListTodo,
   Activity,
+  FileDiff,
   PanelRight,
   FolderOpen,
   Loader2,
@@ -49,6 +50,7 @@ const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 const PANEL_SHORTCUTS = [
   { id: 'tasks' as const, label: 'Sub-Tasks', icon: ListTodo, shortcut: 'Ctrl+Shift+S' },
   { id: 'agentState' as const, label: 'Agents', icon: Activity, shortcut: 'Ctrl+Shift+A' },
+  { id: 'gitChanges' as const, label: 'GitHub', icon: FileDiff, shortcut: 'Ctrl+Shift+G' },
   { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
   { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard, shortcut: 'Ctrl+Shift+O' },
 ] as const;
