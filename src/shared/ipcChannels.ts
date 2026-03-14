@@ -4,6 +4,7 @@
  */
 
 import type { AgentStatePayload } from './agentStateTypes';
+import type { ActivityOutputEvent, ActivityStatusEvent, ActivityListPayload } from './activityTypes';
 
 // ─── Channel Constants ───────────────────────────────────────────────────────
 
@@ -235,6 +236,19 @@ export const IPC = {
   PIPELINE_RUNS_DATA: 'pipeline-runs-data',
   WATCH_PIPELINE: 'watch-pipeline',
   UNWATCH_PIPELINE: 'unwatch-pipeline',
+
+  // Activity Streams
+  ACTIVITY_LIST: 'activity-list',
+  ACTIVITY_CANCEL: 'activity-cancel',
+  ACTIVITY_CLEAR: 'activity-clear',
+  ACTIVITY_OUTPUT: 'activity-output',
+  ACTIVITY_STATUS: 'activity-status',
+
+  // Pop-Out Terminal
+  TERMINAL_POPOUT: 'terminal-popout',
+  TERMINAL_DOCK: 'terminal-dock',
+  TERMINAL_POPOUT_STATUS: 'terminal-popout-status',
+  POPOUT_ACTIVATE: 'popout-activate',
 
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
@@ -987,6 +1001,10 @@ export interface IPCHandleMap {
   // Terminal Agent Status
   [IPC.IS_TERMINAL_CLAUDE_ACTIVE]: { args: [terminalId: string]; return: boolean };
 
+  // Pop-Out Terminal
+  [IPC.TERMINAL_POPOUT]: { args: [terminalId: string]; return: { success: boolean } };
+  [IPC.TERMINAL_DOCK]: { args: [terminalId: string]; return: { success: boolean } };
+
   // Terminal Session Name
   [IPC.GET_TERMINAL_SESSION_NAME]: { args: [payload: { terminalId: string; sessionId?: string }]; return: { name: string | null } };
 
@@ -1039,6 +1057,16 @@ export interface IPCHandleMap {
   [IPC.ENHANCE_TASK]: {
     args: [payload: { projectPath: string; task: Partial<Task> }];
     return: { success: boolean; enhanced: Partial<Task>; error?: string };
+  };
+
+  // Activity Streams
+  [IPC.ACTIVITY_LIST]: {
+    args: [];
+    return: ActivityListPayload;
+  };
+  [IPC.ACTIVITY_CANCEL]: {
+    args: [streamId: string];
+    return: { success: boolean };
   };
 }
 
@@ -1135,6 +1163,9 @@ export interface IPCSendMap {
   [IPC.PIPELINE_GET_RUN]: { runId: string };
   [IPC.WATCH_PIPELINE]: string; // projectPath
   [IPC.UNWATCH_PIPELINE]: void;
+
+  // Activity Streams
+  [IPC.ACTIVITY_CLEAR]: string; // streamId
 }
 
 // ─── Event Map (main → renderer via webContents.send) ────────────────────────
@@ -1196,6 +1227,14 @@ export interface IPCEventMap {
   [IPC.PIPELINE_PROGRESS]: PipelineProgressEvent;
   [IPC.PIPELINE_RUN_UPDATED]: PipelineRun;
   [IPC.PIPELINE_RUNS_DATA]: PipelineRunsPayload;
+
+  // Activity Streams
+  [IPC.ACTIVITY_OUTPUT]: ActivityOutputEvent;
+  [IPC.ACTIVITY_STATUS]: ActivityStatusEvent;
+
+  // Pop-Out Terminal
+  [IPC.TERMINAL_POPOUT_STATUS]: { terminalId: string; poppedOut: boolean };
+  [IPC.POPOUT_ACTIVATE]: { terminalId: string };
 
   // Menu Actions
   [IPC.MENU_TOGGLE_SIDEBAR]: void;

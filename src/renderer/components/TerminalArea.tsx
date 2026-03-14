@@ -5,8 +5,8 @@
  * via IPC and keyboard shortcuts. Scopes terminals per-project with hot-swap.
  */
 
-import { useEffect, useCallback, useRef } from 'react';
-import { X, ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { X, ArrowLeft, ExternalLink } from 'lucide-react';
 import { TerminalTabBar } from './TerminalTabBar';
 import { TerminalGrid } from './TerminalGrid';
 import { Terminal } from './Terminal';
@@ -20,6 +20,16 @@ import { AgentStateView } from './AgentStateView';
 import { ShortcutsPanel } from './ShortcutsPanel';
 import { ViewTabBar } from './ViewTabBar';
 import { ErrorBoundary } from './ErrorBoundary';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore, getTabIdForContent } from '../stores/useUIStore';
@@ -104,6 +114,7 @@ export function TerminalArea() {
   const setViewMode = useTerminalStore((s) => s.setViewMode);
   const renameTerminal = useTerminalStore((s) => s.renameTerminal);
   const setClaudeActive = useTerminalStore((s) => s.setClaudeActive);
+  const setPoppedOut = useTerminalStore((s) => s.setPoppedOut);
   const switchToProject = useTerminalStore((s) => s.switchToProject);
 
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
@@ -165,8 +176,11 @@ export function TerminalArea() {
     [currentProjectPath]
   );
 
-  // Close terminal helper — reads current project path from store to avoid stale closures
-  const closeTerminal = useCallback(
+  // Close-with-active-agent confirmation state
+  const [pendingCloseId, setPendingCloseId] = useState<string | null>(null);
+
+  // Force-close a terminal (no further checks)
+  const forceCloseTerminal = useCallback(
     (id: string) => {
       const currentPath = useProjectStore.getState().currentProjectPath ?? '';
       terminalRegistry.dispose(id);
@@ -175,6 +189,41 @@ export function TerminalArea() {
     },
     [removeTerminal]
   );
+
+  // Close terminal helper — shows confirmation dialog if an agent is active
+  const closeTerminal = useCallback(
+    (id: string) => {
+      const info = useTerminalStore.getState().terminals.get(id);
+      if (info?.claudeActive) {
+        setPendingCloseId(id);
+        return;
+      }
+      forceCloseTerminal(id);
+    },
+    [forceCloseTerminal]
+  );
+
+  // Pop out terminal handler
+  const popOutTerminal = useCallback(
+    (terminalId: string) => {
+      typedInvoke(IPC.TERMINAL_POPOUT, terminalId).catch(() => {});
+    },
+    []
+  );
+
+  // Listen for pop-out status changes from main process
+  const setMaximizedTerminal = useTerminalStore((s) => s.setMaximizedTerminal);
+  useEffect(() => {
+    const handler = (_event: unknown, data: { terminalId: string; poppedOut: boolean }) => {
+      setPoppedOut(data.terminalId, data.poppedOut);
+      // Clear maximized state if the maximized terminal was popped out
+      if (data.poppedOut && useTerminalStore.getState().maximizedTerminalId === data.terminalId) {
+        setMaximizedTerminal(null);
+      }
+    };
+    ipcRenderer.on(IPC.TERMINAL_POPOUT_STATUS, handler);
+    return () => { ipcRenderer.removeListener(IPC.TERMINAL_POPOUT_STATUS, handler); };
+  }, [setPoppedOut, setMaximizedTerminal]);
 
   // Listen for TERMINAL_CREATED from main process
   useEffect(() => {
@@ -413,6 +462,15 @@ export function TerminalArea() {
         return;
       }
 
+      // Ctrl+Shift+D — Pop out active terminal
+      if (modKey && e.shiftKey && key === 'd') {
+        e.preventDefault();
+        if (activeTerminalId) {
+          typedInvoke(IPC.TERMINAL_POPOUT, activeTerminalId);
+        }
+        return;
+      }
+
       // Ctrl+Tab / Ctrl+Shift+Tab — Next/Prev terminal
       if (modKey && e.key === 'Tab') {
         e.preventDefault();
@@ -540,6 +598,7 @@ export function TerminalArea() {
     shortcuts: 'Keyboard Shortcuts',
   };
   const fullViewTitle = fullViewContent ? fullViewTitles[fullViewContent] ?? '' : '';
+  const activeTerminalInfo = activeTerminalId ? terminals.get(activeTerminalId) : null;
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -548,6 +607,7 @@ export function TerminalArea() {
         <TerminalTabBar
           onCreateTerminal={createTerminal}
           onCloseTerminal={closeTerminal}
+          onPopOutTerminal={popOutTerminal}
           projectTerminals={projectTerminals}
           gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
             ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
@@ -692,13 +752,61 @@ export function TerminalArea() {
         ) : viewMode === 'tabs' || showOverflowSingle ? (
           /* Single terminal — show only the active one (also used for grid overflow auto-switch) */
           activeTerminalId ? (
-            <Terminal terminalId={activeTerminalId} />
+            activeTerminalInfo?.poppedOut ? (
+              <div className="flex h-full items-center justify-center text-text-tertiary">
+                <div className="text-center">
+                  <ExternalLink className="h-10 w-10 mx-auto mb-3 text-text-muted" />
+                  <p className="text-sm text-text-secondary font-medium mb-1">Terminal in separate window</p>
+                  <p className="text-xs text-text-muted mb-4">This terminal has been popped out to its own window.</p>
+                  <div className="flex items-center gap-2 justify-center">
+                    <button
+                      onClick={() => typedInvoke(IPC.TERMINAL_POPOUT, activeTerminalId!)}
+                      className="px-3 py-1.5 rounded text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors cursor-pointer"
+                    >
+                      Focus Window
+                    </button>
+                    <button
+                      onClick={() => typedInvoke(IPC.TERMINAL_DOCK, activeTerminalId!)}
+                      className="px-3 py-1.5 rounded text-xs bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 transition-colors cursor-pointer"
+                    >
+                      Dock Back
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Terminal terminalId={activeTerminalId} />
+            )
           ) : null
         ) : (
           /* Grid view */
-          <TerminalGrid onCloseTerminal={closeTerminal} onCreateTerminal={createTerminal} projectTerminals={projectTerminals} />
+          <TerminalGrid onCloseTerminal={closeTerminal} onCreateTerminal={createTerminal} onPopOutTerminal={popOutTerminal} projectTerminals={projectTerminals} />
         )}
       </div>
+
+      {/* Close active-agent confirmation dialog */}
+      <AlertDialog open={!!pendingCloseId} onOpenChange={(open) => !open && setPendingCloseId(null)}>
+        <AlertDialogContent className="bg-bg-primary border-border-subtle text-text-primary">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close Terminal</AlertDialogTitle>
+            <AlertDialogDescription className="text-text-secondary text-xs">
+              An AI agent is currently running in this terminal. Closing it will terminate the agent and any in-progress work will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-error text-white hover:bg-error/80 cursor-pointer"
+              onClick={() => {
+                if (pendingCloseId) forceCloseTerminal(pendingCloseId);
+                setPendingCloseId(null);
+              }}
+            >
+              Close Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

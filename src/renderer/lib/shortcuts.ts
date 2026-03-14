@@ -68,6 +68,7 @@ export type ShortcutId =
   | 'PREV_TERMINAL'
   | 'JUMP_TERMINAL'
   | 'TOGGLE_GRID'
+  | 'POPOUT_TERMINAL'
   | 'SEARCH_TERMINAL'
   // Views (full-view overlays)
   | 'VIEW_OVERVIEW'
@@ -122,6 +123,7 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutEntry> = {
   PREV_TERMINAL:       { keys: 'Ctrl+Shift+Tab',description: 'Previous terminal',    category: 'Terminal' },
   JUMP_TERMINAL:       { keys: 'Ctrl+1-9',      description: 'Jump to terminal',     category: 'Terminal' },
   TOGGLE_GRID:         { keys: 'Ctrl+G',        description: 'Toggle grid view',     category: 'Terminal' },
+  POPOUT_TERMINAL:     { keys: 'Ctrl+Shift+D',  description: 'Pop out terminal',     category: 'Terminal' },
   SEARCH_TERMINAL:     { keys: 'Ctrl+F',        description: 'Search in terminal',   category: 'Terminal' },
 
   // ── Views (full-view overlays) ────────────────────

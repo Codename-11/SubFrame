@@ -5,9 +5,11 @@
  */
 
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { X, Maximize2, Minimize2, Plus, GripVertical, Bot } from 'lucide-react';
+import { X, Maximize2, Minimize2, Plus, GripVertical, Bot, ExternalLink } from 'lucide-react';
 import { Terminal } from './Terminal';
 import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore';
+import { typedInvoke } from '../lib/ipc';
+import { IPC } from '../../shared/ipcChannels';
 
 const GRID_LAYOUTS: Record<string, { rows: number; cols: number }> = {
   '1x2': { rows: 1, cols: 2 },
@@ -23,10 +25,11 @@ const GRID_LAYOUTS: Record<string, { rows: number; cols: number }> = {
 interface TerminalGridProps {
   onCloseTerminal: (id: string) => void;
   onCreateTerminal: (shell?: string) => void;
+  onPopOutTerminal?: (id: string) => void;
   projectTerminals: TerminalInfo[];
 }
 
-export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTerminals }: TerminalGridProps) {
+export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTerminal, projectTerminals }: TerminalGridProps) {
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const gridLayout = useTerminalStore((s) => s.gridLayout);
   const setActiveTerminal = useTerminalStore((s) => s.setActiveTerminal);
@@ -230,6 +233,15 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
         <div className="flex items-center justify-between h-6 px-2 bg-bg-secondary border-b border-border-subtle shrink-0">
           <span className="text-[10px] text-text-tertiary truncate">{maximizedTerminal.name}</span>
           <div className="flex items-center gap-1">
+            {onPopOutTerminal && !maximizedTerminal.poppedOut && (
+              <button
+                onClick={() => onPopOutTerminal(maximizedTerminal.id)}
+                className="text-text-tertiary hover:text-accent transition-colors cursor-pointer"
+                title="Pop Out (Ctrl+Shift+D)"
+              >
+                <ExternalLink className="h-3 w-3" />
+              </button>
+            )}
             <button
               onClick={() => setMaximizedTerminal(null)}
               className="text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
@@ -247,7 +259,31 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
           </div>
         </div>
         <div className="flex-1 min-h-0">
-          <Terminal terminalId={maximizedTerminal.id} />
+          {maximizedTerminal.poppedOut ? (
+            <div className="flex h-full items-center justify-center text-text-tertiary">
+              <div className="text-center">
+                <ExternalLink className="h-10 w-10 mx-auto mb-3 text-text-muted" />
+                <p className="text-sm text-text-secondary font-medium mb-1">Terminal in separate window</p>
+                <p className="text-xs text-text-muted mb-4">This terminal has been popped out to its own window.</p>
+                <div className="flex items-center gap-2 justify-center">
+                  <button
+                    onClick={() => typedInvoke(IPC.TERMINAL_POPOUT, maximizedTerminal.id)}
+                    className="px-3 py-1.5 rounded text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors cursor-pointer"
+                  >
+                    Focus Window
+                  </button>
+                  <button
+                    onClick={() => typedInvoke(IPC.TERMINAL_DOCK, maximizedTerminal.id)}
+                    className="px-3 py-1.5 rounded text-xs bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 transition-colors cursor-pointer"
+                  >
+                    Dock Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Terminal terminalId={maximizedTerminal.id} />
+          )}
         </div>
       </div>
     );
@@ -265,7 +301,7 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
         backgroundColor: 'var(--color-bg-tertiary)',
       }}
     >
-      {gridSlots.map((slotId, index) => {
+      {gridSlots.slice(0, maxCells).map((slotId, index) => {
         const t = slotId ? terminalMap.current.get(slotId) : null;
         const row = Math.floor(index / config.cols);
         const col = index % config.cols;
@@ -302,6 +338,18 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
                   <span className="text-[10px] text-text-tertiary truncate">{t.name}</span>
                 </div>
                 <div className="flex items-center flex-shrink-0 pr-1">
+                  {onPopOutTerminal && !t.poppedOut && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPopOutTerminal(t.id);
+                      }}
+                      className="text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer rounded p-1"
+                      title="Pop Out (Ctrl+Shift+D)"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -325,9 +373,32 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, projectTermina
                 </div>
               </div>
 
-              {/* Terminal */}
+              {/* Terminal or popped-out placeholder */}
               <div className="flex-1 min-h-0">
-                <Terminal terminalId={t.id} />
+                {t.poppedOut ? (
+                  <div className="flex h-full items-center justify-center text-text-tertiary">
+                    <div className="text-center px-4">
+                      <ExternalLink className="h-7 w-7 mx-auto mb-2 text-text-muted" />
+                      <p className="text-xs text-text-secondary font-medium mb-2">In separate window</p>
+                      <div className="flex items-center gap-1.5 justify-center">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); typedInvoke(IPC.TERMINAL_POPOUT, t.id); }}
+                          className="px-2 py-1 rounded text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors cursor-pointer"
+                        >
+                          Focus
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); typedInvoke(IPC.TERMINAL_DOCK, t.id); }}
+                          className="px-2 py-1 rounded text-[10px] bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 transition-colors cursor-pointer"
+                        >
+                          Dock
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Terminal terminalId={t.id} />
+                )}
               </div>
 
               {/* Right resize handle */}

@@ -3,7 +3,7 @@
  * Initializes Electron app, creates window, loads modules
  */
 
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IPC } from '../shared/ipcChannels';
@@ -34,6 +34,8 @@ import * as promptsManager from './promptsManager';
 import * as onboardingManager from './onboardingManager';
 import * as updaterManager from './updaterManager';
 import * as pipelineManager from './pipelineManager';
+import * as activityManager from './activityManager';
+import * as popoutManager from './popoutManager';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
 // ── Global error handlers — surface errors to terminal on crash/exit ──
@@ -259,12 +261,68 @@ function createWindow(): BrowserWindow {
     if (!mainWindow!.isMaximized()) (mainWindow as any)._normalBounds = mainWindow!.getBounds();
   });
 
-  // Save state before close
-  mainWindow.on('close', () => {
+  // Save state before close — with active-work protection
+  mainWindow.on('close', (event) => {
     saveWindowState();
+
+    // Detect active work across all subsystems
+    const activeAgentTerminals = ptyManager.getTerminalIds().filter(id => ptyManager.isClaudeActive(id));
+    const pipelineRunning = pipelineManager.hasActiveRuns();
+    const analysisRunning = onboardingManager.hasActiveAnalyses();
+    const hasActiveWork = activeAgentTerminals.length > 0 || pipelineRunning || analysisRunning;
+
+    const confirmBeforeClose = settingsManager.getSetting('general.confirmBeforeClose') as boolean ?? true;
+
+    // If nothing is active and the setting is off, close immediately
+    if (!hasActiveWork && !confirmBeforeClose) return;
+
+    // If nothing is active but user wants confirmation on every close
+    if (!hasActiveWork && confirmBeforeClose) {
+      event.preventDefault();
+      const result = dialog.showMessageBoxSync(mainWindow!, {
+        type: 'question',
+        buttons: ['Cancel', 'Close'],
+        defaultId: 0,
+        cancelId: 0,
+        title: 'Close SubFrame',
+        message: 'Are you sure you want to close SubFrame?',
+      });
+      if (result === 1) {
+        mainWindow!.destroy();
+      }
+      return;
+    }
+
+    // Active work detected — always warn, regardless of setting
+    const parts: string[] = [];
+    if (activeAgentTerminals.length > 0) {
+      parts.push(`An AI agent is currently running in ${activeAgentTerminals.length} terminal(s).`);
+    }
+    if (pipelineRunning) {
+      parts.push('A pipeline is currently running.');
+    }
+    if (analysisRunning) {
+      parts.push('Project analysis is in progress.');
+    }
+    const detailMessage = parts.join(' ') + '\nClosing will terminate all running processes.';
+
+    event.preventDefault();
+    const result = dialog.showMessageBoxSync(mainWindow!, {
+      type: 'warning',
+      buttons: ['Cancel', 'Close Anyway'],
+      defaultId: 0,
+      cancelId: 0,
+      title: 'Active Work in Progress',
+      message: 'Are you sure you want to close SubFrame?',
+      detail: detailMessage,
+    });
+    if (result === 1) {
+      mainWindow!.destroy();
+    }
   });
 
   mainWindow.on('closed', () => {
+    popoutManager.closeAll();
     pty.killPTY();
     ptyManager.destroyAll();
     mainWindow = null;
@@ -303,6 +361,8 @@ function setupAllIPC(): void {
   promptsManager.setupIPC(ipcMain);
   onboardingManager.setupIPC(ipcMain);
   pipelineManager.setupIPC(ipcMain);
+  activityManager.setupIPC(ipcMain);
+  popoutManager.setupIPC(ipcMain);
   // Note: updaterManager.setupIPC() is called inside updaterManager.init()
   // because it needs app.isPackaged to be set first
 
@@ -352,9 +412,11 @@ function initModulesWithWindow(window: BrowserWindow): void {
   gitBranchesManager.init(window);
   claudeSessionsManager.init(window);
   aiFilesManager.init(window);
+  activityManager.init(window); // must be first — other managers create activity streams on init
   agentStateManager.init(window);
   onboardingManager.init(window);
   pipelineManager.init(window);
+  popoutManager.init(window);
   updaterManager.init(window, app);
 }
 
@@ -367,7 +429,8 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  // Don't quit if only a pop-out window closed — the main window is still running
+  if (process.platform !== 'darwin' && popoutManager.getOpenCount() === 0) {
     app.quit();
   }
 });

@@ -26,6 +26,7 @@ export interface TerminalInfo {
   createdAt?: number;
   claudeActive?: boolean;
   claudeSessionId?: string;
+  poppedOut?: boolean;
 }
 
 interface TerminalState {
@@ -44,6 +45,7 @@ interface TerminalState {
   reorderTerminals: (orderedIds: string[]) => void;
   switchToProject: (projectPath: string) => void;
   setClaudeActive: (id: string, active: boolean, sessionId?: string) => void;
+  setPoppedOut: (id: string, poppedOut: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
   setGridLayout: (layout: GridLayout) => void;
   setMaximizedTerminal: (id: string | null) => void;
@@ -150,6 +152,13 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     const terminals = new Map(get().terminals);
     const info = terminals.get(id);
     if (info) terminals.set(id, { ...info, claudeActive: active, claudeSessionId: active ? sessionId : undefined });
+    set({ terminals });
+  },
+
+  setPoppedOut: (id, poppedOut) => {
+    const terminals = new Map(get().terminals);
+    const info = terminals.get(id);
+    if (info) terminals.set(id, { ...info, poppedOut });
     set({ terminals });
   },
 

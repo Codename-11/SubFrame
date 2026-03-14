@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Bot,
+  ExternalLink,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -49,6 +50,7 @@ const { ipcRenderer } = require('electron');
 interface TerminalTabBarProps {
   onCreateTerminal: (shell?: string) => void;
   onCloseTerminal: (id: string) => void;
+  onPopOutTerminal?: (id: string) => void;
   projectTerminals: TerminalInfo[];
   /** Terminal IDs that overflow the grid (not visible in grid view) */
   gridOverflowIds?: Set<string>;
@@ -57,6 +59,7 @@ interface TerminalTabBarProps {
 export function TerminalTabBar({
   onCreateTerminal,
   onCloseTerminal,
+  onPopOutTerminal,
   projectTerminals,
   gridOverflowIds,
 }: TerminalTabBarProps) {
@@ -253,6 +256,9 @@ export function TerminalTabBar({
                       {t.claudeActive && (
                         <Bot className="h-3 w-3 text-success flex-shrink-0 animate-pulse" />
                       )}
+                      {t.poppedOut && (
+                        <ExternalLink className="h-3 w-3 text-accent flex-shrink-0" />
+                      )}
                       {renamingId === t.id ? (
                         <input
                           ref={renameInputRef}
@@ -274,7 +280,7 @@ export function TerminalTabBar({
                           {idx < 9 && (
                             <span className="font-mono text-[10px] text-text-muted opacity-70 mr-0.5">{idx + 1}</span>
                           )}
-                          <span className="truncate max-w-[120px]">{t.name}</span>
+                          <span className={`truncate max-w-[120px]${t.poppedOut ? ' opacity-50' : ''}`}>{t.name}</span>
                           {gridOverflowIds?.has(t.id) && (
                             <span
                               className="h-1.5 w-1.5 rounded-full bg-warning/70 flex-shrink-0"
@@ -284,6 +290,20 @@ export function TerminalTabBar({
                         </>
                       )}
 
+                      {!t.poppedOut && onPopOutTerminal && (
+                        <span
+                          role="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPopOutTerminal(t.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-accent transition-opacity cursor-pointer"
+                          aria-label={`Pop out terminal ${t.name}`}
+                          title="Pop Out (Ctrl+Shift+D)"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </span>
+                      )}
                       <span
                         role="button"
                         onClick={(e) => {
@@ -313,6 +333,25 @@ export function TerminalTabBar({
                   <ContextMenuItem onClick={() => resetTerminalName(t)}>
                     Reset Name
                   </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  {t.poppedOut ? (
+                    <>
+                      <ContextMenuItem onClick={() => onPopOutTerminal?.(t.id)}>
+                        <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                        Focus Window
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => {
+                        typedInvoke(IPC.TERMINAL_DOCK, t.id).catch(() => {});
+                      }}>
+                        Dock Back
+                      </ContextMenuItem>
+                    </>
+                  ) : (
+                    <ContextMenuItem onClick={() => onPopOutTerminal?.(t.id)}>
+                      <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                      Pop Out
+                    </ContextMenuItem>
+                  )}
                   <ContextMenuSeparator />
                   <ContextMenuItem onClick={() => onCloseTerminal(t.id)}>
                     Close

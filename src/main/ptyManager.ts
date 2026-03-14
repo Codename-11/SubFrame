@@ -7,7 +7,7 @@ import * as pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
-import type { BrowserWindow, IpcMain } from 'electron';
+import type { BrowserWindow, IpcMain, WebContents } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import * as promptLogger from './promptLogger';
 import * as agentStateManager from './agentStateManager';
@@ -19,6 +19,9 @@ interface PTYInstance {
   projectPath: string | null;
   claudeActive: boolean;
 }
+
+// ── Pop-out Window WebContents ────────────────────────────────────────────────
+const popoutWebContents = new Map<string, WebContents>();
 
 // ── Claude Code Detection ────────────────────────────────────────────────────
 
@@ -42,7 +45,8 @@ const captureBuffers = new Map<string, string[]>();
 
 // ─── Output Handlers ─────────────────────────────────────────────────────────
 // Per-terminal callbacks for real-time output monitoring (e.g. trust prompt detection).
-const outputHandlers = new Map<string, (data: string) => void>();
+/** Per-terminal output handlers — supports multiple named handlers per terminal */
+const outputHandlers = new Map<string, Map<string, (data: string) => void>>();
 /** How long (ms) after the last Claude pattern match before marking inactive */
 const CLAUDE_INACTIVE_DELAY = 8000;
 
@@ -187,6 +191,12 @@ function broadcastClaudeStatus(terminalId: string, active: boolean): void {
   // When inactive, include the existing mapping so the renderer retains the session name
   sessionId = sessionId ?? terminalSessionMap.get(terminalId);
   mainWindow.webContents.send(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active, sessionId });
+
+  // Also send to pop-out window if one exists for this terminal
+  const popoutWC = popoutWebContents.get(terminalId);
+  if (popoutWC && !popoutWC.isDestroyed()) {
+    popoutWC.send(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active, sessionId });
+  }
 }
 
 function detectClaudeOutput(terminalId: string, data: string): void {
@@ -393,9 +403,9 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     // Accumulate output if this terminal is being captured
     const captureBuf = captureBuffers.get(terminalId);
     if (captureBuf) captureBuf.push(data);
-    // Invoke per-terminal output handler if registered
-    const handler = outputHandlers.get(terminalId);
-    if (handler) handler(data);
+    // Invoke per-terminal output handlers if registered
+    const handlers = outputHandlers.get(terminalId);
+    if (handlers) handlers.forEach(handler => handler(data));
   });
 
   // Handle PTY exit
@@ -412,6 +422,12 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
     }
+    // Also notify pop-out window and clean up
+    const popoutWC = popoutWebContents.get(terminalId);
+    if (popoutWC && !popoutWC.isDestroyed()) {
+      popoutWC.send(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
+    }
+    popoutWebContents.delete(terminalId);
   });
 
   ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false });
@@ -604,14 +620,37 @@ function stopCapturing(terminalId: string): string {
   return chunks ? chunks.join('') : '';
 }
 
-/** Register a callback invoked on each PTY data chunk for a terminal. */
-function addOutputHandler(terminalId: string, handler: (data: string) => void): void {
-  outputHandlers.set(terminalId, handler);
+/** Register a pop-out window's WebContents for broadcast forwarding. */
+function registerPopoutWebContents(terminalId: string, wc: WebContents): void {
+  popoutWebContents.set(terminalId, wc);
 }
 
-/** Remove the output handler for a terminal. */
-function removeOutputHandler(terminalId: string): void {
-  outputHandlers.delete(terminalId);
+/** Unregister a pop-out window's WebContents. */
+function unregisterPopoutWebContents(terminalId: string): void {
+  popoutWebContents.delete(terminalId);
+}
+
+/** Register a named callback invoked on each PTY data chunk for a terminal. */
+function addOutputHandler(terminalId: string, handler: (data: string) => void, handlerId = 'default'): void {
+  let handlers = outputHandlers.get(terminalId);
+  if (!handlers) {
+    handlers = new Map();
+    outputHandlers.set(terminalId, handlers);
+  }
+  handlers.set(handlerId, handler);
+}
+
+/** Remove a named output handler (or all handlers) for a terminal. */
+function removeOutputHandler(terminalId: string, handlerId?: string): void {
+  if (!handlerId) {
+    outputHandlers.delete(terminalId);
+  } else {
+    const handlers = outputHandlers.get(terminalId);
+    if (handlers) {
+      handlers.delete(handlerId);
+      if (handlers.size === 0) outputHandlers.delete(terminalId);
+    }
+  }
 }
 
 export {
@@ -620,5 +659,6 @@ export {
   hasTerminal, isClaudeActive, getTerminalsByProject, getTerminalInfo,
   getAvailableShells, setupIPC,
   startCapturing, stopCapturing,
-  addOutputHandler, removeOutputHandler
+  addOutputHandler, removeOutputHandler,
+  registerPopoutWebContents, unregisterPopoutWebContents
 };
