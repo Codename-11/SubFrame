@@ -75,7 +75,7 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Show hidden files (.dotfiles)', 'Confirm before closing',
     'Auto-poll usage', 'Grid overflow auto-switch',
     'Highlight user messages', 'Default Project Directory',
-    'Startup', 'Behavior', 'Paths',
+    'Startup', 'Behavior', 'Paths', 'Git', 'Auto-fetch',
   ],
   terminal: [
     'Font Size', 'Font Family', 'Line Height', 'Scrollback Lines',
@@ -909,6 +909,30 @@ export function SettingsPanel() {
                         <FolderSearch className="h-3.5 w-3.5 mr-1.5" />
                         Scan Now
                       </Button>
+                    )}
+                  </SettingGroup>
+                )}
+
+                {/* Git group */}
+                {(matchesSearch('Auto-fetch') || matchesSearch('Git')) && (
+                  <SettingGroup label="Git">
+                    {matchesSearch('Auto-fetch') && (
+                      <SettingSelect
+                        label="Auto-fetch"
+                        description="Periodically run git fetch in the background to keep remote refs up to date"
+                        value={localStorage.getItem('git-auto-fetch-interval') || '0'}
+                        onChange={(v) => {
+                          localStorage.setItem('git-auto-fetch-interval', v);
+                          toast.success(v === '0' ? 'Auto-fetch disabled' : `Auto-fetch set to every ${v === '180' ? '3' : v === '300' ? '5' : v === '600' ? '10' : '15'} minutes`);
+                        }}
+                        options={[
+                          { value: '0', label: 'Off' },
+                          { value: '180', label: 'Every 3 minutes' },
+                          { value: '300', label: 'Every 5 minutes' },
+                          { value: '600', label: 'Every 10 minutes' },
+                          { value: '900', label: 'Every 15 minutes' },
+                        ]}
+                      />
                     )}
                   </SettingGroup>
                 )}

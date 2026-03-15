@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Bot,
   ExternalLink,
+  FileText,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -54,6 +55,13 @@ interface TerminalTabBarProps {
   projectTerminals: TerminalInfo[];
   /** Terminal IDs that overflow the grid (not visible in grid view) */
   gridOverflowIds?: Set<string>;
+  /** Called when any terminal tab is clicked (in addition to store setActiveTerminal) */
+  onTerminalTabClick?: (id: string) => void;
+  /** Editor file tabs (tab view mode) */
+  editorFiles?: string[];
+  activeEditorFile?: string | null;
+  onSelectEditorFile?: (path: string) => void;
+  onCloseEditorFile?: (path: string) => void;
 }
 
 export function TerminalTabBar({
@@ -62,6 +70,11 @@ export function TerminalTabBar({
   onPopOutTerminal,
   projectTerminals,
   gridOverflowIds,
+  onTerminalTabClick,
+  editorFiles,
+  activeEditorFile,
+  onSelectEditorFile,
+  onCloseEditorFile,
 }: TerminalTabBarProps) {
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const viewMode = useTerminalStore((s) => s.viewMode);
@@ -228,12 +241,13 @@ export function TerminalTabBar({
                     className={`group relative flex items-center gap-1.5 px-3 h-7 rounded-md text-xs
                                whitespace-nowrap transition-colors cursor-pointer select-none
                                ${
-                                 t.id === activeTerminalId
+                                 t.id === activeTerminalId && !activeEditorFile
                                    ? 'text-accent'
                                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
                                }`}
                     onClick={() => {
                       setActiveTerminal(t.id);
+                      onTerminalTabClick?.(t.id);
                       // Ensure terminal receives focus after React re-renders
                       setTimeout(() => {
                         const instance = terminalRegistry.get(t.id);
@@ -243,7 +257,7 @@ export function TerminalTabBar({
                     onDoubleClick={() => startRename(t.id, t.name)}
                   >
                     {/* Sliding active indicator */}
-                    {t.id === activeTerminalId && (
+                    {t.id === activeTerminalId && !activeEditorFile && (
                       <motion.div
                         layoutId="active-tab-indicator"
                         className="absolute inset-0 bg-bg-tertiary border border-accent/20 rounded-md"
@@ -362,6 +376,56 @@ export function TerminalTabBar({
           ))}
         </AnimatePresence>
       </Reorder.Group>
+
+        {/* Editor file tabs (tab view mode) */}
+        {editorFiles && editorFiles.length > 0 && (
+          <>
+            <div className="w-px h-4 bg-border-subtle mx-1 flex-shrink-0" />
+            <div className="flex items-center gap-0.5">
+              {editorFiles.map((fp) => {
+                const fName = fp.split(/[/\\]/).pop() || fp;
+                const isActive = activeEditorFile === fp;
+                return (
+                  <button
+                    key={fp}
+                    onClick={() => onSelectEditorFile?.(fp)}
+                    className={`group relative flex items-center gap-1.5 px-3 h-7 rounded-md text-xs
+                               whitespace-nowrap transition-colors cursor-pointer select-none
+                               ${
+                                 isActive
+                                   ? 'text-accent'
+                                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+                               }`}
+                    title={fp}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="active-editor-tab-indicator"
+                        className="absolute inset-0 bg-bg-tertiary border border-accent/20 rounded-md"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <FileText className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate max-w-[120px]">{fName}</span>
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCloseEditorFile?.(fp);
+                        }}
+                        className="opacity-40 hover:opacity-100 hover:text-error transition-opacity ml-0.5 cursor-pointer"
+                        aria-label={`Close ${fName}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Actions */}

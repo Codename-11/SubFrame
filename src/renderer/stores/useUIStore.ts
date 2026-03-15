@@ -92,6 +92,16 @@ interface UIState {
   editorFilePath: string | null;
   setEditorFilePath: (path: string | null) => void;
 
+  // Editor tabs (tab view mode)
+  editorOpenFiles: string[];
+  activeEditorFile: string | null;
+  addEditorFile: (filePath: string) => void;
+  closeEditorFile: (filePath: string) => void;
+  setActiveEditorFile: (filePath: string | null) => void;
+
+  // Recent editor files
+  recentEditorFiles: string[];
+
   // Focus
   /** Incremented to signal sidebar should focus a specific tab */
   sidebarFocusRequest: { tab: 'projects' | 'files'; seq: number };
@@ -244,7 +254,51 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
 
   editorFilePath: null,
-  setEditorFilePath: (path) => set({ editorFilePath: path }),
+  setEditorFilePath: (path) => {
+    if (path) {
+      // Track recent files
+      const recent = [path, ...get().recentEditorFiles.filter(f => f !== path)].slice(0, 10);
+      set({ recentEditorFiles: recent });
+      try { localStorage.setItem('recent-editor-files', JSON.stringify(recent)); } catch { /* ignore */ }
+
+      // In tab mode, also add as an editor tab
+      const editorViewMode = localStorage.getItem('editor-view-mode') || 'overlay';
+      if (editorViewMode === 'tab') {
+        get().addEditorFile(path);
+        return; // addEditorFile already sets editorFilePath
+      }
+    }
+    set({ editorFilePath: path });
+  },
+
+  // Editor tabs (tab view mode)
+  editorOpenFiles: [],
+  activeEditorFile: null,
+  addEditorFile: (filePath) => set((state) => ({
+    editorOpenFiles: state.editorOpenFiles.includes(filePath)
+      ? state.editorOpenFiles
+      : [...state.editorOpenFiles, filePath],
+    activeEditorFile: filePath,
+    editorFilePath: filePath,
+  })),
+  closeEditorFile: (filePath) => set((state) => {
+    const remaining = state.editorOpenFiles.filter((f) => f !== filePath);
+    const wasActive = state.activeEditorFile === filePath;
+    return {
+      editorOpenFiles: remaining,
+      activeEditorFile: wasActive ? (remaining[remaining.length - 1] ?? null) : state.activeEditorFile,
+      editorFilePath: wasActive ? (remaining[remaining.length - 1] ?? null) : state.editorFilePath,
+    };
+  }),
+  setActiveEditorFile: (filePath) => set({
+    activeEditorFile: filePath,
+    editorFilePath: filePath,
+  }),
+
+  // Recent editor files
+  recentEditorFiles: (() => {
+    try { return JSON.parse(localStorage.getItem('recent-editor-files') || '[]'); } catch { return []; }
+  })(),
 
   sidebarFocusRequest: { tab: 'projects', seq: 0 },
   requestSidebarFocus: (tab) => {

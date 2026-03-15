@@ -138,6 +138,8 @@ export const IPC = {
   REMOVE_GIT_WORKTREE: 'remove-git-worktree',
   TOGGLE_GIT_BRANCHES_PANEL: 'toggle-git-branches-panel',
   LOAD_GIT_STATUS: 'load-git-status',
+  GIT_START_AUTO_FETCH: 'git-start-auto-fetch',
+  GIT_STOP_AUTO_FETCH: 'git-stop-auto-fetch',
 
   // AI Tool Settings
   GET_AI_TOOL_CONFIG: 'get-ai-tool-config',
@@ -249,6 +251,10 @@ export const IPC = {
   TERMINAL_DOCK: 'terminal-dock',
   TERMINAL_POPOUT_STATUS: 'terminal-popout-status',
   POPOUT_ACTIVATE: 'popout-activate',
+
+  // CLI Integration (main → renderer)
+  CLI_OPEN_FILE: 'cli-open-file',
+  CLI_OPEN_PROJECT: 'cli-open-project',
 
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
@@ -1134,6 +1140,10 @@ export interface IPCSendMap {
   // Git Branches panel toggle
   [IPC.TOGGLE_GIT_BRANCHES_PANEL]: void;
 
+  // Git Auto-fetch
+  [IPC.GIT_START_AUTO_FETCH]: { projectPath: string; intervalMs: number };
+  [IPC.GIT_STOP_AUTO_FETCH]: void;
+
   // AI Files
   [IPC.GET_AI_FILES_STATUS]: string; // projectPath
   [IPC.INJECT_BACKLINK]: { projectPath: string; filename: string };
@@ -1237,6 +1247,10 @@ export interface IPCEventMap {
   // Pop-Out Terminal
   [IPC.TERMINAL_POPOUT_STATUS]: { terminalId: string; poppedOut: boolean };
   [IPC.POPOUT_ACTIVATE]: { terminalId: string };
+
+  // CLI Integration
+  [IPC.CLI_OPEN_FILE]: string; // absolute file path
+  [IPC.CLI_OPEN_PROJECT]: string; // absolute directory path
 
   // Menu Actions
   [IPC.MENU_TOGGLE_SIDEBAR]: void;

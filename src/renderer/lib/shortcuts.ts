@@ -27,6 +27,7 @@ export type ShortcutCategory =
   | 'Panels'
   | 'Workspaces'
   | 'Terminal'
+  | 'Editor'
   | 'Views'
   | 'Navigation'
   | 'Other';
@@ -76,6 +77,9 @@ export type ShortcutId =
   // Navigation
   | 'PREV_PROJECT'
   | 'NEXT_PROJECT'
+  // Editor
+  | 'EDITOR_SEARCH'
+  | 'EDITOR_GOTO_LINE'
   // Other
   | 'COMMAND_PALETTE'
   | 'COMMAND_PALETTE_ALT'
@@ -135,13 +139,17 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutEntry> = {
   PREV_PROJECT:        { keys: 'Ctrl+Shift+[',  description: 'Previous project',     category: 'Navigation' },
   NEXT_PROJECT:        { keys: 'Ctrl+Shift+]',  description: 'Next project',         category: 'Navigation' },
 
+  // ── Editor ──────────────────────────────────────────
+  EDITOR_SEARCH:       { keys: 'Ctrl+H',        description: 'Find & Replace',        category: 'Editor' },
+  EDITOR_GOTO_LINE:    { keys: 'Ctrl+L',        description: 'Go to Line',            category: 'Editor' },
+  EDITOR_FULLSCREEN:   { keys: 'F11',           description: 'Editor fullscreen',     category: 'Editor' },
+
   // ── Other ─────────────────────────────────────────
   COMMAND_PALETTE:     { keys: 'Ctrl+/',        description: 'Command palette',       category: 'Other' },
   COMMAND_PALETTE_ALT: { keys: 'Ctrl+Shift+P',  description: 'Command palette (alt)', category: 'Other' },
   QUICK_TASKS:         { keys: 'Ctrl+\'',       description: 'Quick tasks',           category: 'Other' },
   SETTINGS:            { keys: 'Ctrl+,',        description: 'Settings',              category: 'Other' },
   SHORTCUTS_HELP:      { keys: 'Ctrl+Shift+/',  description: 'Keyboard shortcuts',    category: 'Views' },
-  EDITOR_FULLSCREEN:   { keys: 'F11',           description: 'Editor fullscreen',     category: 'Other' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -152,6 +160,7 @@ export const CATEGORY_ORDER: ShortcutCategory[] = [
   'Panels',
   'Workspaces',
   'Terminal',
+  'Editor',
   'Views',
   'Navigation',
   'Other',

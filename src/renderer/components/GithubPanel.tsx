@@ -134,34 +134,81 @@ function NoProject() {
   );
 }
 
+/** Sync status line showing branch, ahead/behind counts, and working tree state */
+function GitSyncStatus() {
+  const { branch, ahead, behind, staged, modified, untracked, error } = useGitStatus();
+
+  if (error || !branch) return null;
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border-subtle text-[10px]">
+      <GitBranch size={12} className="text-text-tertiary" />
+      <span className="text-text-secondary font-medium">{branch}</span>
+      {ahead > 0 && <span className="text-success">↑{ahead}</span>}
+      {behind > 0 && <span className="text-warning">↓{behind}</span>}
+      {ahead === 0 && behind === 0 && <span className="text-text-muted">Up to date</span>}
+      <span className="ml-auto text-text-muted">
+        {staged + modified + untracked > 0
+          ? `${staged + modified + untracked} changed`
+          : 'Clean'}
+      </span>
+    </div>
+  );
+}
+
 export function GithubIssuesPanel() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
   if (!projectPath) return <NoProject />;
-  return <IssuesTab state="open" />;
+  return (
+    <div className="flex flex-col h-full">
+      <GitSyncStatus />
+      <div className="flex-1 min-h-0"><IssuesTab state="open" /></div>
+    </div>
+  );
 }
 
 export function GithubPRsPanel() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
   if (!projectPath) return <NoProject />;
-  return <IssuesTab state="open" isPR />;
+  return (
+    <div className="flex flex-col h-full">
+      <GitSyncStatus />
+      <div className="flex-1 min-h-0"><IssuesTab state="open" isPR /></div>
+    </div>
+  );
 }
 
 export function GithubBranchesPanel() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
   if (!projectPath) return <NoProject />;
-  return <BranchesTab />;
+  return (
+    <div className="flex flex-col h-full">
+      <GitSyncStatus />
+      <div className="flex-1 min-h-0"><BranchesTab /></div>
+    </div>
+  );
 }
 
 export function GithubWorktreesPanel() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
   if (!projectPath) return <NoProject />;
-  return <WorktreesTab />;
+  return (
+    <div className="flex flex-col h-full">
+      <GitSyncStatus />
+      <div className="flex-1 min-h-0"><WorktreesTab /></div>
+    </div>
+  );
 }
 
 export function GithubChangesPanel() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
   if (!projectPath) return <NoProject />;
-  return <ChangesTab />;
+  return (
+    <div className="flex flex-col h-full">
+      <GitSyncStatus />
+      <div className="flex-1 min-h-0"><ChangesTab /></div>
+    </div>
+  );
 }
 
 function FileTreeNodeView({ node, depth, color, statusField, expanded, onToggleDir, projectPath }: {

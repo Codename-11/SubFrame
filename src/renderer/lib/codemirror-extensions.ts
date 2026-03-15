@@ -34,6 +34,9 @@ import {
 import {
   highlightSelectionMatches,
   searchKeymap,
+  search,
+  openSearchPanel,
+  gotoLine,
 } from '@codemirror/search';
 import { lintKeymap, linter, type Diagnostic } from '@codemirror/lint';
 
@@ -55,6 +58,12 @@ import { sass } from '@codemirror/lang-sass';
 import { less } from '@codemirror/lang-less';
 import { vue } from '@codemirror/lang-vue';
 import { wast } from '@codemirror/lang-wast';
+
+// TODO: install @codemirror/lang-go for Go support
+// TODO: install @codemirror/legacy-modes for Dockerfile, shell, TOML, PowerShell support
+
+// Re-export search commands for programmatic use in Editor.tsx
+export { openSearchPanel, gotoLine };
 
 // Minimap
 import { showMinimap } from '@replit/codemirror-minimap';
@@ -158,6 +167,7 @@ export function getBaseExtensions(options?: { lineNumbers?: boolean; bracketMatc
     crosshairCursor(),
     highlightActiveLine(),
     highlightSelectionMatches(),
+    search(),
     keymap.of([
       ...closeBracketsKeymap,
       ...defaultKeymap,

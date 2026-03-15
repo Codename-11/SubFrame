@@ -54,6 +54,69 @@ interface WindowState {
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 
+// ── CLI argument handling ──────────────────────────────────────────────────
+
+/**
+ * Parse and handle CLI arguments.
+ * Supports:
+ *   subframe edit <file>    — open file in editor
+ *   subframe open <dir>     — open directory as project
+ *   subframe <path>         — auto-detect file or directory
+ *   subframe .              — open current directory as project
+ */
+function handleCLIArgs(argv: string[]): void {
+  // Skip electron binary + main script path (in dev) or just the binary (when packaged)
+  const args = argv.slice(app.isPackaged ? 1 : 2);
+  if (args.length === 0) return;
+
+  const command = args[0];
+
+  if (command === 'edit' && args[1]) {
+    // Explicit file open
+    const filePath = path.resolve(args[1]);
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      sendCLIOpenFile(filePath);
+    }
+  } else if (command === 'open' && args[1]) {
+    // Explicit directory open
+    const dirPath = path.resolve(args[1]);
+    if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+      sendCLIOpenProject(dirPath);
+    }
+  } else {
+    // Bare path — auto-detect file or directory
+    const target = path.resolve(command);
+    try {
+      const stat = fs.statSync(target);
+      if (stat.isDirectory()) {
+        sendCLIOpenProject(target);
+      } else if (stat.isFile()) {
+        sendCLIOpenFile(target);
+      }
+    } catch {
+      // Path doesn't exist — ignore silently
+    }
+  }
+}
+
+function sendCLIOpenFile(filePath: string): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(IPC.CLI_OPEN_FILE, filePath);
+    mainWindow.focus();
+  }
+}
+
+function sendCLIOpenProject(dirPath: string): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    // Add to workspace so it appears in the project list
+    workspace.addProject(dirPath);
+    const result = workspace.getProjectsWithScanned();
+    mainWindow.webContents.send(IPC.WORKSPACE_UPDATED, result);
+    mainWindow.webContents.send(IPC.CLI_OPEN_PROJECT, dirPath);
+    mainWindow.focus();
+  }
+}
+
 /**
  * Get path for persisted window state
  */
@@ -325,6 +388,7 @@ function createWindow(): BrowserWindow {
   });
 
   mainWindow.on('closed', () => {
+    gitBranchesManager.stopAutoFetch();
     popoutManager.closeAll();
     pty.killPTY();
     ptyManager.destroyAll();
@@ -423,25 +487,66 @@ function initModulesWithWindow(window: BrowserWindow): void {
   updaterManager.init(window, app);
 }
 
-// App lifecycle
-app.whenReady().then(() => {
-  app.setName('SubFrame');
+// ── Single instance lock — ensures only one SubFrame window ─────────────────
 
-  init();
-  createWindow();
-});
+const gotTheLock = app.requestSingleInstanceLock();
 
-app.on('window-all-closed', () => {
-  // Don't quit if only a pop-out window closed — the main window is still running
-  if (process.platform !== 'darwin' && popoutManager.getOpenCount() === 0) {
-    app.quit();
-  }
-});
+if (!gotTheLock) {
+  // Another instance is already running — it will receive our argv via 'second-instance'
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    // Focus the existing window and handle CLI args from the second launch
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+    handleCLIArgs(argv);
+  });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  // macOS: handle files opened via Finder / `open` command
+  // Queue the path if the window isn't ready yet (open-file can fire before app.whenReady)
+  let pendingOpenFilePath: string | null = null;
+  app.on('open-file', (event, filePath) => {
+    event.preventDefault();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      sendCLIOpenFile(filePath);
+      mainWindow.focus();
+    } else {
+      pendingOpenFilePath = filePath;
+    }
+  });
+
+  // App lifecycle
+  app.whenReady().then(() => {
+    app.setName('SubFrame');
+
+    init();
     createWindow();
-  }
-});
+
+    // Process CLI args from the initial launch (after window is ready)
+    mainWindow?.once('ready-to-show', () => {
+      handleCLIArgs(process.argv);
+      // Flush any macOS open-file event that arrived before the window was ready
+      if (pendingOpenFilePath) {
+        sendCLIOpenFile(pendingOpenFilePath);
+        pendingOpenFilePath = null;
+      }
+    });
+  });
+
+  app.on('window-all-closed', () => {
+    // Don't quit if only a pop-out window closed — the main window is still running
+    if (process.platform !== 'darwin' && popoutManager.getOpenCount() === 0) {
+      app.quit();
+    }
+  });
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+}
 
 export { createWindow };

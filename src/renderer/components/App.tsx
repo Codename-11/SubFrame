@@ -349,6 +349,26 @@ export function App() {
     };
   }, []);
 
+  // Listen for CLI integration events (file/project open from command line)
+  useEffect(() => {
+    const onCliOpenFile = (_event: unknown, filePath: string) => {
+      useUIStore.getState().setEditorFilePath(filePath);
+    };
+    const onCliOpenProject = (_event: unknown, dirPath: string) => {
+      // Trigger project selection via the same flow as folder picker
+      const store = useProjectStore.getState();
+      store.setProject(dirPath, false);
+      ipcRenderer.send(IPC.CHECK_IS_FRAME_PROJECT, dirPath);
+    };
+
+    ipcRenderer.on(IPC.CLI_OPEN_FILE, onCliOpenFile);
+    ipcRenderer.on(IPC.CLI_OPEN_PROJECT, onCliOpenProject);
+    return () => {
+      ipcRenderer.removeListener(IPC.CLI_OPEN_FILE, onCliOpenFile);
+      ipcRenderer.removeListener(IPC.CLI_OPEN_PROJECT, onCliOpenProject);
+    };
+  }, []);
+
   // Listen for onboarding trigger after project init
   useEffect(() => {
     const handler = (e: Event) => {
@@ -465,8 +485,10 @@ export function App() {
         </AnimatePresence>
       </div>
 
-      {/* File editor dialog */}
-      <Editor filePath={editorFilePath} onClose={() => setEditorFilePath(null)} />
+      {/* File editor dialog — overlay mode only (tab mode renders inside TerminalArea) */}
+      {(localStorage.getItem('editor-view-mode') || 'overlay') === 'overlay' && (
+        <Editor filePath={editorFilePath} onClose={() => setEditorFilePath(null)} />
+      )}
 
       {/* Settings dialog (modal, renders above everything) */}
       <SettingsPanel />

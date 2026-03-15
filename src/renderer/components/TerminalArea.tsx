@@ -18,6 +18,7 @@ import { DecisionsDetailView } from './DecisionsDetailView';
 import { PipelinePanel } from './PipelinePanel';
 import { AgentStateView } from './AgentStateView';
 import { ShortcutsPanel } from './ShortcutsPanel';
+import { Editor } from './Editor';
 import { ViewTabBar } from './ViewTabBar';
 import { ErrorBoundary } from './ErrorBoundary';
 import {
@@ -123,6 +124,11 @@ export function TerminalArea() {
   const toggleFullView = useUIStore((s) => s.toggleFullView);
   const closeTab = useUIStore((s) => s.closeTab);
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
+  const editorOpenFiles = useUIStore((s) => s.editorOpenFiles);
+  const activeEditorFile = useUIStore((s) => s.activeEditorFile);
+  const setActiveEditorFile = useUIStore((s) => s.setActiveEditorFile);
+  const closeEditorFile = useUIStore((s) => s.closeEditorFile);
+  const editorViewMode = (localStorage.getItem('editor-view-mode') || 'overlay') as 'overlay' | 'tab';
   const { settings } = useSettings();
   const { config: aiToolConfig } = useAIToolConfig();
   const aiToolName = aiToolConfig?.activeTool.name || 'AI Tool';
@@ -614,6 +620,13 @@ export function TerminalArea() {
           gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
             ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
             : undefined}
+          onTerminalTabClick={editorViewMode === 'tab' ? () => setActiveEditorFile(null) : undefined}
+          editorFiles={editorViewMode === 'tab' ? editorOpenFiles : undefined}
+          activeEditorFile={editorViewMode === 'tab' ? activeEditorFile : undefined}
+          onSelectEditorFile={editorViewMode === 'tab' ? (fp) => {
+            setActiveEditorFile(fp);
+          } : undefined}
+          onCloseEditorFile={editorViewMode === 'tab' ? closeEditorFile : undefined}
         />
       )}
 
@@ -675,6 +688,15 @@ export function TerminalArea() {
               </ErrorBoundary>
             </div>
           </div>
+        ) : editorViewMode === 'tab' && activeEditorFile ? (
+          /* Editor tab — inline editor replaces terminal content */
+          <ErrorBoundary name="Editor">
+            <Editor
+              filePath={activeEditorFile}
+              onClose={() => closeEditorFile(activeEditorFile)}
+              inline
+            />
+          </ErrorBoundary>
         ) : projectTerminals.length === 0 ? (
           <div className="flex h-full items-center justify-center text-text-tertiary">
             <div className="text-center max-w-xs">

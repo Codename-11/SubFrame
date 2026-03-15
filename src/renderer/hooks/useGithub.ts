@@ -2,9 +2,11 @@
  * TanStack Query hooks for GitHub integration (issues, branches, worktrees).
  */
 
+import { useEffect } from 'react';
 import { useIpcQuery, useIpcMutation } from './useIpc';
 import { useProjectStore } from '../stores/useProjectStore';
 import { IPC } from '../../shared/ipcChannels';
+import { typedSend } from '../lib/ipc';
 
 export function useGithubIssues(state: string = 'open') {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
@@ -64,6 +66,18 @@ export function useGitStatus() {
     [projectPath ?? ''],
     { enabled: !!projectPath, refetchInterval: 5000 }
   );
+
+  // Auto-fetch: start/stop based on setting
+  useEffect(() => {
+    if (!projectPath) return;
+    const interval = parseInt(localStorage.getItem('git-auto-fetch-interval') || '0');
+    if (interval > 0) {
+      typedSend(IPC.GIT_START_AUTO_FETCH, { projectPath, intervalMs: interval * 1000 });
+    }
+    return () => {
+      typedSend(IPC.GIT_STOP_AUTO_FETCH);
+    };
+  }, [projectPath]);
 
   return {
     status: query.data ?? null,

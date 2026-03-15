@@ -683,7 +683,7 @@ function GitStatusBar() {
     <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-tertiary px-0.5">
       <GitBranchIcon className="w-3 h-3 flex-shrink-0" />
       <span className="truncate font-medium text-text-secondary">{branch}</span>
-      {ahead > 0 && <span className="text-success" title={`${ahead} ahead`} aria-label={`${ahead} commits ahead`}>↑{ahead}</span>}
+      {ahead > 0 && <span className="text-success" title={`${ahead} unpushed commit${ahead > 1 ? 's' : ''}`} aria-label={`${ahead} commits ahead`}>↑{ahead}</span>}
       {behind > 0 && <span className="text-warning" title={`${behind} behind`} aria-label={`${behind} commits behind`}>↓{behind}</span>}
       {hasChanges && (
         <span className="ml-auto flex items-center gap-1">

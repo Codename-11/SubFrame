@@ -57,6 +57,8 @@ interface OperationResult {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let fetchTimer: ReturnType<typeof setInterval> | null = null;
+let currentFetchProject: string | null = null;
 
 /**
  * Initialize manager
@@ -383,6 +385,30 @@ async function removeWorktree(projectPath: string, worktreePath: string, force: 
 }
 
 /**
+ * Start periodic background git fetch
+ */
+const MIN_FETCH_INTERVAL_MS = 30_000; // 30 seconds minimum
+
+function startAutoFetch(projectPath: string, intervalMs: number): void {
+  stopAutoFetch();
+  if (intervalMs <= 0 || intervalMs < MIN_FETCH_INTERVAL_MS) return;
+  currentFetchProject = projectPath;
+  fetchTimer = setInterval(async () => {
+    try {
+      await execGit('git fetch --quiet', projectPath);
+      console.log('[Git] Auto-fetch completed');
+    } catch {
+      // Silently ignore fetch failures (offline, auth issues, etc.)
+    }
+  }, intervalMs);
+}
+
+function stopAutoFetch(): void {
+  if (fetchTimer) { clearInterval(fetchTimer); fetchTimer = null; }
+  currentFetchProject = null;
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIPC(ipcMain: IpcMain): void {
@@ -418,6 +444,13 @@ function setupIPC(ipcMain: IpcMain): void {
     return await getGitStatus(projectPath);
   });
 
+  ipcMain.on(IPC.GIT_START_AUTO_FETCH, (_event, { projectPath, intervalMs }: { projectPath: string; intervalMs: number }) => {
+    startAutoFetch(projectPath, intervalMs);
+  });
+  ipcMain.on(IPC.GIT_STOP_AUTO_FETCH, () => {
+    stopAutoFetch();
+  });
+
   // Toggle panel from menu
   ipcMain.on(IPC.TOGGLE_GIT_BRANCHES_PANEL, () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -428,5 +461,5 @@ function setupIPC(ipcMain: IpcMain): void {
 
 export {
   init, loadBranches, switchBranch, createBranch, deleteBranch,
-  loadWorktrees, addWorktree, removeWorktree, isWorkingTreeClean, getGitStatus, setupIPC
+  loadWorktrees, addWorktree, removeWorktree, isWorkingTreeClean, getGitStatus, stopAutoFetch, setupIPC
 };
