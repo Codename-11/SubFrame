@@ -464,10 +464,33 @@ function setupAllIPC(): void {
           : cliSource;
         fs.writeFileSync(batPath, `@echo off\nnode "${scriptPath}" %*\n`, 'utf8');
 
+        // Add to user PATH if not already present
+        try {
+          const { execSync } = require('child_process');
+          const currentPath = execSync(
+            'powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable(\'Path\', \'User\')"',
+            { encoding: 'utf8' }
+          ).trim();
+          if (!currentPath.split(';').some((p: string) => p.replace(/[\\/]+$/, '') === binDir.replace(/[\\/]+$/, ''))) {
+            const newPath = currentPath ? `${currentPath};${binDir}` : binDir;
+            execSync(
+              `powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('Path', '${newPath.replace(/'/g, "''")}', 'User')"`,
+              { encoding: 'utf8' }
+            );
+          }
+        } catch {
+          // PATH update failed — user can add manually
+          return {
+            success: true,
+            path: binDir,
+            message: `CLI installed to ${binDir}. Could not update PATH automatically — add this directory to your PATH manually.`
+          };
+        }
+
         return {
           success: true,
           path: binDir,
-          message: `CLI installed to ${binDir}. Add this directory to your PATH if not already present.`
+          message: `CLI installed. Restart your terminal to use the "subframe" command.`
         };
       } else {
         // macOS/Linux: symlink to /usr/local/bin
@@ -489,6 +512,45 @@ function setupAllIPC(): void {
         success: false,
         message: `Failed to install CLI: ${(err as Error).message}. You may need to run with elevated permissions.`
       };
+    }
+  });
+
+  ipcMain.handle(IPC.UNINSTALL_CLI, async () => {
+    try {
+      if (process.platform === 'win32') {
+        const appData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+        const binDir = path.join(appData, 'SubFrame', 'bin');
+        const batPath = path.join(binDir, 'subframe.cmd');
+
+        // Remove the batch file
+        try { fs.unlinkSync(batPath); } catch { /* ignore if already gone */ }
+
+        // Remove from user PATH
+        try {
+          const { execSync } = require('child_process');
+          const currentPath = execSync(
+            'powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable(\'Path\', \'User\')"',
+            { encoding: 'utf8' }
+          ).trim();
+          const filtered = currentPath.split(';').filter((p: string) =>
+            p.replace(/[\\/]+$/, '') !== binDir.replace(/[\\/]+$/, '')
+          ).join(';');
+          if (filtered !== currentPath) {
+            execSync(
+              `powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('Path', '${filtered.replace(/'/g, "''")}', 'User')"`,
+              { encoding: 'utf8' }
+            );
+          }
+        } catch { /* PATH cleanup failed — not critical */ }
+
+        return { success: true, message: 'CLI uninstalled. Restart your terminal for changes to take effect.' };
+      } else {
+        const linkPath = '/usr/local/bin/subframe';
+        try { fs.unlinkSync(linkPath); } catch { /* ignore */ }
+        return { success: true, message: 'CLI uninstalled.' };
+      }
+    } catch (err) {
+      return { success: false, message: `Failed to uninstall CLI: ${(err as Error).message}` };
     }
   });
 

@@ -256,6 +256,7 @@ export const IPC = {
   CLI_OPEN_FILE: 'cli-open-file',
   CLI_OPEN_PROJECT: 'cli-open-project',
   INSTALL_CLI: 'install-cli',
+  UNINSTALL_CLI: 'uninstall-cli',
 
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
@@ -1080,10 +1081,14 @@ export interface IPCHandleMap {
     return: { success: boolean };
   };
 
-  // CLI Install
+  // CLI Install/Uninstall
   [IPC.INSTALL_CLI]: {
     args: [];
     return: { success: boolean; path?: string; message: string };
+  };
+  [IPC.UNINSTALL_CLI]: {
+    args: [];
+    return: { success: boolean; message: string };
   };
 }
 

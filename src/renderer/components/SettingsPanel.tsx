@@ -976,6 +976,25 @@ export function SettingsPanel() {
                       >
                         Install CLI to PATH
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs text-text-muted hover:text-error ml-2"
+                        onClick={async () => {
+                          try {
+                            const result = await typedInvoke(IPC.UNINSTALL_CLI);
+                            if (result.success) {
+                              toast.success(result.message);
+                            } else {
+                              toast.error(result.message);
+                            }
+                          } catch {
+                            toast.error('Failed to uninstall CLI');
+                          }
+                        }}
+                      >
+                        Uninstall
+                      </Button>
                     </div>
                   </SettingGroup>
                 )}
