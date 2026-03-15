@@ -39,7 +39,12 @@
     "init": "node scripts/init.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "site:dev": "cd site && npm run dev",
+    "site:build": "cd site && npm run build",
+    "site:preview": "cd site && npm run preview",
+    "web": "npx concurrently -n site,docs -c magenta,cyan \"cd site && npm run dev\" \"npx vitepress dev docs --port 5174\"",
+    "web:preview": "npm run site:build && npm run docs:build && node -e \"const fs=require('fs');const p=require('path');fs.cpSync('site/dist','_site',{recursive:true});fs.mkdirSync('_site/docs',{recursive:true});fs.cpSync('docs/.vitepress/dist','_site/docs',{recursive:true});console.log('Merged to _site/')\" && npx serve _site -p 4000"
   },
   "keywords": [
     "electron",
@@ -65,7 +70,6 @@
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vueuse/motion": "^3.0.3",
     "electron": "^28.0.0",
     "electron-builder": "^26.8.1",
     "esbuild": "^0.27.3",

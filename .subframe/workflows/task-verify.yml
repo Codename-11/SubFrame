@@ -1,7 +1,6 @@
-# @subframe-version 0.3.1-beta
+# @subframe-version 0.5.1-beta
 # @subframe-managed
 name: task-verify
-description: Verify in-progress sub-tasks have matching code changes and tests
 on:
   manual: true
 

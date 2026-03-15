@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-15T18:50:24.642Z",
+  "lastUpdated": "2026-03-15T18:53:32.186Z",
   "tasks": {
     "pending": [
       {
@@ -801,20 +801,6 @@
     ],
     "inProgress": [
       {
-        "id": "task-1772890632983-xs3zrzlqe",
-        "title": "Allow Terminal windows to Pop-Out to a new window/pane.",
-        "status": "in_progress",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-07T13:37:12.983Z",
-        "updatedAt": "2026-03-14T20:04:37.171Z",
-        "completedAt": null,
-        "description": "",
-        "steps": []
-      },
-      {
         "id": "task-1773496619358-rlfv6r601",
         "title": "Workspace Enhancements",
         "status": "in_progress",
@@ -823,12 +809,13 @@
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-14T13:56:59.358Z",
-        "updatedAt": "2026-03-15T18:46:40.584Z",
+        "updatedAt": "2026-03-15T18:53:32.165Z",
         "completedAt": null,
         "description": "Workspaces should be enhanced for UI/UX.",
+        "notes": "[2026-03-15] Step 1 done: workspace create dialog with name input shipped in v0.4.0-beta. Step 2 (reorder) still pending. Per-workspace UI state tracked separately as task-mms40ogv-2p06.",
         "steps": [
           {
-            "completed": false,
+            "completed": true,
             "label": "When creating a new workspace present the naming modal"
           },
           {
@@ -923,6 +910,20 @@
         "createdAt": "2026-03-05T15:03:26.337Z",
         "updatedAt": "2026-03-10T00:37:49.410Z",
         "completedAt": "2026-03-10T00:37:49.410Z",
+        "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1772890632983-xs3zrzlqe",
+        "title": "Allow Terminal windows to Pop-Out to a new window/pane.",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-07T13:37:12.983Z",
+        "updatedAt": "2026-03-15T18:52:54.599Z",
+        "completedAt": "2026-03-15T18:52:54.599Z",
         "description": "",
         "steps": []
       },

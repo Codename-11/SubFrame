@@ -36,6 +36,10 @@ export function UpdateNotification() {
             label: 'Download',
             onClick: () => downloadUpdate.mutate([]),
           },
+          cancel: {
+            label: 'Later',
+            onClick: () => toast.dismiss('updater'),
+          },
         });
         break;
 
@@ -53,6 +57,10 @@ export function UpdateNotification() {
           action: {
             label: 'Restart Now',
             onClick: () => installUpdate.mutate([]),
+          },
+          cancel: {
+            label: 'Later',
+            onClick: () => toast.dismiss('updater'),
           },
         });
         break;

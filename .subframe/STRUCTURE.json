@@ -1506,22 +1506,21 @@
           ]
         },
         "startAutoFetch": {
-          "line": 390,
+          "line": 392,
           "params": [
             "projectPath",
             "intervalMs"
           ],
-          "purpose": "Start periodic background git fetch",
           "calls": [
             "execGit",
             "stopAutoFetch"
           ]
         },
         "stopAutoFetch": {
-          "line": 404
+          "line": 406
         },
         "setupIPC": {
-          "line": 412,
+          "line": 414,
           "params": [
             "ipcMain"
           ],
@@ -1540,7 +1539,7 @@
           ]
         }
       },
-      "loc": 464,
+      "loc": 466,
       "ipc": {
         "listens": [
           "LOAD_GIT_BRANCHES",
@@ -1649,9 +1648,11 @@
       ],
       "depends": [
         "../package.json",
+        "child_process",
         "electron",
         "path",
         "fs",
+        "os",
         "shared/ipcChannels",
         "pty",
         "ptyManager",
@@ -1684,7 +1685,7 @@
       ],
       "functions": {
         "handleCLIArgs": {
-          "line": 67,
+          "line": 68,
           "params": [
             "argv"
           ],
@@ -1695,37 +1696,37 @@
           ]
         },
         "sendCLIOpenFile": {
-          "line": 102,
+          "line": 104,
           "params": [
             "filePath"
           ]
         },
         "sendCLIOpenProject": {
-          "line": 109,
+          "line": 121,
           "params": [
             "dirPath"
           ]
         },
         "getWindowStatePath": {
-          "line": 123,
+          "line": 136,
           "purpose": "Get path for persisted window state"
         },
         "loadWindowState": {
-          "line": 130,
+          "line": 143,
           "purpose": "Load saved window state (bounds + maximized)",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "saveWindowState": {
-          "line": 142,
+          "line": 155,
           "purpose": "Save current window state",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "createSplash": {
-          "line": 155,
+          "line": 168,
           "params": [
             "bounds",
             "isMaximized"
@@ -1736,7 +1737,7 @@
           ]
         },
         "createWindow": {
-          "line": 205,
+          "line": 218,
           "purpose": "Create main application window",
           "calls": [
             "createSplash",
@@ -1746,36 +1747,35 @@
           ]
         },
         "setupAllIPC": {
-          "line": 407,
+          "line": 421,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 458,
+          "line": 579,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 469,
+          "line": 590,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 543,
+      "loc": 676,
       "ipc": {
         "listens": [
           "GET_RELEASE_NOTES",
+          "INSTALL_CLI",
+          "UNINSTALL_CLI",
           "TERMINAL_INPUT"
         ],
         "emits": [
-          "CLI_OPEN_FILE",
           "WORKSPACE_UPDATED",
-          "CLI_OPEN_PROJECT",
-          "WORKSPACE_UPDATED",
-          "CLI_OPEN_FILE"
+          "WORKSPACE_UPDATED"
         ]
       }
     },
@@ -4151,21 +4151,21 @@
       ],
       "functions": {
         "sendStatus": {
-          "line": 21,
+          "line": 25,
           "params": [
             "status"
           ],
           "purpose": "Send updater status to the renderer process"
         },
         "sendProgress": {
-          "line": 30,
+          "line": 34,
           "params": [
             "progress"
           ],
           "purpose": "Send download progress to the renderer process"
         },
         "init": {
-          "line": 40,
+          "line": 44,
           "params": [
             "window",
             "app"
@@ -4179,22 +4179,22 @@
           ]
         },
         "setupIPC": {
-          "line": 128,
+          "line": 140,
           "purpose": "Setup IPC handlers for updater actions."
         },
         "checkForUpdates": {
-          "line": 179,
+          "line": 191,
           "purpose": "In dev mode, sends a no-op status to the renderer.",
           "calls": [
             "sendStatus"
           ]
         },
         "destroy": {
-          "line": 198,
+          "line": 210,
           "purpose": "Cleanup on shutdown"
         }
       },
-      "loc": 206,
+      "loc": 218,
       "ipc": {
         "listens": [
           "UPDATER_CHECK",
@@ -6032,8 +6032,8 @@
         "SettingsPanel"
       ],
       "depends": [
-        "../../package.json",
         "electron",
+        "../../package.json",
         "react",
         "ui/dialog",
         "ui/input",
@@ -6049,17 +6049,17 @@
       ],
       "functions": {
         "detectNerdFont": {
-          "line": 46
+          "line": 47
         },
         "SettingGroup": {
-          "line": 106,
+          "line": 107,
           "params": [
             "{ label",
             "children }"
           ]
         },
         "SettingToggle": {
-          "line": 122,
+          "line": 123,
           "params": [
             "{ label",
             "description",
@@ -6069,7 +6069,7 @@
           ]
         },
         "SettingSelect": {
-          "line": 149,
+          "line": 150,
           "params": [
             "{ label",
             "description",
@@ -6079,7 +6079,7 @@
           ]
         },
         "SettingInput": {
-          "line": 180,
+          "line": 181,
           "params": [
             "{ label",
             "description",
@@ -6095,7 +6095,7 @@
           ]
         },
         "SettingSlider": {
-          "line": 213,
+          "line": 214,
           "params": [
             "{ label",
             "description",
@@ -6108,7 +6108,7 @@
           ]
         },
         "SettingsPanel": {
-          "line": 238,
+          "line": 239,
           "calls": [
             "cn",
             "detectNerdFont",
@@ -6119,7 +6119,15 @@
           ]
         }
       },
-      "loc": 1504
+      "loc": 1579,
+      "ipc": {
+        "listens": [
+          "AVAILABLE_SHELLS_DATA"
+        ],
+        "emits": [
+          "GET_AVAILABLE_SHELLS"
+        ]
+      }
     },
     "renderer/components/ShortcutsPanel": {
       "file": "src\\renderer\\components\\ShortcutsPanel.tsx",
@@ -6673,26 +6681,26 @@
       ],
       "functions": {
         "markdownToForm": {
-          "line": 110,
+          "line": 122,
           "params": [
             "md"
           ]
         },
         "formatDate": {
-          "line": 179,
+          "line": 191,
           "params": [
             "iso"
           ]
         },
         "SortHeader": {
-          "line": 207,
+          "line": 219,
           "params": [
             "{ column",
             "label }"
           ]
         },
         "TaskActions": {
-          "line": 229,
+          "line": 241,
           "params": [
             "{\r\n  task",
             "onUpdateStatus",
@@ -6705,13 +6713,13 @@
           ]
         },
         "TasksPanel": {
-          "line": 314,
+          "line": 326,
           "params": [
             "{ isFullView"
           ]
         },
         "TaskDetail": {
-          "line": 1581,
+          "line": 1591,
           "params": [
             "{ task",
             "updateTask",
@@ -6721,7 +6729,7 @@
           ]
         }
       },
-      "loc": 1764,
+      "loc": 1774,
       "ipc": {
         "listens": [],
         "emits": [
@@ -6860,7 +6868,7 @@
           ]
         }
       },
-      "loc": 837,
+      "loc": 840,
       "ipc": {
         "listens": [
           "TERMINAL_POPOUT_STATUS",
@@ -6888,7 +6896,7 @@
       ],
       "functions": {
         "TerminalGrid": {
-          "line": 33,
+          "line": 81,
           "params": [
             "{ onCloseTerminal",
             "onCreateTerminal",
@@ -6898,7 +6906,7 @@
           ]
         }
       },
-      "loc": 461
+      "loc": 519
     },
     "renderer/components/TerminalTabBar": {
       "file": "src\\renderer\\components\\TerminalTabBar.tsx",
@@ -6934,7 +6942,7 @@
           ]
         }
       },
-      "loc": 538,
+      "loc": 553,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA"
@@ -6987,7 +6995,7 @@
           ]
         }
       },
-      "loc": 91
+      "loc": 99
     },
     "renderer/components/ViewTabBar": {
       "file": "src\\renderer\\components\\ViewTabBar.tsx",
@@ -7832,6 +7840,7 @@
       "description": "",
       "exports": [],
       "depends": [
+        "components/Editor",
         "components/PopoutTerminal",
         "react",
         "react-dom/client",
@@ -7841,7 +7850,7 @@
         "components/App"
       ],
       "functions": {},
-      "loc": 61
+      "loc": 79
     },
     "renderer/lib/codemirror-extensions": {
       "file": "src\\renderer\\lib\\codemirror-extensions.ts",
@@ -8750,6 +8759,7 @@
         "fs",
         "path",
         "child_process",
+        "${script}",
         "package.json",
         "frameConstants"
       ],
@@ -9024,39 +9034,39 @@
           "purpose": "Returns the hooks portion of .claude/settings.json pointing to .subframe/hooks/"
         },
         "getSubTasksSkillTemplate": {
-          "line": 1967,
+          "line": 1973,
           "purpose": "instead of the SubFrame-app-specific scripts/task.js CLI"
         },
         "getSubDocsSkillTemplate": {
-          "line": 2080,
+          "line": 2086,
           "purpose": "/sub-docs skill template — generalized for any SubFrame-managed project"
         },
         "getSubAuditSkillTemplate": {
-          "line": 2178,
+          "line": 2184,
           "purpose": "/sub-audit skill template — generalized for any SubFrame-managed project"
         },
         "getOnboardSkillTemplate": {
-          "line": 2268,
+          "line": 2274,
           "purpose": "/onboard skill template — analyze project intelligence and bootstrap SubFrame files"
         },
         "getDefaultReviewWorkflow": {
-          "line": 2487,
+          "line": 2493,
           "purpose": "─── Pipeline Workflow Templates ──────────────────────────────────────────────"
         },
         "getTaskVerifyWorkflow": {
-          "line": 2531
+          "line": 2537
         },
         "getHealthCheckWorkflow": {
-          "line": 2554
+          "line": 2560
         },
         "getDocsAuditWorkflow": {
-          "line": 2587
+          "line": 2593
         },
         "getSecurityScanWorkflow": {
-          "line": 2612
+          "line": 2618
         }
       },
-      "loc": 2636
+      "loc": 2642
     },
     "shared/ipcChannels": {
       "file": "src\\shared\\ipcChannels.ts",
@@ -9068,7 +9078,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1269
+      "loc": 1283
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -9151,7 +9161,7 @@
           "purpose": "Initialize a project as a SubFrame project."
         }
       },
-      "loc": 353
+      "loc": 356
     },
     "shared/subframeHealth": {
       "file": "src\\shared\\subframeHealth.ts",
