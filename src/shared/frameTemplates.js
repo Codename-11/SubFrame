@@ -106,6 +106,7 @@ var require_package = __commonJS({
         "@types/node": "^25.3.3",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
+        "@vueuse/motion": "^3.0.3",
         electron: "^28.0.0",
         "electron-builder": "^26.8.1",
         esbuild: "^0.27.3",
@@ -237,6 +238,14 @@ var require_package = __commonJS({
           {
             from: "scripts/subframe-cli.js",
             to: "scripts/subframe-cli.js"
+          },
+          {
+            from: "scripts/init.js",
+            to: "scripts/init.js"
+          },
+          {
+            from: "scripts/build-templates.js",
+            to: "scripts/build-templates.js"
           }
         ],
         files: [

@@ -231,6 +231,9 @@ export function initializeProject(projectPath: string, options: InitOptions = {}
 
   // Git hooks
   const gitDirPath = path.join(projectPath, '.git');
+  if (hooks && !fs.existsSync(gitDirPath)) {
+    skipped.push('.githooks/ (no .git directory)');
+  }
   if (hooks && fs.existsSync(gitDirPath)) {
     const hooksDirPath = path.join(projectPath, GITHOOKS_DIR);
     const hookPath = path.join(hooksDirPath, 'pre-commit');

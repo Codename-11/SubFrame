@@ -1,37 +1,51 @@
 #!/usr/bin/env node
 /**
- * Compile frameTemplates.ts → frameTemplates.js (CJS)
+ * Compile shared TypeScript modules → CJS .js files
  *
  * Uses esbuild (already a project dependency) to transpile + bundle
- * the TypeScript source into a self-contained CommonJS module that
- * Node.js scripts (init.js, projectInit.js) can require() directly.
+ * TypeScript sources into self-contained CommonJS modules that
+ * Node.js scripts (init.js, task.js) can require() directly.
  *
- * The .js output is a build artifact — not manually maintained.
- * See .gitignore for the entry that keeps it out of version control.
+ * The .js outputs are build artifacts — not manually maintained.
+ * See .gitignore for entries that keep them out of version control.
  */
 
 const esbuild = require('esbuild');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const ENTRY = path.join(ROOT, 'src', 'shared', 'frameTemplates.ts');
-const OUT = path.join(ROOT, 'src', 'shared', 'frameTemplates.js');
+const SHARED = path.join(ROOT, 'src', 'shared');
 
-esbuild.buildSync({
-  entryPoints: [ENTRY],
-  outfile: OUT,
-  format: 'cjs',
-  platform: 'node',
-  target: 'node18',
-  bundle: true,
-  // Don't bundle Node builtins or Electron — they resolve at runtime
-  external: ['fs', 'path', 'electron'],
-  // Banner so people know not to edit it
-  banner: {
-    js: '/* AUTO-GENERATED — do not edit. Source: src/shared/frameTemplates.ts */\n/* Run: node scripts/build-templates.js to regenerate */\n',
+const targets = [
+  {
+    entry: path.join(SHARED, 'frameTemplates.ts'),
+    out: path.join(SHARED, 'frameTemplates.js'),
+    label: 'frameTemplates',
   },
-});
+  {
+    entry: path.join(SHARED, 'projectInit.ts'),
+    out: path.join(SHARED, 'projectInit.js'),
+    label: 'projectInit',
+  },
+];
 
-if (!process.env.QUIET) {
-  console.log('[build-templates] Compiled frameTemplates.ts → frameTemplates.js');
+for (const target of targets) {
+  esbuild.buildSync({
+    entryPoints: [target.entry],
+    outfile: target.out,
+    format: 'cjs',
+    platform: 'node',
+    target: 'node18',
+    bundle: true,
+    // Don't bundle Node builtins or Electron — they resolve at runtime
+    external: ['fs', 'path', 'child_process', 'electron'],
+    // Banner so people know not to edit it
+    banner: {
+      js: `/* AUTO-GENERATED — do not edit. Source: src/shared/${path.basename(target.entry)} */\n/* Run: node scripts/build-templates.js to regenerate */\n`,
+    },
+  });
+
+  if (!process.env.QUIET) {
+    console.log(`[build-templates] Compiled ${target.label}.ts → ${target.label}.js`);
+  }
 }

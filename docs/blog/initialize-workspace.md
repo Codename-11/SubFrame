@@ -65,13 +65,12 @@ SubFrame installs five hooks that run alongside your AI tools, keeping them info
 
 ## Skills: Slash Commands for Your AI
 
-Five **skills** get installed to `.claude/skills/`, giving you slash commands that extend what your AI can do:
+Four **skills** get installed to `.claude/skills/`, giving you slash commands that extend what your AI can do:
 
 - **`/sub-tasks`** — Interactive sub-task management. List pending tasks, start work, mark complete, create new tasks from conversation. Uses `node scripts/task.js` under the hood.
 - **`/sub-audit`** — Two-phase audit: code review (bugs, type safety, security) plus documentation audit (CLAUDE.md, changelog, STRUCTURE.json completeness). Reports findings with `file:line` references.
 - **`/sub-docs`** — Syncs all SubFrame documentation after feature work. Updates CLAUDE.md module lists, changelog entries, PROJECT_NOTES decisions, and regenerates STRUCTURE.json.
-- **`/sub-ipc`** — Regenerates the IPC channel reference doc from `ipcChannels.ts` type maps. Classifies each channel as handle, send, or event pattern.
-- **`/release`** — Full release workflow: version bump, docs sync, release notes generation, commit, and git tag. Supports `patch`, `minor`, `major`, and explicit pre-release versions.
+- **`/onboard`** — Bootstrap SubFrame files from existing codebase context. Analyzes the project and populates STRUCTURE.json, PROJECT_NOTES.md, and initial sub-tasks.
 
 ## Health Panel: See Everything at a Glance
 

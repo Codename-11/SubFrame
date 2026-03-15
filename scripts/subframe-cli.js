@@ -98,7 +98,14 @@ if (command === 'init') {
 
   // Fork init.js, passing all args (init.js will skip the 'init' keyword)
   const child = fork(initScript, args, { stdio: 'inherit' });
-  child.on('exit', code => process.exit(code || 0));
+  child.on('exit', (code, signal) => {
+    if (signal) process.exit(1);
+    process.exit(code ?? 0);
+  });
+  child.on('error', err => {
+    console.error(`  ${c.red('✗')} Could not start init: ${err.message}`);
+    process.exit(1);
+  });
   return;
 }
 
