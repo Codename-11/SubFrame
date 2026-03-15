@@ -1,7 +1,7 @@
-Fix release — CLI commands no longer hijack the running SubFrame instance.
+Fix release — faster update checks for the beta.
 
 ## What's Changed
 
-### Bug Fixes
-- **CLI edit spawns standalone window** - `subframe edit <file>` now opens a new standalone editor window instead of silently sending to the running instance. Your existing workspace is never touched.
-- **CLI open is non-disruptive** - `subframe open <dir>` adds the project to your workspace without switching the active project. No more losing context mid-work.
+### Improvements
+- **Update Check Interval** - Default lowered from 4 hours to 1 hour so beta fixes reach users faster
+- **Check on Focus** - Silently checks for updates when SubFrame regains focus after being in the background for 5+ minutes. Catches updates within minutes of returning to the app.

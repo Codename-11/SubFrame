@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4-beta] - 2026-03-15
+
+### Fixed
+- **Update check interval** — default lowered from 4 hours to 1 hour for faster beta update delivery
+- **Check-on-focus** — silently checks for updates when SubFrame regains focus after 5+ minutes, catching updates within minutes of returning to the app
+
 ## [0.5.3-beta] - 2026-03-15
 
 ### Fixed
@@ -400,7 +406,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.3-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.4-beta...HEAD
+[0.5.4-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.3-beta...v0.5.4-beta
 [0.5.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.2-beta...v0.5.3-beta
 [0.5.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.1-beta...v0.5.2-beta
 [0.5.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.0-beta...v0.5.1-beta
