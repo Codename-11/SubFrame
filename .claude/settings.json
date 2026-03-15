@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.subframe/hooks/session-start.js\""
+            "command": "node -e \"try{require('./.subframe/hooks/session-start.js')}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}\""
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.subframe/hooks/prompt-submit.js\""
+            "command": "node -e \"try{require('./.subframe/hooks/prompt-submit.js')}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}\""
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.subframe/hooks/stop.js\""
+            "command": "node -e \"try{require('./.subframe/hooks/stop.js')}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}\""
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.subframe/hooks/pre-tool-use.js\""
+            "command": "node -e \"try{require('./.subframe/hooks/pre-tool-use.js')}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}\""
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.subframe/hooks/post-tool-use.js\""
+            "command": "node -e \"try{require('./.subframe/hooks/post-tool-use.js')}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}\""
           }
         ]
       }

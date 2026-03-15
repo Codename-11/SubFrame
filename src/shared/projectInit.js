@@ -2051,36 +2051,37 @@ try {
 `;
 }
 function getClaudeSettingsHooksTemplate() {
+  const guard = (script) => `node -e "try{require('./${script}')}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}"`;
   return {
     hooks: {
       "SessionStart": [
         {
           matcher: "",
-          hooks: [{ type: "command", command: "node .subframe/hooks/session-start.js" }]
+          hooks: [{ type: "command", command: guard(".subframe/hooks/session-start.js") }]
         }
       ],
       "UserPromptSubmit": [
         {
           matcher: "",
-          hooks: [{ type: "command", command: "node .subframe/hooks/prompt-submit.js" }]
+          hooks: [{ type: "command", command: guard(".subframe/hooks/prompt-submit.js") }]
         }
       ],
       "Stop": [
         {
           matcher: "",
-          hooks: [{ type: "command", command: "node .subframe/hooks/stop.js" }]
+          hooks: [{ type: "command", command: guard(".subframe/hooks/stop.js") }]
         }
       ],
       "PreToolUse": [
         {
           matcher: "",
-          hooks: [{ type: "command", command: "node .subframe/hooks/pre-tool-use.js" }]
+          hooks: [{ type: "command", command: guard(".subframe/hooks/pre-tool-use.js") }]
         }
       ],
       "PostToolUse": [
         {
           matcher: "",
-          hooks: [{ type: "command", command: "node .subframe/hooks/post-tool-use.js" }]
+          hooks: [{ type: "command", command: guard(".subframe/hooks/post-tool-use.js") }]
         }
       ]
     }
