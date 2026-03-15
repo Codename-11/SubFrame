@@ -1383,6 +1383,7 @@
         "removeWorktree",
         "isWorkingTreeClean",
         "getGitStatus",
+        "stopAutoFetch",
         "setupIPC"
       ],
       "depends": [
@@ -1391,14 +1392,14 @@
       ],
       "functions": {
         "init": {
-          "line": 64,
+          "line": 66,
           "params": [
             "window"
           ],
           "purpose": "Initialize manager"
         },
         "execGit": {
-          "line": 71,
+          "line": 73,
           "params": [
             "command",
             "projectPath"
@@ -1406,14 +1407,14 @@
           "purpose": "Execute git command with promise"
         },
         "isWorkingTreeClean": {
-          "line": 86,
+          "line": 88,
           "params": [
             "projectPath"
           ],
           "purpose": "Check if working tree is clean"
         },
         "getGitStatus": {
-          "line": 115,
+          "line": 117,
           "params": [
             "projectPath"
           ],
@@ -1423,7 +1424,7 @@
           ]
         },
         "loadBranches": {
-          "line": 170,
+          "line": 172,
           "params": [
             "projectPath"
           ],
@@ -1433,7 +1434,7 @@
           ]
         },
         "switchBranch": {
-          "line": 224,
+          "line": 226,
           "params": [
             "projectPath",
             "branchName"
@@ -1445,7 +1446,7 @@
           ]
         },
         "createBranch": {
-          "line": 265,
+          "line": 267,
           "params": [
             "projectPath",
             "branchName",
@@ -1458,7 +1459,7 @@
           ]
         },
         "deleteBranch": {
-          "line": 291,
+          "line": 293,
           "params": [
             "projectPath",
             "branchName",
@@ -1470,7 +1471,7 @@
           ]
         },
         "loadWorktrees": {
-          "line": 308,
+          "line": 310,
           "params": [
             "projectPath"
           ],
@@ -1480,7 +1481,7 @@
           ]
         },
         "addWorktree": {
-          "line": 350,
+          "line": 352,
           "params": [
             "projectPath",
             "worktreePath",
@@ -1493,7 +1494,7 @@
           ]
         },
         "removeWorktree": {
-          "line": 369,
+          "line": 371,
           "params": [
             "projectPath",
             "worktreePath",
@@ -1504,8 +1505,23 @@
             "execGit"
           ]
         },
+        "startAutoFetch": {
+          "line": 390,
+          "params": [
+            "projectPath",
+            "intervalMs"
+          ],
+          "purpose": "Start periodic background git fetch",
+          "calls": [
+            "execGit",
+            "stopAutoFetch"
+          ]
+        },
+        "stopAutoFetch": {
+          "line": 404
+        },
         "setupIPC": {
-          "line": 388,
+          "line": 412,
           "params": [
             "ipcMain"
           ],
@@ -1518,11 +1534,13 @@
             "loadBranches",
             "loadWorktrees",
             "removeWorktree",
+            "startAutoFetch",
+            "stopAutoFetch",
             "switchBranch"
           ]
         }
       },
-      "loc": 433,
+      "loc": 464,
       "ipc": {
         "listens": [
           "LOAD_GIT_BRANCHES",
@@ -1533,6 +1551,8 @@
           "ADD_GIT_WORKTREE",
           "REMOVE_GIT_WORKTREE",
           "LOAD_GIT_STATUS",
+          "GIT_START_AUTO_FETCH",
+          "GIT_STOP_AUTO_FETCH",
           "TOGGLE_GIT_BRANCHES_PANEL"
         ],
         "emits": [
@@ -1663,26 +1683,49 @@
         "shared/logoSVG"
       ],
       "functions": {
+        "handleCLIArgs": {
+          "line": 67,
+          "params": [
+            "argv"
+          ],
+          "purpose": "subframe .              — open current directory as project",
+          "calls": [
+            "sendCLIOpenFile",
+            "sendCLIOpenProject"
+          ]
+        },
+        "sendCLIOpenFile": {
+          "line": 102,
+          "params": [
+            "filePath"
+          ]
+        },
+        "sendCLIOpenProject": {
+          "line": 109,
+          "params": [
+            "dirPath"
+          ]
+        },
         "getWindowStatePath": {
-          "line": 60,
+          "line": 123,
           "purpose": "Get path for persisted window state"
         },
         "loadWindowState": {
-          "line": 67,
+          "line": 130,
           "purpose": "Load saved window state (bounds + maximized)",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "saveWindowState": {
-          "line": 79,
+          "line": 142,
           "purpose": "Save current window state",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "createSplash": {
-          "line": 92,
+          "line": 155,
           "params": [
             "bounds",
             "isMaximized"
@@ -1693,7 +1736,7 @@
           ]
         },
         "createWindow": {
-          "line": 142,
+          "line": 205,
           "purpose": "Create main application window",
           "calls": [
             "createSplash",
@@ -1703,32 +1746,36 @@
           ]
         },
         "setupAllIPC": {
-          "line": 344,
+          "line": 407,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 395,
+          "line": 458,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 406,
+          "line": 469,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 448,
+      "loc": 543,
       "ipc": {
         "listens": [
           "GET_RELEASE_NOTES",
           "TERMINAL_INPUT"
         ],
         "emits": [
-          "WORKSPACE_UPDATED"
+          "CLI_OPEN_FILE",
+          "WORKSPACE_UPDATED",
+          "CLI_OPEN_PROJECT",
+          "WORKSPACE_UPDATED",
+          "CLI_OPEN_FILE"
         ]
       }
     },
@@ -2353,7 +2400,7 @@
           ]
         },
         "shouldRequireApproval": {
-          "line": 580,
+          "line": 579,
           "params": [
             "stage",
             "artifacts"
@@ -2361,21 +2408,21 @@
           "purpose": "Determine if a stage should pause for approval."
         },
         "waitForApproval": {
-          "line": 592,
+          "line": 591,
           "params": [
             "runCtx"
           ],
           "purpose": "Returns true if approved, false if rejected."
         },
         "init": {
-          "line": 615,
+          "line": 614,
           "params": [
             "window"
           ],
           "purpose": "Initialize the pipeline manager."
         },
         "setupIPC": {
-          "line": 622,
+          "line": 621,
           "params": [
             "ipcMain"
           ],
@@ -2399,7 +2446,7 @@
           ]
         },
         "watchWorkflows": {
-          "line": 881,
+          "line": 880,
           "params": [
             "projectPath"
           ],
@@ -2409,10 +2456,10 @@
           ]
         },
         "unwatchWorkflows": {
-          "line": 906
+          "line": 905
         },
         "startPipelineFromTrigger": {
-          "line": 921,
+          "line": 920,
           "params": [
             "projectPath",
             "workflowId",
@@ -2430,7 +2477,7 @@
           ]
         },
         "watchPrePushTrigger": {
-          "line": 979,
+          "line": 978,
           "params": [
             "projectPath"
           ],
@@ -2441,14 +2488,14 @@
           ]
         },
         "unwatchPrePushTrigger": {
-          "line": 1018
+          "line": 1017
         },
         "hasActiveRuns": {
-          "line": 1028,
+          "line": 1027,
           "purpose": "─── Exports ─────────────────────────────────────────────────────────────────"
         }
       },
-      "loc": 1041,
+      "loc": 1040,
       "ipc": {
         "listens": [
           "PIPELINE_LIST_WORKFLOWS",
@@ -2786,7 +2833,7 @@
           "purpose": "Validates required fields: name, on, jobs."
         },
         "listWorkflows": {
-          "line": 65,
+          "line": 66,
           "params": [
             "projectPath"
           ],
@@ -2796,7 +2843,7 @@
           ]
         }
       },
-      "loc": 99
+      "loc": 100
     },
     "main/pluginsManager": {
       "file": "src\\main\\pluginsManager.ts",
@@ -4021,7 +4068,7 @@
           ]
         },
         "deleteTask": {
-          "line": 491,
+          "line": 494,
           "params": [
             "projectPath",
             "taskId"
@@ -4034,7 +4081,7 @@
           ]
         },
         "watchTasksFile": {
-          "line": 516,
+          "line": 519,
           "params": [
             "projectPath"
           ],
@@ -4048,11 +4095,11 @@
           ]
         },
         "unwatchTasksFile": {
-          "line": 577,
+          "line": 580,
           "purpose": "Stop watching tasks directory"
         },
         "setupIPC": {
-          "line": 592,
+          "line": 595,
           "params": [
             "ipcMain"
           ],
@@ -4069,7 +4116,7 @@
           ]
         }
       },
-      "loc": 824,
+      "loc": 839,
       "ipc": {
         "listens": [
           "LOAD_TASKS",
@@ -4488,13 +4535,14 @@
           "line": 90,
           "purpose": "─── ActivityBar ─────────────────────────────────────────────────────────────",
           "calls": [
+            "clearStream",
             "cn",
             "useActivity",
             "useElapsedTime"
           ]
         }
       },
-      "loc": 293
+      "loc": 328
     },
     "renderer/components/AgentStateView": {
       "file": "src\\renderer\\components\\AgentStateView.tsx",
@@ -4711,7 +4759,7 @@
           ]
         }
       },
-      "loc": 541,
+      "loc": 578,
       "ipc": {
         "listens": [
           "WORKSPACE_DATA",
@@ -4722,9 +4770,13 @@
           "MENU_RESET_LAYOUT",
           "MENU_CLOSE_TERMINAL",
           "MENU_OPEN_SETTINGS",
-          "MENU_NEW_TERMINAL"
+          "MENU_NEW_TERMINAL",
+          "CLI_OPEN_FILE",
+          "CLI_OPEN_PROJECT"
         ],
-        "emits": []
+        "emits": [
+          "CHECK_IS_FRAME_PROJECT"
+        ]
       }
     },
     "renderer/components/CommandPalette": {
@@ -4829,21 +4881,22 @@
       ],
       "functions": {
         "getRelativePath": {
-          "line": 108,
+          "line": 114,
           "params": [
             "filePath",
             "projectPath"
           ]
         },
         "Editor": {
-          "line": 120,
+          "line": 126,
           "params": [
             "{ filePath",
-            "onClose }"
+            "onClose",
+            "inline }"
           ]
         }
       },
-      "loc": 703,
+      "loc": 788,
       "ipc": {
         "listens": [
           "FILE_CONTENT",
@@ -5033,23 +5086,29 @@
         "NoProject": {
           "line": 129
         },
+        "GitSyncStatus": {
+          "line": 138,
+          "calls": [
+            "useGitStatus"
+          ]
+        },
         "GithubIssuesPanel": {
-          "line": 137
+          "line": 159
         },
         "GithubPRsPanel": {
-          "line": 143
+          "line": 170
         },
         "GithubBranchesPanel": {
-          "line": 149
+          "line": 181
         },
         "GithubWorktreesPanel": {
-          "line": 155
+          "line": 192
         },
         "GithubChangesPanel": {
-          "line": 161
+          "line": 203
         },
         "FileTreeNodeView": {
-          "line": 167,
+          "line": 214,
           "params": [
             "{ node",
             "depth",
@@ -5061,7 +5120,7 @@
           ]
         },
         "FileGroup": {
-          "line": 243,
+          "line": 290,
           "params": [
             "{ label",
             "count",
@@ -5076,35 +5135,35 @@
           ]
         },
         "ChangesTab": {
-          "line": 335,
+          "line": 382,
           "calls": [
             "cn",
             "useGitStatus"
           ]
         },
         "IssuesTab": {
-          "line": 438,
+          "line": 485,
           "params": [
             "{ state",
             "isPR"
           ]
         },
         "BranchesTab": {
-          "line": 546,
+          "line": 593,
           "calls": [
             "cn",
             "useGitBranches"
           ]
         },
         "WorktreesTab": {
-          "line": 744,
+          "line": 791,
           "calls": [
             "cn",
             "useGitWorktrees"
           ]
         }
       },
-      "loc": 826,
+      "loc": 873,
       "ipc": {
         "listens": [],
         "emits": [
@@ -5464,7 +5523,7 @@
           ]
         }
       },
-      "loc": 921
+      "loc": 931
     },
     "renderer/components/PipelineTimeline": {
       "file": "src\\renderer\\components\\PipelineTimeline.tsx",
@@ -5879,19 +5938,19 @@
       ],
       "functions": {
         "getGroup": {
-          "line": 106,
+          "line": 107,
           "params": [
             "panelId"
           ]
         },
         "getGroupIndex": {
-          "line": 111,
+          "line": 112,
           "params": [
             "panelId"
           ]
         },
         "RightPanel": {
-          "line": 142,
+          "line": 143,
           "calls": [
             "cn",
             "getGroup",
@@ -5899,7 +5958,7 @@
           ]
         }
       },
-      "loc": 424
+      "loc": 425
     },
     "renderer/components/SessionsPanel": {
       "file": "src\\renderer\\components\\SessionsPanel.tsx",
@@ -6060,7 +6119,7 @@
           ]
         }
       },
-      "loc": 1480
+      "loc": 1504
     },
     "renderer/components/ShortcutsPanel": {
       "file": "src\\renderer\\components\\ShortcutsPanel.tsx",
@@ -6729,7 +6788,7 @@
           ]
         }
       },
-      "loc": 776,
+      "loc": 783,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID",
@@ -6759,6 +6818,7 @@
         "PipelinePanel",
         "AgentStateView",
         "ShortcutsPanel",
+        "Editor",
         "ViewTabBar",
         "ErrorBoundary",
         "stores/useTerminalStore",
@@ -6773,20 +6833,20 @@
       ],
       "functions": {
         "saveSession": {
-          "line": 61,
+          "line": 62,
           "params": [
             "projectPath",
             "store"
           ]
         },
         "loadSession": {
-          "line": 97,
+          "line": 98,
           "params": [
             "projectPath"
           ]
         },
         "TerminalArea": {
-          "line": 107,
+          "line": 108,
           "calls": [
             "createTerminal",
             "getLogoSVG",
@@ -6800,7 +6860,7 @@
           ]
         }
       },
-      "loc": 813,
+      "loc": 837,
       "ipc": {
         "listens": [
           "TERMINAL_POPOUT_STATUS",
@@ -6828,16 +6888,17 @@
       ],
       "functions": {
         "TerminalGrid": {
-          "line": 32,
+          "line": 33,
           "params": [
             "{ onCloseTerminal",
             "onCreateTerminal",
             "onPopOutTerminal",
-            "projectTerminals }"
+            "projectTerminals",
+            "projectPath }"
           ]
         }
       },
-      "loc": 460
+      "loc": 461
     },
     "renderer/components/TerminalTabBar": {
       "file": "src\\renderer\\components\\TerminalTabBar.tsx",
@@ -6857,18 +6918,23 @@
       ],
       "functions": {
         "TerminalTabBar": {
-          "line": 59,
+          "line": 67,
           "params": [
             "{\r\n  onCreateTerminal",
             "onCloseTerminal",
             "onPopOutTerminal",
             "projectTerminals",
             "gridOverflowIds",
+            "onTerminalTabClick",
+            "editorFiles",
+            "activeEditorFile",
+            "onSelectEditorFile",
+            "onCloseEditorFile",
             "}"
           ]
         }
       },
-      "loc": 474,
+      "loc": 538,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA"
@@ -6941,7 +7007,7 @@
       ],
       "functions": {
         "ViewTabBar": {
-          "line": 72,
+          "line": 74,
           "calls": [
             "getTabIdForContent",
             "useAIToolConfig",
@@ -6949,7 +7015,7 @@
           ]
         },
         "UsageItem": {
-          "line": 360,
+          "line": 362,
           "params": [
             "{ label",
             "utilization",
@@ -6957,13 +7023,13 @@
           ]
         },
         "ResetTime": {
-          "line": 383,
+          "line": 385,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 402,
+      "loc": 404,
       "ipc": {
         "listens": [
           "CLAUDE_USAGE_DATA"
@@ -7019,29 +7085,29 @@
       ],
       "functions": {
         "uid": {
-          "line": 146
+          "line": 147
         },
         "createBlankStep": {
-          "line": 150,
+          "line": 151,
           "calls": [
             "uid"
           ]
         },
         "createBlankJob": {
-          "line": 168,
+          "line": 169,
           "calls": [
             "createBlankStep",
             "uid"
           ]
         },
         "createBlankState": {
-          "line": 178,
+          "line": 179,
           "calls": [
             "createBlankJob"
           ]
         },
         "definitionToState": {
-          "line": 189,
+          "line": 191,
           "params": [
             "def"
           ],
@@ -7050,13 +7116,13 @@
           ]
         },
         "yamlQuote": {
-          "line": 230,
+          "line": 233,
           "params": [
             "val"
           ]
         },
         "stateToYaml": {
-          "line": 244,
+          "line": 249,
           "params": [
             "state"
           ],
@@ -7065,13 +7131,13 @@
           ]
         },
         "stageSupportsConfig": {
-          "line": 313,
+          "line": 319,
           "params": [
             "uses"
           ]
         },
         "StepCard": {
-          "line": 319,
+          "line": 325,
           "params": [
             "{\r\n  step",
             "index",
@@ -7083,7 +7149,7 @@
           "purpose": "─── Step Card ───────────────────────────────────────────────────────────────"
         },
         "YamlEditorPane": {
-          "line": 605,
+          "line": 611,
           "params": [
             "{\r\n  value",
             "onChange",
@@ -7092,7 +7158,7 @@
           "purpose": "─── YAML Editor (lightweight CodeMirror wrapper) ────────────────────────────"
         },
         "WorkflowEditorDialog": {
-          "line": 667,
+          "line": 673,
           "params": [
             "{\r\n  open",
             "onOpenChange",
@@ -7104,7 +7170,7 @@
           ]
         }
       },
-      "loc": 1279
+      "loc": 1297
     },
     "renderer/components/WorkspaceSelector": {
       "file": "src\\renderer\\components\\WorkspaceSelector.tsx",
@@ -7170,11 +7236,12 @@
           "purpose": "Hook that provides activity stream state, real-time output logs, and cancel mutation.",
           "calls": [
             "typedInvoke",
+            "typedSend",
             "useIpcQuery"
           ]
         }
       },
-      "loc": 103
+      "loc": 123
     },
     "renderer/hooks/useAgentState": {
       "file": "src\\renderer\\hooks\\useAgentState.ts",
@@ -7288,13 +7355,15 @@
         "useGitWorktrees"
       ],
       "depends": [
+        "react",
         "useIpc",
         "stores/useProjectStore",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "lib/ipc"
       ],
       "functions": {
         "useGithubIssues": {
-          "line": 9,
+          "line": 11,
           "params": [
             "state"
           ],
@@ -7303,27 +7372,28 @@
           ]
         },
         "useGitBranches": {
-          "line": 27,
+          "line": 29,
           "calls": [
             "useIpcMutation",
             "useIpcQuery"
           ]
         },
         "useGitStatus": {
-          "line": 59,
+          "line": 61,
           "calls": [
+            "typedSend",
             "useIpcQuery"
           ]
         },
         "useGitWorktrees": {
-          "line": 83,
+          "line": 97,
           "calls": [
             "useIpcMutation",
             "useIpcQuery"
           ]
         }
       },
-      "loc": 108
+      "loc": 122
     },
     "renderer/hooks/useIpc": {
       "file": "src\\renderer\\hooks\\useIpc.ts",
@@ -7792,7 +7862,9 @@
         "minimapCompartment",
         "wordWrapCompartment",
         "fontSizeCompartment",
-        "fontFamilyCompartment"
+        "fontFamilyCompartment",
+        "openSearchPanel",
+        "gotoLine"
       ],
       "depends": [
         "@codemirror/state",
@@ -7818,7 +7890,7 @@
       ],
       "functions": {
         "getLanguageExtension": {
-          "line": 69,
+          "line": 78,
           "params": [
             "filename"
           ],
@@ -7828,27 +7900,27 @@
           ]
         },
         "resolveLanguage": {
-          "line": 81,
+          "line": 90,
           "params": [
             "ext"
           ]
         },
         "getBaseExtensions": {
-          "line": 145,
+          "line": 154,
           "params": [
             "options"
           ],
           "purpose": "Does NOT include theme or language — those are added separately."
         },
         "getMinimapExtension": {
-          "line": 192,
+          "line": 202,
           "params": [
             "enabled"
           ],
           "purpose": "Returns a minimap extension (enabled or empty)."
         },
         "reconfigureMinimap": {
-          "line": 209,
+          "line": 219,
           "params": [
             "view",
             "enabled"
@@ -7858,13 +7930,13 @@
           ]
         },
         "getWordWrapExtension": {
-          "line": 216,
+          "line": 226,
           "params": [
             "enabled"
           ]
         },
         "reconfigureWordWrap": {
-          "line": 221,
+          "line": 231,
           "params": [
             "view",
             "enabled"
@@ -7874,13 +7946,13 @@
           ]
         },
         "getFontSizeExtension": {
-          "line": 228,
+          "line": 238,
           "params": [
             "size"
           ]
         },
         "reconfigureFontSize": {
-          "line": 235,
+          "line": 245,
           "params": [
             "view",
             "size"
@@ -7890,13 +7962,13 @@
           ]
         },
         "getFontFamilyExtension": {
-          "line": 246,
+          "line": 256,
           "params": [
             "family"
           ]
         },
         "reconfigureFontFamily": {
-          "line": 253,
+          "line": 263,
           "params": [
             "view",
             "family"
@@ -7906,18 +7978,18 @@
           ]
         },
         "getJsonLinter": {
-          "line": 262,
+          "line": 272,
           "purpose": "Returns a linter extension that validates JSON syntax using JSON.parse."
         },
         "getIndentExtension": {
-          "line": 293,
+          "line": 303,
           "params": [
             "tabSize"
           ],
           "purpose": "Returns extensions that configure tab size and indent unit."
         }
       },
-      "loc": 299
+      "loc": 309
     },
     "renderer/lib/codemirror-theme": {
       "file": "src\\renderer\\lib\\codemirror-theme.ts",
@@ -8116,16 +8188,16 @@
       "depends": [],
       "functions": {
         "getShortcutsByCategory": {
-          "line": 161
+          "line": 170
         },
         "getKeys": {
-          "line": 174,
+          "line": 183,
           "params": [
             "id"
           ]
         }
       },
-      "loc": 177
+      "loc": 186
     },
     "renderer/lib/terminalRegistry": {
       "file": "src\\renderer\\lib\\terminalRegistry.ts",
@@ -8352,7 +8424,7 @@
           "line": 8
         }
       },
-      "loc": 172
+      "loc": 188
     },
     "renderer/stores/useUIStore": {
       "file": "src\\renderer\\stores\\useUIStore.ts",
@@ -8382,7 +8454,7 @@
           ]
         }
       },
-      "loc": 297
+      "loc": 351
     },
     "shared/activityTypes": {
       "file": "src\\shared\\activityTypes.ts",
@@ -8996,7 +9068,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1253
+      "loc": 1269
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",

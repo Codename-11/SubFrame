@@ -6,6 +6,34 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Documentation Sync & Feature Discovery (2026-03-15)
+- Audited all documentation files against actual source code
+- Updated CLAUDE.md: added missing managers (`claudeUsageManager`, `githubManager`), utilities (`fileEditor`, `dialogs`, `menu`, `promptLogger`, `pty`), shared types (`agentStateTypes`, `subframeHealth`, `claudeSettingsUtils`, `projectInit`, `logoSVG`), renderer components (`CritiqueView`, `PatchReview`, `PromptsPanel`, `ShortcutsPanel`, `ViewTabBar`, `ThemeProvider`), and lib modules (`terminalRegistry`)
+- Updated CHANGELOG.md `[Unreleased]` with undocumented features: git auto-fetch/sync status, editor find/replace/go-to-line/code folding, editor tab mode, CLI integration, single-instance, recent files tracking, terminal file-path links
+- Updated docs/guide/features.md with editor tab mode, find/replace, go-to-line, code folding, git sync status, auto-fetch, activity streams, CLI integration sections
+- Updated README.md with CLI integration section, pop-out terminals, activity streams, git sync status, editor improvements
+- Regenerated STRUCTURE.json
+
+### Activity Streams System (2026-03-14)
+
+#### Main Process
+- **activityManager.ts** — New manager module with centralized execution tracking, heartbeat timers, timeout management, and dismiss controls
+- Onboarding, pipeline, and task enhancement systems all route output through activityManager
+- `spawnAIToolRaw` gains 10-second heartbeat timer for print-mode stages
+- `ENHANCE_TASK` gets 2-minute timeout guard and multi-strategy JSON extraction
+
+#### Renderer
+- **ActivityBar.tsx** — VS Code-style bottom bar showing active/recent activities with real-time log streaming
+- **useActivity.ts** — TanStack Query hook for activity state management
+- **activityTypes.ts** — Shared type definitions for activity stream events
+
+#### Settings & UI
+- Settings panel rewritten with sidebar navigation, search filter, and 5 reusable setting components
+- Close-window protection: native OS dialog for app close, themed AlertDialog for terminal tab close
+- Task panel bulk actions: select mode, bulk Complete/Delete/Send-to-Terminal with confirmation
+- Workspace create dialog with name input
+- Prompts moved to own top bar button
+
 ### Pop-Out Terminal Windows (2026-03-14)
 
 #### Main Process

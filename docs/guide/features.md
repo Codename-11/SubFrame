@@ -21,6 +21,10 @@ The terminal is the heart of SubFrame. You can run multiple terminal sessions si
 
 **Session Persistence** — Terminal layout, names, and active terminal are saved per-project and restored when you switch back.
 
+**Pop-Out Windows** — Detach any terminal to a separate window with `Ctrl+Shift+D` for multi-monitor workflows. Pop-out terminals are fully functional with independent resize handling.
+
+**File Path Links** — `Ctrl+click` on file paths printed in terminal output to open them directly in the built-in editor.
+
 ::: tip Quick Access
 - `Ctrl+Shift+T` — New terminal
 - `Ctrl+Shift+W` — Close current terminal
@@ -80,9 +84,17 @@ Access the file tree with `Ctrl+Shift+E`.
 
 ### Editor
 
-Clicking a file opens SubFrame's built-in editor powered by CodeMirror 6. The editor opens as a dialog overlay and supports:
+Clicking a file opens SubFrame's built-in editor powered by CodeMirror 6. The editor supports two view modes, configurable in Settings > Editor:
 
-- **Syntax Highlighting** — Language support for TypeScript, JavaScript, JSON, Markdown, HTML, CSS, and more
+- **Overlay Mode** (default) — Editor opens as a dialog overlay on top of the terminal area
+- **Tab Mode** — Editor opens as an inline tab alongside terminal tabs, replacing the terminal view when active
+
+Editor features include:
+
+- **Syntax Highlighting** — Language support for TypeScript, JavaScript, JSON, Markdown, HTML, CSS, Python, Rust, Go, PHP, SQL, and more
+- **Find & Replace** — `Ctrl+H` opens a find-and-replace panel with regex support
+- **Go to Line** — `Ctrl+G` or the toolbar button opens a go-to-line dialog
+- **Code Folding** — Fold gutters with clickable arrows for collapsible code blocks (functions, classes, objects)
 - **Themes** — Multiple editor themes including SubFrame Dark (default), with a theme picker in the toolbar. The editor theme inherits accent colors from the active app theme.
 - **Minimap** — Toggle a code minimap for quick navigation through large files
 - **Word Wrap** — Toggle word wrapping for long lines
@@ -132,6 +144,14 @@ The GitHub panel group provides four tabbed sub-panels for repository management
 ### Issues & Pull Requests
 
 Browse open, closed, or all GitHub issues and pull requests. Each item shows the title, number, labels (with color-matched badges), author, and relative timestamp. Click any item to open it on GitHub.
+
+### Sync Status
+
+The GitHub panel header shows a sync status line with the current branch name, ahead/behind commit counts relative to the remote, and working tree state (staged, modified, untracked file counts). When the local branch is in sync with remote, it displays "Up to date."
+
+### Auto-Fetch
+
+Configure automatic background fetching in Settings > Git. When enabled, SubFrame periodically runs `git fetch` at the configured interval to keep your ahead/behind counts current without manual intervention.
 
 ### Branches
 
@@ -217,6 +237,24 @@ Optional visual effects that can be enabled independently of the active theme:
 - **Neon Traces** — Glowing border accents on panels and interactive elements
 - **Scanlines** — Subtle CRT-style scanline overlay
 - **Logo Glow** — Soft glow effect on the SubFrame logo in the sidebar
+
+## Activity Streams
+
+The Activity Bar sits at the bottom of the window (VS Code-style) and provides centralized visibility into all running background operations:
+
+- **Real-time log streaming** — Onboarding analysis, pipeline stages, and task enhancement all route their output through the activity system
+- **Heartbeat timers** — Long-running operations show elapsed time with periodic heartbeat updates
+- **Timeout management** — Operations that exceed their time limit can be dismissed or cancelled
+- **Dismiss controls** — Completed or failed activities can be dismissed individually
+
+## CLI Integration
+
+SubFrame supports external CLI commands for integration with other tools and scripts:
+
+- **`subframe edit <file>`** — Open a file in the SubFrame editor from the command line
+- **`subframe open <dir>`** — Open a directory as a project in SubFrame
+- **Single-instance** — If SubFrame is already running, CLI commands are forwarded to the existing instance instead of launching a new one
+- **macOS open-file** — Files opened via Finder or Dock are handled by the running SubFrame instance
 
 ## Auto-Updater
 

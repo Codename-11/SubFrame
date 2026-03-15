@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Git auto-fetch** — configurable background fetch interval in Settings > Git, with IPC channels for start/stop auto-fetch
+- **Git sync status** — branch ahead/behind counts displayed in sidebar and GitHub panel, with "Up to date" indicator
+- **Editor find/replace** — Ctrl+H find-and-replace panel exposed via CodeMirror search extension
+- **Editor go-to-line** — Ctrl+G go-to-line dialog via toolbar button and keyboard shortcut
+- **Editor code folding** — fold gutters with clickable arrows for collapsible code blocks
+- **Editor tab mode** — toggle between overlay dialog and inline tab mode for the file editor (Settings > Editor), opens files as tabs alongside terminals
+- **CLI integration** — `subframe edit <file>` and `subframe open <dir>` commands via `scripts/subframe-cli.js` for external tool integration
+- **Single-instance enforcement** — second app launches forward their argv to the running instance instead of opening a new window
+- **macOS open-file handler** — `app.on('open-file')` support for Finder/Dock file associations
+- **Recent files tracking** — recently opened files tracked and displayed in the Overview dashboard
+- **Terminal file-path links** — Ctrl+click on file paths in terminal output to open them in the editor via link provider in `terminalRegistry.ts`
+
 ## [0.4.0-beta] - 2026-03-14
 
 ### Added

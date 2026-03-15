@@ -136,10 +136,11 @@ Markdown-based task tracking stored in `.subframe/tasks/` with YAML frontmatter.
 ### IDE Workspace
 
 - **3-Panel Layout** — File explorer, multi-terminal center, contextual side panels
-- **Multi-Terminal** — Up to 9 terminals with tabs or grid view (2x1 through 3x3), resizable cells
-- **File Editor** — CodeMirror 6 overlay with syntax highlighting for 15+ languages
+- **Multi-Terminal** — Up to 9 terminals with tabs or grid view (2x1 through 3x3), resizable cells, pop-out windows for multi-monitor workflows
+- **File Editor** — CodeMirror 6 with syntax highlighting for 15+ languages, find/replace, go-to-line, code folding, overlay or tab mode
 - **Real PTY** — Full pseudo-terminal via node-pty, not subprocess pipes
 - **File Previews** — Inline preview for Markdown, HTML, and images
+- **Activity Streams** — VS Code-style bottom bar showing real-time progress of background operations (analysis, pipelines, tasks)
 
 ### Context Preservation
 
@@ -179,7 +180,14 @@ Real-time visibility into Claude Code agent sessions:
 ### Git and GitHub
 
 - **Branch Management** — View, switch, create, and delete branches
+- **Sync Status** — Ahead/behind counts, working tree state, auto-fetch with configurable interval
 - **GitHub Issues** — Browse repository issues directly from the sidebar
+
+### CLI Integration
+
+- **`subframe edit <file>`** — Open a file in the editor from the command line
+- **`subframe open <dir>`** — Open a directory as a project
+- **Single-instance** — CLI commands forward to the running instance instead of opening a new window
 
 ### Other
 
@@ -274,8 +282,9 @@ npm run build        # Build main TS + React renderer
 npm run typecheck    # TypeScript strict-mode check (main + renderer)
 npm test             # Vitest test suite
 npm run lint         # ESLint (TS/TSX)
-npm run check        # typecheck + lint + test (all quality gates)
+npm run check        # typecheck + lint + test + verify:hooks + build (all quality gates)
 npm run structure    # Update .subframe/STRUCTURE.json
+node scripts/subframe-cli.js <command>  # SubFrame CLI (edit, open)
 ```
 
 ### Architecture
