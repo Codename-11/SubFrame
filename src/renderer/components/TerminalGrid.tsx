@@ -11,15 +11,63 @@ import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore'
 import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 
-const GRID_LAYOUTS: Record<string, { rows: number; cols: number }> = {
-  '1x2': { rows: 1, cols: 2 },
-  '1x3': { rows: 1, cols: 3 },
-  '1x4': { rows: 1, cols: 4 },
-  '2x1': { rows: 2, cols: 1 },
-  '2x2': { rows: 2, cols: 2 },
-  '3x1': { rows: 3, cols: 1 },
-  '3x2': { rows: 3, cols: 2 },
-  '3x3': { rows: 3, cols: 3 },
+interface GridSlotPlacement {
+  row: number;      // grid-row-start (1-based)
+  col: number;      // grid-column-start (1-based)
+  rowSpan?: number;  // grid-row-end: span N
+  colSpan?: number;  // grid-column-end: span N
+}
+
+interface GridLayoutConfig {
+  rows: number;
+  cols: number;
+  slots: GridSlotPlacement[];  // explicit placement per cell; empty = uniform
+}
+
+const GRID_LAYOUTS: Record<string, GridLayoutConfig> = {
+  // Uniform layouts (slots auto-generated from rows×cols)
+  '1x2': { rows: 1, cols: 2, slots: [] },
+  '1x3': { rows: 1, cols: 3, slots: [] },
+  '1x4': { rows: 1, cols: 4, slots: [] },
+  '2x1': { rows: 2, cols: 1, slots: [] },
+  '2x2': { rows: 2, cols: 2, slots: [] },
+  '3x1': { rows: 3, cols: 1, slots: [] },
+  '3x2': { rows: 3, cols: 2, slots: [] },
+  '3x3': { rows: 3, cols: 3, slots: [] },
+
+  // Asymmetric layouts
+  '2L1R': {
+    rows: 2, cols: 2,
+    slots: [
+      { row: 1, col: 1 },                    // top-left
+      { row: 2, col: 1 },                    // bottom-left
+      { row: 1, col: 2, rowSpan: 2 },        // right (spans 2 rows)
+    ],
+  },
+  '1L2R': {
+    rows: 2, cols: 2,
+    slots: [
+      { row: 1, col: 1, rowSpan: 2 },        // left (spans 2 rows)
+      { row: 1, col: 2 },                    // top-right
+      { row: 2, col: 2 },                    // bottom-right
+    ],
+  },
+  '2T1B': {
+    rows: 2, cols: 2,
+    slots: [
+      { row: 1, col: 1 },                    // top-left
+      { row: 1, col: 2 },                    // top-right
+      { row: 2, col: 1, colSpan: 2 },        // bottom (spans 2 cols)
+    ],
+  },
+  '1T2B': {
+    rows: 2, cols: 2,
+    slots: [
+      { row: 1, col: 1, colSpan: 2 },        // top (spans 2 cols)
+      { row: 2, col: 1 },                    // bottom-left
+      { row: 2, col: 2 },                    // bottom-right
+    ],
+  },
 };
 
 interface TerminalGridProps {
@@ -40,7 +88,7 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
   const setGridSlots = useTerminalStore((s) => s.setGridSlots);
 
   const config = GRID_LAYOUTS[gridLayout] ?? GRID_LAYOUTS['2x2'];
-  const maxCells = config.rows * config.cols;
+  const maxCells = config.slots.length > 0 ? config.slots.length : config.rows * config.cols;
 
   // Track which slot index was clicked for "New Terminal" so we can place it there
   const pendingSlotRef = useRef<number | null>(null);
@@ -304,8 +352,16 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
     >
       {gridSlots.slice(0, maxCells).map((slotId, index) => {
         const t = slotId ? terminalMap.current.get(slotId) : null;
-        const row = Math.floor(index / config.cols);
-        const col = index % config.cols;
+        const placement = config.slots.length > 0 ? config.slots[index] : null;
+        const row = placement ? placement.row - 1 : Math.floor(index / config.cols);
+        const col = placement ? placement.col - 1 : index % config.cols;
+        // For resize handle visibility: check if the cell's extent reaches the grid edge
+        const colEnd = col + (placement?.colSpan ?? 1);
+        const rowEnd = row + (placement?.rowSpan ?? 1);
+        const cellStyle: React.CSSProperties = placement ? {
+          gridRow: placement.rowSpan ? `${placement.row} / span ${placement.rowSpan}` : placement.row,
+          gridColumn: placement.colSpan ? `${placement.col} / span ${placement.colSpan}` : placement.col,
+        } : {};
         const isDragSource = dragSourceIdx === index;
         const isDragOver = dragOverIdx === index && dragSourceIdx !== index;
 
@@ -314,6 +370,7 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
           return (
             <div
               key={t.id}
+              style={cellStyle}
               className={`relative flex flex-col min-h-0 min-w-0 bg-bg-deep transition-opacity duration-150
                           ${isActive ? 'ring-1 ring-accent/30' : ''}
                           ${isDragSource ? 'opacity-40' : ''}
@@ -402,8 +459,8 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
                 )}
               </div>
 
-              {/* Right resize handle */}
-              {col < config.cols - 1 && (
+              {/* Right resize handle — hidden if cell spans to the last column */}
+              {colEnd < config.cols && (
                 <div
                   className="absolute top-0 right-0 w-2 h-full cursor-col-resize z-10 group"
                   onMouseDown={(e) => handleResizeStart('col', col, e.clientX)}
@@ -412,8 +469,8 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
                 </div>
               )}
 
-              {/* Bottom resize handle */}
-              {row < config.rows - 1 && (
+              {/* Bottom resize handle — hidden if cell spans to the last row */}
+              {rowEnd < config.rows && (
                 <div
                   className="absolute bottom-0 left-0 h-2 w-full cursor-row-resize z-10 group"
                   onMouseDown={(e) => handleResizeStart('row', row, e.clientY)}
@@ -429,6 +486,7 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
         return (
           <div
             key={`empty-${index}`}
+            style={cellStyle}
             className={`relative flex flex-col min-h-0 min-w-0 bg-bg-deep cursor-pointer
                         hover:bg-bg-primary/50 transition-colors group
                         ${isDragOver ? 'ring-2 ring-accent/60' : ''}`}

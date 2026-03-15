@@ -410,7 +410,7 @@ export function RightPanel() {
           return (
             <div
               key={panelId}
-              className={cn('h-full', isActive ? 'block' : 'hidden')}
+              className={cn('h-full w-full overflow-x-hidden', isActive ? 'block' : 'hidden')}
             >
               <ErrorBoundary name={ALL_PANELS[panelId].label}>
                 <Component />

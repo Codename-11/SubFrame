@@ -258,7 +258,7 @@ export function CommandPalette() {
             <CommandShortcut>{SHORTCUTS.TOGGLE_GRID.keys}</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => runAction(() => {
-            const layouts: string[] = ['1x2','1x3','1x4','2x1','2x2','3x1','3x2','3x3'];
+            const layouts: string[] = ['1x2','1x3','1x4','2x1','2x2','3x1','3x2','3x3','2L1R','1L2R','2T1B','1T2B'];
             const nextLayout = layouts[(layouts.indexOf(gridLayout) + 1) % layouts.length];
             setGridLayout(nextLayout as typeof gridLayout);
           })}>
@@ -266,7 +266,7 @@ export function CommandPalette() {
             <span>Next Grid Layout</span>
           </CommandItem>
           <CommandItem onSelect={() => runAction(() => {
-            const layouts: string[] = ['1x2','1x3','1x4','2x1','2x2','3x1','3x2','3x3'];
+            const layouts: string[] = ['1x2','1x3','1x4','2x1','2x2','3x1','3x2','3x3','2L1R','1L2R','2T1B','1T2B'];
             const prevLayout = layouts[(layouts.indexOf(gridLayout) - 1 + layouts.length) % layouts.length];
             setGridLayout(prevLayout as typeof gridLayout);
           })}>

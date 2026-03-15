@@ -15,7 +15,7 @@ The terminal is the heart of SubFrame. You can run multiple terminal sessions si
 
 **Tab Mode** displays one terminal at a time with a tab bar for switching. Each tab shows the terminal name and can be renamed by double-clicking. Right-click a tab for options including rename, refresh session name, and close.
 
-**Grid Mode** displays multiple terminals side-by-side in a configurable grid layout. Toggle between tab and grid mode with the view toggle button in the tab bar or press `Ctrl+Shift+G`. Available grid layouts include 1x2, 1x3, 2x1, 2x2, 3x2, 3x3, and more. Grid cells have resizable dividers — drag the borders between terminals to adjust sizing.
+**Grid Mode** displays multiple terminals side-by-side in a configurable grid layout. Toggle between tab and grid mode with the view toggle button in the tab bar or press `Ctrl+Shift+G`. Available grid layouts include symmetric grids (1x2, 1x3, 2x1, 2x2, 3x2, 3x3) and asymmetric layouts — 2+1 (two stacked left, one full right), 1+2 (one full left, two stacked right), 2/1 (two top, one full bottom), and 1/2 (one full top, two bottom). Grid cells have resizable dividers — drag the borders between terminals to adjust sizing.
 
 **Shell Selection** — The new terminal dropdown lets you choose from available shells (bash, PowerShell, zsh, etc.) detected on your system.
 

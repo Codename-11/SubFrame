@@ -149,7 +149,10 @@ export function TerminalArea() {
   const gridOverflowAutoSwitch = general.gridOverflowAutoSwitch !== false;
   const gridMaxCells = (() => {
     const m = gridLayout.match(/^(\d+)x(\d+)$/);
-    return m ? Number(m[1]) * Number(m[2]) : 4;
+    if (m) return Number(m[1]) * Number(m[2]);
+    // Asymmetric 3-slot layouts
+    if (['2L1R', '1L2R', '2T1B', '1T2B'].includes(gridLayout)) return 3;
+    return 4;
   })();
   const gridTerminalIds = new Set(projectTerminals.slice(0, gridMaxCells).map(t => t.id));
   const activeIsOverflow = viewMode === 'grid'

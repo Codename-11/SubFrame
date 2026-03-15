@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 
 type ViewMode = 'tabs' | 'grid';
-type GridLayout = '1x2' | '1x3' | '1x4' | '2x1' | '2x2' | '3x1' | '3x2' | '3x3';
+type GridLayout = '1x2' | '1x3' | '1x4' | '2x1' | '2x2' | '3x1' | '3x2' | '3x3' | '2L1R' | '1L2R' | '2T1B' | '1T2B';
 
 const GRID_LAYOUT_KEY = 'terminal-grid-layout';
 
 function loadGridLayout(): GridLayout {
   try {
     const stored = localStorage.getItem(GRID_LAYOUT_KEY);
-    if (stored && ['1x2', '1x3', '1x4', '2x1', '2x2', '3x1', '3x2', '3x3'].includes(stored)) {
+    if (stored && ['1x2', '1x3', '1x4', '2x1', '2x2', '3x1', '3x2', '3x3', '2L1R', '1L2R', '2T1B', '1T2B'].includes(stored)) {
       return stored as GridLayout;
     }
   } catch {

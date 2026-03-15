@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Asymmetric terminal grid layouts** — 4 new layouts: 2+1 (two stacked left, one full right), 1+2 (one full left, two stacked right), 2/1 (two top, one full bottom), 1/2 (one full top, two bottom)
+
 ## [0.5.4-beta] - 2026-03-15
 
 ### Fixed

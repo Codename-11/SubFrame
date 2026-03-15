@@ -609,18 +609,23 @@ function initModulesWithWindow(window: BrowserWindow): void {
 
 // ── Single instance lock — ensures only one SubFrame window ─────────────────
 
-const gotTheLock = app.requestSingleInstanceLock();
+// Single-instance lock — only enforce in packaged builds.
+// Dev mode needs to allow restarts without the previous instance blocking.
+const gotTheLock = app.isPackaged ? app.requestSingleInstanceLock() : true;
 
 if (!gotTheLock) {
   // Another instance is already running — it will receive our argv via 'second-instance'
   app.quit();
 } else {
-  app.on('second-instance', (_event, argv) => {
-    // Handle CLI args from the second launch
-    // Note: handleCLIArgs spawns new windows for `edit` (doesn't touch main)
-    // and only focuses main for `open` (adds project to workspace)
-    handleCLIArgs(argv);
-  });
+  // CLI forwarding: only register when single-instance lock is active (packaged builds).
+  // In dev mode, no lock = no second-instance events = handler would be dead code.
+  if (app.isPackaged) {
+    app.on('second-instance', (_event, argv) => {
+      // handleCLIArgs spawns new windows for `edit` (doesn't touch main)
+      // and only focuses main for `open` (adds project to workspace)
+      handleCLIArgs(argv);
+    });
+  }
 
   // macOS: handle files opened via Finder / `open` command
   // Queue the path if the window isn't ready yet (open-file can fire before app.whenReady)

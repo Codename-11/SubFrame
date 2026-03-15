@@ -512,7 +512,7 @@ export function TerminalTabBar({
                            border border-border-subtle bg-bg-tertiary"
                 aria-label={`Grid layout ${gridLayout}`}
               >
-                <span className="tabular-nums">{gridLayout.replace('x', '\u00d7')}</span>
+                <span className="tabular-nums">{gridLayout.includes('x') ? gridLayout.replace('x', '\u00d7') : gridLayout}</span>
                 <ChevronDown className="h-2.5 w-2.5 opacity-50" />
               </button>
             </DropdownMenuTrigger>
@@ -524,6 +524,21 @@ export function TerminalTabBar({
                   className={`text-xs justify-center tabular-nums ${gridLayout === layout ? 'text-accent font-medium' : ''}`}
                 >
                   {layout.replace('x', '\u00d7')}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              {([
+                { id: '2L1R' as const, label: '\u2b12 2+1' },
+                { id: '1L2R' as const, label: '\u2b13 1+2' },
+                { id: '2T1B' as const, label: '\u2b14 2/1' },
+                { id: '1T2B' as const, label: '\u2b15 1/2' },
+              ]).map(({ id, label }) => (
+                <DropdownMenuItem
+                  key={id}
+                  onClick={() => setGridLayout(id)}
+                  className={`text-xs justify-center ${gridLayout === id ? 'text-accent font-medium' : ''}`}
+                >
+                  {label}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

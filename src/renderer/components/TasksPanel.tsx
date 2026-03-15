@@ -91,6 +91,18 @@ const CATEGORY_SHORT: Record<string, string> = {
   chore: 'Chore',
 };
 
+const STATUS_SHORT: Record<string, string> = {
+  pending: 'Pend',
+  in_progress: 'Active',
+  completed: 'Done',
+};
+
+const PRIORITY_SHORT: Record<string, string> = {
+  high: 'Hi',
+  medium: 'Med',
+  low: 'Lo',
+};
+
 // ─── Task body ↔ markdown conversion (no frontmatter — metadata stays in form fields) ───
 
 const TASK_TEMPLATE = `Describe what this task accomplishes.
@@ -544,10 +556,11 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         header: ({ column }) => <SortHeader column={column} label="Status" />,
         cell: ({ row }) => {
           const status = row.original.status;
+          const label = isFullView ? status.replace('_', ' ') : (STATUS_SHORT[status] || status.replace('_', ' '));
           return (
             <span className="flex items-center gap-1 flex-wrap">
-              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', STATUS_COLORS[status])}>
-                {status.replace('_', ' ')}
+              <Badge variant="secondary" className={cn(isFullView ? 'text-[10px]' : 'text-[9px]', 'capitalize whitespace-nowrap', STATUS_COLORS[status])}>
+                {label}
               </Badge>
               {row.original.steps?.length > 0 && (
                 <span className="text-[10px] text-text-tertiary">
@@ -559,7 +572,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         },
         sortingFn: statusSortingFn,
         enableMultiSort: true,
-        size: isFullView ? 110 : 72,
+        size: isFullView ? 110 : 62,
       },
     ];
 
@@ -620,7 +633,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
             );
           },
           enableMultiSort: true,
-          size: 48,
+          size: 42,
         },
         {
           accessorKey: 'priority',
@@ -629,13 +642,13 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
             const priority = getValue() as string;
             return (
               <Badge variant="secondary" className={cn('text-[9px] capitalize whitespace-nowrap', PRIORITY_COLORS[priority])}>
-                {priority}
+                {PRIORITY_SHORT[priority] || priority}
               </Badge>
             );
           },
           sortingFn: prioritySortingFn,
           enableMultiSort: true,
-          size: 52,
+          size: 42,
         },
       );
     }
@@ -935,10 +948,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                           'py-1.5 text-left text-[10px] uppercase tracking-wider text-text-tertiary font-medium',
                           isFullView ? 'px-2' : 'px-1.5',
                         )}
-                        style={{
-                          width: header.getSize() !== 150 ? header.getSize() : undefined,
-                          minWidth: header.getSize() !== 150 ? header.getSize() : undefined,
-                        }}
+                        style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                       >
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
