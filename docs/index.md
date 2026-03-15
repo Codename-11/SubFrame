@@ -28,11 +28,11 @@ head:
         "description": "Terminal-first development environment for AI coding tools. Supports Claude Code, Codex CLI, and Gemini CLI.",
         "url": "https://sub-frame.dev",
         "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "Windows (macOS and Linux coming soon)",
+        "operatingSystem": "Windows (stable), macOS (beta), Linux (beta)",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "author": { "@type": "Organization", "name": "Axiom-Labs", "url": "https://github.com/Codename-11/SubFrame" },
         "softwareVersion": "0.3.1-beta",
-        "license": "https://spdx.org/licenses/BUSL-1.1.html",
+        "license": "https://spdx.org/licenses/MIT.html",
         "codeRepository": "https://github.com/Codename-11/SubFrame"
       }
 ---

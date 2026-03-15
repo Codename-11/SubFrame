@@ -1,13 +1,33 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
+    "purpose": "Sub-Task tracking index (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-11",
+    "lastUpdated": "2026-03-15",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-11T20:33:20.877Z",
+  "lastUpdated": "2026-03-15T02:56:51.851Z",
+  "taskSchema": {
+    "_comment": "This schema shows the expected structure for each task",
+    "id": "unique-id (task-xxx format)",
+    "title": "Short actionable title (max 60 chars)",
+    "description": "Claude's detailed explanation - what, how, which files affected",
+    "userRequest": "Original user prompt/request - copy verbatim",
+    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
+    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
+    "status": "pending | in_progress | completed",
+    "priority": "high | medium | low",
+    "category": "feature | fix | refactor | docs | test",
+    "context": "Session date and context",
+    "blockedBy": "Array of task IDs this task is blocked by",
+    "blocks": "Array of task IDs this task blocks",
+    "steps": "Array of { label, completed } step objects",
+    "private": "boolean — if true, task is stored locally and excluded from git",
+    "createdAt": "ISO timestamp",
+    "updatedAt": "ISO timestamp",
+    "completedAt": "ISO timestamp | null"
+  },
   "tasks": {
     "pending": [
       {
@@ -53,20 +73,6 @@
         "steps": []
       },
       {
-        "id": "task-1772890632983-xs3zrzlqe",
-        "title": "Allow Terminal windows to Pop-Out to a new window/pane.",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-07T13:37:12.983Z",
-        "updatedAt": "2026-03-07T13:37:12.983Z",
-        "completedAt": null,
-        "description": "",
-        "steps": []
-      },
-      {
         "id": "task-1772930979470-cx0ermf3t",
         "title": "Plugin/Integrations system?",
         "status": "pending",
@@ -78,20 +84,6 @@
         "updatedAt": "2026-03-08T00:49:39.470Z",
         "completedAt": null,
         "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
-        "steps": []
-      },
-      {
-        "id": "task-1773101835342-vjocui5x1",
-        "title": "Add protection to closing windows with agent running",
-        "status": "pending",
-        "priority": "high",
-        "category": "enhancement",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-10T00:17:15.342Z",
-        "updatedAt": "2026-03-10T00:17:15.342Z",
-        "completedAt": null,
-        "description": "",
         "steps": []
       },
       {
@@ -107,6 +99,29 @@
         "completedAt": null,
         "description": "Our current approach for Usage Stats (at least for Claude) works - however it results in frequent 'Usage Unavailable'. We need to research this and ensure we're using the best approach.",
         "steps": []
+      },
+      {
+        "id": "task-1773496619358-rlfv6r601",
+        "title": "Workspace Enhancements",
+        "status": "pending",
+        "priority": "medium",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T13:56:59.358Z",
+        "updatedAt": "2026-03-14T13:56:59.358Z",
+        "completedAt": null,
+        "description": "Workspaces should be enhanced for UI/UX.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "When creating a new workspace present the naming modal"
+          },
+          {
+            "completed": false,
+            "label": "Allow workspaces to be re-ordered"
+          }
+        ]
       },
       {
         "id": "task-m6",
@@ -125,32 +140,60 @@
       },
       {
         "id": "task-mm9tf4gn-i6w1",
-        "title": "Code signing for macOS and Windows",
+        "title": "Implement Windows code signing for installer and executable",
         "status": "pending",
-        "priority": "low",
+        "priority": "high",
         "category": "infra",
         "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:33:51.574Z",
-        "updatedAt": "2026-03-02T23:33:51.574Z",
+        "updatedAt": "2026-03-15T02:56:51.830Z",
         "completedAt": null,
-        "description": "Get Apple Developer cert and Windows code signing cert to eliminate Gatekeeper/SmartScreen warnings on install. This is critical for public launch credibility.",
-        "steps": []
+        "description": "Obtain and integrate a Windows code signing certificate (EV or standard) into the build/release pipeline to eliminate SmartScreen warnings when users download and install SubFrame. This is critical for public launch credibility and user trust.",
+        "acceptanceCriteria": "- A valid Windows code signing certificate is obtained from a trusted CA\n- The Electron installer (.exe/.msi) and main executable are signed during the build process\n- SmartScreen no longer shows 'unknown publisher' warnings on fresh installs\n- Code signing is integrated into the GitHub Actions release workflow (automated)\n- Signature can be verified via right-click → Properties → Digital Signatures on Windows\n- Certificate renewal process and credentials storage are documented",
+        "notes": "[2026-03-14] Blocker for public release — unsigned apps trigger Windows SmartScreen warnings",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Research and select a code signing certificate provider (DigiCert, Sectigo, SSL.com EV vs OV)"
+          },
+          {
+            "completed": false,
+            "label": "Purchase certificate and complete identity verification process"
+          },
+          {
+            "completed": false,
+            "label": "Configure electron-builder signing options (win.sign / certificateFile / certificatePassword)"
+          },
+          {
+            "completed": false,
+            "label": "Integrate signing into GitHub Actions release workflow with secure credential storage (secrets)"
+          },
+          {
+            "completed": false,
+            "label": "Test signed installer on clean Windows machine and verify SmartScreen acceptance"
+          },
+          {
+            "completed": false,
+            "label": "Document certificate renewal timeline, credential rotation, and signing configuration"
+          }
+        ]
       },
       {
         "id": "task-mm9tf4v9-a98g",
         "title": "First-launch onboarding wizard",
         "status": "pending",
-        "priority": "low",
+        "priority": "high",
         "category": "feature",
         "context": "Session 2026-03-02",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:33:52.100Z",
-        "updatedAt": "2026-03-02T23:33:52.100Z",
+        "updatedAt": "2026-03-14T16:00:03.711Z",
         "completedAt": null,
         "description": "3-step wizard on first launch: select AI tool → set project directory → open first project. Reduces drop-off for new users who don't know where to start.",
+        "notes": "[2026-03-14] Critical for first impressions — new users need guided setup",
         "steps": []
       },
       {
@@ -436,20 +479,6 @@
         "steps": []
       },
       {
-        "id": "task-mml9nktcgb29o",
-        "title": "Add step management UI to task creation dialog",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-10T23:53:47.808Z",
-        "updatedAt": "2026-03-10T23:53:47.808Z",
-        "completedAt": null,
-        "description": "The task creation/edit dialog only supports title, description, priority, and category. Steps can be added via CLI (--add-step) and are rendered in TaskTimeline, but there is no UI for creating or editing steps in the modal. Add a step list editor with add/remove/reorder capabilities.",
-        "steps": []
-      },
-      {
         "id": "task-mml9nktclwt0p",
         "title": "Expand test coverage for core managers",
         "status": "pending",
@@ -614,9 +643,119 @@
             "label": "Remove recharts ignore rule from dependabot.yml"
           }
         ]
+      },
+      {
+        "id": "task-mmqh0ely-33pw",
+        "title": "Persistent status bar mode (opt-in)",
+        "status": "pending",
+        "priority": "low",
+        "category": "enhancement",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T15:18:34.485Z",
+        "updatedAt": "2026-03-14T15:18:34.485Z",
+        "completedAt": null,
+        "description": "Add an opt-in setting to make the ActivityBar always visible as a VS Code-style status bar. When enabled, shows git branch, active AI tool, usage stats, and activity streams in a persistent 24px bottom bar. When disabled (default), ActivityBar only appears when activity streams exist. This consolidates scattered status info (usage pill in tab bar, AI tool in settings) into one surface and provides a natural extension point for future integrations/plugins.",
+        "steps": []
+      },
+      {
+        "id": "task-mmqs714q-6ev1",
+        "title": "CodeMirror theme reads CSS variables at runtime",
+        "status": "pending",
+        "priority": "medium",
+        "category": "enhancement",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T20:31:39.385Z",
+        "updatedAt": "2026-03-14T20:31:39.385Z",
+        "completedAt": null,
+        "description": "codemirror-theme.ts has 16+ hardcoded amber (#d4a574) values for syntax highlighting. Editor stays amber across all themes. Refactor to read --color-accent and other CSS variables at runtime and rebuild the CodeMirror theme when ThemeProvider changes them.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Read CSS variables in codemirror-theme.ts instead of hardcoded hex"
+          },
+          {
+            "completed": false,
+            "label": "Use CodeMirror theme compartment for dynamic updates"
+          },
+          {
+            "completed": false,
+            "label": "Call theme refresh from ThemeProvider on settings change"
+          }
+        ]
+      },
+      {
+        "id": "task-mmqs7ggk-32g7",
+        "title": "StructureMap D3 graph uses CSS variables for colors",
+        "status": "pending",
+        "priority": "low",
+        "category": "enhancement",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T20:31:59.251Z",
+        "updatedAt": "2026-03-14T20:31:59.251Z",
+        "completedAt": null,
+        "description": "StructureMap.tsx has 14+ hardcoded amber and background color values in D3 SVG rendering. Module graph stays amber across all themes. Refactor MODULE_COLORS and inline styles to read from CSS variables.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Replace MODULE_COLORS hardcoded values with CSS variable reads"
+          },
+          {
+            "completed": false,
+            "label": "Replace inline style background/text colors with CSS variable reads"
+          },
+          {
+            "completed": false,
+            "label": "Add runtime refresh when theme changes"
+          }
+        ]
+      },
+      {
+        "id": "task-mmqs7ze1-cef5",
+        "title": "MarkdownPreview syntax highlighting respects theme",
+        "status": "pending",
+        "priority": "low",
+        "category": "enhancement",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T20:32:23.784Z",
+        "updatedAt": "2026-03-14T20:32:23.784Z",
+        "completedAt": null,
+        "description": "MarkdownPreview.tsx has 2 hardcoded #d4a574 amber values in highlight.js inline CSS string. Code blocks in previews stay amber across all themes. Replace with CSS variable references.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Replace hardcoded colors in highlight.js CSS with var() references"
+          },
+          {
+            "completed": false,
+            "label": "Verify rendering across all theme presets"
+          }
+        ]
       }
     ],
-    "inProgress": [],
+    "inProgress": [
+      {
+        "id": "task-1772890632983-xs3zrzlqe",
+        "title": "Allow Terminal windows to Pop-Out to a new window/pane.",
+        "status": "in_progress",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-07T13:37:12.983Z",
+        "updatedAt": "2026-03-14T20:04:37.171Z",
+        "completedAt": null,
+        "description": "",
+        "steps": []
+      }
+    ],
     "completed": [
       {
         "id": "task-1772674776397-kc624grpq",
@@ -748,6 +887,20 @@
         "steps": []
       },
       {
+        "id": "task-1773101835342-vjocui5x1",
+        "title": "Add protection to closing windows with agent running",
+        "status": "completed",
+        "priority": "high",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T00:17:15.342Z",
+        "updatedAt": "2026-03-14T16:08:52.931Z",
+        "completedAt": "2026-03-14T16:08:52.931Z",
+        "description": "",
+        "steps": []
+      },
+      {
         "id": "task-1773106251873-jkr6061nr",
         "title": "Allow Sub-Tasks to be private",
         "status": "completed",
@@ -759,6 +912,20 @@
         "updatedAt": "2026-03-11T00:48:56.203Z",
         "completedAt": "2026-03-11T00:48:56.203Z",
         "description": "Sub-Tasks should be allowed to be marked private and not tracked via git. All UI/Sub-Frame features should still work as normal otherwise. We should include enhancements to skils/hooks, etc if needed.",
+        "steps": []
+      },
+      {
+        "id": "task-1773106558697-vynen76ga",
+        "title": "AI Tool install status/availibility",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:35:58.697Z",
+        "updatedAt": "2026-03-11T20:33:20.874Z",
+        "completedAt": "2026-03-11T20:33:20.874Z",
+        "description": "",
         "steps": []
       },
       {
@@ -1418,6 +1585,20 @@
         "steps": []
       },
       {
+        "id": "task-mml9nktcgb29o",
+        "title": "Add step management UI to task creation dialog",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T23:53:47.808Z",
+        "updatedAt": "2026-03-14T16:00:35.548Z",
+        "completedAt": "2026-03-14T16:00:35.548Z",
+        "description": "The task creation/edit dialog only supports title, description, priority, and category. Steps can be added via CLI (--add-step) and are rendered in TaskTimeline, but there is no UI for creating or editing steps in the modal. Add a step list editor with add/remove/reorder capabilities.",
+        "steps": []
+      },
+      {
         "id": "task-mmm3ix0s-pmuk",
         "title": "Upgrade actions/upload-artifact to v7 (coordinated with download-artifact)",
         "status": "completed",
@@ -1448,6 +1629,162 @@
           {
             "completed": false,
             "label": "Remove upload-artifact ignore rule from dependabot.yml"
+          }
+        ]
+      },
+      {
+        "id": "task-mmpr3kot-ksq5",
+        "title": "File tree flat/list view toggle with search",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T03:13:12.316Z",
+        "updatedAt": "2026-03-14T03:27:31.414Z",
+        "completedAt": "2026-03-14T03:27:31.414Z",
+        "description": "Add tree/flat view toggle to FileTree component header. Flat mode shows all files as searchable list with relative paths. Add filter/search input at top.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Add view mode state (tree|flat) to FileTree"
+          },
+          {
+            "completed": false,
+            "label": "Implement flat file list rendering with relative paths"
+          },
+          {
+            "completed": false,
+            "label": "Add search/filter input in file tree header"
+          },
+          {
+            "completed": false,
+            "label": "Add toggle button (tree/list icons) in header"
+          },
+          {
+            "completed": false,
+            "label": "Persist view preference"
+          }
+        ]
+      },
+      {
+        "id": "task-mmpr3pb9-uqho",
+        "title": "Terminal WebLinksAddon and Unicode11Addon",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T03:13:18.308Z",
+        "updatedAt": "2026-03-14T03:27:31.540Z",
+        "completedAt": "2026-03-14T03:27:31.540Z",
+        "description": "Add WebLinksAddon for clickable URLs and Unicode11Addon for better emoji/CJK rendering in terminal.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Install and load WebLinksAddon in terminalRegistry"
+          },
+          {
+            "completed": false,
+            "label": "Install and load Unicode11Addon in terminalRegistry"
+          },
+          {
+            "completed": false,
+            "label": "Configure link click handler to open in browser"
+          }
+        ]
+      },
+      {
+        "id": "task-mmpr3uw0-x8du",
+        "title": "Right-panel context menus (Tasks, Sessions, GitHub)",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T03:13:25.535Z",
+        "updatedAt": "2026-03-14T03:27:31.677Z",
+        "completedAt": "2026-03-14T03:27:31.677Z",
+        "description": "Add right-click context menus to TasksPanel rows, SessionsPanel rows, and GithubPanel file items using existing shadcn ContextMenu component.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "TasksPanel: context menu on task rows (copy title, send to terminal, start/complete, edit, delete)"
+          },
+          {
+            "completed": false,
+            "label": "SessionsPanel: context menu on session rows (resume, rename, delete)"
+          },
+          {
+            "completed": false,
+            "label": "GithubPanel: context menu on file items (open in editor, copy path, stage/unstage)"
+          }
+        ]
+      },
+      {
+        "id": "task-mmpr3zu6-yg84",
+        "title": "GitHub panel tree view for changed files",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T03:13:31.950Z",
+        "updatedAt": "2026-03-14T03:27:31.815Z",
+        "completedAt": "2026-03-14T03:27:31.815Z",
+        "description": "Add tree/flat toggle to GithubPanel changes tab. Tree view groups changed files by directory hierarchy like VSCode source control. Flat view shows current list.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Add tree/flat view toggle to changes tab header"
+          },
+          {
+            "completed": false,
+            "label": "Build directory tree from flat file paths"
+          },
+          {
+            "completed": false,
+            "label": "Render collapsible directory nodes with file children"
+          },
+          {
+            "completed": false,
+            "label": "Show change count badges on directory nodes"
+          },
+          {
+            "completed": false,
+            "label": "Persist view preference"
+          }
+        ]
+      },
+      {
+        "id": "task-mmpr45h7-bcnk",
+        "title": "Terminal Ctrl+click file path opening",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-14",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T03:13:39.259Z",
+        "updatedAt": "2026-03-14T03:27:31.944Z",
+        "completedAt": "2026-03-14T03:27:31.944Z",
+        "description": "Detect file paths in terminal output and allow Ctrl+click to open them in the editor. Match common path patterns (relative and absolute).",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Implement file path regex detection"
+          },
+          {
+            "completed": false,
+            "label": "Register custom link provider with xterm"
+          },
+          {
+            "completed": false,
+            "label": "Ctrl+click handler opens file in editor via IPC"
           }
         ]
       },
@@ -1652,21 +1989,11 @@
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
         "steps": []
-      },
-      {
-        "id": "task-1773106558697-vynen76ga",
-        "title": "AI Tool install status/availibility",
-        "status": "completed",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-10T01:35:58.697Z",
-        "updatedAt": "2026-03-11T20:33:20.874Z",
-        "completedAt": "2026-03-11T20:33:20.874Z",
-        "description": "",
-        "steps": []
       }
     ]
+  },
+  "metadata": {
+    "totalCreated": 111,
+    "totalCompleted": 71
   }
 }

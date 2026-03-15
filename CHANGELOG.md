@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Activity Streams system** — centralized execution/output manager with VS Code-style bottom bar (ActivityBar), real-time log streaming, heartbeat timers, and timeout management
+- **Settings panel sidebar navigation** — replaced horizontal tabs with sidebar nav, search filter, and 5 reusable setting components (SettingToggle, SettingInput, SettingSelect, SettingSlider, SettingGroup)
+- **Close-window protection** — native warning dialog when closing with active AI agents, pipelines, or analyses running; themed AlertDialog for terminal tab close
+- **Onboarding analysis streaming progress** — auto-show terminal output, elapsed timer, line count, logarithmic progress bar creep via named PTY output handlers
+- **Pipeline print-mode heartbeat** — 10-second heartbeat timer in spawnAIToolRaw for feedback during AI tool execution
+- **Task enhance timeout and JSON extraction** — 2-minute timeout guard and multi-strategy JSON extraction (direct, fenced, brace-search) for ENHANCE_TASK
+- **Workspace create dialog** — name input dialog when creating new workspace (previously hardcoded "New Workspace")
+- **Task panel bulk actions** — select mode toggle, themed Checkbox column, bulk Complete/Delete with confirmation, bulk Send to Terminal with optional wrapper prompt
+- **Task panel Copy ID** — context menu item to copy task ID to clipboard
+- **Task send-to-terminal enhancement** — includes task ID, priority, category, status, and steps; auto-starts pending tasks
+- **Pop-out terminal windows** — detach terminals to separate windows for multi-monitor workflows (Ctrl+Shift+D)
+
+### Fixed
+- **Terminal grid overflow** — extra grid slots no longer render as phantom rows when switching from larger to smaller grid layouts
+- **Named PTY output handlers** — upgraded from single to multi-handler Map, preventing handler clobbering between trust prompt and streaming progress
+- **Onboarding audit fixes** — trust handler given explicit ID, elapsed timer guarded on isAnalyzing, immediate first-output progress tick
+
+### Changed
+- **"Agent Activity" tab renamed to "Agents"** — shorter label in ViewTabBar
+
 ## [0.3.1-beta] - 2026-03-12
 
 ### Fixed

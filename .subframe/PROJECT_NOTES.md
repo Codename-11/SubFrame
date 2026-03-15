@@ -435,6 +435,20 @@ mainWindow.webContents.openDevTools();
 
 ## Session Notes
 
+### [2026-03-14] Pop-Out Terminal Architecture
+
+**Context:** Users working with multi-monitor setups need to detach terminals from the main window to watch agent output on a second screen while working in the main app.
+
+**Decision:** Hub-and-spoke model — PTY lives in the main process, pop-out windows are independent `BrowserWindow`s that load the same `index.html` in a minimal mode (detected via URL hash). Main process routes terminal events to whichever windows need them.
+
+**Key architectural choices:**
+- **Prewarmed hidden window** eliminates cold-start latency — a standby `BrowserWindow` pre-loads the full renderer bundle at startup, activated via `POPOUT_ACTIVATE` IPC when the user pops out. New prewarm scheduled 1s after each use.
+- **Output routing via `addOutputHandler`** — the existing named handler system in ptyManager forwards PTY data to pop-out windows without modifying the core `onData` path.
+- **Both renderers have their own xterm instance** — the main window's xterm accumulates scrollback in its off-screen holder, so docking back is seamless with full history.
+- **Race condition guards** — stale destroyed-window cleanup before creating new entries, `closed`-event identity check (`popoutWindows.get(id) === win`), and `window-all-closed` guard via `getOpenCount()`.
+
+**Files:** `src/main/popoutManager.ts`, `src/renderer/components/PopoutTerminal.tsx`, `src/main/ptyManager.ts` (broadcast helpers)
+
 ### [2026-03-01] Claude Code Skills as Deployable Components
 
 **Context:** SubFrame's 3 universal skills (`/sub-tasks`, `/sub-docs`, `/sub-audit`) only existed in SubFrame's own `.claude/skills/` directory. Projects initialized by SubFrame didn't get these skills deployed.

@@ -1,7 +1,6 @@
-# @subframe-version 0.3.1-beta
+# @subframe-version 0.3.0-beta
 # @subframe-managed
 name: review
-description: AI-powered code review of staged changes with critique and suggestions
 on:
   push:
     branches: ['*']

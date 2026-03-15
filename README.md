@@ -14,16 +14,16 @@
   <a href="https://github.com/Codename-11/SubFrame/actions/workflows/ci.yml"><img src="https://github.com/Codename-11/SubFrame/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <img src="https://img.shields.io/badge/pre--release-beta-blueviolet" alt="Beta" />
   <a href="https://github.com/Codename-11/SubFrame/releases"><img src="https://img.shields.io/github/v/release/Codename-11/SubFrame?include_prereleases&label=version&color=orange" alt="Version" /></a>
-  <img src="https://img.shields.io/badge/license-BSL--1.1-blue" alt="License" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React" />
   <img src="https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white" alt="Electron" />
-  <img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/badge/macOS-coming%20soon-555?logo=apple&logoColor=white" alt="macOS — coming soon" />
-  <img src="https://img.shields.io/badge/Linux-coming%20soon-555?logo=linux&logoColor=white" alt="Linux — coming soon" />
+  <img src="https://img.shields.io/badge/Windows-stable-0078D6?logo=windows&logoColor=white" alt="Windows (stable)" />
+  <img src="https://img.shields.io/badge/macOS-beta-555?logo=apple&logoColor=white" alt="macOS (beta)" />
+  <img src="https://img.shields.io/badge/Linux-beta-555?logo=linux&logoColor=white" alt="Linux (beta)" />
 </p>
 
 <p align="center">
@@ -38,11 +38,35 @@ https://github.com/user-attachments/assets/75837799-2a38-42ff-917b-885946c27184
 
 A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). SubFrame wraps your existing AI tools in a structured workspace — persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions.
 
-> **Platform support:** Currently tested and released for **Windows**. macOS and Linux builds are generated but **untested** — community testing and feedback welcome. See [Installation](#installation) for platform-specific prerequisites.
+> **Platform support:** **Windows (stable)** · **macOS & Linux (beta — testers wanted).** See [Installation](#installation) for platform-specific prerequisites.
+
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/main_ui_sidebars_collapsed.png" alt="SubFrame terminal workspace with Claude Code session" width="800" />
+</p>
+<p align="center"><em>Multi-terminal workspace with Claude Code — full PTY, syntax highlighting, and status bar</em></p>
+
+<p align="center">
+  <img src="assets/screenshots/main_ui_overiview_pane.png" alt="SubFrame project overview dashboard" width="800" />
+</p>
+<p align="center"><em>Project overview — stats, structure, active tasks, recent files, and health status at a glance</em></p>
+
+<p align="center">
+  <img src="assets/screenshots/main_ui_left_sidebar_collapsed_right_tasks.png" alt="SubFrame task management panel alongside terminal" width="800" />
+</p>
+<p align="center"><em>Task panel with agent activity — manage sub-tasks while coding in the terminal</em></p>
 
 > SubFrame builds upon [Frame](https://github.com/kaanozhan/Frame) by [@kaanozhan](https://github.com/kaanozhan), extended with React 19, TypeScript, and a modernized architecture.
 
 ## Why SubFrame?
+
+| | VS Code | Cursor | Warp | SubFrame |
+|---|---|---|---|---|
+| Terminal-first | No | No | Yes | **Yes** |
+| AI tool agnostic | No | No | No | **Yes** (Claude, Codex, Gemini) |
+| Project context | Extensions | Built-in | Limited | **Built-in** (tasks, sessions, overview) |
+| Open source | Partial | No | No | **MIT** |
 
 As AI-assisted projects grow, context gets lost between sessions. Decisions are forgotten, tasks slip through the cracks, and you re-explain the same things over and over.
 
@@ -212,7 +236,7 @@ Initializing a workspace creates a standard set of files your AI tools read auto
 
 ## Installation
 
-> **Note:** Pre-built releases are currently available for **Windows** only. macOS and Linux builds are produced by CI but have not been tested — if you try them, please [report any issues](https://github.com/Codename-11/SubFrame/issues).
+> **Note:** Windows builds are stable. macOS and Linux builds are produced by CI and in beta — if you try them, please [report any issues](https://github.com/Codename-11/SubFrame/issues). Testers wanted!
 
 ### Prerequisites
 - **Node.js 18+** and npm
@@ -276,29 +300,13 @@ npm run dist:mac      # macOS (signed DMG)
 
 ## Contributing
 
-SubFrame is in early beta and we'd love your help. Whether it's bug reports, feature ideas, documentation improvements, or code contributions — everything is welcome.
+SubFrame is in early beta and we'd love your help — bug reports, feature ideas, docs, code, or testing on macOS/Linux.
 
-**Ways to get involved:**
-
-- **Try it out** — Download, use it with your AI tools, and [report what breaks](https://github.com/Codename-11/SubFrame/issues/new)
-- **Request features** — Have an idea? [Open an issue](https://github.com/Codename-11/SubFrame/issues/new) and describe your use case
-- **Submit a PR** — Bug fixes, improvements, and new features are all appreciated
-- **Spread the word** — Star the repo, share it with other developers
-
-**To contribute code:**
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, etc.)
-4. Open a Pull Request
-
-We review all PRs and aim to respond promptly. Don't worry about getting everything perfect — we'd rather see your contribution and iterate together.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full guide, including setup instructions, code conventions, and what makes a good PR.
 
 ## License
 
-Business Source License 1.1 — see [LICENSE](./LICENSE)
-
-Source code is available for reading, forking, and contribution. Commercial use that competes with SubFrame requires a separate agreement with Axiom-Labs. Each version converts to Apache-2.0 four years after release.
+MIT License — free to use, modify, and distribute. See [LICENSE](./LICENSE).
 
 ## Acknowledgments
 

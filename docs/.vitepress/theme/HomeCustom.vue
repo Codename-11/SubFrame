@@ -189,7 +189,7 @@ const faqItems = [
           </div>
 
           <h1 class="hero-title">
-            Code with<br /><em>intelligence</em>
+            Your terminal,<br /><em>with context</em>
           </h1>
 
           <p class="hero-subtitle">
@@ -234,10 +234,10 @@ const faqItems = [
     <section class="features" id="features">
       <div class="container">
         <div class="section-label fade-in">Features</div>
-        <h2 class="section-title fade-in">Everything you need<br />to build faster</h2>
+        <h2 class="section-title fade-in">What's in the box</h2>
         <p class="section-subtitle fade-in">
-          SubFrame combines a terminal-first workflow with your favorite AI coding tool, giving you
-          superpowers for understanding and writing code.
+          SubFrame combines a terminal-first workflow with your favorite AI coding tool, so you can
+          understand and write code with full project context.
         </p>
 
         <div class="features-grid">
@@ -778,16 +778,12 @@ const faqItems = [
       <div class="container">
         <div class="stats-grid">
           <div class="stat-item fade-in">
-            <div class="stat-value">36+</div>
-            <div class="stat-label">Modules</div>
+            <div class="stat-value">9</div>
+            <div class="stat-label">Terminals</div>
           </div>
           <div class="stat-item fade-in">
-            <div class="stat-value">15+</div>
-            <div class="stat-label">IPC Channels</div>
-          </div>
-          <div class="stat-item fade-in">
-            <div class="stat-value">&infin;</div>
-            <div class="stat-label">Possibilities</div>
+            <div class="stat-value">5</div>
+            <div class="stat-label">Slash Commands</div>
           </div>
           <div class="stat-item fade-in">
             <div class="stat-value">3</div>
@@ -860,12 +856,12 @@ const faqItems = [
       <div class="container">
         <div class="cta-content">
           <h2 class="cta-title fade-in">
-            Ready to code<br /><em>smarter?</em>
+            Get started
           </h2>
           <p class="cta-subtitle fade-in">
             SubFrame is free and open source. Download for macOS or Windows, or build from source.
           </p>
-          <p class="cta-platforms fade-in">* Available for macOS and Windows. Linux support coming soon.</p>
+          <p class="cta-platforms fade-in">Windows (stable) · macOS & Linux (beta — testers wanted)</p>
 
           <!-- Primary: detected platform -->
           <div class="cta-actions fade-in">

@@ -6,6 +6,32 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Pop-Out Terminal Windows (2026-03-14)
+
+#### Main Process
+- **popoutManager.ts** — New manager module (`init()` + `setupIPC()` pattern) for detaching terminals into separate OS windows
+  - Prewarmed hidden `BrowserWindow` eliminates cold-start latency — renderer bundle is pre-loaded in standby mode
+  - Window bounds persistence to `userData/popout-state.json` for position/size recall
+  - Race condition guards: stale destroyed-window cleanup, `closed`-event identity check
+  - `getOpenCount()` export prevents `window-all-closed` from quitting app when only a pop-out closes
+- **ptyManager.ts** — Added `registerPopoutWebContents()` / `unregisterPopoutWebContents()` broadcast helpers; `broadcastClaudeStatus()` and PTY `onExit` now forward events to pop-out windows
+- **index.ts** — Wired `popoutManager` into init, IPC setup, and close cleanup; guarded `window-all-closed` with pop-out count check
+
+#### Renderer
+- **PopoutTerminal.tsx** — Minimal pop-out window UI with dock button, agent activity indicator, and standby/active mode for prewarming
+- **index.tsx** — Entry point branching: detects `#popout?terminalId=X` (cold) and `#popout-standby` (prewarmed) URL hashes
+- **TerminalTabBar.tsx** — "Pop Out" in context menu; inline `ExternalLink` icon button on hover (before close X); popped-out tabs show dimmed text + icon
+- **TerminalArea.tsx** — Pop-out orchestration, `TERMINAL_POPOUT_STATUS` listener, placeholder with Focus/Dock buttons, Ctrl+Shift+D shortcut, clears maximized state on pop-out
+- **TerminalGrid.tsx** — Grid cells and maximized view show Focus/Dock placeholder when terminal is popped out; pop-out button hidden when already popped out
+- **useTerminalStore.ts** — Added `poppedOut` field to `TerminalInfo` and `setPoppedOut` action
+- **shortcuts.ts** — Added `POPOUT_TERMINAL` (`Ctrl+Shift+D`) to shortcut registry
+
+#### IPC Channels
+- `TERMINAL_POPOUT` (handle) — renderer→main pop-out request
+- `TERMINAL_DOCK` (handle) — renderer→main dock-back request
+- `TERMINAL_POPOUT_STATUS` (event) — main→renderer state change broadcast
+- `POPOUT_ACTIVATE` (event) — main→renderer prewarmed window activation
+
 ### Private Sub-Tasks (2026-03-11)
 
 #### Data Model & Storage
