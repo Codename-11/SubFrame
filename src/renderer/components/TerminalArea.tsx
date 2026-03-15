@@ -360,9 +360,9 @@ export function TerminalArea() {
         if (session.gridLayout) {
           useTerminalStore.getState().setGridLayout(session.gridLayout as any);
         }
-        // Restore grid slot assignments (drag-swap positions)
+        // Restore grid slot assignments (drag-swap positions) — scoped to project
         if (session.gridSlots && Array.isArray(session.gridSlots)) {
-          useTerminalStore.getState().setGridSlots(session.gridSlots);
+          useTerminalStore.getState().setGridSlots(session.gridSlots, normalizedPath);
         }
         // Gap 3: Restore tab order by updating createdAt timestamps
         if (session.tabOrder && session.tabOrder.length > 0) {
@@ -782,7 +782,7 @@ export function TerminalArea() {
           ) : null
         ) : (
           /* Grid view */
-          <TerminalGrid onCloseTerminal={closeTerminal} onCreateTerminal={createTerminal} onPopOutTerminal={popOutTerminal} projectTerminals={projectTerminals} />
+          <TerminalGrid onCloseTerminal={closeTerminal} onCreateTerminal={createTerminal} onPopOutTerminal={popOutTerminal} projectTerminals={projectTerminals} projectPath={normalizedPath} />
         )}
       </div>
 

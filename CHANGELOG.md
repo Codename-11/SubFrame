@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0-beta] - 2026-03-14
+
 ### Added
-- **Activity Streams system** — centralized execution/output manager with VS Code-style bottom bar (ActivityBar), real-time log streaming, heartbeat timers, and timeout management
+- **Activity Streams system** — centralized execution/output manager with VS Code-style bottom bar (ActivityBar), real-time log streaming, heartbeat timers, and timeout management with dismiss controls
 - **Settings panel sidebar navigation** — replaced horizontal tabs with sidebar nav, search filter, and 5 reusable setting components (SettingToggle, SettingInput, SettingSelect, SettingSlider, SettingGroup)
 - **Close-window protection** — native warning dialog when closing with active AI agents, pipelines, or analyses running; themed AlertDialog for terminal tab close
 - **Onboarding analysis streaming progress** — auto-show terminal output, elapsed timer, line count, logarithmic progress bar creep via named PTY output handlers
@@ -19,14 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Task panel Copy ID** — context menu item to copy task ID to clipboard
 - **Task send-to-terminal enhancement** — includes task ID, priority, category, status, and steps; auto-starts pending tasks
 - **Pop-out terminal windows** — detach terminals to separate windows for multi-monitor workflows (Ctrl+Shift+D)
+- **Prompts top-bar shortcut** — Prompts moved to own button in main tab bar (out of Agents group)
 
 ### Fixed
 - **Terminal grid overflow** — extra grid slots no longer render as phantom rows when switching from larger to smaller grid layouts
+- **Terminal scroll position retention** — double-RAF restore after fit() prevents scrollbar reset on workspace switch
+- **Task edit dialog overflow** — flex column layout with fixed header/footer and scrollable middle
+- **Reset layout completeness** — now clears all persisted state (sidebar, right panel, grid layout, cell sizes)
 - **Named PTY output handlers** — upgraded from single to multi-handler Map, preventing handler clobbering between trust prompt and streaming progress
 - **Onboarding audit fixes** — trust handler given explicit ID, elapsed timer guarded on isAnalyzing, immediate first-output progress tick
+- **Bulk delete safety** — bulk delete now requires confirmation dialog (was instant/irreversible)
+- **Task privacy change data safety** — file write before delete to prevent data loss on write failure
 
 ### Changed
 - **"Agent Activity" tab renamed to "Agents"** — shorter label in ViewTabBar
+- **Default grid layout** — changed from 2x2 to 1x2
+- **Right panel minimum width** — increased from 320px to 380px
+- **Top bar reorder** — Sub-Tasks, GitHub, Agents, Prompts, Pipeline, Overview
 
 ## [0.3.1-beta] - 2026-03-12
 
@@ -345,7 +356,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.3.0-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.4.0-beta...HEAD
+[0.4.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.3.1-beta...v0.4.0-beta
+[0.3.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.3.0-beta...v0.3.1-beta
 [0.3.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.7-beta...v0.3.0-beta
 [0.2.7-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.6-beta...v0.2.7-beta
 [0.2.6-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.5-beta...v0.2.6-beta

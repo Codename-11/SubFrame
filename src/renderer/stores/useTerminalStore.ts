@@ -37,7 +37,8 @@ interface TerminalState {
   gridLayout: GridLayout;
   maximizedTerminalId: string | null;
   gridSlots: (string | null)[];
-  setGridSlots: (slots: (string | null)[]) => void;
+  gridSlotsByProject: Map<string, (string | null)[]>;
+  setGridSlots: (slots: (string | null)[], projectPath?: string) => void;
   setActiveTerminal: (id: string) => void;
   addTerminal: (info: TerminalInfo) => void;
   removeTerminal: (id: string, currentProjectPath?: string) => void;
@@ -59,7 +60,16 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   gridLayout: loadGridLayout(),
   maximizedTerminalId: null,
   gridSlots: [],
-  setGridSlots: (slots) => set({ gridSlots: slots }),
+  gridSlotsByProject: new Map(),
+  setGridSlots: (slots, projectPath) => {
+    if (projectPath !== undefined) {
+      const byProject = new Map(get().gridSlotsByProject);
+      byProject.set(projectPath, slots);
+      set({ gridSlots: slots, gridSlotsByProject: byProject });
+    } else {
+      set({ gridSlots: slots });
+    }
+  },
 
   setActiveTerminal: (id) => {
     const info = get().terminals.get(id);
@@ -125,6 +135,12 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   switchToProject: (projectPath) => {
     const activeByProject = get().activeByProject;
     const savedId = activeByProject.get(projectPath);
+
+    // Restore per-project grid slots
+    const savedSlots = get().gridSlotsByProject.get(projectPath);
+    if (savedSlots) {
+      set({ gridSlots: savedSlots });
+    }
 
     if (savedId && get().terminals.has(savedId)) {
       set({ activeTerminalId: savedId });

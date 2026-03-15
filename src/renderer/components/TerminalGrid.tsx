@@ -27,9 +27,10 @@ interface TerminalGridProps {
   onCreateTerminal: (shell?: string) => void;
   onPopOutTerminal?: (id: string) => void;
   projectTerminals: TerminalInfo[];
+  projectPath?: string;
 }
 
-export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTerminal, projectTerminals }: TerminalGridProps) {
+export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTerminal, projectTerminals, projectPath }: TerminalGridProps) {
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const gridLayout = useTerminalStore((s) => s.gridLayout);
   const setActiveTerminal = useTerminalStore((s) => s.setActiveTerminal);
@@ -72,9 +73,9 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
     const prevStr = JSON.stringify(prev.slice(0, maxCells));
     const nextStr = JSON.stringify(kept);
     if (prevStr !== nextStr) {
-      setGridSlots(kept);
+      setGridSlots(kept, projectPath);
     }
-  }, [projectTerminals, maxCells, setGridSlots]);
+  }, [projectTerminals, maxCells, setGridSlots, projectPath]);
 
   // Resolve slots to terminal objects for rendering
   const terminalMap = useRef(new Map<string, TerminalInfo>());
@@ -117,8 +118,8 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
     const prev = useTerminalStore.getState().gridSlots;
     const next = [...prev];
     [next[sourceIdx], next[targetIdx]] = [next[targetIdx], next[sourceIdx]];
-    setGridSlots(next);
-  }, [setGridSlots]);
+    setGridSlots(next, projectPath);
+  }, [setGridSlots, projectPath]);
 
   const handleDragEnd = useCallback(() => {
     setDragSourceIdx(null);
