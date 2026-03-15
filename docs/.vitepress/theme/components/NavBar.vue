@@ -1,75 +1,92 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { withBase } from 'vitepress'
-import LogoSvg from './LogoSvg.vue'
-
-const mobileMenuOpen = ref(false)
-
-function onAnchorClick(e: Event, href: string) {
-  e.preventDefault()
-  // If we're on the homepage, scroll to section
-  const el = document.querySelector(href)
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth' })
-  } else {
-    // Navigate to homepage with hash
-    window.location.href = withBase('/') + href
-  }
-}
-
-function onMobileNav(e: Event, href: string) {
-  mobileMenuOpen.value = false
-  onAnchorClick(e, href)
-}
 </script>
 
 <template>
-  <nav class="sf-nav" aria-label="Main navigation">
-    <div class="container">
-      <a :href="withBase('/')" class="logo">
-        <div class="logo-icon">
-          <LogoSvg :size="54" id="nv" :frame="true" />
-        </div>
-        <div class="logo-label">
-          <span class="logo-text">SubFrame</span>
-          <span class="logo-version">Latest: v0.5.4-beta</span>
-        </div>
+  <nav class="docs-nav">
+    <div class="docs-nav-inner">
+      <a href="https://sub-frame.dev" class="nav-logo">
+        <!-- SubFrame atom logo (static, simplified) -->
+        <svg class="nav-logo-icon" width="32" height="32" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="90" cy="90" r="40" fill="rgba(255,110,180,0.08)" />
+          <g transform="rotate(0,90,90)">
+            <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(180,128,255,0.3)" stroke-width="1.5" />
+            <circle cx="148" cy="90" r="3" fill="#b480ff" />
+          </g>
+          <g transform="rotate(60,90,90)">
+            <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(255,110,180,0.25)" stroke-width="1.5" stroke-dasharray="5 3.5" />
+            <circle cx="32" cy="90" r="3" fill="#ff6eb4" />
+          </g>
+          <g transform="rotate(120,90,90)">
+            <ellipse cx="90" cy="90" rx="58" ry="22" fill="none" stroke="rgba(100,216,255,0.22)" stroke-width="1.5" />
+            <circle cx="90" cy="68" r="3" fill="#64d8ff" />
+          </g>
+          <circle cx="90" cy="90" r="5.5" fill="#ff6eb4" />
+        </svg>
+        <span class="nav-logo-text">SubFrame</span>
+        <span class="nav-logo-tag">Docs</span>
       </a>
-
       <div class="nav-links">
-        <a href="#features" @click="onAnchorClick($event, '#features')">Features</a>
-        <a href="#showcase" @click="onAnchorClick($event, '#showcase')">Showcase</a>
-        <a href="#faq" @click="onAnchorClick($event, '#faq')">FAQ</a>
-        <a :href="withBase('/guide/')">Docs</a>
+        <a :href="withBase('/getting-started')">Docs</a>
         <a :href="withBase('/blog/')">Blog</a>
+        <a href="https://sub-frame.dev" target="_blank" rel="noopener noreferrer">Home</a>
         <a href="https://github.com/Codename-11/SubFrame" target="_blank" rel="noopener noreferrer">GitHub</a>
-      </div>
-
-      <div class="nav-cta">
-        <a href="https://github.com/Codename-11/SubFrame" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-          </svg>
-          GitHub
-        </a>
-        <a href="#download" class="btn btn-primary" @click="onAnchorClick($event, '#download')">Download</a>
-      </div>
-
-      <button class="nav-hamburger" :class="{ open: mobileMenuOpen }" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle navigation menu" :aria-expanded="mobileMenuOpen.toString()">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
-
-      <div class="nav-mobile-menu" :class="{ open: mobileMenuOpen }">
-        <a href="#features" @click="onMobileNav($event, '#features')">Features</a>
-        <a href="#showcase" @click="onMobileNav($event, '#showcase')">Showcase</a>
-        <a href="#faq" @click="onMobileNav($event, '#faq')">FAQ</a>
-        <a :href="withBase('/guide/')">Docs</a>
-        <a :href="withBase('/blog/')">Blog</a>
-        <a href="https://github.com/Codename-11/SubFrame" target="_blank" rel="noopener noreferrer">GitHub</a>
-        <a href="#download" @click="onMobileNav($event, '#download')">Download</a>
       </div>
     </div>
   </nav>
 </template>
+
+<style scoped>
+.docs-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 14, 18, 0.85);
+  backdrop-filter: blur(12px);
+}
+.docs-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+.nav-logo-icon {
+  flex-shrink: 0;
+}
+.nav-logo-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--sf-text-primary, #eeeef0);
+}
+.nav-logo-tag {
+  font-size: 0.65rem;
+  font-family: monospace;
+  color: var(--sf-text-tertiary, #6b6b80);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+.nav-links a {
+  font-size: 0.875rem;
+  color: var(--sf-text-secondary, #9d9db0);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.nav-links a:hover {
+  color: var(--sf-text-primary, #eeeef0);
+}
+</style>

@@ -19,6 +19,10 @@ head:
       content: summary_large_image
 ---
 
+::: tip
+This blog post is an early vision statement. For the current introduction to SubFrame, see [What is SubFrame?](/introduction).
+:::
+
 ## The Problem
 
 When developing with Claude Code, there's no real need for tools like VS Code or Cursor. Those editors are designed for *writing code manually* — syntax highlighting, autocomplete, multi-cursor editing. But when an AI is writing your code, you don't need that complexity.
@@ -62,4 +66,4 @@ SubFrame supports up to 9 terminals simultaneously, with both tab and grid views
 
 SubFrame is for developers who do daily development with AI coding tools, working terminal-focused. If you find yourself spending most of your time in Claude Code, Codex CLI, or Gemini CLI — and just need a better way to manage your projects and preserve context — SubFrame is for you.
 
-[Get started with SubFrame](https://sub-frame.dev/guide/) or check out the [GitHub repository](https://github.com/Codename-11/SubFrame).
+[Get started with SubFrame](https://sub-frame.dev/docs/) or check out the [GitHub repository](https://github.com/Codename-11/SubFrame).

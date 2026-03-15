@@ -1,38 +1,34 @@
 ---
-layout: home-custom
-title: SubFrame — Terminal-First IDE for AI Coding Tools
-description: SubFrame is a terminal-first development environment for AI coding tools. Multi-terminal, task management, context preservation. Supports Claude Code, Codex CLI, and Gemini CLI.
-head:
-  - - meta
-    - property: og:type
-      content: website
-  - - meta
-    - name: twitter:card
-      content: summary_large_image
-  - - meta
-    - name: twitter:title
-      content: SubFrame — Terminal-First IDE for AI Coding Tools
-  - - meta
-    - name: twitter:description
-      content: A terminal-first development environment for Claude Code, Codex CLI, and Gemini CLI.
-  - - meta
-    - property: og:image
-      content: https://sub-frame.dev/assets/og-image.png
-  - - script
-    - type: application/ld+json
-    - |
-      {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "SubFrame",
-        "description": "Terminal-first development environment for AI coding tools. Supports Claude Code, Codex CLI, and Gemini CLI.",
-        "url": "https://sub-frame.dev",
-        "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "Windows (stable), macOS (beta), Linux (beta)",
-        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-        "author": { "@type": "Organization", "name": "Axiom-Labs", "url": "https://github.com/Codename-11/SubFrame" },
-        "softwareVersion": "0.5.4-beta",
-        "license": "https://spdx.org/licenses/MIT.html",
-        "codeRepository": "https://github.com/Codename-11/SubFrame"
-      }
+layout: doc
+title: SubFrame Documentation
 ---
+
+# SubFrame Documentation
+
+Welcome to the SubFrame docs. SubFrame is a terminal-first IDE for AI coding tools — Claude Code, Codex CLI, and Gemini CLI.
+
+## Guide
+
+<div class="vp-card-container">
+
+- **[Introduction](/introduction)** — What SubFrame is and who it's for
+- **[Getting Started](/getting-started)** — Install, set up, and run your first AI session
+- **[AI Tool Setup](/ai-tool-setup)** — Configure Claude Code, Codex CLI, or Gemini CLI
+- **[Features Overview](/features)** — Explore terminals, tasks, pipelines, and more
+
+</div>
+
+## Reference
+
+- **[Sub-Tasks](/sub-tasks)** — Task schema, CLI commands, views, and archive
+- **[Hooks & Skills](/hooks-skills)** — Automated context injection and slash commands
+- **[Pipeline Workflows](/pipelines)** — YAML workflow syntax and templates
+- **[Configuration](/configuration)** — Settings, themes, data locations
+- **[Keyboard Shortcuts](/keyboard-shortcuts)** — All shortcuts reference
+- **[Troubleshooting](/troubleshooting)** — Common issues and solutions
+
+## Blog
+
+- [Context Preservation](/blog/context-preservation) — How SubFrame maintains AI context
+- [Multi-AI Support](/blog/multi-ai-support) — Backlink injection and wrapper scripts
+- [SubFrame Server](/blog/subframe-server) — Remote development roadmap

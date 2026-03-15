@@ -83,7 +83,9 @@ var require_package = __commonJS({
         "docs:preview": "vitepress preview docs",
         "site:dev": "cd site && npm run dev",
         "site:build": "cd site && npm run build",
-        "site:preview": "cd site && npm run preview"
+        "site:preview": "cd site && npm run preview",
+        web: 'npx concurrently -n site,docs -c magenta,cyan "cd site && npm run dev" "npx vitepress dev docs --port 5174"',
+        "web:preview": `npm run site:build && npm run docs:build && node -e "const fs=require('fs');const p=require('path');fs.cpSync('site/dist','_site',{recursive:true});fs.mkdirSync('_site/docs',{recursive:true});fs.cpSync('docs/.vitepress/dist','_site/docs',{recursive:true});console.log('Merged to _site/')" && npx serve _site -p 4000`
       },
       keywords: [
         "electron",

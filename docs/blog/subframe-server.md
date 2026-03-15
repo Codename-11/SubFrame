@@ -25,7 +25,7 @@ A community member raised an interesting idea:
 
 > "I have a Windows PC for display and a headless Debian machine for development. Exposing SubFrame as a web app — like code-server — would be useful. I could install it on my headless Linux dev box and open it on any browser anywhere."
 
-This resonated with us. Not everyone has their development environment on the machine they're sitting at. Remote development is increasingly common, especially with AI coding tools that benefit from powerful hardware.
+This resonated with us. Not everyone has their development environment on the machine they're sitting at.
 
 ## Why It's Feasible
 

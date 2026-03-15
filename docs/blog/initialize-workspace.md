@@ -72,6 +72,8 @@ Four **skills** get installed to `.claude/skills/`, giving you slash commands th
 - **`/sub-docs`** — Syncs all SubFrame documentation after feature work. Updates CLAUDE.md module lists, changelog entries, PROJECT_NOTES decisions, and regenerates STRUCTURE.json.
 - **`/onboard`** — Bootstrap SubFrame files from existing codebase context. Analyzes the project and populates STRUCTURE.json, PROJECT_NOTES.md, and initial sub-tasks.
 
+→ [Full Hooks & Skills reference](/hooks-skills)
+
 ## Health Panel: See Everything at a Glance
 
 The **SubFrame Health** panel in the IDE gives you a real-time view of every component's status. Components are grouped by category — Core Files, Claude Code Hooks, Claude Code Skills, Claude Integration, and Git Hooks.

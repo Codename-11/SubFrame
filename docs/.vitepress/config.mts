@@ -4,9 +4,10 @@ export default defineConfig({
   title: 'SubFrame',
   titleTemplate: ':title',
   description: 'Terminal-First IDE for AI Coding Tools',
+  base: '/docs/',
   cleanUrls: true,
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/icon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/docs/assets/icon.svg' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' }],
     [
@@ -21,14 +22,14 @@ export default defineConfig({
     ['meta', { property: 'og:description', content: 'Terminal-First IDE for AI Coding Tools' }],
     ['meta', { property: 'og:site_name', content: 'SubFrame' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
-    ['meta', { property: 'og:image', content: 'https://sub-frame.dev/assets/og-image.png' }],
+    ['meta', { property: 'og:image', content: 'https://sub-frame.dev/og-image.png' }],
     ['meta', { property: 'og:image:width', content: '1200' }],
     ['meta', { property: 'og:image:height', content: '630' }],
     ['meta', { property: 'og:image:type', content: 'image/png' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:title', content: 'SubFrame — Terminal-First IDE for AI Coding Tools' }],
     ['meta', { name: 'twitter:description', content: 'Terminal-First IDE for AI Coding Tools' }],
-    ['meta', { name: 'twitter:image', content: 'https://sub-frame.dev/assets/og-image.png' }],
+    ['meta', { name: 'twitter:image', content: 'https://sub-frame.dev/og-image.png' }],
   ],
 
   sitemap: {
@@ -36,7 +37,7 @@ export default defineConfig({
   },
 
   transformPageData(pageData) {
-    const canonicalUrl = `https://sub-frame.dev/${pageData.relativePath}`
+    const canonicalUrl = `https://sub-frame.dev/docs/${pageData.relativePath}`
       .replace(/index\.md$/, '')
       .replace(/\.md$/, '')
 
@@ -60,27 +61,43 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
-      { text: 'Docs', link: '/guide/' },
+      { text: 'Guide', link: '/introduction' },
+      { text: 'Reference', link: '/sub-tasks' },
       { text: 'Blog', link: '/blog/' },
       { text: 'GitHub', link: 'https://github.com/Codename-11/SubFrame' },
     ],
 
     sidebar: {
-      '/docs/': [
+      '/': [
         {
-          text: 'Getting Started',
+          text: 'Guide',
           items: [
-            { text: 'Installation & Setup', link: '/docs/' },
-            { text: 'Features Overview', link: '/docs/features' },
-            { text: 'AI Tool Setup', link: '/docs/ai-tool-setup' },
+            { text: 'Introduction', link: '/introduction' },
+            { text: 'Getting Started', link: '/getting-started' },
+            { text: 'AI Tool Setup', link: '/ai-tool-setup' },
+            { text: 'Features Overview', link: '/features' },
           ],
         },
         {
           text: 'Reference',
           items: [
-            { text: 'Configuration', link: '/docs/configuration' },
-            { text: 'Keyboard Shortcuts', link: '/docs/keyboard-shortcuts' },
-            { text: 'Troubleshooting', link: '/docs/troubleshooting' },
+            { text: 'Sub-Tasks', link: '/sub-tasks' },
+            { text: 'Hooks & Skills', link: '/hooks-skills' },
+            { text: 'Pipeline Workflows', link: '/pipelines' },
+            { text: 'Configuration', link: '/configuration' },
+            { text: 'Keyboard Shortcuts', link: '/keyboard-shortcuts' },
+            { text: 'Troubleshooting', link: '/troubleshooting' },
+          ],
+        },
+      ],
+      '/blog/': [
+        {
+          text: 'Blog',
+          items: [
+            { text: 'Context Preservation', link: '/blog/context-preservation' },
+            { text: 'Multi-AI Support', link: '/blog/multi-ai-support' },
+            { text: 'Initialize Workspace', link: '/blog/initialize-workspace' },
+            { text: 'SubFrame Server', link: '/blog/subframe-server' },
           ],
         },
       ],
