@@ -9,7 +9,7 @@ import { app, colors, fonts, gradientText } from '../theme';
 import { AtomLogo } from '../AtomLogo';
 
 /**
- * Scene: Built-in Intelligence (7 seconds = 210 frames @ 30fps)
+ * Scene: Hooks & Context (7 seconds = 210 frames @ 30fps)
  *
  * Animated node graph showing SubFrame's persistent context system.
  * Center: SubFrame atom logo
@@ -55,7 +55,7 @@ interface HookNode {
 const hookNodes: HookNode[] = [
   { name: 'SessionStart', desc: 'Injects context', color: app.success, angle: 35, radius: 280 },
   { name: 'UserPrompt', desc: 'Matches sub-tasks', color: app.accent, angle: 90, radius: 300 },
-  { name: 'PreCommit', desc: 'Auto-updates structure', color: app.warning, angle: 145, radius: 280 },
+  { name: 'Stop', desc: 'Tracks progress', color: app.warning, angle: 145, radius: 280 },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -302,7 +302,7 @@ export const Intelligence: React.FC = () => {
             letterSpacing: '-0.02em',
           }}
         >
-          Built-in Intelligence
+          Hooks & Context
         </span>
       </div>
 

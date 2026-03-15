@@ -29,14 +29,24 @@ import { CursorMock } from '../ui/CursorMock';
  *   265-330: Command palette opens, highlight steps to "Project Overview"
  *   330:     Palette closes → Overview panel cross-fades in (tab bar updates)
  *   340-350: Cursor appears, moves to grid layout dropdown button
- *   352:     Cursor clicks dropdown — layout menu opens
- *   364:     Cursor selects 3×3 — grid changes to 9 panes
+ *   359:     Cursor clicks dropdown — layout menu opens
+ *   378:     Cursor selects 2L1R — grid changes to asymmetric layout
  *   375-385: Cursor moves to sidebar workspace selector
  *   388:     Cursor clicks — workspace switch (Default → Work)
  *   415:     Cursor clicks back — workspace switches back (Work → Default)
  *   330-435: Overview panel with animated charts + stats
  *   435+:    Hold
  */
+
+/** ViewTabBar panel shortcuts — matches real app's PANEL_SHORTCUTS */
+const viewBarPanels = [
+  { label: 'Sub-Tasks', icon: '☰' },
+  { label: 'GitHub', icon: '◈' },
+  { label: 'Agents', icon: '◉' },
+  { label: 'Prompts', icon: '❝' },
+  { label: 'Pipeline', icon: '⟩' },
+  { label: 'Overview', icon: '▣' },
+];
 
 export const AppDemo: React.FC = () => {
   const frame = useCurrentFrame();
@@ -117,13 +127,13 @@ export const AppDemo: React.FC = () => {
     config: { damping: 16, stiffness: 80 },
   });
 
-  // Which panel toggle is active in the tab bar (0=Tasks, 2=Overview)
-  const activePanelIndex = showOverview ? 2 : 0;
+  // Which panel toggle is active in the tab bar (0=Sub-Tasks, 5=Overview)
+  const activePanelIndex = showOverview ? 5 : 0;
 
-  // Grid layout — cursor clicks dropdown at ~356, hovers 3×3 at ~372, selects at ~378
-  const gridLayout = frame >= 378 ? '3x3' : '2x2';
+  // Grid layout — cursor clicks dropdown at ~356, hovers 2L1R at ~372, selects at ~378
+  const gridLayout = frame >= 378 ? '2L1R' : '2x2';
   const showGridDropdown = frame >= 358 && frame < 380;
-  const gridDropdownHighlight = frame >= 370 && frame < 380 ? '3x3' : undefined;
+  const gridDropdownHighlight = frame >= 370 && frame < 380 ? '2L1R' : undefined;
   const layoutChangedAt = 378;
 
   // Workspace switching — cursor clicks at ~442, switch happens at 444, back at 484
@@ -137,8 +147,8 @@ export const AppDemo: React.FC = () => {
 
   // ─── Bottom labels ──────────────────────────────────────────────────────────
 
-  // "Terminal Grid" label when grid appears
-  const showLabel2 = frame >= 145 && frame < 190;
+  // "Terminal Grid" label when grid appears — extended for readability
+  const showLabel2 = frame >= 145 && frame < 197;
   const label2Opacity = showLabel2
     ? interpolate(
         spring({
@@ -148,11 +158,11 @@ export const AppDemo: React.FC = () => {
         }),
         [0, 1],
         [0, 1]
-      ) * interpolate(frame, [185, 192], [1, 0], { extrapolateRight: 'clamp' })
+      ) * interpolate(frame, [192, 197], [1, 0], { extrapolateRight: 'clamp' })
     : 0;
 
-  // "AI Tool Selector" label
-  const showLabel3 = frame >= 197 && frame < 252;
+  // "AI Tool Selector" label — extended
+  const showLabel3 = frame >= 197 && frame < 263;
   const label3Opacity = showLabel3
     ? interpolate(
         spring({
@@ -162,11 +172,11 @@ export const AppDemo: React.FC = () => {
         }),
         [0, 1],
         [0, 1]
-      ) * interpolate(frame, [247, 254], [1, 0], { extrapolateRight: 'clamp' })
+      ) * interpolate(frame, [258, 265], [1, 0], { extrapolateRight: 'clamp' })
     : 0;
 
   // "Command Palette" label
-  const showLabel3b = frame >= 268 && frame < 327;
+  const showLabel3b = frame >= 268 && frame < 330;
   const label3bOpacity = showLabel3b
     ? interpolate(
         spring({
@@ -176,21 +186,21 @@ export const AppDemo: React.FC = () => {
         }),
         [0, 1],
         [0, 1]
-      ) * interpolate(frame, [322, 329], [1, 0], { extrapolateRight: 'clamp' })
+      ) * interpolate(frame, [325, 332], [1, 0], { extrapolateRight: 'clamp' })
     : 0;
 
-  // "Project Overview" label when overview appears (ends before grid dropdown)
-  const showLabel4 = frame >= 335 && frame < 350;
+  // "Project Overview" label when overview appears — extended to overlap grid dropdown start
+  const showLabel4 = frame >= 332 && frame < 358;
   const label4Opacity = showLabel4
     ? interpolate(
         spring({
-          frame: frame - 335,
+          frame: frame - 332,
           fps,
           config: { damping: 14, stiffness: 100 },
         }),
         [0, 1],
         [0, 1]
-      ) * interpolate(frame, [345, 352], [1, 0], { extrapolateRight: 'clamp' })
+      ) * interpolate(frame, [353, 360], [1, 0], { extrapolateRight: 'clamp' })
     : 0;
 
   // "Grid Layout" label during grid dropdown + hold on 3×3
@@ -346,9 +356,9 @@ export const AppDemo: React.FC = () => {
           </span>
         </div>
 
-        {/* App body — flex row */}
+        {/* App body — sidebar spans full height, ViewTabBar is inside the main content column */}
         <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-          {/* Sidebar */}
+          {/* Sidebar — full height below title bar */}
           <div
             style={{
               width: sidebarWidth,
@@ -365,28 +375,178 @@ export const AppDemo: React.FC = () => {
             />
           </div>
 
-          {/* Terminal area */}
+          {/* Main content column — ViewTabBar + Terminal + Activity bar */}
           <div
             style={{
               flex: 1,
               display: 'flex',
               flexDirection: 'column',
               minWidth: 0,
-              opacity: terminalOpacity,
             }}
           >
-            <TerminalMock
-              animateIn={false}
-              showTabBar
-              showUsage
-              gridAt={150}
-              activePanelIndex={activePanelIndex}
-              workspaceIndex={activeProjectIndex}
-              gridLayout={gridLayout}
-              showGridDropdown={showGridDropdown}
-              gridDropdownHighlight={gridDropdownHighlight}
-              layoutChangedAt={layoutChangedAt}
-            />
+            {/* ViewTabBar — distinct flat bar, NOT bubble style */}
+            <div
+              style={{
+                height: 32,
+                background: app.bgSecondary,
+                borderBottom: `1px solid ${app.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                flexShrink: 0,
+                fontFamily: fonts.display,
+                fontSize: 11,
+              }}
+            >
+              {/* AI tool indicator */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '0 10px',
+                  height: '100%',
+                  borderRight: `1px solid ${app.border}`,
+                  color: app.textSecondary,
+                }}
+              >
+                <span style={{ fontFamily: fonts.mono, fontSize: 10, color: app.accent }}>▸</span>
+                <span style={{ fontSize: 11, fontWeight: 500 }}>Claude Code</span>
+              </div>
+
+              {/* View tabs — flat style with bottom border accent (NOT bubble) */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '100%',
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    height: '100%',
+                    padding: '0 12px',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: app.textPrimary,
+                    borderBottom: `2px solid ${app.accent}`,
+                    background: app.bgPrimary,
+                  }}
+                >
+                  <span style={{ fontFamily: fonts.mono, fontSize: 10 }}>▣</span>
+                  Terminal
+                </div>
+              </div>
+
+              {/* Right side — usage pill + panel shortcuts */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  padding: '0 8px',
+                  flexShrink: 0,
+                }}
+              >
+                {/* Usage pill */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '2px 8px',
+                    background: app.bgTertiary,
+                    border: `1px solid ${app.border}`,
+                    borderRadius: 5,
+                    marginRight: 6,
+                  }}
+                >
+                  <span style={{ fontFamily: fonts.mono, fontSize: 9, color: app.textTertiary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Session
+                  </span>
+                  <div style={{ width: 32, height: 4, borderRadius: 2, background: app.bgDeep, overflow: 'hidden' }}>
+                    <div style={{ width: '34%', height: '100%', borderRadius: 2, background: app.success }} />
+                  </div>
+                  <span style={{ fontFamily: fonts.mono, fontSize: 9, color: app.success, fontWeight: 600 }}>34%</span>
+                </div>
+
+                {/* Divider */}
+                <div style={{ width: 1, height: 14, background: app.border, margin: '0 4px' }} />
+
+                {/* Panel shortcut buttons — small, flat style */}
+                {viewBarPanels.map((panel, i) => {
+                  const isActive = i === activePanelIndex;
+                  return (
+                    <div
+                      key={panel.label}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        height: 22,
+                        padding: '0 6px',
+                        borderRadius: 4,
+                        fontSize: 10,
+                        fontWeight: 500,
+                        color: isActive ? app.accent : app.textTertiary,
+                        background: isActive ? app.accentSubtle : 'transparent',
+                      }}
+                    >
+                      <span style={{ fontSize: 10 }}>{panel.icon}</span>
+                      {panel.label}
+                    </div>
+                  );
+                })}
+
+                {/* Divider */}
+                <div style={{ width: 1, height: 14, background: app.border, margin: '0 4px' }} />
+
+                {/* Right panel toggle icon */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 22,
+                    height: 22,
+                    borderRadius: 4,
+                    color: app.accent,
+                    background: app.accentSubtle,
+                    fontSize: 10,
+                  }}
+                >
+                  ⊟
+                </div>
+              </div>
+            </div>
+
+            {/* Terminal area */}
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                minWidth: 0,
+                opacity: terminalOpacity,
+              }}
+            >
+              <TerminalMock
+                animateIn={false}
+                showTabBar
+                showUsage={false}
+                gridAt={150}
+                activePanelIndex={activePanelIndex}
+                workspaceIndex={activeProjectIndex}
+                gridLayout={gridLayout}
+                showGridDropdown={showGridDropdown}
+                gridDropdownHighlight={gridDropdownHighlight}
+                layoutChangedAt={layoutChangedAt}
+                showPanelToggles={false}
+              />
+            </div>
           </div>
 
           {/* Right panel — Tasks or Overview */}
@@ -428,6 +588,32 @@ export const AppDemo: React.FC = () => {
           </div>
         </div>
 
+        {/* Activity bar — thin VS Code-style bottom bar */}
+        <div
+          style={{
+            height: 22,
+            background: app.bgSecondary,
+            borderTop: `1px solid ${app.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 10px',
+            gap: 12,
+            flexShrink: 0,
+            fontFamily: fonts.mono,
+            fontSize: 10,
+          }}
+        >
+          <span style={{ color: app.success, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontSize: 8 }}>●</span> Ready
+          </span>
+          <span style={{ color: app.textMuted }}>|</span>
+          <span style={{ color: app.textTertiary }}>
+            onboarding-analysis: completed
+          </span>
+          <div style={{ flex: 1 }} />
+          <span style={{ color: app.textMuted }}>Activity</span>
+        </div>
+
         {/* AI Tool Selector overlay */}
         {showToolSelector && (
           <div
@@ -462,25 +648,25 @@ export const AppDemo: React.FC = () => {
           exitAt={515}
           waypoints={[
             // Start from center of terminal area
-            { frame: 340, x: 700, y: 400 },
-            // Move to grid layout dropdown button in tab bar
-            { frame: 354, x: 1136, y: 56, click: true },
+            { frame: 340, x: 700, y: 430 },
+            // Move to grid layout dropdown button in terminal tab bar (right edge of terminal area)
+            { frame: 359, x: 1360, y: 88, click: true },
             // Hold while dropdown opens
-            { frame: 362, x: 1136, y: 56 },
-            // Move down through dropdown to "3×3" option (5th item)
-            { frame: 372, x: 1136, y: 170 },
-            // Click 3×3
-            { frame: 376, x: 1136, y: 170, click: true },
-            // Grid changes — pause to let viewer see 3×3
-            { frame: 395, x: 700, y: 400 },
-            // Move to sidebar workspace selector
+            { frame: 366, x: 1360, y: 88 },
+            // Move down through dropdown to "2L1R" option (4th item in 9-item list)
+            { frame: 372, x: 1360, y: 178 },
+            // Click 2L1R
+            { frame: 376, x: 1360, y: 178, click: true },
+            // Grid changes — pause to let viewer see asymmetric layout
+            { frame: 395, x: 700, y: 430 },
+            // Move to sidebar workspace selector (sidebar starts at y=38, ws selector ~112px down)
             { frame: 440, x: 80, y: 150, click: true },
             // Workspace switches — hold to see Work workspace
             { frame: 468, x: 80, y: 150 },
             // Click back to Default
             { frame: 480, x: 80, y: 150, click: true },
             // Workspace switches back — drift away
-            { frame: 510, x: 400, y: 350 },
+            { frame: 510, x: 400, y: 380 },
           ]}
         />
       </div>
@@ -567,7 +753,7 @@ export const AppDemo: React.FC = () => {
               border: `1px solid rgba(212, 165, 116, 0.2)`,
             }}
           >
-            Grid Layout — 1×2 up to 3×3
+            Asymmetric Grid — 2L1R layout
           </span>
         </div>
       )}

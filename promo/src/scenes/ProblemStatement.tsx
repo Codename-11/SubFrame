@@ -35,12 +35,14 @@ const problems = [
   { text: "You're gluing together tools that should just work together..." },
 ];
 
-// Background chaos terminals — tilted, overlapping windows
+// Background chaos terminals — tilted, overlapping, scattered around the screen
 const chaosWindows = [
-  { x: -320, y: -80, rot: -4, w: 520, title: 'bash — npm run dev', delay: 30 },
-  { x: 280, y: -60, rot: 3, w: 480, title: 'node — server.js', delay: 95 },
-  { x: -200, y: 100, rot: 2, w: 440, title: 'zsh — ~/projects', delay: 160 },
-  { x: 340, y: 120, rot: -3, w: 500, title: 'Terminal 4', delay: 225 },
+  { x: -520, y: -180, rot: -6, w: 480, title: 'bash — npm run dev', delay: 0 },
+  { x: 480, y: -140, rot: 5, w: 440, title: 'node — server.js', delay: 10 },
+  { x: -440, y: 120, rot: 3, w: 420, title: 'zsh — ~/projects', delay: 20 },
+  { x: 540, y: 160, rot: -4, w: 460, title: 'Terminal 4', delay: 30 },
+  { x: -80, y: -260, rot: -2, w: 500, title: 'claude — api-server', delay: 15 },
+  { x: 60, y: 240, rot: 2, w: 460, title: 'docker compose logs', delay: 25 },
 ];
 
 const MiniTerminal: React.FC<{
@@ -52,10 +54,10 @@ const MiniTerminal: React.FC<{
   progress: number;
   chaosProgress: number;
 }> = ({ x, y, rot, w, title, progress, chaosProgress }) => {
-  const opacity = interpolate(progress, [0, 1], [0, 0.35])
+  const opacity = interpolate(progress, [0, 1], [0, 0.55])
     * interpolate(chaosProgress, [0, 1], [1, 0]);
-  const scale = interpolate(progress, [0, 1], [0.9, 1])
-    * interpolate(chaosProgress, [0, 1], [1, 0.85]);
+  const scale = interpolate(progress, [0, 1], [0.85, 1])
+    * interpolate(chaosProgress, [0, 1], [1, 0.8]);
   // Subtle shake during chaos collapse
   const shake = chaosProgress > 0 && chaosProgress < 0.5
     ? Math.sin(chaosProgress * 40) * 3

@@ -36,8 +36,11 @@ interface PanelToggle {
 }
 
 const panelToggles: PanelToggle[] = [
-  { label: 'Tasks', icon: '☰', active: true },
+  { label: 'Sub-Tasks', icon: '☰', active: true },
   { label: 'GitHub', icon: '◈', active: false },
+  { label: 'Agents', icon: '◉', active: false },
+  { label: 'Prompts', icon: '❝', active: false },
+  { label: 'Pipeline', icon: '⟩', active: false },
   { label: 'Overview', icon: '▣', active: false },
 ];
 
@@ -65,7 +68,7 @@ export const TerminalMock: React.FC<{
   showUsage?: boolean;
   /** If set, switches to grid mode at this frame offset */
   gridAt?: number;
-  /** Which panel toggle index is currently active (0=Tasks, 1=GitHub, 2=Overview) */
+  /** Which panel toggle index is currently active (0=Sub-Tasks, 1=GitHub, 2=Agents, 3=Prompts, 4=Pipeline, 5=Overview) */
   activePanelIndex?: number;
   /** Which workspace's terminals to show (0=Default, 1=Work) */
   workspaceIndex?: number;
@@ -77,7 +80,9 @@ export const TerminalMock: React.FC<{
   gridDropdownHighlight?: string;
   /** Frame at which grid layout changed (for staggered new-pane fade-in) */
   layoutChangedAt?: number;
-}> = ({ animateIn = true, showTabBar = true, showUsage = true, gridAt, activePanelIndex = 0, workspaceIndex = 0, gridLayout = '2x2', showGridDropdown = false, gridDropdownHighlight, layoutChangedAt }) => {
+  /** Whether to show panel toggle buttons in this tab bar (false when ViewTabBar handles them) */
+  showPanelToggles?: boolean;
+}> = ({ animateIn = true, showTabBar = true, showUsage = true, gridAt, activePanelIndex = 0, workspaceIndex = 0, gridLayout = '2x2', showGridDropdown = false, gridDropdownHighlight, layoutChangedAt, showPanelToggles = true }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -238,7 +243,7 @@ export const TerminalMock: React.FC<{
                   : '1px solid transparent',
               }}
             >
-              <span style={{ fontSize: 11 }}>{gridLayout.replace('x', '×')}</span>
+              <span style={{ fontSize: 11 }}>{gridLayout.includes('x') ? gridLayout.replace('x', '×') : gridLayout}</span>
               <span style={{ fontSize: 8, opacity: 0.5 }}>▼</span>
             </div>
 
@@ -258,7 +263,7 @@ export const TerminalMock: React.FC<{
                   boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
                 }}
               >
-                {['1x2', '2x2', '3x1', '3x2', '3x3'].map((layout) => {
+                {['1x2', '2x1', '2x2', '2L1R', '1L2R', '2T1B', '1T2B', '3x2', '3x3'].map((layout) => {
                   const isHighlighted = layout === gridDropdownHighlight;
                   const isCurrent = layout === gridLayout;
                   return (
@@ -277,7 +282,7 @@ export const TerminalMock: React.FC<{
                         borderRadius: 4,
                       }}
                     >
-                      {layout.replace('x', '×')}
+                      {layout.includes('x') ? layout.replace('x', '×') : layout}
                     </div>
                   );
                 })}
@@ -285,43 +290,45 @@ export const TerminalMock: React.FC<{
             )}
           </div>
 
-          {/* Divider */}
-          <div
-            style={{
-              width: 1,
-              height: 18,
-              background: app.border,
-              margin: '0 4px',
-            }}
-          />
-
-          {/* Panel toggle buttons */}
-          {panelToggles.map((toggle, i) => {
-            const isActive = i === activePanelIndex;
-            return (
+          {/* Divider + Panel toggle buttons (only when not handled by ViewTabBar) */}
+          {showPanelToggles && (
+            <>
               <div
-                key={toggle.label}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  height: 28,
-                  padding: '0 8px',
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontFamily: fonts.display,
-                  color: isActive ? app.accent : app.textSecondary,
-                  background: isActive ? app.accentSubtle : 'transparent',
-                  border: isActive
-                    ? `1px solid rgba(212, 165, 116, 0.2)`
-                    : '1px solid transparent',
+                  width: 1,
+                  height: 18,
+                  background: app.border,
+                  margin: '0 4px',
                 }}
-              >
-                <span style={{ fontSize: 11 }}>{toggle.icon}</span>
-                {toggle.label}
-              </div>
-            );
-          })}
+              />
+              {panelToggles.map((toggle, i) => {
+                const isActive = i === activePanelIndex;
+                return (
+                  <div
+                    key={toggle.label}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      height: 28,
+                      padding: '0 8px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontFamily: fonts.display,
+                      color: isActive ? app.accent : app.textSecondary,
+                      background: isActive ? app.accentSubtle : 'transparent',
+                      border: isActive
+                        ? `1px solid rgba(212, 165, 116, 0.2)`
+                        : '1px solid transparent',
+                    }}
+                  >
+                    <span style={{ fontSize: 11 }}>{toggle.icon}</span>
+                    {toggle.label}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       )}
 
@@ -331,9 +338,10 @@ export const TerminalMock: React.FC<{
           splitAt={0}
           gridAppearsAt={gridAt!}
           workspaceIndex={workspaceIndex}
-          gridCols={parseInt(gridLayout.split('x')[0]) || 2}
-          gridRows={parseInt(gridLayout.split('x')[1]) || 2}
+          gridCols={gridLayout.includes('x') ? (parseInt(gridLayout.split('x')[0]) || 2) : 2}
+          gridRows={gridLayout.includes('x') ? (parseInt(gridLayout.split('x')[1]) || 2) : 2}
           layoutChangedAt={layoutChangedAt}
+          gridLayout={gridLayout}
         />
       ) : (
         <div

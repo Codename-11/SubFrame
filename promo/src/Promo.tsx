@@ -29,7 +29,7 @@ const scenes = [
   { component: TitleCard, from: 0, duration: 150, name: 'Title Card' },
   { component: ProblemStatement, from: 150, duration: 435, name: 'Problem Statement' },
   { component: AppDemo, from: 585, duration: 540, name: 'App Demo' },
-  { component: Intelligence, from: 1125, duration: 210, name: 'Built-in Intelligence' },
+  { component: Intelligence, from: 1125, duration: 210, name: 'Hooks & Context' },
   { component: FeatureShowcase, from: 1335, duration: 240, name: 'Feature Showcase' },
   { component: Architecture, from: 1575, duration: 270, name: 'Architecture' },
   { component: Outro, from: 1845, duration: 165, name: 'Outro' },

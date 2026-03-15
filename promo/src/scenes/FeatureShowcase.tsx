@@ -413,12 +413,14 @@ const features: Feature[] = [
 
 // Additional features (shown as pills below the cards)
 const moreFeatures = [
-  { label: 'Terminal Grid', icon: '#', desc: '2x2 split panes' },
+  { label: 'Terminal Grid', icon: '#', desc: 'Asymmetric layouts' },
   { label: 'Command Palette', icon: '/', desc: 'Quick actions' },
   { label: 'Project Overview', icon: '=', desc: 'Stats & charts' },
-  { label: 'Theme System', icon: '*', desc: '4 presets + custom' },
+  { label: 'Activity Streams', icon: '~', desc: 'Live output logs' },
+  { label: 'Built-in Editor', icon: '¶', desc: 'Find/replace & tabs' },
   { label: 'Prompt Library', icon: '"', desc: 'Reusable prompts' },
   { label: 'Multi-Workspace', icon: '+', desc: 'Switch projects' },
+  { label: 'Theme System', icon: '*', desc: '4 presets + custom' },
 ];
 
 // ─── Feature Card ────────────────────────────────────────────────────────────

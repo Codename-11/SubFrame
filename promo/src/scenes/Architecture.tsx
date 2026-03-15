@@ -46,10 +46,10 @@ const mainModules: ModuleNode[] = [
 ];
 
 const rendererModules: ModuleNode[] = [
-  { label: 'Terminal Grid', sub: 'Multi-pane PTY', color: colors.accentCyan },
-  { label: 'Panels', sub: 'Tasks · Overview · Git', color: colors.accentPurple },
-  { label: 'Command Palette', sub: 'Quick navigation', color: app.accent },
-  { label: 'Zustand Stores', sub: 'Reactive state', color: colors.accentPink },
+  { label: 'Terminal Grid', sub: 'Asymmetric layouts', color: colors.accentCyan },
+  { label: 'Panels', sub: 'Tasks · Agents · Git', color: colors.accentPurple },
+  { label: 'Editor', sub: 'CodeMirror 6', color: app.accent },
+  { label: 'Activity Bar', sub: 'Live streams', color: colors.accentPink },
   { label: 'TanStack Query', sub: 'IPC caching', color: app.info },
 ];
 

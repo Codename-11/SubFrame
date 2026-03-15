@@ -231,6 +231,30 @@ const TerminalPane: React.FC<{
   );
 };
 
+/** Asymmetric layout slot placements — CSS Grid row/column assignments */
+const ASYMMETRIC_SLOTS: Record<string, { gridRow: string; gridColumn: string }[]> = {
+  '2L1R': [
+    { gridRow: '1', gridColumn: '1' },
+    { gridRow: '2', gridColumn: '1' },
+    { gridRow: '1 / span 2', gridColumn: '2' },
+  ],
+  '1L2R': [
+    { gridRow: '1 / span 2', gridColumn: '1' },
+    { gridRow: '1', gridColumn: '2' },
+    { gridRow: '2', gridColumn: '2' },
+  ],
+  '2T1B': [
+    { gridRow: '1', gridColumn: '1' },
+    { gridRow: '1', gridColumn: '2' },
+    { gridRow: '2', gridColumn: '1 / span 2' },
+  ],
+  '1T2B': [
+    { gridRow: '1', gridColumn: '1 / span 2' },
+    { gridRow: '2', gridColumn: '1' },
+    { gridRow: '2', gridColumn: '2' },
+  ],
+};
+
 export const TerminalGridMock: React.FC<{
   /** Frame at which the grid splits from single to 2x2 */
   splitAt?: number;
@@ -244,7 +268,9 @@ export const TerminalGridMock: React.FC<{
   gridRows?: number;
   /** Frame at which the grid layout changed — triggers staggered fade-in for new panes */
   layoutChangedAt?: number;
-}> = ({ splitAt = 0, gridAppearsAt = 0, workspaceIndex = 0, gridCols = 2, gridRows = 2, layoutChangedAt }) => {
+  /** Layout name string like '2x2', '2L1R', etc. */
+  gridLayout?: string;
+}> = ({ splitAt = 0, gridAppearsAt = 0, workspaceIndex = 0, gridCols = 2, gridRows = 2, layoutChangedAt, gridLayout }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -258,7 +284,10 @@ export const TerminalGridMock: React.FC<{
   const panes = panesByWorkspace[workspaceIndex] || panesByWorkspace[0];
   const showGrid = frame >= splitAt;
   const gridGap = interpolate(gridProgress, [0, 1], [0, 4]);
-  const totalPanes = gridRows * gridCols;
+
+  // Detect asymmetric layout
+  const asymSlots = gridLayout ? ASYMMETRIC_SLOTS[gridLayout] : undefined;
+  const totalPanes = asymSlots ? asymSlots.length : gridRows * gridCols;
 
   return (
     <div
@@ -277,8 +306,8 @@ export const TerminalGridMock: React.FC<{
           style={{
             flex: 1,
             display: 'grid',
-            gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-            gridTemplateRows: `repeat(${gridRows}, 1fr)`,
+            gridTemplateColumns: asymSlots ? '1fr 1fr' : `repeat(${gridCols}, 1fr)`,
+            gridTemplateRows: asymSlots ? '1fr 1fr' : `repeat(${gridRows}, 1fr)`,
             gap: gridGap,
             padding: gridGap,
           }}
@@ -286,15 +315,18 @@ export const TerminalGridMock: React.FC<{
           {Array.from({ length: totalPanes }).map((_, idx) => {
             const pane = panes[idx % panes.length];
             const isActive = idx === 0;
-            // Panes beyond the original 4 fade in when layout changes
-            const isNewPane = idx >= 4;
+            // For asymmetric layouts, all panes are "new" at layoutChangedAt
+            // For NxN layouts, panes beyond the original 4 fade in when layout changes
+            const isNewPane = asymSlots
+              ? (layoutChangedAt !== undefined)
+              : idx >= 4;
             const paneOffset = isNewPane && layoutChangedAt !== undefined
               ? layoutChangedAt
               : gridAppearsAt;
 
             let paneOpacity = 1;
             if (isNewPane && layoutChangedAt !== undefined) {
-              const stagger = layoutChangedAt + (idx - 4) * 4;
+              const stagger = layoutChangedAt + (asymSlots ? idx : (idx - 4)) * 4;
               const paneProgress = spring({
                 frame: frame - stagger,
                 fps,
@@ -303,8 +335,20 @@ export const TerminalGridMock: React.FC<{
               paneOpacity = interpolate(paneProgress, [0, 1], [0, 1]);
             }
 
+            // Apply asymmetric CSS grid placement if applicable
+            const slotStyle = asymSlots?.[idx];
+
             return (
-              <div key={idx} style={{ opacity: paneOpacity, minWidth: 0, minHeight: 0, display: 'flex' }}>
+              <div
+                key={idx}
+                style={{
+                  opacity: paneOpacity,
+                  minWidth: 0,
+                  minHeight: 0,
+                  display: 'flex',
+                  ...(slotStyle ? { gridRow: slotStyle.gridRow, gridColumn: slotStyle.gridColumn } : {}),
+                }}
+              >
                 <TerminalPane pane={pane} isActive={isActive} frameOffset={paneOffset} />
               </div>
             );
