@@ -1,28 +1,28 @@
-Major feature release — adds the Activity Streams system for centralized execution visibility, redesigned Settings with sidebar navigation and search, close-window protection, task panel bulk actions, and numerous UX fixes.
+Adds git sync awareness, editor enhancements with tab mode, CLI integration for opening files/projects from the terminal, and documentation updates across the board.
 
 ## What's Changed
 
 ### Features
-- **Activity Streams** - Centralized execution/output system with VS Code-style bottom bar. All AI operations (onboarding, pipeline, task enhance) route through it with real-time log streaming, heartbeat timers, and dismiss controls
-- **Settings Sidebar Navigation** - Replaced horizontal tabs with a sidebar layout, added search filter across all settings, and 5 reusable setting components for consistent UI
-- **Close-Window Protection** - Native OS warning dialog when closing with active agents, pipelines, or analyses. Themed AlertDialog for individual terminal tab close
-- **Task Panel Bulk Actions** - Select mode with themed checkboxes, bulk Complete/Delete with confirmation, bulk Send to Terminal with optional wrapper prompt
-- **Pop-Out Terminal Windows** - Detach terminals to separate windows for multi-monitor workflows (Ctrl+Shift+D)
-- **Workspace Create Dialog** - Name input when creating new workspaces instead of hardcoded default
-- **Prompts Top-Bar Button** - Prompts moved to its own shortcut in the main tab bar
+- **Git Auto-Fetch** - Opt-in background fetch interval (3-15 minutes) in Settings > Git, with sync status header in the GitHub panel showing branch, ahead/behind, and change counts
+- **Editor Find & Replace** - Ctrl+H opens CodeMirror's built-in search panel with regex support
+- **Editor Go to Line** - Ctrl+L opens go-to-line dialog; also available via toolbar button
+- **Editor Tab Mode** - Toggle between overlay dialog (default) and persistent tabs alongside terminal tabs, with recent files tracking (last 10)
+- **CLI Integration** - `subframe edit <file>`, `subframe open <dir>`, and `subframe .` from the command line. Single-instance enforcement forwards args to the running window
+- **macOS File Associations** - Open files via Finder or `open -a SubFrame file.ts` with pre-ready path queuing
 
 ### Improvements
-- **Onboarding Analysis Progress** - Auto-shows terminal output during analysis, elapsed timer with line count, logarithmic progress bar creep
-- **Pipeline Heartbeat** - Print-mode AI stages now show 10-second heartbeat updates instead of dead silence
-- **Task Enhance Safety** - 2-minute timeout, multi-strategy JSON extraction, abort signal on timeout
-- **Task Send-to-Terminal** - Now includes task ID, priority, category, status, and steps; auto-starts pending tasks
-- **Top Bar Reorder** - Sub-Tasks, GitHub, Agents, Prompts, Pipeline, Overview
+- **Code Folding** - Fold gutters with clickable arrows for collapsible code blocks
+- **Rectangular Selection** - Alt+drag for column selection in the editor
+- **Active Line Highlighting** - Current line subtly highlighted in the editor
+- **Editor Shortcuts Category** - Find/Replace and Go to Line appear in the keyboard shortcuts panel
 
 ### Bug Fixes
-- **Terminal Grid Overflow** - Extra grid slots no longer render as phantom rows when switching layouts
-- **Terminal Scroll Retention** - Double-RAF restore prevents scrollbar reset on workspace switch
-- **Task Edit Dialog** - Fixed overflow with proper flex layout (scrollable middle, fixed header/footer)
-- **Reset Layout** - Now clears all persisted state including right panel width, grid layout, and cell sizes
-- **Bulk Delete Safety** - Now requires confirmation dialog instead of instant deletion
-- **Task Privacy Data Safety** - File write before delete prevents data loss on write failure
-- **PTY Output Handlers** - Upgraded to named multi-handler system preventing handler conflicts
+- **Ctrl+G Conflict** - Go to Line changed from Ctrl+G (conflicted with grid toggle) to Ctrl+L
+- **macOS open-file Race** - File path no longer dropped when the window isn't ready yet
+- **Auto-fetch Timer Leak** - Timer properly stopped on app close
+- **Push Button Stub** - Removed fake "push" button that only showed a toast
+
+### Documentation
+- CLAUDE.md: added 8 missing managers, 6 missing components, utility sections, CLI command
+- README.md: added CLI Integration section and updated feature descriptions
+- docs/guide/features.md: added Activity Streams, CLI, editor tab mode, git sync sections

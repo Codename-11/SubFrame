@@ -7,18 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0-beta] - 2026-03-15
+
 ### Added
-- **Git auto-fetch** — configurable background fetch interval in Settings > Git, with IPC channels for start/stop auto-fetch
-- **Git sync status** — branch ahead/behind counts displayed in sidebar and GitHub panel, with "Up to date" indicator
-- **Editor find/replace** — Ctrl+H find-and-replace panel exposed via CodeMirror search extension
-- **Editor go-to-line** — Ctrl+G go-to-line dialog via toolbar button and keyboard shortcut
+- **Git auto-fetch** — configurable background fetch interval (3-15min) in Settings, with minimum 30s guard
+- **Git sync status** — branch ahead/behind in sidebar and GitHub panel header with "Up to date" indicator
+- **Editor find/replace** — Ctrl+H find-and-replace panel via CodeMirror search extension
+- **Editor go-to-line** — Ctrl+L go-to-line dialog via toolbar button and keyboard shortcut
 - **Editor code folding** — fold gutters with clickable arrows for collapsible code blocks
-- **Editor tab mode** — toggle between overlay dialog and inline tab mode for the file editor (Settings > Editor), opens files as tabs alongside terminals
-- **CLI integration** — `subframe edit <file>` and `subframe open <dir>` commands via `scripts/subframe-cli.js` for external tool integration
-- **Single-instance enforcement** — second app launches forward their argv to the running instance instead of opening a new window
-- **macOS open-file handler** — `app.on('open-file')` support for Finder/Dock file associations
-- **Recent files tracking** — recently opened files tracked and displayed in the Overview dashboard
-- **Terminal file-path links** — Ctrl+click on file paths in terminal output to open them in the editor via link provider in `terminalRegistry.ts`
+- **Editor tab mode** — toggle between overlay dialog and inline tabs alongside terminal tabs, with recent files tracking
+- **CLI integration** — `subframe edit <file>`, `subframe open <dir>`, `subframe .` via `scripts/subframe-cli.js`
+- **Single-instance enforcement** — second app launches forward argv to running instance
+- **macOS open-file handler** — Finder/Dock file associations with pre-ready queuing
+- **Recent files tracking** — last 10 opened files tracked in localStorage
+
+### Fixed
+- **Ctrl+G shortcut conflict** — Go-to-Line changed from Ctrl+G (conflicted with grid toggle) to Ctrl+L
+- **macOS open-file race** — file path queued when window not yet ready, flushed on ready-to-show
+- **Auto-fetch timer leak** — stopped on app close via `stopAutoFetch()` in closed handler
+- **Push button stub** — removed fake "push" button that only showed a toast, kept ↑N indicator
 
 ## [0.4.0-beta] - 2026-03-14
 
@@ -369,7 +376,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.4.0-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.0-beta...HEAD
+[0.5.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.4.0-beta...v0.5.0-beta
 [0.4.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.3.1-beta...v0.4.0-beta
 [0.3.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.3.0-beta...v0.3.1-beta
 [0.3.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.2.7-beta...v0.3.0-beta
