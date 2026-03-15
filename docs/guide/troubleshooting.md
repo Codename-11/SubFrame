@@ -108,7 +108,7 @@ npx electron-rebuild -f -w node-pty
 
 **`npm run build` fails**
 
-Ensure you are running Node.js 22 or later:
+Ensure you are running Node.js 20 or later:
 
 ```bash
 node --version
@@ -126,7 +126,7 @@ The terminal relies on `node-pty` to spawn a shell process. If the terminal area
 
 1. Check the developer console for errors: **View > Toggle Developer Tools** (or <kbd>Ctrl+Shift+I</kbd>)
 2. Look for PTY-related error messages in the Console tab
-3. Try creating a new terminal with <kbd>Ctrl+T</kbd>
+3. Try creating a new terminal with <kbd>Ctrl+Shift+T</kbd>
 
 ::: warning
 If you see `Error: spawn ... ENOENT` in the console, your default shell could not be found. See the Shell Detection section below.
@@ -218,12 +218,16 @@ npm install -g @openai/codex
 gemini --version
 
 # If not found, install it
-npm install -g @anthropic-ai/gemini  # or follow Google's official install instructions
+npm install -g @google/gemini-cli  # or follow Google's official install instructions
 ```
 
 ::: tip
 If the tool works in your regular terminal but not inside SubFrame, the issue is likely a PATH difference. SubFrame inherits environment variables from the process that launched it. Try launching SubFrame from the terminal (not from a desktop shortcut) to inherit your full shell environment.
 :::
+
+### Gemini CLI Errors
+
+**`SyntaxError: Invalid regular expression flags`** — Gemini CLI requires Node.js 20 or later. Check your version with `node --version` and upgrade if needed. If you use `nvm`, make sure to set the default alias: `nvm alias default 20` — otherwise terminals spawned by Electron may still use the old default version.
 
 ### Custom Command Path
 

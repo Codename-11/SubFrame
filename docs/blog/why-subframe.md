@@ -62,4 +62,4 @@ SubFrame supports up to 9 terminals simultaneously, with both tab and grid views
 
 SubFrame is for developers who do daily development with AI coding tools, working terminal-focused. If you find yourself spending most of your time in Claude Code, Codex CLI, or Gemini CLI — and just need a better way to manage your projects and preserve context — SubFrame is for you.
 
-Check out the [GitHub repository](https://github.com/Codename-11/SubFrame) to get started.
+[Get started with SubFrame](https://sub-frame.dev/guide/) or check out the [GitHub repository](https://github.com/Codename-11/SubFrame).

@@ -27,16 +27,16 @@
 </p>
 
 <p align="center">
-  <a href="#installation">Install</a> · <a href="#features">Features</a> · <a href="#development">Development</a> · <a href="https://sub-frame.dev">Website</a> · <a href="https://sub-frame.dev/guide/">Docs</a>
+  <a href="#installation">Install</a> · <a href="#features">Features</a> · <a href="#development">Development</a> · <a href="https://sub-frame.dev">Website</a> · <a href="https://sub-frame.dev/docs/">Docs</a>
 </p>
 
 ---
 
 > **This project is under active development and in public beta.** We're looking for early adopters to test, break things, and help shape the direction of SubFrame. If you run into issues or have ideas, [open an issue](https://github.com/Codename-11/SubFrame/issues) — every report helps.
 
-https://github.com/user-attachments/assets/75837799-2a38-42ff-917b-885946c27184
+https://github.com/user-attachments/assets/37aee249-7ec8-4915-80aa-b0b3baf9e8df
 
-A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli). SubFrame wraps your existing AI tools in a structured workspace — persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions.
+A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), and [Gemini CLI](https://github.com/google-gemini/gemini-cli) — terminal-based AI coding assistants that let you chat with AI in your terminal while it writes, edits, and reviews code for you. SubFrame wraps these tools in a structured workspace — persistent context, task tracking, codebase mapping, and a multi-terminal environment — so nothing gets lost between sessions.
 
 > **Platform support:** **Windows (stable)** · **macOS & Linux (beta — testers wanted).** See [Installation](#installation) for platform-specific prerequisites.
 
@@ -48,7 +48,7 @@ A lightweight desktop IDE for [Claude Code](https://claude.com/claude-code), [Co
 <p align="center"><em>Multi-terminal workspace with Claude Code — full PTY, syntax highlighting, and status bar</em></p>
 
 <p align="center">
-  <img src="assets/screenshots/main_ui_overiview_pane.png" alt="SubFrame project overview dashboard" width="800" />
+  <img src="assets/screenshots/main_ui_overview_pane.png" alt="SubFrame project overview dashboard" width="800" />
 </p>
 <p align="center"><em>Project overview — stats, structure, active tasks, recent files, and health status at a glance</em></p>
 
@@ -129,7 +129,7 @@ Markdown-based task tracking stored in `.subframe/tasks/` with YAML frontmatter.
 
 - **CLI management** — `node scripts/task.js list|start|complete|add|update|archive`
 - **Visual task panel** — Table view with status filters, priority sorting, inline expand
-- **Multiple views** — Table, timeline, dependency graph, and kanban board
+- **Multiple views** — Table, dependency graph, and kanban board
 - **Lifecycle** — `pending` → `in_progress` → `completed`
 - **Auto-detected** — Hooks recognize task-like requests from conversation and suggest creating them
 
@@ -185,6 +185,7 @@ Real-time visibility into Claude Code agent sessions:
 
 ### CLI Integration
 
+- **`subframe init`** — Initialize a SubFrame workspace in the current directory
 - **`subframe edit <file>`** — Open a file in the editor from the command line
 - **`subframe open <dir>`** — Open a directory as a project
 - **Single-instance** — CLI commands forward to the running instance instead of opening a new window
@@ -253,7 +254,17 @@ Initializing a workspace creates a standard set of files your AI tools read auto
   - **macOS** — `xcode-select --install`
   - **Linux** — `sudo apt install build-essential`
 
-### Quick Start
+### Download
+
+Grab the latest installer from [GitHub Releases](https://github.com/Codename-11/SubFrame/releases).
+
+| Platform | Format |
+|----------|--------|
+| Windows  | `.exe` installer |
+| macOS    | `.dmg` disk image |
+| Linux    | `.AppImage` |
+
+### Build from Source
 
 ```bash
 git clone https://github.com/Codename-11/SubFrame.git
@@ -284,7 +295,7 @@ npm test             # Vitest test suite
 npm run lint         # ESLint (TS/TSX)
 npm run check        # typecheck + lint + test + verify:hooks + build (all quality gates)
 npm run structure    # Update .subframe/STRUCTURE.json
-node scripts/subframe-cli.js <command>  # SubFrame CLI (edit, open)
+node scripts/subframe-cli.js <command>  # SubFrame CLI (init, edit, open)
 ```
 
 ### Architecture

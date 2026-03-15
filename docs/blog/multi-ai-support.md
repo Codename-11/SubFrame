@@ -1,7 +1,7 @@
 ---
 layout: blog-post
 title: "Supporting Claude, Codex, and Gemini in One App"
-description: "Each AI coding tool reads project context differently. Here's how SubFrame provides unified context injection for Claude Code, Codex CLI, and Gemini CLI using symlinks and wrapper scripts."
+description: "Each AI coding tool reads project context differently. Here's how SubFrame provides unified context injection for Claude Code, Codex CLI, and Gemini CLI using backlink injection and wrapper scripts."
 date: "2026-02-08"
 tag: "Feature"
 head:
@@ -29,19 +29,27 @@ SubFrame's context preservation system is built around `AGENTS.md` — a single 
 
 We needed each tool to get the same project context, without maintaining separate instruction files.
 
-## Solution: Symlinks + Wrapper Scripts
+## Solution: Backlink Injection + Wrapper Scripts
 
-### Claude Code and Gemini CLI — Symlinks
+### Claude Code and Gemini CLI — Backlink Injection
 
-Both Claude Code and Gemini CLI have native support for reading a specific file. The solution is simple: create symlinks that point to the single source of truth.
+Both Claude Code and Gemini CLI natively read a specific file at session start (`CLAUDE.md` and `GEMINI.md` respectively). Rather than using symlinks (which cause issues with version control and cross-platform compatibility), SubFrame injects a small reference block into each file that points back to the single source of truth:
 
 ```
 AGENTS.md          <- The actual file (single source of truth)
-CLAUDE.md -> AGENTS.md   <- Symlink for Claude Code
-GEMINI.md -> AGENTS.md   <- Symlink for Gemini CLI
+CLAUDE.md          <- Contains backlink reference to AGENTS.md
+GEMINI.md          <- Contains backlink reference to AGENTS.md
 ```
 
-One file to maintain, all tools read the same instructions.
+The injected block is wrapped in HTML comments so SubFrame can manage it without disturbing any custom content:
+
+```markdown
+<!-- SUBFRAME:BEGIN -->
+> **[SubFrame Project]** — Read [AGENTS.md](./AGENTS.md) for project instructions...
+<!-- SUBFRAME:END -->
+```
+
+One file to maintain, all tools read the same instructions. The backlink tells the AI to read `AGENTS.md`, and any user-specific content in `CLAUDE.md` or `GEMINI.md` is preserved outside the markers.
 
 ### Codex CLI — Wrapper Script
 

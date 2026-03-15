@@ -7,7 +7,7 @@ description: Overview of SubFrame's features — multi-terminal management, task
 
 SubFrame is a terminal-centric IDE built for AI-assisted development. It wraps your existing AI coding tools — Claude Code, Codex CLI, and others — in a rich interface designed around the workflows that matter most when working with AI agents.
 
-This page provides an overview of each major feature. For keyboard shortcuts, see the [Keyboard Shortcuts](/guide/keyboard-shortcuts) reference.
+This page provides an overview of each major feature. For keyboard shortcuts, see the [Keyboard Shortcuts](/docs/keyboard-shortcuts) reference.
 
 ## Multi-Terminal Management
 
@@ -48,7 +48,7 @@ The Sub-Tasks panel offers three visualization modes:
 
 Tasks support filtering by status (All, Pending, In Progress, Completed, Blocked) and text search. Each task has inline actions:
 
-- **Start** / **Complete** / **Pause** / **Reopen** — Transition task status
+- **Start** / **Complete** — Transition task status. Tasks can be moved back to pending via the edit dialog.
 - **Send to Terminal** — Inject the task description into the active terminal as a prompt for your AI tool
 - **Open in Editor** — View the underlying markdown file
 - **Edit** / **Delete** — Modify or remove tasks
@@ -126,7 +126,7 @@ For each file, the panel shows its status (present, missing, backlink active) an
 
 The panel also includes backlink verification and configuration for customizing injected content.
 
-For detailed setup, see the [AI Tool Setup](/guide/ai-tool-setup) guide.
+For detailed setup, see the [AI Tool Setup](/docs/ai-tool-setup) guide.
 
 ## Plugin System
 
@@ -267,8 +267,29 @@ SubFrame includes a built-in auto-updater powered by electron-updater. When a ne
 
 Pre-release versions (beta, alpha, RC) are offered based on your current version type by default. You can override this in Settings > Updater.
 
+### Pipeline Workflows
+
+SubFrame includes a built-in pipeline system for running automated workflows:
+
+- **YAML-driven** — Define stages in `.subframe/workflows/*.yml` (GitHub Actions-inspired syntax)
+- **Built-in templates** — Review, task verification, and health check workflows ship by default
+- **Live progress** — Watch pipeline stages run in real-time from the Pipeline panel (`Ctrl+Shift+Y`)
+- **AI-powered stages** — Stages can spawn AI tools for automated code review, testing, and analysis
+
+### Command Palette
+
+Press `Ctrl+/` to open the Command Palette — a quick-search overlay for navigating to any panel, view, or action. Type to filter, arrow keys to navigate, Enter to select.
+
+### Prompt Library
+
+Access reusable prompts from the Prompts panel (`Ctrl+Shift+L`). Create, edit, and organize prompt templates with variable support (`{{branch}}`, `{{date}}`, `{{aiTool}}`). Send prompts directly to the active terminal.
+
+### History Panel
+
+View past prompt and session history from the History panel (`Ctrl+Shift+H`). Search and replay previous interactions.
+
 ## Keyboard Shortcuts
 
 SubFrame has extensive keyboard shortcuts for navigating the interface without leaving the keyboard. Press `Ctrl+?` to open the shortcuts reference overlay at any time.
 
-For the complete list, see the [Keyboard Shortcuts](/guide/keyboard-shortcuts) reference.
+For the complete list, see the [Keyboard Shortcuts](/docs/keyboard-shortcuts) reference.

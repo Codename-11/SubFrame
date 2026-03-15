@@ -80,7 +80,10 @@ var require_package = __commonJS({
         init: "node scripts/init.js",
         "docs:dev": "vitepress dev docs",
         "docs:build": "vitepress build docs",
-        "docs:preview": "vitepress preview docs"
+        "docs:preview": "vitepress preview docs",
+        "site:dev": "cd site && npm run dev",
+        "site:build": "cd site && npm run build",
+        "site:preview": "cd site && npm run preview"
       },
       keywords: [
         "electron",
@@ -106,7 +109,6 @@ var require_package = __commonJS({
         "@types/node": "^25.3.3",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
-        "@vueuse/motion": "^3.0.3",
         electron: "^28.0.0",
         "electron-builder": "^26.8.1",
         esbuild: "^0.27.3",

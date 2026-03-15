@@ -213,9 +213,9 @@ Electron's `userData` directory holds all global application state. The path dep
 
 | OS | Path |
 |---|---|
-| **Windows** | `%APPDATA%\subframe\` |
-| **macOS** | `~/Library/Application Support/subframe/` |
-| **Linux** | `~/.config/subframe/` |
+| **Windows** | `%APPDATA%\SubFrame\` |
+| **macOS** | `~/Library/Application Support/SubFrame/` |
+| **Linux** | `~/.config/SubFrame/` |
 
 Files in this directory:
 

@@ -48,9 +48,13 @@ Double-click any terminal tab to rename it. Press <kbd>Enter</kbd> to confirm or
 |----------|-------|--------|
 | <kbd>Ctrl+Shift+S</kbd> | <kbd>⌘+Shift+S</kbd> | Toggle Sub-Tasks panel |
 | <kbd>Ctrl+Shift+A</kbd> | <kbd>⌘+Shift+A</kbd> | Toggle Agent Activity panel |
-| <kbd>Ctrl+Shift+P</kbd> | <kbd>⌘+Shift+P</kbd> | Toggle Plugins panel |
+| <kbd>Ctrl+Shift+X</kbd> | <kbd>⌘+Shift+X</kbd> | Toggle Plugins panel |
 | <kbd>Ctrl+Shift+H</kbd> | <kbd>⌘+Shift+H</kbd> | Toggle History panel |
 | <kbd>Ctrl+Shift+G</kbd> | <kbd>⌘+Shift+G</kbd> | Toggle GitHub panel |
+| <kbd>Ctrl+Shift+Y</kbd> | <kbd>⌘+Shift+Y</kbd> | Toggle Pipeline panel |
+| <kbd>Ctrl+Shift+L</kbd> | <kbd>⌘+Shift+L</kbd> | Toggle Prompt Library panel |
+| <kbd>Ctrl+/</kbd> | <kbd>⌘+/</kbd> | Open Command Palette |
+| <kbd>Ctrl+Shift+P</kbd> | <kbd>⌘+Shift+P</kbd> | Open Command Palette (alternate) |
 
 ::: info Shared shortcut
 <kbd>Ctrl+Shift+G</kbd> is mapped to both the grid view toggle and the GitHub panel. The grid view toggle takes priority when a terminal is active.

@@ -99,12 +99,16 @@ When Codex is the active tool, the application menu provides:
 1. **Install Gemini CLI** globally:
 
    ```bash
-   npm install -g @anthropic-ai/gemini-cli
+   npm install -g @google/gemini-cli
    ```
 
    Or follow the [official installation instructions](https://github.com/google-gemini/gemini-cli#installation).
 
 2. **Authenticate** with your Google account by running `gemini` and following the prompts, or set a Gemini API key as an environment variable.
+
+::: warning Node.js Version
+Gemini CLI requires **Node.js 20 or later**. If you see `SyntaxError: Invalid regular expression flags`, upgrade your Node.js version.
+:::
 
 ### How SubFrame Integrates Gemini
 
