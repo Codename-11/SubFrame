@@ -32,9 +32,27 @@ const popoutParams = !isPopoutStandby && hash.startsWith('#popout?')
 const popoutTerminalId = popoutParams?.get('terminalId') ?? null;
 const isPopout = isPopoutStandby || !!popoutTerminalId;
 
+// Detect standalone editor mode (#editor?filePath=xxx)
+const editorParams = hash.startsWith('#editor?')
+  ? new URLSearchParams(hash.replace('#editor?', ''))
+  : null;
+const editorFilePath = editorParams?.get('filePath') ?? null;
+const isStandaloneEditor = !!editorFilePath;
+
 const rootEl = document.getElementById('root');
 if (rootEl) {
-  if (isPopout) {
+  if (isStandaloneEditor) {
+    // Standalone editor window — opened via CLI `subframe edit <file>`
+    const { Editor } = require('./components/Editor');
+    createRoot(rootEl).render(
+      <ErrorBoundary name="Editor">
+        <QueryClientProvider client={queryClient}>
+          <Editor filePath={editorFilePath} onClose={() => window.close()} inline />
+          <Toaster position="bottom-right" theme="dark" />
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  } else if (isPopout) {
     // Pop-out mode — render minimal terminal window
     // terminalId is null for prewarmed standby windows (activates via IPC)
     const { PopoutTerminal } = require('./components/PopoutTerminal');

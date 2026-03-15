@@ -100,20 +100,32 @@ function handleCLIArgs(argv: string[]): void {
   }
 }
 
+/** Open a file in a standalone pop-out editor window (does NOT touch the main instance) */
 function sendCLIOpenFile(filePath: string): void {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.CLI_OPEN_FILE, filePath);
-    mainWindow.focus();
-  }
+  const indexPath = path.join(app.getAppPath(), 'index.html');
+  const win = new BrowserWindow({
+    width: 900,
+    height: 650,
+    title: `${path.basename(filePath)} — SubFrame`,
+    backgroundColor: '#0f0f10',
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+    },
+  });
+  win.setMenuBarVisibility(false);
+  win.loadFile(indexPath, { hash: `editor?filePath=${encodeURIComponent(filePath)}` });
 }
 
+/** Add a project to the workspace without switching — non-disruptive to running instance */
 function sendCLIOpenProject(dirPath: string): void {
+  // Add to workspace so it appears in the project list
+  workspace.addProject(dirPath);
   if (mainWindow && !mainWindow.isDestroyed()) {
-    // Add to workspace so it appears in the project list
-    workspace.addProject(dirPath);
     const result = workspace.getProjectsWithScanned();
     mainWindow.webContents.send(IPC.WORKSPACE_UPDATED, result);
-    mainWindow.webContents.send(IPC.CLI_OPEN_PROJECT, dirPath);
+    // Don't send CLI_OPEN_PROJECT — that would switch the active project
+    // Just focus the window so the user sees it was added
     mainWindow.focus();
   }
 }
@@ -604,11 +616,9 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', (_event, argv) => {
-    // Focus the existing window and handle CLI args from the second launch
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-    }
+    // Handle CLI args from the second launch
+    // Note: handleCLIArgs spawns new windows for `edit` (doesn't touch main)
+    // and only focuses main for `open` (adds project to workspace)
     handleCLIArgs(argv);
   });
 
