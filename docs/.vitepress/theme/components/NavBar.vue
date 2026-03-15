@@ -32,7 +32,7 @@ function onMobileNav(e: Event, href: string) {
         </div>
         <div class="logo-label">
           <span class="logo-text">SubFrame</span>
-          <span class="logo-version">Latest: v0.5.2-beta</span>
+          <span class="logo-version">Latest: v0.5.3-beta</span>
         </div>
       </a>
 

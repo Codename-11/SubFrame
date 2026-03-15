@@ -1,7 +1,7 @@
-Fix release — CLI install now auto-adds to PATH on Windows, plus uninstall support.
+Fix release — CLI commands no longer hijack the running SubFrame instance.
 
 ## What's Changed
 
 ### Bug Fixes
-- **CLI Install Auto-PATH** - Windows CLI installer now automatically adds `SubFrame\bin` to the user PATH via PowerShell registry API. No more manual PATH editing.
-- **CLI Uninstall** - New "Uninstall" button in Settings > General > CLI removes the `subframe` command and cleans the PATH entry
+- **CLI edit spawns standalone window** - `subframe edit <file>` now opens a new standalone editor window instead of silently sending to the running instance. Your existing workspace is never touched.
+- **CLI open is non-disruptive** - `subframe open <dir>` adds the project to your workspace without switching the active project. No more losing context mid-work.

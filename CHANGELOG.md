@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3-beta] - 2026-03-15
+
+### Fixed
+- **CLI edit spawns standalone window** — `subframe edit <file>` now opens a new editor window instead of hijacking the running instance
+- **CLI open non-disruptive** — `subframe open <dir>` adds project to workspace without switching the active project
+
 ## [0.5.2-beta] - 2026-03-15
 
 ### Fixed
@@ -394,7 +400,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.2-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.3-beta...HEAD
+[0.5.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.2-beta...v0.5.3-beta
 [0.5.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.1-beta...v0.5.2-beta
 [0.5.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.0-beta...v0.5.1-beta
 [0.5.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.4.0-beta...v0.5.0-beta

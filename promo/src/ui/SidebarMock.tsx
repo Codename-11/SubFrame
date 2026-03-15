@@ -126,7 +126,7 @@ export const SidebarMock: React.FC<{
               lineHeight: 1,
             }}
           >
-            v0.5.2-beta
+            v0.5.3-beta
           </span>
         </div>
       </div>
