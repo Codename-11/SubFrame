@@ -19,6 +19,8 @@ import { typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { useSettings } from '../hooks/useSettings';
 import { useTerminalStore } from '../stores/useTerminalStore';
+import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
 import * as terminalRegistry from '../lib/terminalRegistry';
 
 const { ipcRenderer, clipboard } = require('electron');
@@ -243,15 +245,22 @@ export function Terminal({ terminalId, className }: TerminalProps) {
           rows: terminal.rows,
         });
       }
-      // Restore scroll position after fit reflow — browser may have reset scrollTop during DOM move
-      if (scrollState) {
-        if (scrollState.wasAtBottom) {
-          terminal.scrollToBottom();
+      // Restore scroll position after fit reflow — use a second RAF to ensure
+      // fit() has fully settled (its internal resize callbacks run async and can
+      // reset scrollTop after our restore if we do it in the same frame)
+      requestAnimationFrame(() => {
+        if (scrollState) {
+          if (scrollState.wasAtBottom) {
+            terminal.scrollToBottom();
+          } else {
+            terminal.scrollToLine(scrollState.viewportY);
+          }
         } else {
-          terminal.scrollToLine(scrollState.viewportY);
+          // No saved state (first mount) — default to bottom
+          terminal.scrollToBottom();
         }
-      }
-      terminal.focus();
+        terminal.focus();
+      });
     });
 
     return () => {
@@ -456,6 +465,22 @@ export function Terminal({ terminalId, className }: TerminalProps) {
 
       return true;
     });
+  }, [terminalRef]);
+
+  // Register file path link provider — Ctrl+click to open files in editor
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+
+    const disposable = terminalRegistry.registerFilePathLinkProvider(
+      terminal,
+      () => useProjectStore.getState().currentProjectPath,
+      (filePath: string, _line?: number) => {
+        useUIStore.getState().setEditorFilePath(filePath);
+      },
+    );
+
+    return () => disposable.dispose();
   }, [terminalRef]);
 
   // Ctrl+F listener scoped to this terminal's container

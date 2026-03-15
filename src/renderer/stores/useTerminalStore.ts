@@ -14,7 +14,7 @@ function loadGridLayout(): GridLayout {
   } catch {
     // ignore
   }
-  return '2x2';
+  return '1x2';
 }
 
 export interface TerminalInfo {

@@ -15,6 +15,7 @@ import { IPC, type Task } from '../shared/ipcChannels';
 import { FRAME_FILES, FRAME_TASKS_DIR, FRAME_TASKS_PRIVATE_DIR } from '../shared/frameConstants';
 import { parseTaskMarkdown, serializeTaskMarkdown } from './taskMarkdownParser';
 import { getActiveTool, checkToolInstalled } from './aiToolManager';
+import * as activityManager from './activityManager';
 
 interface TasksData {
   _frame_metadata?: {
@@ -463,13 +464,16 @@ function updateTask(
     if (wasPrivate !== isNowPrivate) {
       ensureTasksDir(projectPath, isNowPrivate);
       writePath = getTaskFilePath(projectPath, taskId, isNowPrivate);
-      // Remove the old file after writing the new one
-      fs.unlinkSync(filePath);
     }
 
     // Write updated .md file back
     const markdown = serializeTaskMarkdown(updatedTask);
     fs.writeFileSync(writePath, markdown, 'utf8');
+
+    // Only delete old file after successful write (privacy change moves file)
+    if (filePath !== writePath) {
+      try { fs.unlinkSync(filePath); } catch { /* old file may already be gone */ }
+    }
 
     // Regenerate index
     const tasksData = loadTasks(projectPath);
@@ -671,13 +675,27 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.handle(
     IPC.ENHANCE_TASK,
     async (_event, { projectPath, task }: { projectPath: string; task: Partial<Task> }) => {
+      // Create activity stream for enhance task operation
+      const streamId = activityManager.createStream({
+        name: `Enhance: ${task.title || 'Task'}`,
+        type: 'spawn',
+        source: 'tasks',
+        timeout: 120_000,
+        heartbeatInterval: 10_000,
+      });
+      activityManager.updateStatus(streamId, 'running');
+      activityManager.startHeartbeat(streamId);
+      activityManager.startTimeout(streamId);
+
       try {
         const tool = await getActiveTool();
         if (!await checkToolInstalled(tool)) {
+          const errorMsg = `${tool.name} is not installed. Visit ${tool.installUrl ?? 'the tool website'} to install it.`;
+          activityManager.updateStatus(streamId, 'failed', errorMsg);
           return {
             success: false,
             enhanced: {},
-            error: `${tool.name} is not installed. Visit ${tool.installUrl ?? 'the tool website'} to install it.`,
+            error: errorMsg,
           };
         }
         const [aiExe, ...aiBaseFlags] = tool.command.split(/\s+/);
@@ -702,6 +720,8 @@ Return ONLY a valid JSON object (no markdown fences, no explanation) with these 
 
 Keep the original intent. Improve clarity, add missing acceptance criteria, suggest 3-5 concrete steps, and correct the priority/category if clearly wrong.`;
 
+        activityManager.emit(streamId, 'Spawning AI tool for task enhancement...');
+
         const result = await new Promise<string>((resolve, reject) => {
           const child = spawn(aiExe, [...aiBaseFlags, '--print', '--output-format', 'json'], {
             cwd: projectPath,
@@ -714,13 +734,40 @@ Keep the original intent. Improve clarity, add missing acceptance criteria, sugg
 
           let stdout = '';
           let stderr = '';
+          let settled = false;
+
+          // Kill child process if activity stream is cancelled/timed out
+          const abortSignal = activityManager.getAbortSignal(streamId);
+          if (abortSignal) {
+            abortSignal.addEventListener('abort', () => {
+              if (!settled) {
+                settled = true;
+                try { child.kill(); } catch { /* ignore */ }
+                reject(new Error('Operation cancelled or timed out'));
+              }
+            }, { once: true });
+          }
+
           child.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
-          child.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+          child.stderr.on('data', (data: Buffer) => {
+            const chunk = data.toString();
+            stderr += chunk;
+            // Route stderr lines through activity stream
+            for (const line of chunk.split('\n').filter(Boolean)) {
+              activityManager.emit(streamId, line);
+            }
+          });
           child.on('close', (code) => {
+            if (settled) return;
+            settled = true;
             if (code === 0) resolve(stdout.trim());
             else reject(new Error(stderr || `AI tool exited with code ${code}`));
           });
-          child.on('error', reject);
+          child.on('error', (err) => {
+            if (settled) return;
+            settled = true;
+            reject(err);
+          });
         });
 
         // Unwrap Claude CLI JSON envelope if present
@@ -732,11 +779,31 @@ Keep the original intent. Improve clarity, add missing acceptance criteria, sugg
           }
         } catch { /* not an envelope */ }
 
-        // Parse the AI response as JSON
-        const enhanced = JSON.parse(content);
+        // Parse the AI response — try direct JSON, then extract from markdown fences
+        let enhanced: Record<string, unknown>;
+        try {
+          enhanced = JSON.parse(content);
+        } catch {
+          // Try extracting JSON from markdown code fences
+          const fenceMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+          if (fenceMatch) {
+            enhanced = JSON.parse(fenceMatch[1].trim());
+          } else {
+            // Try finding first { to last }
+            const start = content.indexOf('{');
+            const end = content.lastIndexOf('}');
+            if (start >= 0 && end > start) {
+              enhanced = JSON.parse(content.slice(start, end + 1));
+            } else {
+              throw new Error('AI response was not valid JSON. Try again.');
+            }
+          }
+        }
         const steps = Array.isArray(enhanced.steps)
           ? enhanced.steps.map((s: string) => ({ label: s, completed: false }))
           : undefined;
+
+        activityManager.updateStatus(streamId, 'completed');
 
         return {
           success: true,
@@ -751,6 +818,7 @@ Keep the original intent. Improve clarity, add missing acceptance criteria, sugg
         };
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
+        activityManager.updateStatus(streamId, 'failed', msg);
         return { success: false, enhanced: {}, error: msg };
       }
     }

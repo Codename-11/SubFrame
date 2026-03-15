@@ -96,8 +96,9 @@ interface PanelGroup {
 
 const PANEL_GROUPS: PanelGroup[] = [
   { panels: ['tasks'],                                                                      label: 'Sub-Tasks' },
-  { panels: ['agentState', 'sessions', 'history', 'prompts', 'skills', 'plugins'],          label: 'Agent' },
   { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees'], label: 'GitHub' },
+  { panels: ['agentState', 'sessions', 'history', 'skills', 'plugins'],                     label: 'Agent' },
+  { panels: ['prompts'],                                                                    label: 'Prompts' },
   { panels: ['pipeline'],                                                                   label: 'Pipeline' },
   { panels: ['overview', 'aiFiles', 'subframeHealth'],                                      label: 'Project' },
 ];
@@ -302,7 +303,7 @@ export function RightPanel() {
           const startWidth = rightPanelWidth;
           useUIStore.getState().setIsResizing(true);
           const onMouseMove = (ev: MouseEvent) => {
-            const newWidth = Math.min(600, Math.max(320, startWidth - (ev.clientX - startX)));
+            const newWidth = Math.min(600, Math.max(380, startWidth - (ev.clientX - startX)));
             setRightPanelWidth(newWidth);
           };
           const cleanup = () => {

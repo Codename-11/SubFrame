@@ -118,7 +118,7 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set, get) => ({
   sidebarState: (localStorage.getItem('sidebar-state') as SidebarState) || 'expanded',
-  sidebarWidth: parseInt(localStorage.getItem('sidebar-width') || '260'),
+  sidebarWidth: parseInt(localStorage.getItem('sidebar-width') || '220'),
   setSidebarState: (state) => {
     localStorage.setItem('sidebar-state', state);
     set({ sidebarState: state });

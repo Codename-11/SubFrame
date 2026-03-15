@@ -6,11 +6,10 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Play, Check, Pause, RotateCcw, Trash2, Send, FileText, Lock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Play, Check, Pause, RotateCcw, Trash2, Send, Pencil, Lock } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '../lib/utils';
-import { useUIStore } from '../stores/useUIStore';
 import type { Task, TaskStep } from '../../shared/ipcChannels';
 
 // ── Column definitions ───────────────────────────────────────────────
@@ -95,6 +94,7 @@ interface TaskCardProps {
   isExpanded: boolean;
   onToggle: () => void;
   onUpdateStatus: (taskId: string, status: Task['status']) => void;
+  onEdit?: (task: Task) => void;
   onSendToTerminal?: (task: Task) => void;
   onRequestDelete: (taskId: string) => void;
   compact?: boolean;
@@ -105,6 +105,7 @@ function TaskCard({
   isExpanded,
   onToggle,
   onUpdateStatus,
+  onEdit,
   onSendToTerminal,
   onRequestDelete,
   compact,
@@ -204,13 +205,13 @@ function TaskCard({
               </div>
               {/* Actions */}
               <div className="flex items-center gap-1 pt-1 border-t border-border-subtle/30">
-                {task.filePath && (
+                {onEdit && (
                   <button
-                    onClick={() => useUIStore.getState().setEditorFilePath(task.filePath!)}
+                    onClick={() => onEdit(task)}
                     className="p-1 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
-                    title="Open in editor"
+                    title="Edit"
                   >
-                    <FileText size={12} />
+                    <Pencil size={12} />
                   </button>
                 )}
                 {onSendToTerminal && (
@@ -278,6 +279,7 @@ function TaskCard({
 interface TaskKanbanProps {
   tasks: Task[];
   onUpdateStatus: (taskId: string, status: Task['status']) => void;
+  onEdit?: (task: Task) => void;
   onSendToTerminal?: (task: Task) => void;
   onRequestDelete: (taskId: string) => void;
   className?: string;
@@ -288,6 +290,7 @@ interface TaskKanbanProps {
 export function TaskKanban({
   tasks,
   onUpdateStatus,
+  onEdit,
   onSendToTerminal,
   onRequestDelete,
   className,
@@ -372,6 +375,7 @@ export function TaskKanban({
                               isExpanded={expandedId === task.id}
                               onToggle={() => toggleExpand(task.id)}
                               onUpdateStatus={onUpdateStatus}
+                              onEdit={onEdit}
                               onSendToTerminal={onSendToTerminal}
                               onRequestDelete={onRequestDelete}
                               compact
@@ -426,6 +430,7 @@ export function TaskKanban({
                       isExpanded={expandedId === task.id}
                       onToggle={() => toggleExpand(task.id)}
                       onUpdateStatus={onUpdateStatus}
+                      onEdit={onEdit}
                       onSendToTerminal={onSendToTerminal}
                       onRequestDelete={onRequestDelete}
                     />

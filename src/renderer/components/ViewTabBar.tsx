@@ -21,6 +21,7 @@ import {
   Loader2,
   Terminal,
   Pin,
+  BookMarked,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -49,8 +50,9 @@ const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 /** Panel shortcut buttons shown on the right side of the tab bar — open right sidebar */
 const PANEL_SHORTCUTS = [
   { id: 'tasks' as const, label: 'Sub-Tasks', icon: ListTodo, shortcut: 'Ctrl+Shift+S' },
-  { id: 'agentState' as const, label: 'Agents', icon: Activity, shortcut: 'Ctrl+Shift+A' },
   { id: 'gitChanges' as const, label: 'GitHub', icon: FileDiff, shortcut: 'Ctrl+Shift+G' },
+  { id: 'agentState' as const, label: 'Agents', icon: Activity, shortcut: 'Ctrl+Shift+A' },
+  { id: 'prompts' as const, label: 'Prompts', icon: BookMarked, shortcut: 'Ctrl+Shift+L' },
   { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
   { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard, shortcut: 'Ctrl+Shift+O' },
 ] as const;
@@ -150,7 +152,7 @@ export function ViewTabBar() {
   }, [usageData?.persistentFailure, usageData?.error]);
 
   return (
-    <div className="flex items-center bg-bg-secondary border-b border-border-subtle shrink-0">
+    <div className="flex items-center bg-bg-secondary border-b border-border-subtle shrink-0" data-neon-bar="">
       {/* Workspace + project badge — visible when sidebar is not expanded */}
       {sidebarState !== 'expanded' && (
         <TooltipProvider delayDuration={400}>

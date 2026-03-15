@@ -14,7 +14,7 @@ import {
   type SortingState,
   type SortingFn,
 } from '@tanstack/react-table';
-import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X, Copy, Lock, Link, Sparkles, Loader2, Pencil, RefreshCw } from 'lucide-react';
+import { Plus, ArrowUpDown, ArrowUp, ArrowDown, Play, Check, Pause, RotateCcw, Trash2, ChevronDown, ChevronRight, Send, Maximize2, FileText, List, Network, Columns3, X, Copy, Lock, Link, Sparkles, Loader2, Pencil, RefreshCw, ClipboardCopy, Hash, CheckSquare } from 'lucide-react';
 import { TaskTimeline } from './TaskTimeline';
 import { TaskGraph } from './TaskGraph';
 import { TaskKanban } from './TaskKanban';
@@ -23,6 +23,14 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { ScrollArea } from './ui/scroll-area';
+import { Checkbox } from './ui/checkbox';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from './ui/context-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -98,37 +106,6 @@ Define what "done" looks like.
 ## Notes
 Any additional context or references.`;
 
-function formToMarkdown(
-  description: string,
-  steps: TaskStep[],
-  acceptanceCriteria: string,
-  notes: string,
-): string {
-  const parts: string[] = [];
-  if (description) {
-    parts.push(description);
-    parts.push('');
-  }
-  const nonEmptySteps = steps.filter((s) => s.label.trim());
-  if (nonEmptySteps.length > 0) {
-    parts.push('## Steps');
-    for (const step of nonEmptySteps) {
-      parts.push(`- [${step.completed ? 'x' : ' '}] ${step.label}`);
-    }
-    parts.push('');
-  }
-  if (acceptanceCriteria) {
-    parts.push('## Acceptance Criteria');
-    parts.push(acceptanceCriteria);
-    parts.push('');
-  }
-  if (notes) {
-    parts.push('## Notes');
-    parts.push(notes);
-    parts.push('');
-  }
-  return parts.join('\n').trimEnd();
-}
 
 function markdownToForm(md: string): {
   description: string;
@@ -265,77 +242,65 @@ function TaskActions({
   hasActiveTerminal: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1">
-      {task.filePath && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            useUIStore.getState().setEditorFilePath(task.filePath!);
-          }}
-          className="p-1 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
-          title="Open in editor"
-        >
-          <FileText size={12} />
-        </button>
-      )}
+    <div className="flex items-center gap-0.5 flex-wrap">
+      <button
+        onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+        className="p-0.5 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
+        title="Edit"
+      >
+        <Pencil size={11} />
+      </button>
       {hasActiveTerminal && (
         <button
           onClick={(e) => { e.stopPropagation(); onSendToTerminal(task); }}
-          className="p-1 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
+          className="p-0.5 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
           title="Send to Claude"
         >
-          <Send size={12} />
+          <Send size={11} />
         </button>
       )}
       {task.status === 'pending' && (
         <button
           onClick={(e) => { e.stopPropagation(); onUpdateStatus(task.id, 'in_progress'); toast.info('Task started'); }}
-          className="p-1 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
+          className="p-0.5 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
           title="Start"
         >
-          <Play size={12} />
+          <Play size={11} />
         </button>
       )}
       {task.status === 'in_progress' && (
         <>
           <button
             onClick={(e) => { e.stopPropagation(); onUpdateStatus(task.id, 'completed'); toast.success('Task completed'); }}
-            className="p-1 text-text-tertiary hover:text-emerald-400 transition-colors cursor-pointer"
+            className="p-0.5 text-text-tertiary hover:text-emerald-400 transition-colors cursor-pointer"
             title="Complete"
           >
-            <Check size={12} />
+            <Check size={11} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onUpdateStatus(task.id, 'pending'); toast.info('Task paused'); }}
-            className="p-1 text-text-tertiary hover:text-amber-400 transition-colors cursor-pointer"
+            className="p-0.5 text-text-tertiary hover:text-amber-400 transition-colors cursor-pointer"
             title="Pause"
           >
-            <Pause size={12} />
+            <Pause size={11} />
           </button>
         </>
       )}
       {task.status === 'completed' && (
         <button
           onClick={(e) => { e.stopPropagation(); onUpdateStatus(task.id, 'pending'); toast.info('Task reopened'); }}
-          className="p-1 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
+          className="p-0.5 text-text-tertiary hover:text-accent transition-colors cursor-pointer"
           title="Reopen"
         >
-          <RotateCcw size={12} />
+          <RotateCcw size={11} />
         </button>
       )}
       <button
-        onClick={(e) => { e.stopPropagation(); onEdit(task); }}
-        className="p-1 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
-        title="Edit"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </button>
-      <button
         onClick={(e) => { e.stopPropagation(); onRequestDelete(task.id); }}
-        className="p-1 text-text-tertiary hover:text-red-400 transition-colors cursor-pointer"
+        className="p-0.5 text-text-tertiary hover:text-red-400 transition-colors cursor-pointer"
         title="Delete"
       >
-        <Trash2 size={12} />
+        <Trash2 size={11} />
       </button>
     </div>
   );
@@ -373,6 +338,10 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'graph'>('list');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [selectMode, setSelectMode] = useState(false);
+  const [bulkSendOpen, setBulkSendOpen] = useState(false);
+  const [bulkSendWrapper, setBulkSendWrapper] = useState('');
 
   // Smart default filter: auto-select the most useful status view
   // Runs when tasks change, but respects explicit user choice
@@ -387,6 +356,12 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     }
   }, [tasks, isLoading, tasksFilterSetByUser, setTasksStatusFilter]);
 
+  // Clear row selection and exit select mode when filters or view mode change
+  useEffect(() => {
+    setRowSelection({});
+    setSelectMode(false);
+  }, [statusFilter, search, viewMode]);
+
   // User explicitly clicks a filter → lock their choice
   const handleStatusFilterClick = useCallback(
     (value: StatusFilter) => {
@@ -398,6 +373,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[]>([]);
 
   // Form state
   const [formTitle, setFormTitle] = useState('');
@@ -413,8 +389,6 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const [formBlocks, setFormBlocks] = useState<string[]>([]);
   const [blockedBySelect, setBlockedBySelect] = useState('');
   const [blocksSelect, setBlocksSelect] = useState('');
-  const [dialogMode, setDialogMode] = useState<'form' | 'markdown'>('form');
-  const [markdownContent, setMarkdownContent] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
 
@@ -475,12 +449,26 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const handleSendToTerminal = useCallback(
     (task: Task) => {
       if (!activeTerminalId) return;
-      const prompt = `Task: ${task.title}\n\nDescription: ${task.description || 'N/A'}\n\nAcceptance Criteria: ${task.acceptanceCriteria || 'N/A'}`;
+      const steps = task.steps?.length
+        ? `\n\nSteps:\n${task.steps.map((s, i) => `${s.completed ? '- [x]' : '- [ ]'} ${s.label}`).join('\n')}`
+        : '';
+      const prompt = `Task [${task.id}]: ${task.title}\nPriority: ${task.priority || 'medium'} | Category: ${task.category || 'feature'} | Status: ${task.status}\n\nDescription: ${task.description || 'N/A'}\n\nAcceptance Criteria: ${task.acceptanceCriteria || 'N/A'}${steps}`;
       ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
-      toast.info('Task sent to terminal');
+      // Auto-start the task if it's pending
+      if (task.status === 'pending') {
+        handleUpdateStatus(task.id, 'in_progress');
+      }
+      toast.info(task.status === 'pending' ? 'Task started and sent to terminal' : 'Task sent to terminal');
     },
-    [activeTerminalId]
+    [activeTerminalId, handleUpdateStatus]
   );
+
+  const handleCopyTitle = useCallback((title: string) => {
+    navigator.clipboard.writeText(title).then(
+      () => toast.success('Title copied'),
+      () => toast.error('Failed to copy')
+    );
+  }, []);
 
   const filteredTasks = useMemo(() => {
     let result = tasks;
@@ -511,6 +499,28 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   // via a wrapper that receives it as a prop (see TaskRow below).
   const columns = useMemo<ColumnDef<Task>[]>(() => {
     const cols: ColumnDef<Task>[] = [
+      // Select column — only included when selectMode is active
+      ...(selectMode ? [{
+        id: 'select',
+        header: ({ table }: { table: ReturnType<typeof useReactTable<Task>> }) => (
+          <Checkbox
+            checked={table.getIsAllPageRowsSelected()}
+            onCheckedChange={() => table.toggleAllPageRowsSelected()}
+            className="border-border-default data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+          />
+        ),
+        cell: ({ row }: { row: { getIsSelected: () => boolean; toggleSelected: () => void } }) => (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={() => row.toggleSelected()}
+              className="border-border-default data-[state=checked]:bg-accent data-[state=checked]:border-accent"
+            />
+          </div>
+        ),
+        size: 32,
+        enableSorting: false,
+      } as ColumnDef<Task>] : []),
       {
         id: 'expand',
         header: '',
@@ -549,7 +559,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         },
         sortingFn: statusSortingFn,
         enableMultiSort: true,
-        size: isFullView ? 110 : 90,
+        size: isFullView ? 110 : 72,
       },
     ];
 
@@ -604,13 +614,13 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
           cell: ({ getValue }) => {
             const cat = (getValue() as string) || 'feature';
             return (
-              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', CATEGORY_COLORS[cat] || CATEGORY_COLORS.chore)}>
+              <Badge variant="secondary" className={cn('text-[9px] capitalize whitespace-nowrap', CATEGORY_COLORS[cat] || CATEGORY_COLORS.chore)}>
                 {CATEGORY_SHORT[cat] || cat}
               </Badge>
             );
           },
           enableMultiSort: true,
-          size: 42,
+          size: 48,
         },
         {
           accessorKey: 'priority',
@@ -618,14 +628,14 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
           cell: ({ getValue }) => {
             const priority = getValue() as string;
             return (
-              <Badge variant="secondary" className={cn('text-[10px] capitalize whitespace-nowrap', PRIORITY_COLORS[priority])}>
+              <Badge variant="secondary" className={cn('text-[9px] capitalize whitespace-nowrap', PRIORITY_COLORS[priority])}>
                 {priority}
               </Badge>
             );
           },
           sortingFn: prioritySortingFn,
           enableMultiSort: true,
-          size: 42,
+          size: 52,
         },
       );
     }
@@ -634,18 +644,21 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       id: 'actions',
       header: '',
       cell: () => null, // Rendered manually in TaskRow
-      size: isFullView ? 80 : 56,
+      size: isFullView ? 80 : 52,
     });
 
     return cols;
-  }, [isFullView]);
+  }, [isFullView, selectMode]);
 
   const table = useReactTable({
     data: filteredTasks,
     columns,
-    state: { sorting },
+    state: { sorting, rowSelection },
     onSortingChange: handleSortingChange,
+    onRowSelectionChange: setRowSelection,
     enableMultiSort: true,
+    enableRowSelection: true,
+    getRowId: (row) => row.id,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -666,8 +679,6 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormBlocks([]);
     setBlockedBySelect('');
     setBlocksSelect('');
-    setDialogMode('form');
-    setMarkdownContent('');
     setShowAdvanced(false);
     setDialogOpen(true);
   }
@@ -688,8 +699,6 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setFormBlocks(task.blocks ?? []);
     setBlockedBySelect('');
     setBlocksSelect('');
-    setDialogMode('form');
-    setMarkdownContent('');
     setShowAdvanced(!!(task.acceptanceCriteria || task.notes || task.blockedBy?.length || task.blocks?.length));
     setDialogOpen(true);
   }, []);
@@ -697,29 +706,15 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   function handleSubmit() {
     if (!formTitle.trim()) return;
 
-    // If in markdown mode, parse content back to structured fields
-    let description = formDescription.trim();
-    let steps = formSteps;
-    let acceptanceCriteria = formAcceptanceCriteria.trim();
-    let notes = formNotes.trim();
-
-    if (dialogMode === 'markdown') {
-      const parsed = markdownToForm(markdownContent);
-      description = parsed.description;
-      steps = parsed.steps;
-      acceptanceCriteria = parsed.acceptanceCriteria;
-      notes = parsed.notes;
-    }
-
     const data: Record<string, unknown> = {
       title: formTitle.trim(),
-      description,
+      description: formDescription.trim(),
       priority: formPriority,
       category: formCategory,
       status: formStatus,
-      steps: steps.filter((s) => s.label.trim()), // Drop empty-label steps
-      acceptanceCriteria: acceptanceCriteria || undefined,
-      notes: notes || undefined,
+      steps: formSteps.filter((s) => s.label.trim()),
+      acceptanceCriteria: formAcceptanceCriteria.trim() || undefined,
+      notes: formNotes.trim() || undefined,
       private: formPrivate || undefined,
       blockedBy: formBlockedBy.length ? formBlockedBy : undefined,
       blocks: formBlocks.length ? formBlocks : undefined,
@@ -735,30 +730,13 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setDialogOpen(false);
   }
 
-  function handleModeSwitch(mode: 'form' | 'markdown') {
-    if (mode === dialogMode) return;
-    if (mode === 'markdown') {
-      setMarkdownContent(formToMarkdown(formDescription, formSteps, formAcceptanceCriteria, formNotes));
-    } else {
-      const parsed = markdownToForm(markdownContent);
-      setFormDescription(parsed.description);
-      setFormSteps(parsed.steps);
-      setFormAcceptanceCriteria(parsed.acceptanceCriteria);
-      setFormNotes(parsed.notes);
-    }
-    setDialogMode(mode);
-  }
 
   function handleApplyTemplate() {
-    if (dialogMode === 'markdown') {
-      setMarkdownContent(TASK_TEMPLATE);
-    } else {
-      const parsed = markdownToForm(TASK_TEMPLATE);
-      setFormDescription(parsed.description);
-      setFormSteps(parsed.steps);
-      setFormAcceptanceCriteria(parsed.acceptanceCriteria);
-      setFormNotes(parsed.notes);
-    }
+    const parsed = markdownToForm(TASK_TEMPLATE);
+    setFormDescription(parsed.description);
+    setFormSteps(parsed.steps);
+    setFormAcceptanceCriteria(parsed.acceptanceCriteria);
+    setFormNotes(parsed.notes);
   }
 
   return (
@@ -804,6 +782,21 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
             <Network size={14} />
           </button>
         </div>
+        {viewMode === 'list' && (
+          <button
+            onClick={() => {
+              setSelectMode((v) => !v);
+              if (selectMode) setRowSelection({});
+            }}
+            className={cn(
+              'p-1 rounded transition-colors cursor-pointer',
+              selectMode ? 'bg-accent/20 text-accent' : 'text-text-tertiary hover:text-text-primary'
+            )}
+            title={selectMode ? 'Exit select mode' : 'Select tasks'}
+          >
+            <CheckSquare size={14} />
+          </button>
+        )}
         {!isFullView && (
           <Button
             size="sm"
@@ -857,6 +850,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         <TaskKanban
           tasks={tasks}
           onUpdateStatus={handleUpdateStatus}
+          onEdit={openEditDialog}
           onSendToTerminal={activeTerminalId ? handleSendToTerminal : undefined}
           onRequestDelete={handleRequestDelete}
           compact={!isFullView}
@@ -874,7 +868,63 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
             <span className="text-xs opacity-60">Sub-tasks will appear here when added</span>
           </div>
         ) : (
-          <table className="w-full table-fixed">
+          <Fragment>
+            {Object.keys(rowSelection).length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-md mb-2">
+              <span className="text-xs text-text-secondary">
+                {Object.keys(rowSelection).length} selected
+              </span>
+              <div className="flex-1" />
+              {activeTerminalId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[10px] text-accent hover:bg-accent/10"
+                  onClick={() => {
+                    setBulkSendWrapper('');
+                    setBulkSendOpen(true);
+                  }}
+                >
+                  <Send className="w-3 h-3 mr-1" />
+                  Send to Terminal
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] text-success hover:bg-success/10"
+                onClick={() => {
+                  const ids = Object.keys(rowSelection);
+                  ids.forEach((id) => handleUpdateStatus(id, 'completed'));
+                  setRowSelection({});
+                  toast.success(`${ids.length} task(s) completed`);
+                }}
+              >
+                <Check className="w-3 h-3 mr-1" />
+                Complete
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] text-error hover:bg-error/10"
+                onClick={() => {
+                  setBulkDeleteIds(Object.keys(rowSelection));
+                }}
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Delete
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] text-text-tertiary hover:bg-bg-hover"
+                onClick={() => setRowSelection({})}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+          <table className="w-full table-auto">
               <thead>
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id} className="border-b border-border-subtle">
@@ -885,7 +935,10 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                           'py-1.5 text-left text-[10px] uppercase tracking-wider text-text-tertiary font-medium',
                           isFullView ? 'px-2' : 'px-1.5',
                         )}
-                        style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                        style={{
+                          width: header.getSize() !== 150 ? header.getSize() : undefined,
+                          minWidth: header.getSize() !== 150 ? header.getSize() : undefined,
+                        }}
                       >
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
@@ -896,42 +949,129 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
               <tbody>
                 {table.getRowModel().rows.map((row) => (
                   <Fragment key={row.id}>
-                    <tr className="border-b border-border-subtle/50 hover:bg-bg-hover/30 transition-colors">
-                      {row.getVisibleCells().map((cell) => {
-                        const cellPx = isFullView ? 'px-2' : 'px-1.5';
-                        if (cell.column.id === 'expand') {
-                          return (
-                            <td key={cell.id} className={cn(cellPx, 'py-2 text-xs')}>
-                              <button
-                                onClick={() => toggleExpand(row.original.id)}
-                                className="p-0.5 text-text-tertiary hover:text-text-primary cursor-pointer"
-                              >
-                                {expandedId === row.original.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                              </button>
-                            </td>
-                          );
-                        }
-                        if (cell.column.id === 'actions') {
-                          return (
-                            <td key={cell.id} className={cn(cellPx, 'py-2 text-xs')}>
-                              <TaskActions
-                                task={row.original}
-                                onUpdateStatus={handleUpdateStatus}
-                                onEdit={openEditDialog}
-                                onRequestDelete={handleRequestDelete}
-                                onSendToTerminal={handleSendToTerminal}
-                                hasActiveTerminal={!!activeTerminalId}
-                              />
-                            </td>
-                          );
-                        }
-                        return (
-                          <td key={cell.id} className={cn(cellPx, 'py-2 text-xs', cell.column.id === 'title' ? 'overflow-hidden' : '')}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        );
-                      })}
-                    </tr>
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <tr className="border-b border-border-subtle/50 hover:bg-bg-hover/30 transition-colors">
+                          {row.getVisibleCells().map((cell) => {
+                            const cellPx = isFullView ? 'px-2' : 'px-1.5';
+                            if (cell.column.id === 'expand') {
+                              return (
+                                <td key={cell.id} className={cn(cellPx, 'py-2 text-xs')}>
+                                  <button
+                                    onClick={() => toggleExpand(row.original.id)}
+                                    className="p-0.5 text-text-tertiary hover:text-text-primary cursor-pointer"
+                                  >
+                                    {expandedId === row.original.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                  </button>
+                                </td>
+                              );
+                            }
+                            if (cell.column.id === 'actions') {
+                              return (
+                                <td key={cell.id} className={cn(cellPx, 'py-2 text-xs')}>
+                                  <TaskActions
+                                    task={row.original}
+                                    onUpdateStatus={handleUpdateStatus}
+                                    onEdit={openEditDialog}
+                                    onRequestDelete={handleRequestDelete}
+                                    onSendToTerminal={handleSendToTerminal}
+                                    hasActiveTerminal={!!activeTerminalId}
+                                  />
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={cell.id} className={cn(cellPx, 'py-2 text-xs overflow-hidden')}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="bg-bg-elevated border-border-subtle">
+                        <ContextMenuItem
+                          onClick={() => handleCopyTitle(row.original.title)}
+                          className="text-xs gap-2"
+                        >
+                          <ClipboardCopy className="w-3.5 h-3.5" />
+                          Copy Title
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onClick={() => {
+                            navigator.clipboard.writeText(row.original.id).then(
+                              () => toast.success('Task ID copied'),
+                              () => toast.error('Failed to copy')
+                            );
+                          }}
+                          className="text-xs gap-2"
+                        >
+                          <Hash className="w-3.5 h-3.5" />
+                          Copy ID
+                        </ContextMenuItem>
+                        {activeTerminalId && (
+                          <ContextMenuItem
+                            onClick={() => handleSendToTerminal(row.original)}
+                            className="text-xs gap-2"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            Send to Terminal
+                          </ContextMenuItem>
+                        )}
+                        <ContextMenuSeparator />
+                        {row.original.status === 'pending' && (
+                          <ContextMenuItem
+                            onClick={() => { handleUpdateStatus(row.original.id, 'in_progress'); toast.info('Task started'); }}
+                            className="text-xs gap-2"
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                            Start
+                          </ContextMenuItem>
+                        )}
+                        {row.original.status === 'in_progress' && (
+                          <>
+                            <ContextMenuItem
+                              onClick={() => { handleUpdateStatus(row.original.id, 'completed'); toast.success('Task completed'); }}
+                              className="text-xs gap-2"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Complete
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              onClick={() => { handleUpdateStatus(row.original.id, 'pending'); toast.info('Task paused'); }}
+                              className="text-xs gap-2"
+                            >
+                              <Pause className="w-3.5 h-3.5" />
+                              Pause
+                            </ContextMenuItem>
+                          </>
+                        )}
+                        {row.original.status === 'completed' && (
+                          <ContextMenuItem
+                            onClick={() => { handleUpdateStatus(row.original.id, 'pending'); toast.info('Task reopened'); }}
+                            className="text-xs gap-2"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Reopen
+                          </ContextMenuItem>
+                        )}
+                        <ContextMenuItem
+                          onClick={() => openEditDialog(row.original)}
+                          className="text-xs gap-2"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          onClick={() => handleRequestDelete(row.original.id)}
+                          variant="destructive"
+                          className="text-xs gap-2"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                     {expandedId === row.original.id && (
                       <tr>
                         <td colSpan={columns.length} className="px-4 py-3 bg-bg-deep/50">
@@ -943,6 +1083,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                 ))}
               </tbody>
             </table>
+          </Fragment>
         )}
       </ScrollArea>
       )}
@@ -958,23 +1099,117 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel variant="ghost" size="sm" className="cursor-pointer">Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="default" size="sm" onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 cursor-pointer">
+            <AlertDialogAction variant="default" size="sm" onClick={handleConfirmDelete} className="bg-error hover:bg-error/80 cursor-pointer">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={bulkDeleteIds.length > 0} onOpenChange={(open) => { if (!open) setBulkDeleteIds([]); }}>
+        <AlertDialogContent className="bg-bg-primary border-border-subtle text-text-primary" size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm">Delete {bulkDeleteIds.length} sub-tasks?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-text-secondary">
+              This will permanently delete {bulkDeleteIds.length} task(s). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="ghost" size="sm" className="cursor-pointer">Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="default" size="sm" className="bg-error hover:bg-error/80 cursor-pointer" onClick={() => {
+              bulkDeleteIds.forEach((id) => deleteTask.mutate(id));
+              setRowSelection({});
+              setBulkDeleteIds([]);
+              toast.success(`${bulkDeleteIds.length} task(s) deleted`);
+            }}>
+              Delete All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Send to Terminal Dialog */}
+      <Dialog open={bulkSendOpen} onOpenChange={setBulkSendOpen}>
+        <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-md" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="text-sm">Send {Object.keys(rowSelection).length} Tasks to Terminal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-text-secondary mb-1 block">Wrapper prompt (optional)</label>
+              <textarea
+                value={bulkSendWrapper}
+                onChange={(e) => setBulkSendWrapper(e.target.value)}
+                placeholder="e.g. Work through these tasks in order, starting each one before moving to the next..."
+                rows={3}
+                className="w-full px-3 py-2 text-xs font-mono rounded-md bg-bg-deep border border-border-subtle text-text-primary outline-none focus:border-accent resize-y"
+              />
+            </div>
+            <div className="text-[10px] text-text-muted">
+              {Object.keys(rowSelection).length} task(s) will be sent with their ID, title, description, and steps.
+              {Object.keys(rowSelection).some((id) => {
+                const t = tasks.find((t) => t.id === id);
+                return t?.status === 'pending';
+              }) && ' Pending tasks will be auto-started.'}
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost" size="sm" className="cursor-pointer">Cancel</Button>
+            </DialogClose>
+            <Button
+              size="sm"
+              className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+              onClick={() => {
+                if (!activeTerminalId) return;
+                const ids = Object.keys(rowSelection);
+                const selectedTasks = ids
+                  .map((id) => tasks.find((t) => t.id === id))
+                  .filter(Boolean) as Task[];
+
+                // Build combined prompt
+                const taskBlocks = selectedTasks.map((task) => {
+                  const steps = task.steps?.length
+                    ? `\nSteps:\n${task.steps.map((s) => `${s.completed ? '- [x]' : '- [ ]'} ${s.label}`).join('\n')}`
+                    : '';
+                  return `---\nTask [${task.id}]: ${task.title}\nPriority: ${task.priority || 'medium'} | Category: ${task.category || 'feature'} | Status: ${task.status}\n\nDescription: ${task.description || 'N/A'}\n\nAcceptance Criteria: ${task.acceptanceCriteria || 'N/A'}${steps}`;
+                }).join('\n\n');
+
+                const wrapper = bulkSendWrapper.trim();
+                const prompt = wrapper
+                  ? `${wrapper}\n\n${taskBlocks}`
+                  : `Here are ${selectedTasks.length} tasks to work on:\n\n${taskBlocks}`;
+
+                ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
+
+                // Auto-start pending tasks
+                selectedTasks.forEach((task) => {
+                  if (task.status === 'pending') {
+                    handleUpdateStatus(task.id, 'in_progress');
+                  }
+                });
+
+                setRowSelection({});
+                setSelectMode(false);
+                setBulkSendOpen(false);
+                toast.info(`${selectedTasks.length} task(s) sent to terminal`);
+              }}
+            >
+              <Send className="w-3 h-3 mr-1" />
+              Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
-          className={cn(
-            'bg-bg-primary border-border-subtle text-text-primary',
-            dialogMode === 'markdown' ? 'sm:max-w-2xl' : 'sm:max-w-lg',
-          )}
+          className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-lg max-h-[85vh] !flex !flex-col overflow-hidden"
           aria-describedby={undefined}
         >
-          <DialogHeader>
+          <DialogHeader className="shrink-0">
             <div className="flex items-center justify-between gap-2">
               <DialogTitle>{editingTask ? 'Edit Sub-Task' : 'Add Sub-Task'}</DialogTitle>
               <div className="flex items-center gap-2 shrink-0">
@@ -988,7 +1223,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                   </button>
                 )}
                 {/* AI Enhance */}
-                {formTitle.trim() && dialogMode === 'form' && (
+                {formTitle.trim() && (
                   <button
                     onClick={handleEnhance}
                     disabled={enhancing}
@@ -999,32 +1234,25 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                     Enhance
                   </button>
                 )}
-                {/* Form / Markdown toggle */}
-                <div className="flex bg-bg-deep rounded-md p-0.5 text-[11px]">
+                {/* Open in code editor */}
+                {editingTask?.filePath && (
                   <button
-                    onClick={() => handleModeSwitch('form')}
-                    className={cn(
-                      'px-2 py-0.5 rounded transition-colors cursor-pointer',
-                      dialogMode === 'form' ? 'bg-accent/20 text-accent' : 'text-text-tertiary hover:text-text-primary',
-                    )}
+                    onClick={() => {
+                      useUIStore.getState().setEditorFilePath(editingTask.filePath!);
+                      setDialogOpen(false);
+                    }}
+                    className="flex items-center gap-1 px-2 py-0.5 text-[11px] text-text-tertiary hover:text-accent border border-border-subtle rounded transition-colors cursor-pointer"
+                    title="Open task file in code editor"
                   >
-                    Form
+                    <FileText size={11} />
+                    Editor
                   </button>
-                  <button
-                    onClick={() => handleModeSwitch('markdown')}
-                    className={cn(
-                      'px-2 py-0.5 rounded transition-colors cursor-pointer',
-                      dialogMode === 'markdown' ? 'bg-accent/20 text-accent' : 'text-text-tertiary hover:text-text-primary',
-                    )}
-                  >
-                    Markdown
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[70vh]">
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1">
           <div className="flex flex-col gap-3 py-2">
             {/* Title — always shown */}
             <div>
@@ -1038,9 +1266,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
               />
             </div>
 
-            {dialogMode === 'form' ? (
-              <>
-                {/* Description */}
+            {/* Description */}
                 <div>
                   <label className="text-xs text-text-secondary mb-1 block">Description</label>
                   <textarea
@@ -1268,20 +1494,6 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                     </div>
                   )}
                 </div>
-              </>
-            ) : (
-              /* Markdown editor mode */
-              <div>
-                <label className="text-xs text-text-secondary mb-1 block">Body (Markdown)</label>
-                <textarea
-                  value={markdownContent}
-                  onChange={(e) => setMarkdownContent(e.target.value)}
-                  placeholder="## Steps\n- [ ] Step one\n\n## Acceptance Criteria\n..."
-                  rows={16}
-                  className="w-full rounded-md bg-bg-deep border border-border-subtle px-3 py-2 text-xs text-text-primary font-mono resize-y focus:outline-none focus:ring-1 focus:ring-accent leading-relaxed"
-                />
-              </div>
-            )}
 
             {/* Priority / Category — always shown */}
             <div className="flex gap-3">
@@ -1350,9 +1562,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
               <span className="text-xs text-text-secondary">Private <span className="text-text-muted">(local only, excluded from git)</span></span>
             </label>
           </div>
-          </ScrollArea>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <DialogClose asChild>
               <Button variant="ghost" className="cursor-pointer">Cancel</Button>
             </DialogClose>

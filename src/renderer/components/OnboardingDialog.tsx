@@ -150,6 +150,10 @@ export function OnboardingDialog({
   const suppressCancelRef = useRef(false);
   const [confirmRollback, setConfirmRollback] = useState(false);
 
+  // Elapsed timer for analyzing phase
+  const [analyzeStartTime, setAnalyzeStartTime] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+
   // Advanced analysis options
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [customContext, setCustomContext] = useState('');
@@ -240,12 +244,34 @@ export function OnboardingDialog({
     }
   }, [outputLines, showOutput]);
 
+  // Auto-show output when analyzing phase begins, track elapsed time
+  useEffect(() => {
+    if (progress?.phase === 'analyzing' && isAnalyzing) {
+      setShowOutput(true);
+      if (!analyzeStartTime) setAnalyzeStartTime(Date.now());
+    } else if (progress?.phase && progress.phase !== 'analyzing') {
+      setAnalyzeStartTime(null);
+      setElapsed(0);
+    }
+  }, [progress?.phase, isAnalyzing, analyzeStartTime]);
+
+  // Elapsed timer tick (1s interval during analyzing)
+  useEffect(() => {
+    if (!analyzeStartTime || !isAnalyzing) return;
+    const tick = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - analyzeStartTime) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [analyzeStartTime, isAnalyzing]);
+
   // Reset transient state on step change
   useEffect(() => {
     setConfirmRollback(false);
     if (activeStep <= 1) {
       setOutputLines([]);
       setShowOutput(false);
+      setAnalyzeStartTime(null);
+      setElapsed(0);
     }
   }, [activeStep]);
 
@@ -726,7 +752,14 @@ export function OnboardingDialog({
                   </div>
 
                   {progress?.message && (
-                    <p className="text-[11px] text-text-secondary truncate">{progress.message}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] text-text-secondary truncate flex-1">{progress.message}</p>
+                      {progress.phase === 'analyzing' && elapsed > 0 && (
+                        <span className="text-[10px] text-text-muted tabular-nums shrink-0">
+                          {elapsed}s{outputLines.length > 0 ? ` · ${outputLines.length} lines` : ''}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

@@ -1,14 +1,17 @@
 /**
- * SettingsPanel — Settings dialog/modal with tabs.
+ * SettingsPanel — Settings dialog/modal with sidebar navigation.
  * Opens via useUIStore.settingsOpen.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink, Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save } from 'lucide-react';
+import {
+  FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink,
+  Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
+  Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search,
+} from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke } from '../lib/ipc';
@@ -16,6 +19,7 @@ import { IPC } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 import { EDITOR_THEMES } from '../lib/codemirror-theme';
 import { motion } from 'framer-motion';
+import { cn } from '../lib/utils';
 import {
   type ThemeTokens,
   type ThemeDefinition,
@@ -47,6 +51,190 @@ function detectNerdFont(): string | null {
   return null;
 }
 
+/* ---------- Navigation items ---------- */
+
+const NAV_ITEMS = [
+  { key: 'appearance', label: 'Appearance', icon: Palette },
+  { key: 'general', label: 'General', icon: SlidersHorizontal },
+  { key: 'terminal', label: 'Terminal', icon: TerminalSquare },
+  { key: 'editor', label: 'Editor', icon: Code2 },
+  { key: 'ai-tool', label: 'AI Tool', icon: Bot },
+  { key: 'updates', label: 'Updates', icon: Download },
+  { key: 'about', label: 'About', icon: Info },
+] as const;
+
+/* ---------- Searchable setting metadata per section ---------- */
+
+const SECTION_LABELS: Record<string, string[]> = {
+  appearance: [
+    'Theme Presets', 'Customize', 'Neon Traces', 'CRT Scanlines', 'Logo Glow',
+    'Accent', 'Neon Purple', 'Neon Pink', 'Neon Cyan', 'Save as Custom Theme',
+  ],
+  general: [
+    'Open terminal on startup', 'Reuse idle terminal for agent',
+    'Show hidden files (.dotfiles)', 'Confirm before closing',
+    'Auto-poll usage', 'Grid overflow auto-switch',
+    'Highlight user messages', 'Default Project Directory',
+    'Startup', 'Behavior', 'Paths',
+  ],
+  terminal: [
+    'Font Size', 'Font Family', 'Line Height', 'Scrollback Lines',
+    'Cursor Style', 'Cursor Blink', 'Default Shell', 'Bell Sound',
+    'Copy on Select', 'Font', 'Display', 'Behavior', 'Nerd Font',
+  ],
+  editor: [
+    'Font Size', 'Font Family', 'Tab Size', 'Theme',
+    'Word Wrap', 'Minimap', 'Line Numbers', 'Bracket Matching',
+    'Font', 'Display',
+  ],
+  'ai-tool': [
+    'Active Tool', 'Start Command', 'Custom Tools',
+    'Add custom AI tools',
+  ],
+  updates: [
+    'Auto-check for updates', 'Pre-release Channel',
+    'Check Interval', 'Update Preferences',
+  ],
+  about: [
+    'SubFrame', 'GitHub', 'Report Issue', "What's New",
+    'Changelog', 'Links', 'About',
+  ],
+};
+
+/* ---------- Reusable setting components (file-local) ---------- */
+
+function SettingGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div data-setting-group={label}>
+      <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">{label}</div>
+      <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">{children}</div>
+    </div>
+  );
+}
+
+interface SettingToggleProps {
+  label: string;
+  description?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  extra?: React.ReactNode;
+}
+function SettingToggle({ label, description, value, onChange, extra }: SettingToggleProps) {
+  return (
+    <div className="flex items-center justify-between" data-setting-label={label}>
+      <div className="flex-1 min-w-0 mr-3">
+        <div className="text-sm text-text-primary">{label}</div>
+        {description && <div className="text-xs text-text-tertiary">{description}</div>}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {extra}
+        <button
+          onClick={() => onChange(!value)}
+          className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${value ? 'bg-accent' : 'bg-bg-tertiary'}`}
+        >
+          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${value ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface SettingSelectProps {
+  label: string;
+  description?: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}
+function SettingSelect({ label, description, value, onChange, options }: SettingSelectProps) {
+  return (
+    <div data-setting-label={label}>
+      <div className="text-sm text-text-primary mb-1">{label}</div>
+      {description && <div className="text-xs text-text-tertiary mb-1">{description}</div>}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+interface SettingInputProps {
+  label: string;
+  description?: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  type?: 'text' | 'number';
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  readOnly?: boolean;
+  extra?: React.ReactNode;
+}
+function SettingInput({ label, description, value, onChange, type = 'text', placeholder, min, max, step, readOnly, extra }: SettingInputProps) {
+  return (
+    <div data-setting-label={label}>
+      <div className="text-sm text-text-primary mb-1">{label}</div>
+      {description && <div className="text-xs text-text-tertiary mb-1">{description}</div>}
+      <div className="flex gap-2">
+        <Input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          min={min}
+          max={max}
+          step={step}
+          readOnly={readOnly}
+          className="bg-bg-deep border-border-subtle text-sm flex-1"
+        />
+        {extra}
+      </div>
+    </div>
+  );
+}
+
+interface SettingSliderProps {
+  label: string;
+  description?: string;
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  step: number;
+  formatValue?: (v: number) => string;
+}
+function SettingSlider({ label, description, value, onChange, min, max, step, formatValue }: SettingSliderProps) {
+  return (
+    <div data-setting-label={label}>
+      <div className="text-sm text-text-primary mb-1">{label}</div>
+      {description && <div className="text-xs text-text-tertiary mb-1">{description}</div>}
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="flex-1 accent-accent cursor-pointer"
+        />
+        <span className="text-xs text-text-secondary w-14 text-right tabular-nums">
+          {formatValue ? formatValue(value) : value}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Main component ---------- */
+
 export function SettingsPanel() {
   const settingsOpen = useUIStore((s) => s.settingsOpen);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
@@ -55,7 +243,8 @@ export function SettingsPanel() {
   const [recheckingTools, setRecheckingTools] = useState(false);
 
   // Local form state
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('appearance');
+  const [searchQuery, setSearchQuery] = useState('');
   const [aiCommand, setAiCommand] = useState('');
   const [fontSize, setFontSize] = useState(14);
   const [scrollback, setScrollback] = useState(10000);
@@ -192,286 +381,353 @@ export function SettingsPanel() {
     toast.success('Update settings saved');
   }
 
+  /* ---------- Search logic ---------- */
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const sectionMatchCounts = useMemo(() => {
+    if (!normalizedQuery) return null;
+    const counts: Record<string, number> = {};
+    for (const [section, labels] of Object.entries(SECTION_LABELS)) {
+      counts[section] = labels.filter((l) => l.toLowerCase().includes(normalizedQuery)).length;
+    }
+    return counts;
+  }, [normalizedQuery]);
+
+  // Auto-switch to the first section with matches when searching
+  useEffect(() => {
+    if (!sectionMatchCounts) return;
+    const currentCount = sectionMatchCounts[activeTab] ?? 0;
+    if (currentCount > 0) return; // Current section has matches, stay
+    const firstMatch = NAV_ITEMS.find((item) => (sectionMatchCounts[item.key] ?? 0) > 0);
+    if (firstMatch) setActiveTab(firstMatch.key);
+  }, [sectionMatchCounts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Returns true if a setting label matches the current search query (or if no search is active). */
+  function matchesSearch(label: string): boolean {
+    if (!normalizedQuery) return true;
+    return label.toLowerCase().includes(normalizedQuery);
+  }
+
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-2xl !flex !flex-col max-h-[80vh] overflow-hidden p-0" aria-describedby={undefined}>
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-[800px] !flex !flex-col h-[80vh] overflow-hidden p-0" aria-describedby={undefined}>
         <DialogHeader className="shrink-0 px-6 pt-6">
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col px-6 pb-6">
-          <TabsList className="bg-bg-deep border border-border-subtle shrink-0">
-            <TabsTrigger value="appearance" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
-              Appearance
-            </TabsTrigger>
-            <TabsTrigger value="general" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
-              General
-            </TabsTrigger>
-            <TabsTrigger value="terminal" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
-              Terminal
-            </TabsTrigger>
-            <TabsTrigger value="editor" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
-              Editor
-            </TabsTrigger>
-            <TabsTrigger value="ai-tool" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
-              AI Tool
-            </TabsTrigger>
-            <TabsTrigger value="updates" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
-              Updates
-            </TabsTrigger>
-            <TabsTrigger value="about" className="text-xs data-[state=active]:bg-bg-hover cursor-pointer">
-              About
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="flex-1 min-h-0 overflow-y-auto mt-4">
-            {/* Appearance tab */}
-            <TabsContent value="appearance" className="mt-0 space-y-4 px-4 pb-4">
-              {/* Theme Presets */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Theme Presets</div>
-              <div className="grid grid-cols-2 gap-2">
-                {(() => {
-                  const appearance = (settings.appearance as Record<string, unknown>) || {};
-                  const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
-                  const allThemes = [...BUILTIN_THEMES, ...customThemes];
-                  return allThemes.map((theme) => (
-                    <motion.div
-                      key={theme.id}
-                      whileTap={{ scale: 0.97 }}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => {
-                        setActiveThemeId(theme.id);
-                        setCustomTokenOverrides({});
-                        updateSetting.mutate([{ key: 'appearance.activeThemeId', value: theme.id }]);
-                      }}
-                      onKeyDown={(e: React.KeyboardEvent) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setActiveThemeId(theme.id);
-                          setCustomTokenOverrides({});
-                          updateSetting.mutate([{ key: 'appearance.activeThemeId', value: theme.id }]);
-                        }
-                      }}
-                      className={`relative text-left rounded-lg p-3 border transition-colors cursor-pointer ${
-                        activeThemeId === theme.id
-                          ? 'border-accent bg-bg-elevated'
-                          : 'border-border-subtle bg-bg-secondary/50 hover:bg-bg-hover'
-                      }`}
-                    >
-                      {activeThemeId === theme.id && (
-                        <div className="absolute top-2 right-2">
-                          <Check className="w-3.5 h-3.5 text-accent" />
-                        </div>
-                      )}
-                      <div className="text-sm text-text-primary font-medium mb-0.5">{theme.name}</div>
-                      <div className="text-xs text-text-tertiary mb-2 line-clamp-1">{theme.description}</div>
-                      <div className="flex gap-1.5">
-                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.bgDeep }} />
-                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.accent }} />
-                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonPurple }} />
-                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonPink }} />
-                        <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonCyan }} />
-                      </div>
-                      {!theme.builtIn && (
-                        <button
-                          className="absolute bottom-2 right-2 text-text-muted hover:text-red-400 transition-colors cursor-pointer"
-                          title="Delete custom theme"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updated = customThemes.filter((t: ThemeDefinition) => t.id !== theme.id);
-                            updateSetting.mutate([{ key: 'appearance.customThemes', value: updated }]);
-                            if (activeThemeId === theme.id) {
-                              setActiveThemeId('classic-amber');
-                              updateSetting.mutate([{ key: 'appearance.activeThemeId', value: 'classic-amber' }]);
-                            }
-                            toast.success(`Deleted "${theme.name}"`);
-                          }}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </motion.div>
-                  ));
-                })()}
+        <div className="flex flex-1 min-h-0">
+          {/* Sidebar navigation */}
+          <div className="w-44 border-r border-border-subtle shrink-0 flex flex-col">
+            {/* Search input */}
+            <div className="px-3 pt-3 pb-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1 pl-7 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary cursor-pointer"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <XIcon className="w-3 h-3" />
+                  </button>
+                )}
               </div>
+            </div>
 
-              {/* Customization */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Customize</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                {/* Color pickers */}
-                {(() => {
-                  const appearance = (settings.appearance as Record<string, unknown>) || {};
-                  const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
-                  const baseTheme = getThemeById(activeThemeId, customThemes) ?? THEME_CLASSIC_AMBER;
-                  const currentTokens = { ...baseTheme.tokens, ...customTokenOverrides };
+            {/* Nav items */}
+            <nav className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.key;
+                const matchCount = sectionMatchCounts?.[item.key] ?? 0;
+                const isHidden = sectionMatchCounts && matchCount === 0;
+                if (isHidden) return null;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={cn(
+                      'flex items-center gap-2.5 w-full text-left px-2.5 py-1.5 rounded-md text-sm transition-colors cursor-pointer',
+                      isActive
+                        ? 'bg-bg-hover text-text-primary border-l-2 border-accent'
+                        : 'text-text-secondary hover:bg-bg-hover/50 hover:text-text-primary border-l-2 border-transparent'
+                    )}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {sectionMatchCounts && matchCount > 0 && (
+                      <span className="text-[10px] bg-accent/20 text-accent px-1.5 rounded-full">{matchCount}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
 
-                  const colorFields: { key: keyof ThemeTokens; label: string }[] = [
-                    { key: 'accent', label: 'Accent' },
-                    { key: 'neonPurple', label: 'Neon Purple' },
-                    { key: 'neonPink', label: 'Neon Pink' },
-                    { key: 'neonCyan', label: 'Neon Cyan' },
-                  ];
+          {/* Content pane */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
 
-                  return (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        {colorFields.map(({ key, label }) => (
-                          <div key={key} className="flex items-center gap-2">
-                            <input
-                              type="color"
-                              value={currentTokens[key] as string}
-                              onChange={(e) => {
-                                setCustomTokenOverrides((prev) => ({ ...prev, [key]: e.target.value }));
-                              }}
-                              className="w-8 h-8 rounded border border-border-subtle cursor-pointer bg-transparent"
-                            />
-                            <div className="text-sm text-text-primary">{label}</div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Feature toggles */}
-                      <div className="border-t border-border-subtle pt-3 mt-3 space-y-3">
-                        {/* Neon Traces toggle */}
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm text-text-primary">Neon Traces</div>
-                            <div className="text-xs text-text-tertiary">Synthwave glow effects on scrollbars and selections</div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const newVal = !(customTokenOverrides.enableNeonTraces ?? currentTokens.enableNeonTraces);
-                              setCustomTokenOverrides((prev) => ({ ...prev, enableNeonTraces: newVal }));
-                            }}
-                            className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${
-                              (customTokenOverrides.enableNeonTraces ?? currentTokens.enableNeonTraces) ? 'bg-accent' : 'bg-bg-tertiary'
-                            }`}
-                          >
-                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                              (customTokenOverrides.enableNeonTraces ?? currentTokens.enableNeonTraces) ? 'translate-x-4.5' : 'translate-x-0.5'
-                            }`} />
-                          </button>
-                        </div>
-
-                        {/* Scanlines toggle */}
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm text-text-primary">CRT Scanlines</div>
-                            <div className="text-xs text-text-tertiary">Subtle scanline overlay for retro feel</div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const newVal = !(customTokenOverrides.enableScanlines ?? currentTokens.enableScanlines);
-                              setCustomTokenOverrides((prev) => ({ ...prev, enableScanlines: newVal }));
-                            }}
-                            className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${
-                              (customTokenOverrides.enableScanlines ?? currentTokens.enableScanlines) ? 'bg-accent' : 'bg-bg-tertiary'
-                            }`}
-                          >
-                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                              (customTokenOverrides.enableScanlines ?? currentTokens.enableScanlines) ? 'translate-x-4.5' : 'translate-x-0.5'
-                            }`} />
-                          </button>
-                        </div>
-
-                        {/* Logo glow toggle */}
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm text-text-primary">Logo Glow</div>
-                            <div className="text-xs text-text-tertiary">Ambient glow effect on sidebar logo</div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const newVal = !(customTokenOverrides.enableLogoGlow ?? currentTokens.enableLogoGlow);
-                              setCustomTokenOverrides((prev) => ({ ...prev, enableLogoGlow: newVal }));
-                            }}
-                            className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${
-                              (customTokenOverrides.enableLogoGlow ?? currentTokens.enableLogoGlow) ? 'bg-accent' : 'bg-bg-tertiary'
-                            }`}
-                          >
-                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                              (customTokenOverrides.enableLogoGlow ?? currentTokens.enableLogoGlow) ? 'translate-x-4.5' : 'translate-x-0.5'
-                            }`} />
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-2 flex-wrap">
-                {/* Save as Custom Theme */}
-                {showSaveThemeInput ? (
-                  <div className="flex gap-2 items-center flex-1">
-                    <Input
-                      value={customThemeName}
-                      onChange={(e) => setCustomThemeName(e.target.value)}
-                      placeholder="Theme name"
-                      className="bg-bg-deep border-border-subtle text-sm flex-1"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                          setShowSaveThemeInput(false);
-                          setCustomThemeName('');
-                        }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer shrink-0"
-                      disabled={!customThemeName.trim()}
-                      onClick={() => {
+            {/* ===== Appearance ===== */}
+            {activeTab === 'appearance' && (
+              <>
+                {/* Theme Presets */}
+                {matchesSearch('Theme Presets') && (
+                  <div data-setting-group="Theme Presets">
+                    <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Theme Presets</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(() => {
                         const appearance = (settings.appearance as Record<string, unknown>) || {};
                         const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
-                        const base = getThemeById(activeThemeId, customThemes) ?? THEME_CLASSIC_AMBER;
-                        const newTheme: ThemeDefinition = {
-                          id: `custom-${Date.now()}`,
-                          name: customThemeName.trim(),
-                          description: 'Custom theme',
-                          tokens: { ...base.tokens, ...customTokenOverrides } as ThemeTokens,
-                          builtIn: false,
-                          createdAt: new Date().toISOString(),
-                        };
-                        const updated = [...customThemes, newTheme];
-                        updateSetting.mutate([{ key: 'appearance.customThemes', value: updated }]);
-                        updateSetting.mutate([{ key: 'appearance.activeThemeId', value: newTheme.id }]);
-                        setActiveThemeId(newTheme.id);
-                        setCustomTokenOverrides({});
-                        setShowSaveThemeInput(false);
-                        setCustomThemeName('');
-                        toast.success(`Saved theme "${newTheme.name}"`);
-                      }}
-                    >
-                      <Save className="h-3.5 w-3.5 mr-1" />
-                      Save
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="cursor-pointer shrink-0"
-                      onClick={() => {
-                        setShowSaveThemeInput(false);
-                        setCustomThemeName('');
-                      }}
-                    >
-                      <XIcon className="h-3.5 w-3.5" />
-                    </Button>
+                        const allThemes = [...BUILTIN_THEMES, ...customThemes];
+                        return allThemes.map((theme) => (
+                          <motion.div
+                            key={theme.id}
+                            whileTap={{ scale: 0.97 }}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => {
+                              setActiveThemeId(theme.id);
+                              setCustomTokenOverrides({});
+                              // Clear independent toggle overrides so the new theme's defaults apply
+                              updateSetting.mutate([{ key: 'appearance.activeThemeId', value: theme.id }]);
+                              updateSetting.mutate([{ key: 'appearance.enableNeonTraces', value: undefined }]);
+                              updateSetting.mutate([{ key: 'appearance.enableScanlines', value: undefined }]);
+                              updateSetting.mutate([{ key: 'appearance.enableLogoGlow', value: undefined }]);
+                            }}
+                            onKeyDown={(e: React.KeyboardEvent) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setActiveThemeId(theme.id);
+                                setCustomTokenOverrides({});
+                                updateSetting.mutate([{ key: 'appearance.activeThemeId', value: theme.id }]);
+                                updateSetting.mutate([{ key: 'appearance.enableNeonTraces', value: undefined }]);
+                                updateSetting.mutate([{ key: 'appearance.enableScanlines', value: undefined }]);
+                                updateSetting.mutate([{ key: 'appearance.enableLogoGlow', value: undefined }]);
+                              }
+                            }}
+                            className={`relative text-left rounded-lg p-3 border transition-colors cursor-pointer ${
+                              activeThemeId === theme.id
+                                ? 'border-accent bg-bg-elevated'
+                                : 'border-border-subtle bg-bg-secondary/50 hover:bg-bg-hover'
+                            }`}
+                          >
+                            {activeThemeId === theme.id && (
+                              <div className="absolute top-2 right-2">
+                                <Check className="w-3.5 h-3.5 text-accent" />
+                              </div>
+                            )}
+                            <div className="text-sm text-text-primary font-medium mb-0.5">{theme.name}</div>
+                            <div className="text-xs text-text-tertiary mb-2 line-clamp-1">{theme.description}</div>
+                            <div className="flex gap-1.5">
+                              <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.bgDeep }} />
+                              <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.accent }} />
+                              <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonPurple }} />
+                              <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonPink }} />
+                              <div className="w-4 h-4 rounded-full border border-border-subtle" style={{ background: theme.tokens.neonCyan }} />
+                            </div>
+                            {!theme.builtIn && (
+                              <button
+                                className="absolute bottom-2 right-2 text-text-muted hover:text-red-400 transition-colors cursor-pointer"
+                                title="Delete custom theme"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const updated = customThemes.filter((t: ThemeDefinition) => t.id !== theme.id);
+                                  updateSetting.mutate([{ key: 'appearance.customThemes', value: updated }]);
+                                  if (activeThemeId === theme.id) {
+                                    setActiveThemeId('classic-amber');
+                                    updateSetting.mutate([{ key: 'appearance.activeThemeId', value: 'classic-amber' }]);
+                                    updateSetting.mutate([{ key: 'appearance.enableNeonTraces', value: undefined }]);
+                                    updateSetting.mutate([{ key: 'appearance.enableScanlines', value: undefined }]);
+                                    updateSetting.mutate([{ key: 'appearance.enableLogoGlow', value: undefined }]);
+                                  }
+                                  toast.success(`Deleted "${theme.name}"`);
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </motion.div>
+                        ));
+                      })()}
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    {Object.keys(customTokenOverrides).length > 0 && (
-                      <>
-                        <Button
-                          size="sm"
-                          className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
-                          onClick={() => setShowSaveThemeInput(true)}
-                        >
-                          <Save className="h-3.5 w-3.5 mr-1" />
-                          Save as Custom Theme
-                        </Button>
+                )}
+
+                {/* Customization */}
+                {matchesSearch('Customize') && (
+                  <SettingGroup label="Customize">
+                    {/* Color pickers */}
+                    {(() => {
+                      const appearance = (settings.appearance as Record<string, unknown>) || {};
+                      const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
+                      const baseTheme = getThemeById(activeThemeId, customThemes) ?? THEME_CLASSIC_AMBER;
+                      const currentTokens = { ...baseTheme.tokens, ...customTokenOverrides };
+
+                      const colorFields: { key: keyof ThemeTokens; label: string }[] = [
+                        { key: 'accent', label: 'Accent' },
+                        { key: 'neonPurple', label: 'Neon Purple' },
+                        { key: 'neonPink', label: 'Neon Pink' },
+                        { key: 'neonCyan', label: 'Neon Cyan' },
+                      ];
+
+                      const hasOverrides = Object.keys(customTokenOverrides).length > 0;
+
+                      return (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            {colorFields.map(({ key, label }) => (
+                              <div key={key} className="flex items-center gap-2" data-setting-label={label}>
+                                <input
+                                  type="color"
+                                  value={currentTokens[key] as string}
+                                  onChange={(e) => {
+                                    setCustomTokenOverrides((prev) => ({ ...prev, [key]: e.target.value }));
+                                  }}
+                                  className="w-8 h-8 rounded border border-border-subtle cursor-pointer bg-transparent"
+                                />
+                                <div className="text-sm text-text-primary">{label}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Live preview swatch */}
+                          {hasOverrides && (
+                            <div className="mt-2 space-y-1.5">
+                              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium">Preview</div>
+                              <div
+                                className="rounded-lg p-3 border border-border-subtle overflow-hidden"
+                                style={{ backgroundColor: currentTokens.bgPrimary }}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: currentTokens.accent }} />
+                                  <span className="text-xs font-medium" style={{ color: currentTokens.textPrimary }}>Sample text</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: `${currentTokens.accent}20`, color: currentTokens.accent }}>Badge</span>
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <div className="h-1.5 flex-1 rounded-full" style={{ backgroundColor: currentTokens.accent }} />
+                                  <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: currentTokens.bgTertiary }} />
+                                </div>
+                                {currentTokens.enableNeonTraces && (
+                                  <div className="flex gap-1 mt-2">
+                                    <div className="h-1 w-6 rounded-full" style={{ backgroundColor: currentTokens.neonPurple, opacity: 0.6 }} />
+                                    <div className="h-1 w-4 rounded-full" style={{ backgroundColor: currentTokens.neonPink, opacity: 0.6 }} />
+                                    <div className="h-1 w-5 rounded-full" style={{ backgroundColor: currentTokens.neonCyan, opacity: 0.6 }} />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-text-muted">Save as custom theme to apply color changes</p>
+                            </div>
+                          )}
+
+                          {/* Feature toggles — saved independently, apply in real time */}
+                          <div className="border-t border-border-subtle pt-3 mt-3 space-y-3">
+                            <p className="text-[10px] text-text-muted -mb-1">Toggles apply instantly to any theme</p>
+                            <SettingToggle
+                              label="Neon Traces"
+                              description="Synthwave glow effects on scrollbars and selections"
+                              value={!!((settings.appearance as Record<string, unknown>)?.enableNeonTraces ?? currentTokens.enableNeonTraces)}
+                              onChange={(v) => updateSetting.mutate([{ key: 'appearance.enableNeonTraces', value: v }])}
+                            />
+                            <SettingToggle
+                              label="CRT Scanlines"
+                              description="Subtle scanline overlay for retro feel"
+                              value={!!((settings.appearance as Record<string, unknown>)?.enableScanlines ?? currentTokens.enableScanlines)}
+                              onChange={(v) => updateSetting.mutate([{ key: 'appearance.enableScanlines', value: v }])}
+                            />
+                            <SettingToggle
+                              label="Logo Glow"
+                              description="Ambient glow effect on sidebar logo"
+                              value={!!((settings.appearance as Record<string, unknown>)?.enableLogoGlow ?? currentTokens.enableLogoGlow)}
+                              onChange={(v) => updateSetting.mutate([{ key: 'appearance.enableLogoGlow', value: v }])}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </SettingGroup>
+                )}
+
+                {/* Action buttons */}
+                <div className="flex gap-2 flex-wrap">
+                  {showSaveThemeInput ? (
+                    <div className="flex gap-2 items-center flex-1">
+                      <Input
+                        value={customThemeName}
+                        onChange={(e) => setCustomThemeName(e.target.value)}
+                        placeholder="Theme name"
+                        className="bg-bg-deep border-border-subtle text-sm flex-1"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setShowSaveThemeInput(false);
+                            setCustomThemeName('');
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer shrink-0"
+                        disabled={!customThemeName.trim()}
+                        onClick={() => {
+                          const appearance = (settings.appearance as Record<string, unknown>) || {};
+                          const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
+                          const base = getThemeById(activeThemeId, customThemes) ?? THEME_CLASSIC_AMBER;
+                          const newTheme: ThemeDefinition = {
+                            id: `custom-${Date.now()}`,
+                            name: customThemeName.trim(),
+                            description: 'Custom theme',
+                            tokens: { ...base.tokens, ...customTokenOverrides } as ThemeTokens,
+                            builtIn: false,
+                            createdAt: new Date().toISOString(),
+                          };
+                          const updated = [...customThemes, newTheme];
+                          updateSetting.mutate([{ key: 'appearance.customThemes', value: updated }]);
+                          updateSetting.mutate([{ key: 'appearance.activeThemeId', value: newTheme.id }]);
+                          setActiveThemeId(newTheme.id);
+                          setCustomTokenOverrides({});
+                          setShowSaveThemeInput(false);
+                          setCustomThemeName('');
+                          toast.success(`Saved theme "${newTheme.name}"`);
+                        }}
+                      >
+                        <Save className="h-3.5 w-3.5 mr-1" />
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="cursor-pointer shrink-0"
+                        onClick={() => {
+                          setShowSaveThemeInput(false);
+                          setCustomThemeName('');
+                        }}
+                      >
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        className={cn(
+                          'cursor-pointer',
+                          Object.keys(customTokenOverrides).length > 0
+                            ? 'bg-accent text-bg-deep hover:bg-accent/80'
+                            : 'bg-bg-tertiary text-text-secondary hover:bg-bg-hover',
+                        )}
+                        onClick={() => setShowSaveThemeInput(true)}
+                      >
+                        <Save className="h-3.5 w-3.5 mr-1" />
+                        Save as Custom Theme
+                      </Button>
+                      {Object.keys(customTokenOverrides).length > 0 && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -482,819 +738,741 @@ export function SettingsPanel() {
                           }}
                         >
                           <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                          Reset to Preset
+                          Reset
                         </Button>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* General tab */}
-            <TabsContent value="general" className="mt-0 space-y-4 px-4 pb-4">
-              {/* Startup group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Startup</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                {/* Auto terminal */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Open terminal on startup</div>
-                    <div className="text-xs text-text-tertiary">Automatically create a terminal when SubFrame launches</div>
-                  </div>
-                  <button
-                    onClick={() => saveToggle('general.autoCreateTerminal', !autoCreateTerminal)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${autoCreateTerminal ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoCreateTerminal ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-
-                {/* Reuse idle terminal */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Reuse idle terminal for agent</div>
-                    <div className="text-xs text-text-tertiary">Start agent in the active terminal if no agent is running, instead of creating a new one</div>
-                  </div>
-                  <button
-                    onClick={() => saveToggle('general.reuseIdleTerminal', !reuseIdleTerminal)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${reuseIdleTerminal ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${reuseIdleTerminal ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-
-                {/* Show dotfiles */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Show hidden files (.dotfiles)</div>
-                    <div className="text-xs text-text-tertiary">Show files starting with a dot in the file tree</div>
-                  </div>
-                  <button
-                    onClick={() => saveToggle('general.showDotfiles', !showDotfiles)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${showDotfiles ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${showDotfiles ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Behavior group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Behavior</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                {/* Confirm before close */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Confirm before closing</div>
-                    <div className="text-xs text-text-tertiary">Show a confirmation dialog before closing the window</div>
-                  </div>
-                  <button
-                    onClick={() => saveToggle('general.confirmBeforeClose', !confirmBeforeClose)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${confirmBeforeClose ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${confirmBeforeClose ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-
-                {/* Usage auto-polling */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <div>
-                      <div className="text-sm text-text-primary">Auto-poll usage</div>
-                      <div className="text-xs text-text-tertiary">Periodically check Claude API usage. Off = on-demand only (click to refresh).</div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        updateSetting.mutate([{ key: 'general.usagePollingInterval', value: usagePollingInterval === 0 ? 300 : 0 }]);
-                      }}
-                      className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${usagePollingInterval > 0 ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                    >
-                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${usagePollingInterval > 0 ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                    </button>
-                  </div>
-                  {usagePollingInterval > 0 && (
-                    <div className="flex items-center gap-3 mt-2">
-                      <input
-                        type="range"
-                        min={30}
-                        max={600}
-                        step={30}
-                        value={usagePollingInterval}
-                        onChange={(e) => {
-                          updateSetting.mutate([{ key: 'general.usagePollingInterval', value: Number(e.target.value) }]);
-                        }}
-                        className="flex-1 accent-accent"
-                      />
-                      <span className="text-xs text-text-secondary w-14 text-right tabular-nums">
-                        {usagePollingInterval >= 60
-                          ? `${Math.floor(usagePollingInterval / 60)}m${usagePollingInterval % 60 ? ` ${usagePollingInterval % 60}s` : ''}`
-                          : `${usagePollingInterval}s`}
-                      </span>
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
+              </>
+            )}
 
-                {/* Grid overflow auto-switch */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Grid overflow auto-switch</div>
-                    <div className="text-xs text-text-tertiary">Auto-switch to single view when selecting a terminal outside the grid, and back when selecting one inside</div>
-                  </div>
-                  <button
-                    onClick={() => saveToggle('general.gridOverflowAutoSwitch', !gridOverflowAutoSwitch)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${gridOverflowAutoSwitch ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${gridOverflowAutoSwitch ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-
-                {/* Highlight user messages */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Highlight user messages</div>
-                    <div className="text-xs text-text-tertiary">Mark your messages in agent sessions with a left border and enable scroll-to-last-message navigation</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {highlightUserMessages && (
-                      <input
-                        type="color"
-                        value={userMessageColor}
-                        onChange={(e) => updateSetting.mutate([{ key: 'general.userMessageColor', value: e.target.value }])}
-                        className="w-7 h-5 rounded cursor-pointer border border-border-subtle bg-transparent"
-                        title="Message border color"
+            {/* ===== General ===== */}
+            {activeTab === 'general' && (
+              <>
+                {/* Startup group */}
+                {(matchesSearch('Open terminal on startup') || matchesSearch('Reuse idle terminal for agent') || matchesSearch('Show hidden files (.dotfiles)') || matchesSearch('Startup')) && (
+                  <SettingGroup label="Startup">
+                    {matchesSearch('Open terminal on startup') && (
+                      <SettingToggle
+                        label="Open terminal on startup"
+                        description="Automatically create a terminal when SubFrame launches"
+                        value={autoCreateTerminal}
+                        onChange={(v) => saveToggle('general.autoCreateTerminal', v)}
                       />
                     )}
-                    <button
-                      onClick={() => saveToggle('general.highlightUserMessages', !highlightUserMessages)}
-                      className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${highlightUserMessages ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                    >
-                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${highlightUserMessages ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                    </button>
-                  </div>
-                </div>
-              </div>
+                    {matchesSearch('Reuse idle terminal for agent') && (
+                      <SettingToggle
+                        label="Reuse idle terminal for agent"
+                        description="Start agent in the active terminal if no agent is running, instead of creating a new one"
+                        value={reuseIdleTerminal}
+                        onChange={(v) => saveToggle('general.reuseIdleTerminal', v)}
+                      />
+                    )}
+                    {matchesSearch('Show hidden files (.dotfiles)') && (
+                      <SettingToggle
+                        label="Show hidden files (.dotfiles)"
+                        description="Show files starting with a dot in the file tree"
+                        value={showDotfiles}
+                        onChange={(v) => saveToggle('general.showDotfiles', v)}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
 
-              {/* Paths group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Paths</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Default Project Directory</div>
-                  <div className="text-xs text-text-tertiary mb-2">Subdirectories appear automatically in the project list</div>
-                  <div className="flex gap-2">
-                    <Input
+                {/* Behavior group */}
+                {(matchesSearch('Confirm before closing') || matchesSearch('Auto-poll usage') || matchesSearch('Grid overflow auto-switch') || matchesSearch('Highlight user messages') || matchesSearch('Behavior')) && (
+                  <SettingGroup label="Behavior">
+                    {matchesSearch('Confirm before closing') && (
+                      <SettingToggle
+                        label="Confirm before closing"
+                        description="Show a confirmation dialog before closing the window"
+                        value={confirmBeforeClose}
+                        onChange={(v) => saveToggle('general.confirmBeforeClose', v)}
+                      />
+                    )}
+
+                    {matchesSearch('Auto-poll usage') && (
+                      <div data-setting-label="Auto-poll usage">
+                        <SettingToggle
+                          label="Auto-poll usage"
+                          description="Periodically check Claude API usage. Off = on-demand only (click to refresh)."
+                          value={usagePollingInterval > 0}
+                          onChange={() => {
+                            updateSetting.mutate([{ key: 'general.usagePollingInterval', value: usagePollingInterval === 0 ? 300 : 0 }]);
+                          }}
+                        />
+                        {usagePollingInterval > 0 && (
+                          <div className="mt-2">
+                            <SettingSlider
+                              label=""
+                              value={usagePollingInterval}
+                              onChange={(v) => updateSetting.mutate([{ key: 'general.usagePollingInterval', value: v }])}
+                              min={30}
+                              max={600}
+                              step={30}
+                              formatValue={(v) =>
+                                v >= 60
+                                  ? `${Math.floor(v / 60)}m${v % 60 ? ` ${v % 60}s` : ''}`
+                                  : `${v}s`
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {matchesSearch('Grid overflow auto-switch') && (
+                      <SettingToggle
+                        label="Grid overflow auto-switch"
+                        description="Auto-switch to single view when selecting a terminal outside the grid, and back when selecting one inside"
+                        value={gridOverflowAutoSwitch}
+                        onChange={(v) => saveToggle('general.gridOverflowAutoSwitch', v)}
+                      />
+                    )}
+
+                    {matchesSearch('Highlight user messages') && (
+                      <SettingToggle
+                        label="Highlight user messages"
+                        description="Mark your messages in agent sessions with a left border and enable scroll-to-last-message navigation"
+                        value={highlightUserMessages}
+                        onChange={(v) => saveToggle('general.highlightUserMessages', v)}
+                        extra={highlightUserMessages ? (
+                          <input
+                            type="color"
+                            value={userMessageColor}
+                            onChange={(e) => updateSetting.mutate([{ key: 'general.userMessageColor', value: e.target.value }])}
+                            className="w-7 h-5 rounded cursor-pointer border border-border-subtle bg-transparent"
+                            title="Message border color"
+                          />
+                        ) : undefined}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
+
+                {/* Paths group */}
+                {(matchesSearch('Default Project Directory') || matchesSearch('Paths')) && (
+                  <SettingGroup label="Paths">
+                    <SettingInput
+                      label="Default Project Directory"
+                      description="Subdirectories appear automatically in the project list"
                       value={defaultProjectDir}
+                      onChange={() => {}}
                       readOnly
                       placeholder="No directory selected"
-                      className="bg-bg-deep border-border-subtle text-sm flex-1"
+                      extra={
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer shrink-0"
+                            title="Browse for directory"
+                            onClick={async () => {
+                              const selected = await typedInvoke(IPC.SELECT_DEFAULT_PROJECT_DIR);
+                              if (selected) {
+                                updateSetting.mutate([{ key: 'general.defaultProjectDir', value: selected }]);
+                                toast.success('Default project directory set');
+                              }
+                            }}
+                          >
+                            <FolderOpen className="h-4 w-4" />
+                          </Button>
+                          {defaultProjectDir && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="cursor-pointer shrink-0"
+                              title="Clear directory"
+                              onClick={() => {
+                                updateSetting.mutate([{ key: 'general.defaultProjectDir', value: '' }]);
+                                toast.info('Default project directory cleared');
+                              }}
+                            >
+                              <XIcon className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      }
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="cursor-pointer shrink-0"
-                      title="Browse for directory"
-                      onClick={async () => {
-                        const selected = await typedInvoke(IPC.SELECT_DEFAULT_PROJECT_DIR);
-                        if (selected) {
-                          updateSetting.mutate([{ key: 'general.defaultProjectDir', value: selected }]);
-                          toast.success('Default project directory set');
-                        }
-                      }}
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                    </Button>
                     {defaultProjectDir && (
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="cursor-pointer shrink-0"
-                        title="Clear directory"
-                        onClick={() => {
-                          updateSetting.mutate([{ key: 'general.defaultProjectDir', value: '' }]);
-                          toast.info('Default project directory cleared');
+                        variant="ghost"
+                        className="cursor-pointer mt-2 text-xs"
+                        onClick={async () => {
+                          toast.info('Scanning directory...');
+                          await typedInvoke(IPC.SCAN_PROJECT_DIR, defaultProjectDir);
+                          toast.success('Scan complete');
                         }}
                       >
-                        <XIcon className="h-4 w-4" />
+                        <FolderSearch className="h-3.5 w-3.5 mr-1.5" />
+                        Scan Now
                       </Button>
                     )}
-                  </div>
-                  {defaultProjectDir && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="cursor-pointer mt-2 text-xs"
-                      onClick={async () => {
-                        toast.info('Scanning directory...');
-                        await typedInvoke(IPC.SCAN_PROJECT_DIR, defaultProjectDir);
-                        toast.success('Scan complete');
-                      }}
-                    >
-                      <FolderSearch className="h-3.5 w-3.5 mr-1.5" />
-                      Scan Now
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
+                  </SettingGroup>
+                )}
+              </>
+            )}
 
-            {/* Terminal tab */}
-            <TabsContent value="terminal" className="mt-0 space-y-4 px-4 pb-4">
-              {/* Font group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Font</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Font Size</div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={10}
-                      max={24}
-                      step={1}
-                      value={fontSize}
-                      onChange={(e) => setFontSize(Number(e.target.value))}
-                      className="flex-1 accent-accent"
-                    />
-                    <span className="text-xs text-text-secondary w-10">{fontSize}px</span>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Font Family</div>
-                  <Input
-                    value={fontFamily}
-                    onChange={(e) => setFontFamily(e.target.value)}
-                    className="bg-bg-deep border-border-subtle text-sm"
-                  />
-                  {nerdFontDetected ? (
-                    <p className="text-xs text-success mt-1 flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Nerd Font detected: {nerdFontDetected}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-text-tertiary mt-1">
-                      For Oh My Posh / Starship icons, install a{' '}
-                      <a
-                        href="https://www.nerdfonts.com/font-downloads"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-accent hover:underline"
-                      >
-                        Nerd Font
-                      </a>
-                      {' '}(e.g. JetBrainsMono Nerd Font)
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Display group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Display</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Line Height</div>
-                  <Input
-                    type="number"
-                    value={lineHeight}
-                    onChange={(e) => setLineHeight(Number(e.target.value))}
-                    min={1.0}
-                    max={2.0}
-                    step={0.1}
-                    className="bg-bg-deep border-border-subtle text-sm"
-                  />
-                </div>
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Scrollback Lines</div>
-                  <Input
-                    type="number"
-                    value={scrollback}
-                    onChange={(e) => setScrollback(Number(e.target.value))}
-                    min={1000}
-                    max={100000}
-                    step={1000}
-                    className="bg-bg-deep border-border-subtle text-sm"
-                  />
-                </div>
-
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Cursor Style</div>
-                  <select
-                    value={cursorStyle}
-                    onChange={(e) => setCursorStyle(e.target.value)}
-                    className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
-                  >
-                    <option value="block">Block</option>
-                    <option value="underline">Underline</option>
-                    <option value="bar">Bar</option>
-                  </select>
-                </div>
-
-                {/* Cursor blink */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Cursor Blink</div>
-                    <div className="text-xs text-text-tertiary">Enable blinking cursor in the terminal</div>
-                  </div>
-                  <button
-                    onClick={() => setCursorBlink(!cursorBlink)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${cursorBlink ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${cursorBlink ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Behavior group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Behavior</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Default Shell</div>
-                  <Input
-                    value={defaultShell}
-                    onChange={(e) => setDefaultShell(e.target.value)}
-                    placeholder="System default"
-                    className="bg-bg-deep border-border-subtle text-sm"
-                  />
-                  <div className="text-xs text-text-tertiary mt-1">Leave empty to use the system default shell</div>
-                </div>
-
-                {/* Bell sound */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Bell Sound</div>
-                    <div className="text-xs text-text-tertiary">Play a sound on terminal bell</div>
-                  </div>
-                  <button
-                    onClick={() => setBellSound(!bellSound)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${bellSound ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${bellSound ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-
-                {/* Copy on select */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Copy on Select</div>
-                    <div className="text-xs text-text-tertiary">Automatically copy selected text to clipboard</div>
-                  </div>
-                  <button
-                    onClick={() => setCopyOnSelect(!copyOnSelect)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${copyOnSelect ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${copyOnSelect ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-              </div>
-
-              <Button size="sm" onClick={saveTerminal} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
-                Save
-              </Button>
-            </TabsContent>
-
-            {/* Editor tab */}
-            <TabsContent value="editor" className="mt-0 space-y-4 px-4 pb-4">
-              {/* Font group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Font</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Font Size</div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={8}
-                      max={24}
-                      step={1}
-                      value={editorFontSize}
-                      onChange={(e) => setEditorFontSize(Number(e.target.value))}
-                      className="flex-1 accent-accent"
-                    />
-                    <span className="text-xs text-text-secondary w-10">{editorFontSize}px</span>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Font Family</div>
-                  <Input
-                    value={editorFontFamily}
-                    onChange={(e) => setEditorFontFamily(e.target.value)}
-                    className="bg-bg-deep border-border-subtle text-sm"
-                  />
-                </div>
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Tab Size</div>
-                  <select
-                    value={editorTabSize}
-                    onChange={(e) => setEditorTabSize(Number(e.target.value))}
-                    className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
-                  >
-                    <option value={2}>2 spaces</option>
-                    <option value={4}>4 spaces</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Display group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Display</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Theme</div>
-                  <select
-                    value={editorTheme}
-                    onChange={(e) => setEditorTheme(e.target.value)}
-                    className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
-                  >
-                    {Object.values(EDITOR_THEMES).map((theme) => (
-                      <option key={theme.id} value={theme.id}>{theme.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Word wrap */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Word Wrap</div>
-                    <div className="text-xs text-text-tertiary">Wrap long lines in the editor</div>
-                  </div>
-                  <button
-                    onClick={() => setEditorWordWrap(!editorWordWrap)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorWordWrap ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editorWordWrap ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-
-                {/* Minimap */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Minimap</div>
-                    <div className="text-xs text-text-tertiary">Show a minimap overview of the file</div>
-                  </div>
-                  <button
-                    onClick={() => setEditorMinimap(!editorMinimap)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorMinimap ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editorMinimap ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-
-                {/* Line numbers */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Line Numbers</div>
-                    <div className="text-xs text-text-tertiary">Show line numbers in the gutter</div>
-                  </div>
-                  <button
-                    onClick={() => setEditorLineNumbers(!editorLineNumbers)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorLineNumbers ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editorLineNumbers ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-
-                {/* Bracket matching */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Bracket Matching</div>
-                    <div className="text-xs text-text-tertiary">Highlight matching brackets</div>
-                  </div>
-                  <button
-                    onClick={() => setEditorBracketMatching(!editorBracketMatching)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${editorBracketMatching ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editorBracketMatching ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-              </div>
-
-              <Button size="sm" onClick={saveEditor} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
-                Save
-              </Button>
-            </TabsContent>
-
-            {/* AI Tool tab */}
-            <TabsContent value="ai-tool" className="mt-0 space-y-4 px-4 pb-4">
-              <div>
-                <div className="text-sm text-text-primary mb-1">Active Tool</div>
-                <select
-                  value={aiToolConfig?.activeTool.id || 'claude'}
-                  onChange={(e) => {
-                    setAITool.mutate([e.target.value]);
-                  }}
-                  className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
-                >
-                  {aiToolConfig && Object.values(aiToolConfig.availableTools).map((tool) => (
-                    <option key={tool.id} value={tool.id}>
-                      {tool.name}{tool.installed === false ? ' (not installed)' : ''}
-                    </option>
-                  ))}
-                </select>
-                <div className="text-xs text-text-tertiary mt-1 flex items-center gap-1.5">
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${aiToolConfig?.activeTool.installed === false ? 'bg-error' : 'bg-success'}`} />
-                  {aiToolConfig?.activeTool.installed === false
-                    ? <span className="text-error">
-                        Not installed
-                        {aiToolConfig.activeTool.installUrl && (
-                          <> — <a
-                            href="#"
-                            className="underline hover:text-accent"
-                            onClick={(e) => { e.preventDefault(); require('electron').shell.openExternal(aiToolConfig.activeTool.installUrl!); }}
-                          >view install guide</a></>
+            {/* ===== Terminal ===== */}
+            {activeTab === 'terminal' && (
+              <>
+                {/* Font group */}
+                {(matchesSearch('Font Size') || matchesSearch('Font Family') || matchesSearch('Font') || matchesSearch('Nerd Font')) && (
+                  <SettingGroup label="Font">
+                    {matchesSearch('Font Size') && (
+                      <SettingSlider
+                        label="Font Size"
+                        value={fontSize}
+                        onChange={setFontSize}
+                        min={10}
+                        max={24}
+                        step={1}
+                        formatValue={(v) => `${v}px`}
+                      />
+                    )}
+                    {(matchesSearch('Font Family') || matchesSearch('Nerd Font')) && (
+                      <div data-setting-label="Font Family">
+                        <SettingInput
+                          label="Font Family"
+                          value={fontFamily}
+                          onChange={setFontFamily}
+                        />
+                        {nerdFontDetected ? (
+                          <p className="text-xs text-success mt-1 flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Nerd Font detected: {nerdFontDetected}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-text-tertiary mt-1">
+                            For Oh My Posh / Starship icons, install a{' '}
+                            <a
+                              href="https://www.nerdfonts.com/font-downloads"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-accent hover:underline"
+                            >
+                              Nerd Font
+                            </a>
+                            {' '}(e.g. JetBrainsMono Nerd Font)
+                          </p>
                         )}
-                      </span>
-                    : <span>{aiToolConfig?.activeTool.description || ''}</span>
-                  }
-                  <button
-                    onClick={async () => {
-                      setRecheckingTools(true);
-                      try {
-                        await typedInvoke(IPC.RECHECK_AI_TOOLS);
-                        await refetchAITools();
-                        toast.success('Install status refreshed');
-                      } catch {
-                        toast.error('Failed to check tools');
-                      } finally {
-                        setRecheckingTools(false);
-                      }
-                    }}
-                    disabled={recheckingTools}
-                    className="ml-auto text-text-muted hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
-                    title="Recheck install status"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${recheckingTools ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-text-primary mb-1">Start Command</div>
-                <Input
-                  value={aiCommand}
-                  onChange={(e) => setAiCommand(e.target.value)}
-                  placeholder={aiToolConfig?.activeTool.command || 'claude'}
-                  className="bg-bg-deep border-border-subtle text-sm"
-                />
-                <div className="text-xs text-text-tertiary mt-1">
-                  Default: <code className="text-text-secondary">{aiToolConfig?.activeTool.command || 'claude'}</code>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={saveAiCommand} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
+                      </div>
+                    )}
+                  </SettingGroup>
+                )}
+
+                {/* Display group */}
+                {(matchesSearch('Line Height') || matchesSearch('Scrollback Lines') || matchesSearch('Cursor Style') || matchesSearch('Cursor Blink') || matchesSearch('Display')) && (
+                  <SettingGroup label="Display">
+                    {matchesSearch('Line Height') && (
+                      <SettingInput
+                        label="Line Height"
+                        value={lineHeight}
+                        onChange={(v) => setLineHeight(Number(v))}
+                        type="number"
+                        min={1.0}
+                        max={2.0}
+                        step={0.1}
+                      />
+                    )}
+                    {matchesSearch('Scrollback Lines') && (
+                      <SettingInput
+                        label="Scrollback Lines"
+                        value={scrollback}
+                        onChange={(v) => setScrollback(Number(v))}
+                        type="number"
+                        min={1000}
+                        max={100000}
+                        step={1000}
+                      />
+                    )}
+                    {matchesSearch('Cursor Style') && (
+                      <SettingSelect
+                        label="Cursor Style"
+                        value={cursorStyle}
+                        onChange={setCursorStyle}
+                        options={[
+                          { value: 'block', label: 'Block' },
+                          { value: 'underline', label: 'Underline' },
+                          { value: 'bar', label: 'Bar' },
+                        ]}
+                      />
+                    )}
+                    {matchesSearch('Cursor Blink') && (
+                      <SettingToggle
+                        label="Cursor Blink"
+                        description="Enable blinking cursor in the terminal"
+                        value={cursorBlink}
+                        onChange={setCursorBlink}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
+
+                {/* Behavior group */}
+                {(matchesSearch('Default Shell') || matchesSearch('Bell Sound') || matchesSearch('Copy on Select') || matchesSearch('Behavior')) && (
+                  <SettingGroup label="Behavior">
+                    {matchesSearch('Default Shell') && (
+                      <div data-setting-label="Default Shell">
+                        <SettingInput
+                          label="Default Shell"
+                          value={defaultShell}
+                          onChange={setDefaultShell}
+                          placeholder="System default"
+                        />
+                        <div className="text-xs text-text-tertiary mt-1">Leave empty to use the system default shell</div>
+                      </div>
+                    )}
+                    {matchesSearch('Bell Sound') && (
+                      <SettingToggle
+                        label="Bell Sound"
+                        description="Play a sound on terminal bell"
+                        value={bellSound}
+                        onChange={setBellSound}
+                      />
+                    )}
+                    {matchesSearch('Copy on Select') && (
+                      <SettingToggle
+                        label="Copy on Select"
+                        description="Automatically copy selected text to clipboard"
+                        value={copyOnSelect}
+                        onChange={setCopyOnSelect}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
+
+                <Button size="sm" onClick={saveTerminal} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
                   Save
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    const defaultCmd = aiToolConfig?.activeTool.command || 'claude';
-                    setAiCommand(defaultCmd);
-                    if (aiToolConfig) {
-                      updateSetting.mutate([{ key: `aiTools.${aiToolConfig.activeTool.id}.customCommand`, value: '' }]);
-                    }
-                    toast.info('Reset to default command');
-                  }}
-                  className="cursor-pointer"
-                >
-                  Reset to Default
+              </>
+            )}
+
+            {/* ===== Editor ===== */}
+            {activeTab === 'editor' && (
+              <>
+                {/* Font group */}
+                {(matchesSearch('Font Size') || matchesSearch('Font Family') || matchesSearch('Tab Size') || matchesSearch('Font')) && (
+                  <SettingGroup label="Font">
+                    {matchesSearch('Font Size') && (
+                      <SettingSlider
+                        label="Font Size"
+                        value={editorFontSize}
+                        onChange={setEditorFontSize}
+                        min={8}
+                        max={24}
+                        step={1}
+                        formatValue={(v) => `${v}px`}
+                      />
+                    )}
+                    {matchesSearch('Font Family') && (
+                      <SettingInput
+                        label="Font Family"
+                        value={editorFontFamily}
+                        onChange={setEditorFontFamily}
+                      />
+                    )}
+                    {matchesSearch('Tab Size') && (
+                      <SettingSelect
+                        label="Tab Size"
+                        value={String(editorTabSize)}
+                        onChange={(v) => setEditorTabSize(Number(v))}
+                        options={[
+                          { value: '2', label: '2 spaces' },
+                          { value: '4', label: '4 spaces' },
+                        ]}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
+
+                {/* Display group */}
+                {(matchesSearch('Theme') || matchesSearch('Word Wrap') || matchesSearch('Minimap') || matchesSearch('Line Numbers') || matchesSearch('Bracket Matching') || matchesSearch('Display')) && (
+                  <SettingGroup label="Display">
+                    {matchesSearch('Theme') && (
+                      <SettingSelect
+                        label="Theme"
+                        value={editorTheme}
+                        onChange={setEditorTheme}
+                        options={Object.values(EDITOR_THEMES).map((theme) => ({
+                          value: theme.id,
+                          label: theme.label,
+                        }))}
+                      />
+                    )}
+                    {matchesSearch('Word Wrap') && (
+                      <SettingToggle
+                        label="Word Wrap"
+                        description="Wrap long lines in the editor"
+                        value={editorWordWrap}
+                        onChange={setEditorWordWrap}
+                      />
+                    )}
+                    {matchesSearch('Minimap') && (
+                      <SettingToggle
+                        label="Minimap"
+                        description="Show a minimap overview of the file"
+                        value={editorMinimap}
+                        onChange={setEditorMinimap}
+                      />
+                    )}
+                    {matchesSearch('Line Numbers') && (
+                      <SettingToggle
+                        label="Line Numbers"
+                        description="Show line numbers in the gutter"
+                        value={editorLineNumbers}
+                        onChange={setEditorLineNumbers}
+                      />
+                    )}
+                    {matchesSearch('Bracket Matching') && (
+                      <SettingToggle
+                        label="Bracket Matching"
+                        description="Highlight matching brackets"
+                        value={editorBracketMatching}
+                        onChange={setEditorBracketMatching}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
+
+                <Button size="sm" onClick={saveEditor} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
+                  Save
                 </Button>
-              </div>
+              </>
+            )}
 
-              {/* Custom Tools */}
-              <div className="border-t border-border-subtle pt-4 mt-4">
-                <div className="text-sm text-text-primary mb-2">Custom Tools</div>
-                <div className="text-xs text-text-tertiary mb-3">
-                  Add custom AI tools that appear in the sidebar and session dropdowns
-                </div>
-
-                {/* Existing custom tools list */}
-                {aiToolConfig && (() => {
-                  const customTools = Object.values(aiToolConfig.availableTools).filter(
-                    (t) => !BUILTIN_TOOL_IDS.has(t.id)
-                  );
-                  if (customTools.length === 0) return (
-                    <div className="text-xs text-text-muted mb-3">No custom tools added yet</div>
-                  );
-                  return (
-                    <div className="space-y-1.5 mb-3">
-                      {customTools.map((tool) => (
-                        <div
-                          key={tool.id}
-                          className="flex items-center justify-between bg-bg-deep rounded-md px-2.5 py-1.5 border border-border-subtle"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm text-text-primary truncate">{tool.name}</div>
-                            <div className="text-xs text-text-tertiary truncate">
-                              <code>{tool.command}</code>
-                              {tool.description && ` — ${tool.description}`}
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="cursor-pointer shrink-0 ml-2 text-text-muted hover:text-red-400"
-                            title={`Remove ${tool.name}`}
-                            onClick={() => {
-                              removeCustomTool.mutate([tool.id]);
-                              toast.success(`Removed ${tool.name}`);
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                {/* Add custom tool form */}
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      value={newToolName}
-                      onChange={(e) => setNewToolName(e.target.value)}
-                      placeholder="Name (e.g. Aider)"
-                      className="bg-bg-deep border-border-subtle text-sm flex-1"
-                    />
-                    <Input
-                      value={newToolCommand}
-                      onChange={(e) => setNewToolCommand(e.target.value)}
-                      placeholder="Command (e.g. aider)"
-                      className="bg-bg-deep border-border-subtle text-sm flex-1"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newToolDescription}
-                      onChange={(e) => setNewToolDescription(e.target.value)}
-                      placeholder="Description (optional)"
-                      className="bg-bg-deep border-border-subtle text-sm flex-1"
-                    />
-                    <Button
-                      size="sm"
-                      className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer shrink-0"
-                      disabled={!newToolName.trim() || !newToolCommand.trim()}
-                      onClick={() => {
-                        const id = newToolName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                        addCustomTool.mutate([{
-                          id,
-                          name: newToolName.trim(),
-                          command: newToolCommand.trim(),
-                          description: newToolDescription.trim() || undefined,
-                        }]);
-                        setNewToolName('');
-                        setNewToolCommand('');
-                        setNewToolDescription('');
-                        toast.success(`Added ${newToolName.trim()}`);
+            {/* ===== AI Tool ===== */}
+            {activeTab === 'ai-tool' && (
+              <>
+                {matchesSearch('Active Tool') && (
+                  <div data-setting-label="Active Tool">
+                    <div className="text-sm text-text-primary mb-1">Active Tool</div>
+                    <select
+                      value={aiToolConfig?.activeTool.id || 'claude'}
+                      onChange={(e) => {
+                        setAITool.mutate([e.target.value]);
                       }}
+                      className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
                     >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Add
-                    </Button>
+                      {aiToolConfig && Object.values(aiToolConfig.availableTools).map((tool) => (
+                        <option key={tool.id} value={tool.id}>
+                          {tool.name}{tool.installed === false ? ' (not installed)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="text-xs text-text-tertiary mt-1 flex items-center gap-1.5">
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${aiToolConfig?.activeTool.installed === false ? 'bg-error' : 'bg-success'}`} />
+                      {aiToolConfig?.activeTool.installed === false
+                        ? <span className="text-error">
+                            Not installed
+                            {aiToolConfig.activeTool.installUrl && (
+                              <> — <a
+                                href="#"
+                                className="underline hover:text-accent"
+                                onClick={(e) => { e.preventDefault(); require('electron').shell.openExternal(aiToolConfig.activeTool.installUrl!); }}
+                              >view install guide</a></>
+                            )}
+                          </span>
+                        : <span>{aiToolConfig?.activeTool.description || ''}</span>
+                      }
+                      <button
+                        onClick={async () => {
+                          setRecheckingTools(true);
+                          try {
+                            await typedInvoke(IPC.RECHECK_AI_TOOLS);
+                            await refetchAITools();
+                            toast.success('Install status refreshed');
+                          } catch {
+                            toast.error('Failed to check tools');
+                          } finally {
+                            setRecheckingTools(false);
+                          }
+                        }}
+                        disabled={recheckingTools}
+                        className="ml-auto text-text-muted hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
+                        title="Recheck install status"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${recheckingTools ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {matchesSearch('Start Command') && (
+                  <div data-setting-label="Start Command">
+                    <SettingInput
+                      label="Start Command"
+                      value={aiCommand}
+                      onChange={setAiCommand}
+                      placeholder={aiToolConfig?.activeTool.command || 'claude'}
+                    />
+                    <div className="text-xs text-text-tertiary mt-1">
+                      Default: <code className="text-text-secondary">{aiToolConfig?.activeTool.command || 'claude'}</code>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button size="sm" onClick={saveAiCommand} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const defaultCmd = aiToolConfig?.activeTool.command || 'claude';
+                          setAiCommand(defaultCmd);
+                          if (aiToolConfig) {
+                            updateSetting.mutate([{ key: `aiTools.${aiToolConfig.activeTool.id}.customCommand`, value: '' }]);
+                          }
+                          toast.info('Reset to default command');
+                        }}
+                        className="cursor-pointer"
+                      >
+                        Reset to Default
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Tools */}
+                {matchesSearch('Custom Tools') && (
+                  <div className="border-t border-border-subtle pt-4 mt-4" data-setting-label="Custom Tools">
+                    <div className="text-sm text-text-primary mb-2">Custom Tools</div>
+                    <div className="text-xs text-text-tertiary mb-3">
+                      Add custom AI tools that appear in the sidebar and session dropdowns
+                    </div>
+
+                    {/* Existing custom tools list */}
+                    {aiToolConfig && (() => {
+                      const customTools = Object.values(aiToolConfig.availableTools).filter(
+                        (t) => !BUILTIN_TOOL_IDS.has(t.id)
+                      );
+                      if (customTools.length === 0) return (
+                        <div className="text-xs text-text-muted mb-3">No custom tools added yet</div>
+                      );
+                      return (
+                        <div className="space-y-1.5 mb-3">
+                          {customTools.map((tool) => (
+                            <div
+                              key={tool.id}
+                              className="flex items-center justify-between bg-bg-deep rounded-md px-2.5 py-1.5 border border-border-subtle"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm text-text-primary truncate">{tool.name}</div>
+                                <div className="text-xs text-text-tertiary truncate">
+                                  <code>{tool.command}</code>
+                                  {tool.description && ` — ${tool.description}`}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="cursor-pointer shrink-0 ml-2 text-text-muted hover:text-red-400"
+                                title={`Remove ${tool.name}`}
+                                onClick={() => {
+                                  removeCustomTool.mutate([tool.id]);
+                                  toast.success(`Removed ${tool.name}`);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Add custom tool form */}
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={newToolName}
+                          onChange={(e) => setNewToolName(e.target.value)}
+                          placeholder="Name (e.g. Aider)"
+                          className="bg-bg-deep border-border-subtle text-sm flex-1"
+                        />
+                        <Input
+                          value={newToolCommand}
+                          onChange={(e) => setNewToolCommand(e.target.value)}
+                          placeholder="Command (e.g. aider)"
+                          className="bg-bg-deep border-border-subtle text-sm flex-1"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          value={newToolDescription}
+                          onChange={(e) => setNewToolDescription(e.target.value)}
+                          placeholder="Description (optional)"
+                          className="bg-bg-deep border-border-subtle text-sm flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer shrink-0"
+                          disabled={!newToolName.trim() || !newToolCommand.trim()}
+                          onClick={() => {
+                            const id = newToolName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                            addCustomTool.mutate([{
+                              id,
+                              name: newToolName.trim(),
+                              command: newToolCommand.trim(),
+                              description: newToolDescription.trim() || undefined,
+                            }]);
+                            setNewToolName('');
+                            setNewToolCommand('');
+                            setNewToolDescription('');
+                            toast.success(`Added ${newToolName.trim()}`);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ===== Updates ===== */}
+            {activeTab === 'updates' && (
+              <>
+                <div className="text-xs text-text-tertiary">
+                  Current version: <code className="text-text-secondary">v{APP_VERSION}</code>
+                </div>
+
+                {(matchesSearch('Auto-check for updates') || matchesSearch('Pre-release Channel') || matchesSearch('Check Interval') || matchesSearch('Update Preferences')) && (
+                  <SettingGroup label="Update Preferences">
+                    {matchesSearch('Auto-check for updates') && (
+                      <SettingToggle
+                        label="Auto-check for updates"
+                        description="Automatically check for new versions in the background"
+                        value={autoCheck}
+                        onChange={setAutoCheck}
+                      />
+                    )}
+                    {matchesSearch('Pre-release Channel') && (
+                      <SettingSelect
+                        label="Pre-release Channel"
+                        description="Auto detects based on your current version"
+                        value={allowPrerelease}
+                        onChange={setAllowPrerelease}
+                        options={[
+                          { value: 'auto', label: 'Auto' },
+                          { value: 'always', label: 'Always' },
+                          { value: 'never', label: 'Never' },
+                        ]}
+                      />
+                    )}
+                    {matchesSearch('Check Interval') && (
+                      <SettingInput
+                        label="Check Interval (hours)"
+                        value={checkIntervalHours}
+                        onChange={(v) => setCheckIntervalHours(Number(v))}
+                        type="number"
+                        min={1}
+                        max={24}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
+
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={saveUpdater} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="cursor-pointer"
+                    onClick={() => {
+                      // Fire and forget — UpdateNotification handles all toast feedback
+                      typedInvoke(IPC.UPDATER_CHECK).catch(() => {});
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                    Check Now
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {/* ===== About ===== */}
+            {activeTab === 'about' && (
+              <>
+                {/* App identity */}
+                <div className="flex flex-col items-center text-center py-4">
+                  <div className="text-lg font-bold text-text-primary">SubFrame</div>
+                  <div className="text-xs text-text-tertiary mt-0.5">Terminal-first IDE for AI coding tools</div>
+                  <div className="flex items-center gap-2 mt-2.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-bg-tertiary text-accent px-2 py-0.5 rounded-full">
+                      v{APP_VERSION}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-bg-tertiary text-text-secondary px-2 py-0.5 rounded-full">
+                      <Scale className="w-2.5 h-2.5" />
+                      MIT
+                    </span>
                   </div>
                 </div>
-              </div>
-            </TabsContent>
 
-            {/* Updates tab */}
-            <TabsContent value="updates" className="mt-0 space-y-4 px-4 pb-4">
-              <div className="text-xs text-text-tertiary">
-                Current version: <code className="text-text-secondary">v{APP_VERSION}</code>
-              </div>
-
-              {/* Update Preferences group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Update Preferences</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">
-                {/* Auto-check for updates */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-text-primary">Auto-check for updates</div>
-                    <div className="text-xs text-text-tertiary">Automatically check for new versions in the background</div>
-                  </div>
+                {/* Links group */}
+                <SettingGroup label="Links">
                   <button
-                    onClick={() => setAutoCheck(!autoCheck)}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${autoCheck ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                    className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
+                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame')}
                   >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoCheck ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                    <Github className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-text-primary">GitHub</div>
+                      <div className="text-xs text-text-tertiary">View source code and documentation</div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
                   </button>
-                </div>
 
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Pre-release Channel</div>
-                  <select
-                    value={allowPrerelease}
-                    onChange={(e) => setAllowPrerelease(e.target.value)}
-                    className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
+                  <button
+                    className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
+                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/issues')}
                   >
-                    <option value="auto">Auto</option>
-                    <option value="always">Always</option>
-                    <option value="never">Never</option>
-                  </select>
-                  <div className="text-xs text-text-tertiary mt-1">Auto detects based on your current version</div>
-                </div>
+                    <Info className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-text-primary">Report Issue</div>
+                      <div className="text-xs text-text-tertiary">File a bug report or feature request</div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                  </button>
 
-                <div>
-                  <div className="text-sm text-text-primary mb-1">Check Interval (hours)</div>
-                  <Input
-                    type="number"
-                    value={checkIntervalHours}
-                    onChange={(e) => setCheckIntervalHours(Number(e.target.value))}
-                    min={1}
-                    max={24}
-                    className="bg-bg-deep border-border-subtle text-sm"
-                  />
-                </div>
-              </div>
+                  <button
+                    className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setTimeout(() => window.dispatchEvent(new Event('open-whats-new')), 200);
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-text-primary">What&apos;s New</div>
+                      <div className="text-xs text-text-tertiary">View release notes for the current version</div>
+                    </div>
+                  </button>
+                </SettingGroup>
 
-              <div className="flex gap-2">
-                <Button size="sm" onClick={saveUpdater} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
-                  Save
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="cursor-pointer"
-                  onClick={() => {
-                    // Fire and forget — UpdateNotification handles all toast feedback
-                    typedInvoke(IPC.UPDATER_CHECK).catch(() => {});
-                  }}
-                >
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                  Check Now
-                </Button>
-              </div>
-            </TabsContent>
+                {/* Changelog */}
+                <SettingGroup label="Changelog">
+                  <button
+                    className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
+                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/blob/main/CHANGELOG.md')}
+                  >
+                    <FileText className="w-4 h-4 text-text-tertiary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-text-primary">View Changelog</div>
+                      <div className="text-xs text-text-tertiary">Full history of changes and releases</div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                  </button>
+                </SettingGroup>
+              </>
+            )}
 
-            {/* About tab */}
-            <TabsContent value="about" className="mt-0 space-y-4 px-4 pb-4">
-              {/* App identity */}
-              <div className="flex flex-col items-center text-center py-4">
-                <div className="text-lg font-bold text-text-primary">SubFrame</div>
-                <div className="text-xs text-text-tertiary mt-0.5">Terminal-first IDE for AI coding tools</div>
-                <div className="flex items-center gap-2 mt-2.5">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-bg-tertiary text-accent px-2 py-0.5 rounded-full">
-                    v{APP_VERSION}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-mono bg-bg-tertiary text-text-secondary px-2 py-0.5 rounded-full">
-                    <Scale className="w-2.5 h-2.5" />
-                    BUSL-1.1
-                  </span>
-                </div>
-              </div>
-
-              {/* Links group */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Links</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-0.5">
-                <button
-                  className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                  onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame')}
-                >
-                  <Github className="w-4 h-4 text-text-tertiary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-text-primary">GitHub</div>
-                    <div className="text-xs text-text-tertiary">View source code and documentation</div>
-                  </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                </button>
-
-                <button
-                  className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                  onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/issues')}
-                >
-                  <Info className="w-4 h-4 text-text-tertiary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-text-primary">Report Issue</div>
-                    <div className="text-xs text-text-tertiary">File a bug report or feature request</div>
-                  </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                </button>
-
-                <button
-                  className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                  onClick={() => {
-                    setSettingsOpen(false);
-                    setTimeout(() => window.dispatchEvent(new Event('open-whats-new')), 200);
-                  }}
-                >
-                  <Sparkles className="w-4 h-4 text-text-tertiary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-text-primary">What&apos;s New</div>
-                    <div className="text-xs text-text-tertiary">View release notes for the current version</div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Changelog */}
-              <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Changelog</div>
-              <div className="bg-bg-secondary/50 rounded-lg p-3">
-                <button
-                  className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                  onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/blob/main/CHANGELOG.md')}
-                >
-                  <FileText className="w-4 h-4 text-text-tertiary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-text-primary">View Changelog</div>
-                    <div className="text-xs text-text-tertiary">Full history of changes and releases</div>
-                  </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                </button>
-              </div>
-            </TabsContent>
           </div>
-        </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

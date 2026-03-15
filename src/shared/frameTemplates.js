@@ -100,7 +100,7 @@ var require_package = __commonJS({
         url: "https://github.com/Codename-11/SubFrame/issues"
       },
       private: true,
-      license: "BUSL-1.1",
+      license: "MIT",
       devDependencies: {
         "@eslint/js": "^9.39.4",
         "@types/node": "^25.3.3",
@@ -176,6 +176,8 @@ var require_package = __commonJS({
         "xterm-addon-canvas": "^0.5.0",
         "xterm-addon-fit": "^0.8.0",
         "xterm-addon-search": "^0.13.0",
+        "xterm-addon-unicode11": "^0.6.0",
+        "xterm-addon-web-links": "^0.9.0",
         "xterm-addon-webgl": "^0.16.0",
         yaml: "^2.8.2",
         zustand: "^5.0.11"
@@ -183,7 +185,7 @@ var require_package = __commonJS({
       build: {
         appId: "com.subframe.ide",
         productName: "SubFrame",
-        copyright: "Copyright \xA9 2026 Axiom-Labs",
+        copyright: "Copyright \xA9 2025-present Bailey (Codename-11)",
         npmRebuild: false,
         icon: "assets/icon.png",
         mac: {
@@ -201,7 +203,7 @@ var require_package = __commonJS({
             "nsis"
           ],
           icon: "assets/icon.ico",
-          legalTrademarks: "Copyright \xA9 2026 Axiom-Labs"
+          legalTrademarks: "Copyright \xA9 2025-present Bailey (Codename-11)"
         },
         nsis: {
           oneClick: true,

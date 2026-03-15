@@ -118,13 +118,86 @@
 
 /* ── Neon trace enhancements (enabled per-theme via ThemeProvider) ──── */
 /* These are inactive by default; ThemeProvider adds [data-neon-traces] to <html> */
+
+/* Text selection — purple */
 [data-neon-traces] ::selection {
-  background: rgba(180, 128, 255, 0.35);
+  background: color-mix(in srgb, var(--color-neon-purple) 35%, transparent);
   color: #fafafa;
 }
 
+/* ── Scrollbars — neon cyan tint ── */
+[data-neon-traces] *::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-neon-cyan) 12%, transparent);
+}
 [data-neon-traces] *::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 216, 255, 0.22);
+  background: color-mix(in srgb, var(--color-neon-cyan) 28%, transparent);
+}
+
+/* ── Focus rings — neon purple glow ── */
+[data-neon-traces] *:focus-visible {
+  outline-color: var(--color-neon-purple) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-neon-purple) 30%, transparent),
+              0 0 8px color-mix(in srgb, var(--color-neon-purple) 15%, transparent);
+}
+[data-neon-traces] input:focus,
+[data-neon-traces] textarea:focus,
+[data-neon-traces] select:focus {
+  border-color: color-mix(in srgb, var(--color-neon-purple) 50%, transparent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-neon-purple) 20%, transparent),
+              0 0 12px color-mix(in srgb, var(--color-neon-purple) 10%, transparent);
+}
+
+/* ── Borders — subtle neon tint on panel dividers ── */
+[data-neon-traces] .border-border-subtle {
+  border-color: color-mix(in srgb, var(--color-neon-purple) 8%, rgba(255, 255, 255, 0.06));
+}
+
+/* ── Active elements — subtle glow + inset glow on neon-accented items ── */
+[data-neon-traces] .bg-accent-subtle {
+  box-shadow: 0 0 6px var(--color-accent-glow),
+              inset 0 0 12px color-mix(in srgb, var(--color-neon-purple) 8%, transparent);
+}
+
+/* ── Buttons — neon glow on hover ── */
+[data-neon-traces] button:hover:not(:disabled) .text-accent,
+[data-neon-traces] [role="button"]:hover .text-accent {
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--color-neon-purple) 40%, transparent));
+}
+
+/* ── Top bar — subtle neon bottom edge (targeted via data attribute) ── */
+[data-neon-traces] [data-neon-bar] {
+  border-bottom-color: transparent;
+  background-image: linear-gradient(var(--color-bg-secondary), var(--color-bg-secondary)),
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--color-neon-purple) 30%, transparent) 20%,
+      color-mix(in srgb, var(--color-neon-pink) 25%, transparent) 50%,
+      color-mix(in srgb, var(--color-neon-cyan) 30%, transparent) 80%,
+      transparent
+    );
+  background-origin: padding-box, border-box;
+  background-clip: padding-box, border-box;
+}
+
+/* ── Resize handle — neon glow on drag ── */
+[data-neon-traces] .cursor-col-resize:active,
+[data-neon-traces] .cursor-col-resize:hover {
+  background-color: color-mix(in srgb, var(--color-neon-cyan) 30%, transparent) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-neon-cyan) 20%, transparent);
+}
+
+/* ── Context menus / Popovers — neon border ── */
+[data-neon-traces] [data-radix-popper-content-wrapper] [role="menu"],
+[data-neon-traces] [data-state="open"].bg-bg-elevated {
+  border-color: color-mix(in srgb, var(--color-neon-purple) 15%, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5),
+              0 0 1px color-mix(in srgb, var(--color-neon-purple) 20%, transparent);
+}
+
+/* ── Dialog overlay — neon-tinted backdrop ── */
+[data-neon-traces] [data-state="open"][data-overlay] {
+  background-color: color-mix(in srgb, var(--color-neon-purple) 3%, rgba(0, 0, 0, 0.75));
 }
 
 /* CRT scanline overlay — enabled by [data-scanlines] attribute */
@@ -141,6 +214,11 @@
   );
   pointer-events: none;
   z-index: 9999;
+}
+
+/* Logo glow — ambient glow on the sidebar logo SVG */
+[data-logo-glow] .sidebar-logo svg {
+  filter: drop-shadow(0 0 8px var(--color-accent)) drop-shadow(0 0 20px var(--color-accent-glow, rgba(212, 165, 116, 0.08)));
 }
 
 /* ── xterm.js decoration layer — ensure above WebGL/Canvas renderers ── */

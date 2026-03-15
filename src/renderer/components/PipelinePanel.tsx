@@ -625,16 +625,26 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
             <ChevronDown size={10} />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-[160px]">
-          {workflows.map((w) => (
-            <DropdownMenuItem
-              key={w.name}
-              onClick={() => setSelectedWorkflowId(w.name)}
-              className="text-[11px]"
-            >
-              {w.name}
-            </DropdownMenuItem>
-          ))}
+        <DropdownMenuContent align="start" className="min-w-[220px]">
+          {workflows.map((w) => {
+            const stepCount = Object.values(w.jobs).reduce((n, j) => n + j.steps.length, 0);
+            const isActive = activeWorkflow?.name === w.name;
+            return (
+              <DropdownMenuItem
+                key={w.name}
+                onClick={() => setSelectedWorkflowId(w.name)}
+                className={cn('flex flex-col items-start gap-0.5 py-1.5', isActive && 'bg-accent-subtle')}
+              >
+                <div className="flex items-center gap-1.5 w-full">
+                  <span className="text-[11px] font-medium">{w.name}</span>
+                  <span className="text-[9px] text-text-muted ml-auto">{stepCount} step{stepCount !== 1 ? 's' : ''}</span>
+                </div>
+                {w.description && (
+                  <span className="text-[10px] text-text-tertiary leading-tight">{w.description}</span>
+                )}
+              </DropdownMenuItem>
+            );
+          })}
           {workflows.length === 0 && (
             <DropdownMenuItem disabled className="text-[11px] text-text-muted">
               No workflows found

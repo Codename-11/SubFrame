@@ -8,6 +8,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { FRAME_PIPELINES_DIR } from '../shared/frameConstants';
+import * as activityManager from './activityManager';
 import type {
   PipelineArtifact,
   PipelineRun,
@@ -33,6 +34,8 @@ export interface StageContext {
   emit: (log: string) => void;
   /** Per-step config from workflow `with:` — scope, mode, focus, prompt, etc. */
   stepConfig: Record<string, string>;
+  /** Activity stream ID for centralized output routing (optional, from pipelineManager) */
+  streamId?: string;
 }
 
 export interface StageResult {
@@ -255,9 +258,10 @@ async function getProjectContext(ctx: StageContext): Promise<string> {
  */
 async function spawnAITool(
   ctx: StageContext,
-  prompt: string
+  prompt: string,
+  streamId?: string
 ): Promise<string> {
-  const raw = await spawnAIToolRaw(ctx, prompt);
+  const raw = await spawnAIToolRaw(ctx, prompt, streamId);
 
   // Claude CLI with --output-format json wraps the response in an envelope:
   // {"type":"result","subtype":"success","result":"<actual content>", ...}
@@ -278,10 +282,16 @@ async function spawnAITool(
  * Raw AI tool spawner — returns stdout verbatim.
  * Pipes the prompt via stdin to avoid shell escaping issues with
  * backticks, quotes, and other special characters in prompts.
+ *
+ * When streamId is provided, output is also routed through activityManager
+ * in addition to ctx.emit (pipeline log view still uses ctx.emit).
+ * The local heartbeat timer is removed when streamId is provided since
+ * activityManager handles heartbeat.
  */
 function spawnAIToolRaw(
   ctx: StageContext,
-  prompt: string
+  prompt: string,
+  streamId?: string
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const cwd = ctx.worktreePath || ctx.projectPath;
@@ -301,10 +311,25 @@ function spawnAIToolRaw(
 
     let stdout = '';
     let stderr = '';
+    const startTime = Date.now();
+    let stdoutChunks = 0;
+
+    // Heartbeat timer — only used when no streamId (activityManager handles heartbeat otherwise)
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    if (!streamId) {
+      heartbeatTimer = setInterval(() => {
+        if (ctx.abortSignal.aborted) return;
+        const elapsed = Date.now() - startTime;
+        const parts = [`Waiting for AI response... ${formatElapsed(elapsed)}`];
+        if (stdoutChunks > 0) parts.push(`${stdoutChunks} chunks received`);
+        ctx.emit(parts.join(' | '));
+      }, 10_000);
+    }
 
     child.stdout.on('data', (data: Buffer) => {
       const chunk = data.toString();
       stdout += chunk;
+      stdoutChunks++;
     });
 
     child.stderr.on('data', (data: Buffer) => {
@@ -313,10 +338,14 @@ function spawnAIToolRaw(
       // Stream stderr lines as logs
       for (const line of chunk.split('\n').filter(Boolean)) {
         ctx.emit(line);
+        if (streamId) {
+          activityManager.emit(streamId, line);
+        }
       }
     });
 
     child.on('close', (code) => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
       if (ctx.abortSignal.aborted) {
         reject(new Error('Aborted'));
       } else if (code !== 0) {
@@ -326,9 +355,13 @@ function spawnAIToolRaw(
       }
     });
 
-    child.on('error', reject);
+    child.on('error', (err) => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      reject(err);
+    });
 
     ctx.abortSignal.addEventListener('abort', () => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
       killProcessTree(child);
     }, { once: true });
   });
@@ -341,10 +374,16 @@ function spawnAIToolRaw(
  *
  * Supports --max-turns via stepConfig['max-turns'] (0 or '' = unlimited).
  * Emits periodic heartbeat logs with elapsed time and detected turn count.
+ *
+ * When streamId is provided, output is also routed through activityManager
+ * in addition to ctx.emit (pipeline log view still uses ctx.emit).
+ * The local heartbeat timer is removed when streamId is provided since
+ * activityManager handles heartbeat.
  */
 async function spawnAIToolAgent(
   ctx: StageContext,
-  prompt: string
+  prompt: string,
+  streamId?: string
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const cwd = ctx.worktreePath || ctx.projectPath;
@@ -359,6 +398,9 @@ async function spawnAIToolAgent(
 
     const turnsLabel = maxTurns > 0 ? `max ${maxTurns} turns` : 'unlimited turns';
     ctx.emit(`Spawning AI agent (autonomous mode, ${turnsLabel})...`);
+    if (streamId) {
+      activityManager.emit(streamId, `Spawning AI agent (autonomous mode, ${turnsLabel})...`);
+    }
 
     // Agent mode: no --print, uses --output-format json for structured output.
     // The AI can use all its built-in tools (Read, Grep, Glob, Bash, etc.)
@@ -384,20 +426,23 @@ async function spawnAIToolAgent(
     let turnCount = 0;
     let lastActivityTime = Date.now();
 
-    // Heartbeat timer — emits elapsed time every 15s so the UI shows the stage is alive
-    const heartbeatInterval = setInterval(() => {
-      if (ctx.abortSignal.aborted) return;
-      const elapsed = Date.now() - startTime;
-      const idle = Date.now() - lastActivityTime;
-      const parts = [`[Agent] ${formatElapsed(elapsed)} elapsed`];
-      if (turnCount > 0) parts.push(`~${turnCount} turns`);
-      if (idle > 30_000) parts.push('waiting...');
-      ctx.emit(parts.join(' | '));
-    }, 15_000);
+    // Heartbeat timer — only used when no streamId (activityManager handles heartbeat otherwise)
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    if (!streamId) {
+      heartbeatTimer = setInterval(() => {
+        if (ctx.abortSignal.aborted) return;
+        const elapsed = Date.now() - startTime;
+        const idle = Date.now() - lastActivityTime;
+        const parts = [`[Agent] ${formatElapsed(elapsed)} elapsed`];
+        if (turnCount > 0) parts.push(`~${turnCount} turns`);
+        if (idle > 30_000) parts.push('waiting...');
+        ctx.emit(parts.join(' | '));
+      }, 15_000);
+    }
 
     // Guard: if signal was already aborted before we got here, clean up immediately
     if (ctx.abortSignal.aborted) {
-      clearInterval(heartbeatInterval);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
       killProcessTree(child);
       reject(new Error('Aborted'));
       return;
@@ -419,13 +464,20 @@ async function spawnAIToolAgent(
           turnCount++;
         }
         ctx.emit(line);
+        if (streamId) {
+          activityManager.emit(streamId, line);
+        }
       }
     });
 
     child.on('close', (code) => {
-      clearInterval(heartbeatInterval);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
       const elapsed = Date.now() - startTime;
-      ctx.emit(`[Agent] Finished in ${formatElapsed(elapsed)} (~${turnCount} turns)`);
+      const finishMsg = `[Agent] Finished in ${formatElapsed(elapsed)} (~${turnCount} turns)`;
+      ctx.emit(finishMsg);
+      if (streamId) {
+        activityManager.emit(streamId, finishMsg);
+      }
 
       if (ctx.abortSignal.aborted) {
         reject(new Error('Aborted'));
@@ -462,12 +514,12 @@ async function spawnAIToolAgent(
     });
 
     child.on('error', (err) => {
-      clearInterval(heartbeatInterval);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
       reject(err);
     });
 
     ctx.abortSignal.addEventListener('abort', () => {
-      clearInterval(heartbeatInterval);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
       killProcessTree(child);
     }, { once: true });
   });
@@ -479,13 +531,14 @@ async function spawnAIToolAgent(
  * - mode: 'print' (default) → spawnAITool (single-turn, fast, cheap)
  *
  * Errors from agent mode may carry a `.failureReason` property (e.g. 'max-turns').
+ * When streamId is provided, output is also routed through activityManager.
  */
-async function dispatchAITool(ctx: StageContext, prompt: string): Promise<string> {
+async function dispatchAITool(ctx: StageContext, prompt: string, streamId?: string): Promise<string> {
   const mode = ctx.stepConfig.mode || 'print';
   if (mode === 'agent') {
-    return spawnAIToolAgent(ctx, prompt);
+    return spawnAIToolAgent(ctx, prompt, streamId);
   }
-  return spawnAITool(ctx, prompt);
+  return spawnAITool(ctx, prompt, streamId);
 }
 
 /**
@@ -722,7 +775,7 @@ Run the project's test suite and evaluate the results. Respond with ONLY a JSON 
 }`;
 
   try {
-    const output = await dispatchAITool(ctx, prompt);
+    const output = await dispatchAITool(ctx, prompt, ctx.streamId);
     const parsed = parseJSONFromOutput(output) as {
       verdict?: string;
       summary?: string;
@@ -827,7 +880,7 @@ Respond with ONLY a JSON object:
 }`);
 
   try {
-    const output = await dispatchAITool(ctx, prompt);
+    const output = await dispatchAITool(ctx, prompt, ctx.streamId);
     const parsed = parseJSONFromOutput(output) as {
       title?: string;
       body?: string;
@@ -947,7 +1000,7 @@ Respond with ONLY a JSON object:
 }`);
 
   try {
-    const output = await dispatchAITool(ctx, prompt);
+    const output = await dispatchAITool(ctx, prompt, ctx.streamId);
     const parsed = parseJSONFromOutput(output) as {
       summary?: string;
       comments?: Array<{

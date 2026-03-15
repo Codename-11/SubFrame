@@ -241,7 +241,7 @@ export function Sidebar() {
           aria-label="Expand sidebar"
         >
           <div
-            className="w-9 h-9 flex-shrink-0"
+            className="w-9 h-9 flex-shrink-0 sidebar-logo"
             dangerouslySetInnerHTML={{ __html: getLogoSVG({ size: 36, id: 'sb-col', frame: false }) }}
           />
         </button>
@@ -334,7 +334,7 @@ export function Sidebar() {
       {/* Header — animated logo, brand, help, settings, collapse, hide */}
       <div className="flex items-start gap-2 px-2 py-2 border-b border-border-subtle flex-shrink-0">
         <div
-          className="flex-shrink-0"
+          className="flex-shrink-0 sidebar-logo"
           style={{ width: 56, height: 56, minWidth: 56 }}
           dangerouslySetInnerHTML={{ __html: getLogoSVG({ size: 56, id: 'sb-exp', frame: false }) }}
         />
@@ -553,7 +553,7 @@ export function Sidebar() {
           document.addEventListener('mouseup', cleanup);
           window.addEventListener('blur', cleanup);
         }}
-        onDoubleClick={() => setSidebarWidth(260)}
+        onDoubleClick={() => setSidebarWidth(220)}
         title="Drag to resize, double-click to reset"
       />
     </div>

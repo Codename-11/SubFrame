@@ -134,6 +134,7 @@ interface EditorJob {
 
 interface EditorState {
   name: string;
+  description: string;
   manualTrigger: boolean;
   pushTrigger: boolean;
   pushBranches: string;
@@ -178,6 +179,7 @@ function createBlankJob(): EditorJob {
 function createBlankState(): EditorState {
   return {
     name: '',
+    description: '',
     manualTrigger: true,
     pushTrigger: false,
     pushBranches: '*',
@@ -189,6 +191,7 @@ function createBlankState(): EditorState {
 function definitionToState(def: WorkflowDefinition): EditorState {
   const state: EditorState = {
     name: def.name,
+    description: def.description ?? '',
     manualTrigger: !!def.on?.manual,
     pushTrigger: !!def.on?.push,
     pushBranches: def.on?.push?.branches?.join(', ') ?? '*',
@@ -210,11 +213,11 @@ function definitionToState(def: WorkflowDefinition): EditorState {
           : step['require-approval'] === 'if_patches' ? 'if_patches' : 'false',
         continueOnError: !!step['continue-on-error'],
         timeout: step.timeout ? String(step.timeout) : '',
-        withScope: step.with?.scope ?? '',
-        withMode: step.with?.mode ?? '',
-        withFocus: step.with?.focus ?? '',
-        withPrompt: step.with?.prompt ?? '',
-        withMaxTurns: step.with?.['max-turns'] ?? '',
+        withScope: String(step.with?.scope ?? ''),
+        withMode: String(step.with?.mode ?? ''),
+        withFocus: String(step.with?.focus ?? ''),
+        withPrompt: String(step.with?.prompt ?? ''),
+        withMaxTurns: String(step.with?.['max-turns'] ?? ''),
         expanded: false,
       })),
     });
@@ -227,23 +230,26 @@ function definitionToState(def: WorkflowDefinition): EditorState {
 const YAML_KEYWORDS = new Set(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'True', 'False', 'Null', 'Yes', 'No', 'On', 'Off', 'TRUE', 'FALSE', 'NULL', 'YES', 'NO', 'ON', 'OFF']);
 
 /** YAML-safe scalar quoting — wraps in single quotes if value contains special chars */
-function yamlQuote(val: string): string {
+function yamlQuote(val: unknown): string {
+  // Coerce to string — YAML parser may return numbers/booleans
+  const s = String(val ?? '');
   // Empty string must be quoted
-  if (!val) return "''";
+  if (!s) return "''";
   // YAML keywords must be quoted
-  if (YAML_KEYWORDS.has(val)) return `'${val}'`;
+  if (YAML_KEYWORDS.has(s)) return `'${s}'`;
   // Safe bare scalars: simple alphanumeric, hyphens, dots, slashes, spaces (no leading special chars)
-  if (/^[a-zA-Z0-9][a-zA-Z0-9 ._/-]*$/.test(val) && !val.includes(': ') && !val.includes('#')) {
-    return val;
+  if (/^[a-zA-Z0-9][a-zA-Z0-9 ._/-]*$/.test(s) && !s.includes(': ') && !s.includes('#')) {
+    return s;
   }
   // Single-quote and escape internal single quotes ('' in YAML)
-  return `'${val.replace(/'/g, "''")}'`;
+  return `'${s.replace(/'/g, "''")}'`;
 }
 
 /** Convert editor state to YAML string */
 function stateToYaml(state: EditorState): string {
   const lines: string[] = [];
   lines.push(`name: ${yamlQuote(state.name || 'untitled')}`);
+  if (state.description) lines.push(`description: ${yamlQuote(state.description)}`);
   lines.push('on:');
   if (state.pushTrigger) {
     lines.push('  push:');
@@ -875,10 +881,12 @@ jobs:
         // since we know our template format
         const nameMatch = yaml.match(/^name:\s*(.+)$/m);
         const name = nameMatch?.[1] ?? templateId;
+        const descMatch = yaml.match(/^description:\s*(.+)$/m);
 
         // Build a simplified state from the template
         const newState: EditorState = {
           name,
+          description: descMatch?.[1]?.replace(/^['"]|['"]$/g, '') ?? '',
           manualTrigger: yaml.includes('manual: true'),
           pushTrigger: yaml.includes('push:'),
           pushBranches: '*',
@@ -1075,6 +1083,16 @@ jobs:
                       autoFocus
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-text-tertiary mb-0.5 block">Description</label>
+                  <Input
+                    value={state.description}
+                    onChange={(e) => updateState({ description: e.target.value })}
+                    placeholder="What this workflow does (shown in pipeline selector)"
+                    className="bg-bg-deep border-border-subtle text-xs h-7"
+                  />
                 </div>
 
                 {/* Triggers */}

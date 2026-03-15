@@ -13,6 +13,7 @@ import { OnboardingDialog } from './OnboardingDialog';
 import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ThemeProvider } from './ThemeProvider';
+import { ActivityBar } from './ActivityBar';
 import { TasksPalette } from './TasksPalette';
 import { AIToolPalette } from './AIToolPalette';
 import { useUIStore } from '../stores/useUIStore';
@@ -303,10 +304,25 @@ export function App() {
       }
     };
     const onResetLayout = () => {
-      const store = useUIStore.getState();
-      store.setSidebarState('expanded');
-      store.setSidebarWidth(260);
-      store.setActivePanel(null);
+      // Reset sidebar
+      const uiStore = useUIStore.getState();
+      uiStore.setSidebarState('expanded');
+      uiStore.setSidebarWidth(220);
+      // Reset right panel
+      uiStore.setActivePanel(null);
+      uiStore.setRightPanelWidth(380);
+      uiStore.setRightPanelCollapsed(false);
+      // Reset terminal layout
+      const termStore = useTerminalStore.getState();
+      termStore.setViewMode('tabs');
+      termStore.setGridLayout('1x2');
+      termStore.setMaximizedTerminal(null);
+      // Clear persisted grid cell sizes
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('terminal-grid-sizes-')) {
+          localStorage.removeItem(key);
+        }
+      }
     };
     const onCloseTerminal = () => {
       window.dispatchEvent(new CustomEvent('menu-close-terminal'));
@@ -427,6 +443,7 @@ export function App() {
           <div id="terminal-container-react" className="flex-1 min-h-0">
             <ErrorBoundary name="Terminal"><TerminalArea /></ErrorBoundary>
           </div>
+          <ActivityBar />
         </div>
 
         {/* Right panel — conditionally visible */}

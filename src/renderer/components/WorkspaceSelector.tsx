@@ -91,21 +91,31 @@ export function WorkspaceSelector() {
     [refetch, loading, parsed]
   );
 
-  const handleCreate = useCallback(async () => {
-    if (loading) return;
+  // Dialog state for create
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createName, setCreateName] = useState('');
+
+  const handleCreate = useCallback(() => {
+    setCreateName('');
+    setShowCreateDialog(true);
+  }, []);
+
+  const confirmCreate = useCallback(async () => {
+    const name = createName.trim();
+    if (loading || !name) return;
     setLoading(true);
     try {
-      await typedInvoke(IPC.WORKSPACE_CREATE, 'New Workspace');
+      await typedInvoke(IPC.WORKSPACE_CREATE, name);
       refetch();
-      // Load project list for the newly created (now active) workspace
       typedSend(IPC.LOAD_WORKSPACE);
-      toast.success('Workspace created');
+      toast.success(`Workspace "${name}" created`);
+      setShowCreateDialog(false);
     } catch {
       toast.error('Failed to create workspace');
     } finally {
       setLoading(false);
     }
-  }, [refetch, loading]);
+  }, [refetch, loading, createName]);
 
   // Dialog state for rename
   const [renameTarget, setRenameTarget] = useState<{ key: string; name: string } | null>(null);
@@ -261,6 +271,45 @@ export function WorkspaceSelector() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create workspace dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => !open && setShowCreateDialog(false)}>
+        <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-sm" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>New Workspace</DialogTitle>
+            <DialogDescription className="text-text-secondary text-xs">
+              Give your workspace a name.
+            </DialogDescription>
+          </DialogHeader>
+          <input
+            type="text"
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') confirmCreate();
+            }}
+            placeholder="e.g. Work, Personal, Client X"
+            className="w-full px-3 py-2 text-xs rounded-md bg-bg-deep border border-border-subtle text-text-primary outline-none focus:border-accent"
+            autoFocus
+          />
+          <DialogFooter>
+            <button
+              onClick={() => setShowCreateDialog(false)}
+              className="px-3 py-1.5 text-xs rounded-md border border-border-subtle text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmCreate}
+              disabled={loading || !createName.trim()}
+              className="px-3 py-1.5 text-xs rounded-md bg-accent text-bg-deep hover:bg-accent/80 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+              Create
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Rename dialog */}
       <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>

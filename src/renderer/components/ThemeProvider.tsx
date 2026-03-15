@@ -7,6 +7,7 @@ import {
   getThemeById,
   TOKEN_TO_CSS,
 } from '../../shared/themeTypes';
+import { refreshTerminalThemes } from '../lib/terminalRegistry';
 
 /**
  * ThemeProvider reads the active theme from settings and applies
@@ -54,32 +55,51 @@ export function ThemeProvider() {
     root.style.setProperty('--color-destructive', theme.tokens.error);
     root.style.setProperty('--color-border', theme.tokens.borderDefault);
     root.style.setProperty('--color-input', theme.tokens.borderDefault);
-    root.style.setProperty('--color-ring', theme.tokens.enableNeonTraces
-      ? 'rgba(180, 128, 255, 0.3)'
-      : `${theme.tokens.accent}4d`  // accent at 30% opacity
-    );
 
-    // Shadow tokens
-    root.style.setProperty('--shadow-glow', `0 0 20px ${theme.tokens.accentGlow}`);
+    // Feature toggle resolution — independent settings override theme defaults
+    const neonTraces = appearance.enableNeonTraces !== undefined
+      ? !!appearance.enableNeonTraces
+      : !!theme.tokens.enableNeonTraces;
+    const scanlines = appearance.enableScanlines !== undefined
+      ? !!appearance.enableScanlines
+      : !!theme.tokens.enableScanlines;
+    const logoGlow = appearance.enableLogoGlow !== undefined
+      ? !!appearance.enableLogoGlow
+      : !!theme.tokens.enableLogoGlow;
 
-    // Feature toggle data attributes
-    if (theme.tokens.enableNeonTraces) {
+    // Neon-specific overrides — swap accent tokens to neon purple when active
+    if (neonTraces) {
+      root.style.setProperty('--color-ring', `color-mix(in srgb, ${theme.tokens.neonPurple} 30%, transparent)`);
+      root.style.setProperty('--color-accent', theme.tokens.neonPurple);
+      root.style.setProperty('--color-accent-subtle', `color-mix(in srgb, ${theme.tokens.neonPurple} 15%, transparent)`);
+      root.style.setProperty('--color-accent-glow', `color-mix(in srgb, ${theme.tokens.neonPurple} 12%, transparent)`);
+      root.style.setProperty('--color-primary', theme.tokens.neonPurple);
+      root.style.setProperty('--shadow-glow', `0 0 20px color-mix(in srgb, ${theme.tokens.neonPurple} 15%, transparent)`);
+    } else {
+      root.style.setProperty('--color-ring', `color-mix(in srgb, ${theme.tokens.accent} 30%, transparent)`);
+      root.style.setProperty('--shadow-glow', `0 0 20px ${theme.tokens.accentGlow}`);
+    }
+
+    if (neonTraces) {
       root.setAttribute('data-neon-traces', '');
     } else {
       root.removeAttribute('data-neon-traces');
     }
 
-    if (theme.tokens.enableScanlines) {
+    if (scanlines) {
       root.setAttribute('data-scanlines', '');
     } else {
       root.removeAttribute('data-scanlines');
     }
 
-    if (theme.tokens.enableLogoGlow) {
+    if (logoGlow) {
       root.setAttribute('data-logo-glow', '');
     } else {
       root.removeAttribute('data-logo-glow');
     }
+
+    // Sync terminal cursor/selection colors with the new accent
+    refreshTerminalThemes();
   }, [settings]);
 
   return null; // No visual output — pure side-effect component

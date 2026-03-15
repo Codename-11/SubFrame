@@ -29,6 +29,7 @@ import {
   type StageContext,
 } from './pipelineStages';
 import * as aiToolManager from './aiToolManager';
+import * as activityManager from './activityManager';
 
 // ─── Module State ────────────────────────────────────────────────────────────
 
@@ -389,6 +390,19 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
         run.updatedAt = now();
         broadcastRunUpdate(run);
 
+        // Create an activity stream for this stage
+        const stageTimeoutMs = (step?.timeout ?? 600) * 1000;
+        const isAgentMode = step?.with?.mode === 'agent';
+        const streamId = activityManager.createStream({
+          name: `Pipeline: ${stage.name}`,
+          type: isAgentMode ? 'agent' : 'spawn',
+          source: 'pipeline',
+          timeout: stageTimeoutMs,
+          heartbeatInterval: isAgentMode ? 15_000 : 10_000,
+        });
+        activityManager.updateStatus(streamId, 'running');
+        activityManager.startHeartbeat(streamId);
+
         const ctx: StageContext = {
           run,
           stage,
@@ -404,11 +418,12 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
             emitProgress(run.id, stage.id, log);
           },
           stepConfig: { ...(step?.with ?? {}), ...(run.overrides ?? {}) },
+          streamId,
         };
 
         try {
           // Enforce stage timeout (default: 10 minutes, configurable via step.timeout)
-          const timeoutMs = (step?.timeout ?? 600) * 1000;
+          const timeoutMs = stageTimeoutMs;
           let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
           const timeoutPromise = new Promise<never>((_, reject) => {
             timeoutHandle = setTimeout(() => {
@@ -445,6 +460,16 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
           stage.logs.push(...result.logs);
           stage.completedAt = now();
           stage.durationMs = new Date(stage.completedAt).getTime() - new Date(stage.startedAt!).getTime();
+
+          // Update activity stream status
+          if (result.status === 'completed') {
+            activityManager.updateStatus(streamId, 'completed');
+          } else if (result.status === 'failed') {
+            activityManager.updateStatus(streamId, 'failed', result.failureReason ?? 'Stage failed');
+          } else {
+            // skipped
+            activityManager.updateStatus(streamId, 'completed');
+          }
 
           // Collect artifacts
           for (const artifact of result.artifacts) {
@@ -491,7 +516,10 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
             break;
           }
         } catch (err) {
-          if (abortController.signal.aborted) break;
+          if (abortController.signal.aborted) {
+            activityManager.updateStatus(streamId, 'cancelled');
+            break;
+          }
           const errMsg = (err as Error).message;
           stage.status = 'failed';
           stage.failureReason = errMsg.includes('timed out') ? 'timeout' : 'error';
@@ -500,6 +528,9 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
           stage.logs.push(`Unhandled error: ${errMsg}`);
           run.updatedAt = now();
           broadcastRunUpdate(run);
+
+          // Update activity stream with failure
+          activityManager.updateStatus(streamId, 'failed', errMsg);
 
           if (!stage.continueOnError) {
             jobFailed = true;
@@ -992,6 +1023,11 @@ function unwatchPrePushTrigger(): void {
 
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
+/** Check if any pipeline runs are currently in progress */
+function hasActiveRuns(): boolean {
+  return activeRuns.size > 0;
+}
+
 export {
   init,
   setupIPC,
@@ -999,4 +1035,5 @@ export {
   unwatchWorkflows,
   watchPrePushTrigger,
   unwatchPrePushTrigger,
+  hasActiveRuns,
 };

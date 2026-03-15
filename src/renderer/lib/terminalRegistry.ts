@@ -11,9 +11,11 @@
  */
 
 import { IPC } from '../../shared/ipcChannels';
-import type { Terminal, IMarker, IDecoration } from 'xterm';
+import type { Terminal, IMarker, IDecoration, IDisposable, ILinkProvider, ILink, IBufferRange } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import type { SearchAddon } from 'xterm-addon-search';
+import type { WebLinksAddon } from 'xterm-addon-web-links';
+import type { Unicode11Addon } from 'xterm-addon-unicode11';
 
 const { Terminal: XTerminal } = require('xterm') as { Terminal: typeof Terminal };
 const { FitAddon: XFitAddon } = require('xterm-addon-fit') as { FitAddon: typeof FitAddon };
@@ -23,6 +25,8 @@ const { SearchAddon: XSearchAddon } = require('xterm-addon-search') as {
 
 let XWebglAddon: any = null;
 let XCanvasAddon: any = null;
+let XWebLinksAddon: (typeof WebLinksAddon) | null = null;
+let XUnicode11Addon: (typeof Unicode11Addon) | null = null;
 try {
   XWebglAddon = require('xterm-addon-webgl').WebglAddon;
 } catch {
@@ -33,16 +37,21 @@ try {
 } catch {
   /* not available */
 }
+try {
+  XWebLinksAddon = require('xterm-addon-web-links').WebLinksAddon;
+} catch {
+  /* not available */
+}
+try {
+  XUnicode11Addon = require('xterm-addon-unicode11').Unicode11Addon;
+} catch {
+  /* not available */
+}
 
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, shell } = require('electron');
 
-const TERMINAL_THEME = {
-  background: '#0f0f10',
-  foreground: '#e8e6e3',
-  cursor: '#d4a574',
-  cursorAccent: '#0f0f10',
-  selectionBackground: 'rgba(212, 165, 116, 0.25)',
-  selectionForeground: '#e8e6e3',
+/** Static ANSI palette — these rarely change across themes */
+const ANSI_COLORS = {
   black: '#1a1a1c',
   red: '#d47878',
   green: '#7cb382',
@@ -60,6 +69,29 @@ const TERMINAL_THEME = {
   brightCyan: '#86d8d8',
   brightWhite: '#f4f2f0',
 };
+
+/** Read accent-sensitive terminal theme from CSS variables (falls back to defaults) */
+function getTerminalTheme() {
+  const root = document.documentElement;
+  const css = (v: string, fallback: string) => getComputedStyle(root).getPropertyValue(v).trim() || fallback;
+  return {
+    background: css('--color-bg-deep', '#0f0f10'),
+    foreground: css('--color-text-primary', '#e8e6e3'),
+    cursor: css('--color-accent', '#d4a574'),
+    cursorAccent: css('--color-bg-deep', '#0f0f10'),
+    selectionBackground: css('--color-accent-subtle', 'rgba(212, 165, 116, 0.25)'),
+    selectionForeground: css('--color-text-primary', '#e8e6e3'),
+    ...ANSI_COLORS,
+  };
+}
+
+/** Update the theme on all existing terminal instances (called when CSS variables change) */
+export function refreshTerminalThemes(): void {
+  const theme = getTerminalTheme();
+  for (const [, entry] of registry) {
+    entry.terminal.options.theme = theme;
+  }
+}
 
 export interface TerminalInstance {
   terminal: Terminal;
@@ -180,7 +212,7 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
     cursorStyle: options?.cursorStyle ?? 'bar',
     fontSize: options?.fontSize ?? 14,
     fontFamily: options?.fontFamily ?? "'JetBrainsMono Nerd Font', 'CaskaydiaCove Nerd Font', 'FiraCode Nerd Font', 'JetBrains Mono', 'SF Mono', Consolas, monospace",
-    theme: TERMINAL_THEME,
+    theme: getTerminalTheme(),
     allowProposedApi: true,
     allowTransparency: false,
     scrollback: options?.scrollback ?? 10000,
@@ -213,6 +245,32 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
 
   terminal.loadAddon(searchAddon);
   loadGpuRenderer(terminal);
+
+  // Web links — makes URLs clickable, opens in default browser
+  if (XWebLinksAddon) {
+    try {
+      terminal.loadAddon(new XWebLinksAddon((_event: MouseEvent, uri: string) => {
+        try {
+          const { protocol } = new URL(uri);
+          if (protocol === 'https:' || protocol === 'http:') {
+            shell.openExternal(uri);
+          }
+        } catch { /* malformed URL — ignore */ }
+      }));
+    } catch {
+      /* addon failed to load */
+    }
+  }
+
+  // Unicode 11 — fixes emoji width calculation and CJK character rendering
+  if (XUnicode11Addon) {
+    try {
+      terminal.loadAddon(new XUnicode11Addon());
+      terminal.unicode.activeVersion = '11';
+    } catch {
+      /* addon failed to load */
+    }
+  }
 
   // Persistent IPC output listener — keeps scrollback alive even when not visible
   const handler = (_event: unknown, payload: { terminalId: string; data: string }) => {
@@ -380,4 +438,116 @@ export function wasRecentlyActive(id: string, windowMs = 60_000): boolean {
   const entry = registry.get(id);
   if (!entry) return false;
   return (Date.now() - entry.lastActiveTimestamp) < windowMs;
+}
+
+// ---------------------------------------------------------------------------
+// File path link provider — Ctrl+click to open files in editor
+// ---------------------------------------------------------------------------
+
+/** Common source file extensions for link detection */
+const FILE_EXTENSIONS = '(?:ts|tsx|js|jsx|json|md|css|html|yml|yaml|toml|py|go|rs|vue|svelte|rb|sh|bash|zsh|java|kt|swift|c|cpp|h|hpp|cs|php|lua|zig|ex|exs|erl|hrl|hs|ml|mli|r|R|sql|graphql|gql|proto|tf|hcl|Dockerfile|Makefile)';
+
+/**
+ * Regex to detect file paths in terminal output.
+ * Matches:
+ *   - Relative paths: src/renderer/App.tsx, ./package.json, ../utils/helper.ts
+ *   - Paths with line numbers: src/App.tsx:42, src/App.tsx:42:10
+ *   - Windows backslash paths: src\renderer\App.tsx
+ *   - Quoted paths: "src/App.tsx", 'src/App.tsx'
+ *
+ * The regex requires at least one directory separator (/ or \) or a dot-prefixed
+ * relative path to avoid matching bare filenames that are likely not paths.
+ */
+const FILE_PATH_REGEX = new RegExp(
+  // Optional opening quote
+  `(?:^|(?<=[\\s"'(\`]))` +
+  // Path: optional ./ or ../ prefix, then segments with / or \, ending with known extension
+  `((?:\\.{1,2}[/\\\\])?(?:[\\w.@-]+[/\\\\])+[\\w.@-]+\\.${FILE_EXTENSIONS})` +
+  // Optional :line and :col suffixes
+  `(?::(\\d+))?(?::(\\d+))?` +
+  // Optional closing quote or boundary
+  `(?=[\\s"')\`,:;]|$)`,
+  'g'
+);
+
+/**
+ * Register a file path link provider on a terminal instance.
+ * Detects file paths in terminal output and opens them in the editor on Ctrl+click.
+ *
+ * @param terminal The xterm.js Terminal instance
+ * @param getProjectPath Callback to get the current project path (may change over time)
+ * @param openFile Callback to open a file in the editor (receives absolute path and optional line number)
+ * @returns Disposable to unregister the provider
+ */
+export function registerFilePathLinkProvider(
+  terminal: Terminal,
+  getProjectPath: () => string | null,
+  openFile: (filePath: string, line?: number) => void,
+): IDisposable {
+  const provider: ILinkProvider = {
+    provideLinks(bufferLineNumber: number, callback: (links: ILink[] | undefined) => void): void {
+      const line = terminal.buffer.active.getLine(bufferLineNumber - 1);
+      if (!line) {
+        callback(undefined);
+        return;
+      }
+
+      const lineText = line.translateToString(true);
+      const links: ILink[] = [];
+
+      // Create fresh regex per call to avoid shared lastIndex state
+      const regex = new RegExp(FILE_PATH_REGEX.source, 'g');
+      let match: RegExpExecArray | null;
+
+      while ((match = regex.exec(lineText)) !== null) {
+        const fullMatch = match[0];
+        const filePath = match[1];
+        const lineNum = match[2] ? parseInt(match[2], 10) : undefined;
+        // match[3] is column — captured but not used currently
+
+        // Compute 1-based x positions within the line
+        const startX = match.index + 1;
+        const endX = match.index + fullMatch.length;
+
+        const range: IBufferRange = {
+          start: { x: startX, y: bufferLineNumber },
+          end: { x: endX, y: bufferLineNumber },
+        };
+
+        links.push({
+          range,
+          text: fullMatch,
+          decorations: { underline: false, pointerCursor: false },
+
+          activate(event: MouseEvent, _text: string): void {
+            if (!event.ctrlKey && !event.metaKey) return;
+
+            const projectPath = getProjectPath();
+            if (!projectPath) return;
+
+            const normalized = filePath.replace(/\\/g, '/');
+            const resolved = normalized.startsWith('/')
+              ? normalized
+              : `${projectPath}/${normalized}`;
+
+            openFile(resolved, lineNum);
+          },
+
+          hover(event: MouseEvent, _text: string): void {
+            if (event.ctrlKey || event.metaKey) {
+              this.decorations = { underline: true, pointerCursor: true };
+            }
+          },
+
+          leave(_event: MouseEvent, _text: string): void {
+            this.decorations = { underline: false, pointerCursor: false };
+          },
+        });
+      }
+
+      callback(links.length > 0 ? links : undefined);
+    },
+  };
+
+  return terminal.registerLinkProvider(provider);
 }

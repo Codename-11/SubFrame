@@ -25,6 +25,7 @@ import { INTELLIGENCE_FILES, FRAME_FILES, FRAME_TASKS_DIR } from '../shared/fram
 import { execSync } from 'child_process';
 import * as ptyManager from './ptyManager';
 import * as aiToolManager from './aiToolManager';
+import * as activityManager from './activityManager';
 
 // ─── Module State ────────────────────────────────────────────────────────────
 
@@ -575,8 +576,31 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
           if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
           console.log('[Onboarding] Trust prompt accepted');
         }
-      });
+      }, 'onboarding-trust');
     }
+
+    // ── Streaming progress — count output lines and creep progress 50→79% ──
+    let outputLineCount = 0;
+    let lastProgressUpdate = 0; // 0 so first output triggers an immediate update
+    const PROGRESS_INTERVAL_MS = 3000; // throttle progress events
+    const streamHandlerId = 'onboarding-stream';
+
+    ptyManager.addOutputHandler(terminalId, (data) => {
+      if (resolved) return;
+      // eslint-disable-next-line no-control-regex
+      const stripped = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+      const newLines = stripped.split('\n').filter(l => l.trim().length > 0).length;
+      if (newLines > 0) {
+        outputLineCount += newLines;
+        const now = Date.now();
+        if (now - lastProgressUpdate >= PROGRESS_INTERVAL_MS) {
+          lastProgressUpdate = now;
+          // Creep from 50→79 based on output (logarithmic curve, never reaches 80)
+          const creep = Math.min(29, Math.floor(15 * Math.log2(1 + outputLineCount / 10)));
+          sendProgress(`Analyzing... (${outputLineCount} lines received)`, 50 + creep);
+        }
+      }
+    }, streamHandlerId);
 
     // ── Sentinel file polling (all tools) ──────────────────────────
     const sentinelFile = resultFile + '.done';
@@ -1001,6 +1025,7 @@ function setupIPC(ipcMain: IpcMain): void {
 
   // ── RUN_ONBOARDING_ANALYSIS (handle) ─────────────────────────────────────
   ipcMain.handle(IPC.RUN_ONBOARDING_ANALYSIS, async (_event, projectPath: string, options?: OnboardingAnalysisOptions) => {
+    let activityStreamId: string | undefined;
     try {
       // Re-entrancy guard — prevent duplicate analyses for the same project
       if (activeAnalyses.has(projectPath)) {
@@ -1011,8 +1036,21 @@ function setupIPC(ipcMain: IpcMain): void {
         return { terminalId: existing.terminalId };
       }
 
+      // Create activity stream for onboarding analysis
+      const streamId = activityManager.createStream({
+        name: 'Project Analysis',
+        type: 'pty',
+        source: 'onboarding',
+        timeout: getAnalysisTimeout(),
+        heartbeatInterval: 3_000,
+      });
+      activityStreamId = streamId;
+      activityManager.updateStatus(streamId, 'running');
+
       // Phase: detecting
       sendProgress(projectPath, 'detecting', 'Scanning for project intelligence files...', 10);
+      activityManager.emit(streamId, 'Scanning for project intelligence files...');
+      activityManager.updateProgress(streamId, 10);
       const detection = detectProjectIntelligence(projectPath);
 
       if (!detection.worthAnalyzing) {
@@ -1022,13 +1060,16 @@ function setupIPC(ipcMain: IpcMain): void {
           'Not enough project files found for meaningful analysis.',
           10,
         );
+        activityManager.updateStatus(streamId, 'failed', 'Not enough project files found for meaningful analysis.');
         return { terminalId: '' };
       }
 
       // Pre-flight: check AI tool is installed
       const toolCheck = await checkAIToolAvailable();
       if (!toolCheck.available) {
-        sendProgress(projectPath, 'error', toolCheck.error || `AI tool "${toolCheck.command}" not found.`, 15);
+        const toolError = toolCheck.error || `AI tool "${toolCheck.command}" not found.`;
+        sendProgress(projectPath, 'error', toolError, 15);
+        activityManager.updateStatus(streamId, 'failed', toolError);
         return { terminalId: '' };
       }
 
@@ -1037,17 +1078,22 @@ function setupIPC(ipcMain: IpcMain): void {
         try {
           findBashShell();
         } catch (shellErr) {
-          sendProgress(projectPath, 'error', (shellErr as Error).message, 15);
+          const shellErrMsg = (shellErr as Error).message;
+          sendProgress(projectPath, 'error', shellErrMsg, 15);
+          activityManager.updateStatus(streamId, 'failed', shellErrMsg);
           return { terminalId: '' };
         }
       }
 
       // Phase: gathering
       sendProgress(projectPath, 'gathering', `Reading ${detection.detected.length} detected files...`, 30);
+      activityManager.emit(streamId, `Reading ${detection.detected.length} detected files...`);
+      activityManager.updateProgress(streamId, 30);
       const context = gatherContext(projectPath, detection.detected, options?.extraFiles);
 
       if (context.trim().length === 0) {
         sendProgress(projectPath, 'error', 'No readable content found in detected files.', 30);
+        activityManager.updateStatus(streamId, 'failed', 'No readable content found in detected files.');
         return { terminalId: '' };
       }
 
@@ -1056,6 +1102,8 @@ function setupIPC(ipcMain: IpcMain): void {
 
       // Phase: analyzing
       sendProgress(projectPath, 'analyzing', 'Running AI analysis (this may take a minute)...', 50);
+      activityManager.emit(streamId, 'Running AI analysis (this may take a minute)...');
+      activityManager.updateProgress(streamId, 50);
 
       let raw: string;
       let analysisTerminalId = '';
@@ -1076,6 +1124,7 @@ function setupIPC(ipcMain: IpcMain): void {
             terminalId: errTerminalId,
           } satisfies OnboardingProgressEvent);
         }
+        activityManager.updateStatus(streamId, 'failed', msg);
         console.error('[Onboarding] Analysis pipeline error:', err);
         // Save error log
         try {
@@ -1099,6 +1148,8 @@ function setupIPC(ipcMain: IpcMain): void {
 
       // Phase: parsing
       sendProgress(projectPath, 'parsing', 'Parsing AI response...', 80);
+      activityManager.emit(streamId, 'Parsing AI response...');
+      activityManager.updateProgress(streamId, 80);
       const { result: parsed, error: parseError } = parseAnalysisResponse(raw);
 
       // Save analysis log to .subframe/ for debugging
@@ -1135,6 +1186,7 @@ function setupIPC(ipcMain: IpcMain): void {
             terminalId: errorTerminalId,
           } satisfies OnboardingProgressEvent);
         }
+        activityManager.updateStatus(streamId, 'failed', errorMsg);
         return { terminalId: errorTerminalId };
       }
 
@@ -1143,12 +1195,18 @@ function setupIPC(ipcMain: IpcMain): void {
 
       // Phase: done — include serialized results so the renderer hook can parse them
       sendProgress(projectPath, 'done', JSON.stringify(parsed), 100);
+      activityManager.emit(streamId, 'Analysis complete.');
+      activityManager.updateProgress(streamId, 100);
+      activityManager.updateStatus(streamId, 'completed');
 
       // Return the terminal ID so the renderer can show the terminal tab
       return { terminalId: analysisTerminalId };
     } catch (err) {
       console.error('[Onboarding] Unexpected error in analysis pipeline:', err);
       sendProgress(projectPath, 'error', `Unexpected error: ${(err as Error).message}`, 0);
+      if (activityStreamId) {
+        activityManager.updateStatus(activityStreamId, 'failed', `Unexpected error: ${(err as Error).message}`);
+      }
       return { terminalId: '' };
     }
   });
@@ -1260,12 +1318,18 @@ function setupIPC(ipcMain: IpcMain): void {
 
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
+/** Check if any onboarding analyses are currently running */
+function hasActiveAnalyses(): boolean {
+  return activeAnalyses.size > 0;
+}
+
 export {
   init,
   setupIPC,
   detectProjectIntelligence,
   runAnalysisInTerminal,
   checkAIToolAvailable,
+  hasActiveAnalyses,
   // Exported for testing — not part of the public API
   parseAnalysisResponse as _parseAnalysisResponse,
   gatherContext as _gatherContext,

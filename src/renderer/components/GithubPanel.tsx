@@ -3,15 +3,23 @@
  */
 
 import { useState } from 'react';
-import { RefreshCw, GitBranch, ExternalLink, Plus, Trash2, ArrowRight, FolderGit2, AlertCircle, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { RefreshCw, GitBranch, ExternalLink, Plus, Trash2, ArrowRight, FolderGit2, AlertCircle, Check, ChevronDown, ChevronRight, List, FolderTree, Folder, FolderOpen, FileSearch, Copy } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from './ui/context-menu';
 import { cn } from '../lib/utils';
 import { useGithubIssues, useGitBranches, useGitWorktrees, useGitStatus } from '../hooks/useGithub';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
 import type { GitHubIssue, GitHubLabel, GitBranch as GitBranchType, GitFileStatus } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 
@@ -24,7 +32,76 @@ function getContrastColor(hex: string): string {
   return luminance > 0.5 ? '#000000' : '#ffffff';
 }
 
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, shell } = require('electron');
+
+type ViewMode = 'flat' | 'tree';
+
+interface TreeNode {
+  name: string;
+  path: string;
+  isDir: boolean;
+  children: TreeNode[];
+  file?: GitFileStatus;
+}
+
+/** Build a nested tree structure from flat file paths */
+function buildFileTree(files: GitFileStatus[], statusField: 'index' | 'working'): TreeNode[] {
+  const root: TreeNode = { name: '', path: '', isDir: true, children: [] };
+
+  for (const file of files) {
+    const parts = file.path.split(/[/\\]/).filter(Boolean);
+    let current = root;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isFile = i === parts.length - 1;
+      const partPath = parts.slice(0, i + 1).join('/');
+
+      if (isFile) {
+        current.children.push({
+          name: part,
+          path: partPath,
+          isDir: false,
+          children: [],
+          file,
+        });
+      } else {
+        let dir = current.children.find((c) => c.isDir && c.name === part);
+        if (!dir) {
+          dir = { name: part, path: partPath, isDir: true, children: [] };
+          current.children.push(dir);
+        }
+        current = dir;
+      }
+    }
+  }
+
+  // Sort: directories first, then files, alphabetical within each group
+  function sortTree(nodes: TreeNode[]): TreeNode[] {
+    return nodes
+      .map((n) => (n.isDir ? { ...n, children: sortTree(n.children) } : n))
+      .sort((a, b) => {
+        if (a.isDir && !b.isDir) return -1;
+        if (!a.isDir && b.isDir) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }
+
+  return sortTree(root.children);
+}
+
+/** Count total files (leaves) in a tree node */
+function countFiles(nodes: TreeNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    if (node.isDir) {
+      count += countFiles(node.children);
+    } else {
+      count += 1;
+    }
+  }
+  return count;
+}
 
 function formatRelativeTime(dateString: string | undefined): string {
   if (!dateString) return '';
@@ -87,7 +164,83 @@ export function GithubChangesPanel() {
   return <ChangesTab />;
 }
 
-function FileGroup({ label, count, color, dotColor, files, statusField, open, onToggle }: {
+function FileTreeNodeView({ node, depth, color, statusField, expanded, onToggleDir, projectPath }: {
+  node: TreeNode;
+  depth: number;
+  color: string;
+  statusField: 'index' | 'working';
+  expanded: Set<string>;
+  onToggleDir: (path: string) => void;
+  projectPath: string;
+}) {
+  if (node.isDir) {
+    const isOpen = expanded.has(node.path);
+    const fileCount = countFiles(node.children);
+    return (
+      <div>
+        <button
+          onClick={() => onToggleDir(node.path)}
+          className="flex items-center gap-1.5 w-full py-1 hover:bg-bg-hover/30 transition-colors cursor-pointer"
+          style={{ paddingLeft: `${(depth * 16) + 12}px`, paddingRight: '12px' }}
+        >
+          {isOpen ? <ChevronDown size={10} className="text-text-tertiary shrink-0" /> : <ChevronRight size={10} className="text-text-tertiary shrink-0" />}
+          {isOpen ? <FolderOpen size={12} className="text-text-tertiary shrink-0" /> : <Folder size={12} className="text-text-tertiary shrink-0" />}
+          <span className="text-xs text-text-secondary truncate">{node.name}</span>
+          <span className="text-[10px] text-text-tertiary ml-auto shrink-0">{fileCount}</span>
+        </button>
+        {isOpen && node.children.map((child) => (
+          <FileTreeNodeView
+            key={child.path}
+            node={child}
+            depth={depth + 1}
+            color={color}
+            statusField={statusField}
+            expanded={expanded}
+            onToggleDir={onToggleDir}
+            projectPath={projectPath}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // File node
+  const status = node.file?.[statusField] ?? '';
+  const sep = projectPath.includes('\\') ? '\\' : '/';
+  const base = projectPath.endsWith(sep) ? projectPath : projectPath + sep;
+  const absolutePath = base + node.path.replace(/[/\\]/g, sep);
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          className="flex items-center gap-1.5 py-1 border-b border-border-subtle/30 hover:bg-bg-hover/30 transition-colors group cursor-default"
+          style={{ paddingLeft: `${(depth * 16) + 12}px`, paddingRight: '12px' }}
+          title={node.path}
+        >
+          <span className="w-[10px] shrink-0" />
+          <span className={cn('text-[10px] font-mono w-3 shrink-0 text-center font-bold', color)}>
+            {status}
+          </span>
+          <span className="text-xs text-text-primary truncate">{node.name}</span>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="bg-bg-elevated border-border-subtle">
+        <ContextMenuItem onClick={() => useUIStore.getState().setEditorFilePath(absolutePath)} className="text-xs gap-2">
+          <FileSearch className="w-3.5 h-3.5" />Open in Editor
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => navigator.clipboard.writeText(node.path).then(() => toast.success('Path copied'), () => toast.error('Failed to copy path'))} className="text-xs gap-2">
+          <Copy className="w-3.5 h-3.5" />Copy Path
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => shell.showItemInFolder(absolutePath)} className="text-xs gap-2">
+          <ExternalLink className="w-3.5 h-3.5" />Reveal in Explorer
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+function FileGroup({ label, count, color, dotColor, files, statusField, open, onToggle, viewMode, projectPath }: {
   label: string;
   count: number;
   color: string;
@@ -96,7 +249,22 @@ function FileGroup({ label, count, color, dotColor, files, statusField, open, on
   statusField: 'index' | 'working';
   open: boolean;
   onToggle: () => void;
+  viewMode: ViewMode;
+  projectPath: string;
 }) {
+  const [treeExpanded, setTreeExpanded] = useState<Set<string>>(() => new Set());
+
+  function handleToggleDir(path: string) {
+    setTreeExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }
+
+  const tree = viewMode === 'tree' ? buildFileTree(files, statusField) : [];
+
   return (
     <div>
       <button
@@ -108,37 +276,69 @@ function FileGroup({ label, count, color, dotColor, files, statusField, open, on
         <span className={color}>{label}</span>
         <span className="text-text-tertiary ml-auto">{count}</span>
       </button>
-      {open && files.map((file) => {
+      {open && viewMode === 'flat' && files.map((file) => {
         const status = file[statusField];
         const fileName = file.path.split(/[/\\]/).pop() || file.path;
         const dirName = file.path.includes('/') || file.path.includes('\\')
           ? file.path.split(/[/\\]/).slice(0, -1).join('/') + '/'
           : '';
+        const sep = projectPath.includes('\\') ? '\\' : '/';
+        const base = projectPath.endsWith(sep) ? projectPath : projectPath + sep;
+        const absolutePath = base + file.path.replace(/[/\\]/g, sep);
         return (
-          <div
-            key={file.path + statusField}
-            className="flex items-center gap-2 px-3 py-1.5 pl-7 border-b border-border-subtle/30 hover:bg-bg-hover/30 transition-colors group"
-            title={file.path}
-          >
-            <span className={cn('text-[10px] font-mono w-3 shrink-0 text-center font-bold', color)}>
-              {status}
-            </span>
-            <span className="text-xs text-text-secondary truncate">
-              {dirName && <span className="text-text-tertiary">{dirName}</span>}
-              <span className="text-text-primary">{fileName}</span>
-            </span>
-          </div>
+          <ContextMenu key={file.path + statusField}>
+            <ContextMenuTrigger asChild>
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 pl-7 border-b border-border-subtle/30 hover:bg-bg-hover/30 transition-colors group"
+                title={file.path}
+              >
+                <span className={cn('text-[10px] font-mono w-3 shrink-0 text-center font-bold', color)}>
+                  {status}
+                </span>
+                <span className="text-xs text-text-secondary truncate">
+                  {dirName && <span className="text-text-tertiary">{dirName}</span>}
+                  <span className="text-text-primary">{fileName}</span>
+                </span>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="bg-bg-elevated border-border-subtle">
+              <ContextMenuItem onClick={() => useUIStore.getState().setEditorFilePath(absolutePath)} className="text-xs gap-2">
+                <FileSearch className="w-3.5 h-3.5" />Open in Editor
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => navigator.clipboard.writeText(file.path).then(() => toast.success('Path copied'), () => toast.error('Failed to copy path'))} className="text-xs gap-2">
+                <Copy className="w-3.5 h-3.5" />Copy Path
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={() => shell.showItemInFolder(absolutePath)} className="text-xs gap-2">
+                <ExternalLink className="w-3.5 h-3.5" />Reveal in Explorer
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         );
       })}
+      {open && viewMode === 'tree' && tree.map((node) => (
+        <FileTreeNodeView
+          key={node.path}
+          node={node}
+          depth={1}
+          color={color}
+          statusField={statusField}
+          expanded={treeExpanded}
+          onToggleDir={handleToggleDir}
+          projectPath={projectPath}
+        />
+      ))}
     </div>
   );
 }
 
 function ChangesTab() {
+  const projectPath = useProjectStore((s) => s.currentProjectPath) || '';
   const { files, staged, modified, untracked, error, isLoading, refetch } = useGitStatus();
   const [stagedOpen, setStagedOpen] = useState(true);
   const [modifiedOpen, setModifiedOpen] = useState(true);
   const [untrackedOpen, setUntrackedOpen] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('flat');
 
   const stagedFiles = files.filter((f: GitFileStatus) => f.index !== ' ' && f.index !== '?');
   const modifiedFiles = files.filter((f: GitFileStatus) => f.working === 'M' || f.working === 'D');
@@ -156,9 +356,20 @@ function ChangesTab() {
           {untracked > 0 && <span className="text-text-tertiary">?{untracked} untracked</span>}
           {!hasChanges && !isLoading && <span className="text-text-tertiary">Clean</span>}
         </div>
-        <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-6 px-1.5 cursor-pointer">
-          <RefreshCw size={12} className={cn(isLoading && 'animate-spin')} />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setViewMode(viewMode === 'flat' ? 'tree' : 'flat')}
+            className={cn('h-6 px-1.5 cursor-pointer', viewMode === 'tree' && 'text-accent')}
+            title={viewMode === 'flat' ? 'Switch to tree view' : 'Switch to flat view'}
+          >
+            {viewMode === 'flat' ? <FolderTree size={12} /> : <List size={12} />}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-6 px-1.5 cursor-pointer">
+            <RefreshCw size={12} className={cn(isLoading && 'animate-spin')} />
+          </Button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
@@ -185,6 +396,8 @@ function ChangesTab() {
                 statusField="index"
                 open={stagedOpen}
                 onToggle={() => setStagedOpen(!stagedOpen)}
+                viewMode={viewMode}
+                projectPath={projectPath}
               />
             )}
             {modifiedFiles.length > 0 && (
@@ -197,6 +410,8 @@ function ChangesTab() {
                 statusField="working"
                 open={modifiedOpen}
                 onToggle={() => setModifiedOpen(!modifiedOpen)}
+                viewMode={viewMode}
+                projectPath={projectPath}
               />
             )}
             {untrackedFiles.length > 0 && (
@@ -209,6 +424,8 @@ function ChangesTab() {
                 statusField="working"
                 open={untrackedOpen}
                 onToggle={() => setUntrackedOpen(!untrackedOpen)}
+                viewMode={viewMode}
+                projectPath={projectPath}
               />
             )}
           </div>

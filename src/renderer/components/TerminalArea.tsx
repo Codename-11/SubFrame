@@ -264,6 +264,8 @@ export function TerminalArea() {
         terminalRegistry.dispose(data.terminalId);
         removeTerminal(data.terminalId, currentPath);
       }
+      // Clear stale close-confirmation dialog if this terminal was pending
+      setPendingCloseId((prev) => (prev === data.terminalId ? null : prev));
     };
     ipcRenderer.on(IPC.TERMINAL_DESTROYED, handler);
     return () => {

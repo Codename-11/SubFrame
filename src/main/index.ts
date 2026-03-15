@@ -269,7 +269,7 @@ function createWindow(): BrowserWindow {
     const activeAgentTerminals = ptyManager.getTerminalIds().filter(id => ptyManager.isClaudeActive(id));
     const pipelineRunning = pipelineManager.hasActiveRuns();
     const analysisRunning = onboardingManager.hasActiveAnalyses();
-    const hasActiveWork = activeAgentTerminals.length > 0 || pipelineRunning || analysisRunning;
+    const hasActiveWork = activeAgentTerminals.length > 0 || pipelineRunning || analysisRunning || activityManager.hasActiveStreams();
 
     const confirmBeforeClose = settingsManager.getSetting('general.confirmBeforeClose') as boolean ?? true;
 
@@ -303,6 +303,9 @@ function createWindow(): BrowserWindow {
     }
     if (analysisRunning) {
       parts.push('Project analysis is in progress.');
+    }
+    if (activityManager.hasActiveStreams()) {
+      parts.push('Background operations are in progress.');
     }
     const detailMessage = parts.join(' ') + '\nClosing will terminate all running processes.';
 

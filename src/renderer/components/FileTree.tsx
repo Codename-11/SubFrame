@@ -16,6 +16,10 @@ import {
   Copy,
   ExternalLink,
   FileSearch,
+  List,
+  FolderTree,
+  Search,
+  X,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -107,6 +111,59 @@ function dirHasChanges(dirPath: string, projectPath: string, gitMap: Map<string,
   return false;
 }
 
+type ViewMode = 'tree' | 'flat';
+
+/** Flatten tree nodes recursively into a single sorted list of files (no directories) */
+function flattenTree(nodes: FileTreeNode[], projectPath: string): { node: FileTreeNode; relativePath: string }[] {
+  const result: { node: FileTreeNode; relativePath: string }[] = [];
+  function walk(items: FileTreeNode[]) {
+    for (const item of items) {
+      if (item.isDirectory) {
+        if (item.children) walk(item.children);
+      } else {
+        const rel = item.path.replace(projectPath, '').replace(/^[\\/]+/, '').replace(/\\/g, '/');
+        result.push({ node: item, relativePath: rel });
+      }
+    }
+  }
+  walk(nodes);
+  return result.sort((a, b) => a.relativePath.localeCompare(b.relativePath, undefined, { sensitivity: 'base' }));
+}
+
+/** Filter tree nodes to only include files/directories matching the query. Preserves parent structure for matched files. */
+function filterTree(nodes: FileTreeNode[], query: string): FileTreeNode[] {
+  const lowerQuery = query.toLowerCase();
+  const result: FileTreeNode[] = [];
+  for (const node of nodes) {
+    if (node.isDirectory) {
+      const filteredChildren = node.children ? filterTree(node.children, query) : [];
+      if (filteredChildren.length > 0) {
+        result.push({ ...node, children: filteredChildren });
+      }
+    } else {
+      if (node.name.toLowerCase().includes(lowerQuery) || node.path.toLowerCase().includes(lowerQuery)) {
+        result.push(node);
+      }
+    }
+  }
+  return result;
+}
+
+/** Collect all directory paths from a tree (used to auto-expand filtered tree) */
+function collectDirPaths(nodes: FileTreeNode[]): Set<string> {
+  const paths = new Set<string>();
+  function walk(items: FileTreeNode[]) {
+    for (const item of items) {
+      if (item.isDirectory) {
+        paths.add(item.path);
+        if (item.children) walk(item.children);
+      }
+    }
+  }
+  walk(nodes);
+  return paths;
+}
+
 export function FileTree({ onFileOpen }: FileTreeProps) {
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
   const { data: treeData, isLoading } = useFileTree(currentProjectPath);
@@ -115,25 +172,56 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('tree');
+  const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Filtered tree data (for search in tree mode)
+  const filteredTreeData = useMemo(() => {
+    if (!treeData || !searchQuery.trim()) return treeData ?? [];
+    return filterTree(treeData, searchQuery.trim());
+  }, [treeData, searchQuery]);
+
+  // Auto-expand all dirs in filtered tree so matches are visible
+  const searchExpandedPaths = useMemo(() => {
+    if (!searchQuery.trim() || viewMode !== 'tree') return null;
+    return collectDirPaths(filteredTreeData);
+  }, [filteredTreeData, searchQuery, viewMode]);
+
+  // Effective expanded paths: search overrides manual when searching in tree mode
+  const effectiveExpandedPaths = searchExpandedPaths ?? expandedPaths;
+
+  // Flat list of all files (for flat view)
+  const flatItems = useMemo(() => {
+    if (!treeData || !currentProjectPath) return [];
+    const items = flattenTree(treeData, currentProjectPath);
+    if (!searchQuery.trim()) return items;
+    const lowerQuery = searchQuery.toLowerCase();
+    return items.filter((item) => item.relativePath.toLowerCase().includes(lowerQuery));
+  }, [treeData, currentProjectPath, searchQuery]);
 
   // Build a flat list of visible items for keyboard navigation
   const visibleNodes = useMemo(() => {
-    if (!treeData) return [];
+    if (viewMode === 'flat') {
+      return flatItems.map((item) => ({ node: item.node, depth: 0 }));
+    }
+    const sourceData = filteredTreeData;
+    if (!sourceData || sourceData.length === 0) return [];
     const result: { node: FileTreeNode; depth: number }[] = [];
 
     function walk(nodes: FileTreeNode[], depth: number) {
       for (const node of sortNodes(nodes)) {
         result.push({ node, depth });
-        if (node.isDirectory && expandedPaths.has(node.path) && node.children) {
+        if (node.isDirectory && effectiveExpandedPaths.has(node.path) && node.children) {
           walk(node.children, depth + 1);
         }
       }
     }
 
-    walk(treeData, 0);
+    walk(sourceData, 0);
     return result;
-  }, [treeData, expandedPaths]);
+  }, [viewMode, flatItems, filteredTreeData, effectiveExpandedPaths]);
 
   const toggleExpand = useCallback((path: string) => {
     setExpandedPaths((prev) => {
@@ -198,14 +286,14 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
         }
         case 'ArrowRight': {
           e.preventDefault();
-          if (current.node.isDirectory && !expandedPaths.has(current.node.path)) {
+          if (current.node.isDirectory && !effectiveExpandedPaths.has(current.node.path)) {
             toggleExpand(current.node.path);
           }
           break;
         }
         case 'ArrowLeft': {
           e.preventDefault();
-          if (current.node.isDirectory && expandedPaths.has(current.node.path)) {
+          if (current.node.isDirectory && effectiveExpandedPaths.has(current.node.path)) {
             toggleExpand(current.node.path);
           }
           break;
@@ -217,7 +305,7 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
         }
       }
     },
-    [focusedPath, visibleNodes, expandedPaths, toggleExpand, handleFileClick]
+    [focusedPath, visibleNodes, effectiveExpandedPaths, toggleExpand, handleFileClick]
   );
 
   // Scroll focused item into view
@@ -252,37 +340,117 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   }
 
   return (
-    <ScrollArea className="flex-1 min-h-0">
-      <div
-        ref={containerRef}
-        className="py-1 outline-none"
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
-        onFocus={() => {
-          if (!focusedPath && visibleNodes.length > 0) {
-            setFocusedPath(visibleNodes[0].node.path);
-          }
-        }}
-      >
-        {sortNodes(treeData).map((node) => (
-          <TreeNode
-            key={node.path}
-            node={node}
-            depth={0}
-            expandedPaths={expandedPaths}
-            activeFilePath={activeFilePath}
-            focusedPath={focusedPath}
-            onToggle={toggleExpand}
-            onClick={handleFileClick}
-            onCopyPath={handleCopyPath}
-            onRevealInExplorer={handleRevealInExplorer}
-            onFileOpen={onFileOpen}
-            gitStatusMap={gitStatusMap}
-            projectPath={currentProjectPath ?? ''}
+    <div className="flex-1 min-h-0 flex flex-col">
+      {/* Header: view toggle + search */}
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border-subtle">
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => setViewMode('tree')}
+            className={`p-1 rounded transition-colors ${
+              viewMode === 'tree'
+                ? 'text-accent bg-accent-subtle'
+                : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
+            }`}
+            title="Tree view"
+            aria-label="Tree view"
+          >
+            <FolderTree className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setViewMode('flat')}
+            className={`p-1 rounded transition-colors ${
+              viewMode === 'flat'
+                ? 'text-accent bg-accent-subtle'
+                : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
+            }`}
+            title="Flat list view"
+            aria-label="Flat list view"
+          >
+            <List className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="flex-1 relative">
+          <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-tertiary pointer-events-none" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filter files..."
+            className="w-full h-6 pl-5 pr-6 text-xs bg-bg-secondary border border-border-subtle rounded
+              text-text-primary placeholder:text-text-muted
+              focus:outline-none focus:border-accent/50 transition-colors"
           />
-        ))}
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-tertiary hover:text-text-secondary rounded transition-colors"
+              title="Clear search"
+              aria-label="Clear search"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
-    </ScrollArea>
+
+      <ScrollArea className="flex-1 min-h-0">
+        <div
+          ref={containerRef}
+          className="py-1 outline-none"
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
+          onFocus={() => {
+            if (!focusedPath && visibleNodes.length > 0) {
+              setFocusedPath(visibleNodes[0].node.path);
+            }
+          }}
+        >
+          {viewMode === 'tree' ? (
+            /* Tree view */
+            sortNodes(filteredTreeData).map((node) => (
+              <TreeNode
+                key={node.path}
+                node={node}
+                depth={0}
+                expandedPaths={effectiveExpandedPaths}
+                activeFilePath={activeFilePath}
+                focusedPath={focusedPath}
+                onToggle={toggleExpand}
+                onClick={handleFileClick}
+                onCopyPath={handleCopyPath}
+                onRevealInExplorer={handleRevealInExplorer}
+                onFileOpen={onFileOpen}
+                gitStatusMap={gitStatusMap}
+                projectPath={currentProjectPath ?? ''}
+              />
+            ))
+          ) : (
+            /* Flat list view */
+            flatItems.map((item) => (
+              <FlatFileRow
+                key={item.node.path}
+                node={item.node}
+                relativePath={item.relativePath}
+                isActive={activeFilePath === item.node.path}
+                isFocused={focusedPath === item.node.path}
+                onClick={handleFileClick}
+                onCopyPath={handleCopyPath}
+                onRevealInExplorer={handleRevealInExplorer}
+                onFileOpen={onFileOpen}
+                gitStatusMap={gitStatusMap}
+                projectPath={currentProjectPath ?? ''}
+              />
+            ))
+          )}
+          {visibleNodes.length === 0 && searchQuery && (
+            <div className="flex items-center justify-center text-text-tertiary text-xs py-6">
+              No matching files
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 
@@ -423,5 +591,92 @@ function TreeNode({
         </>
       )}
     </>
+  );
+}
+
+interface FlatFileRowProps {
+  node: FileTreeNode;
+  relativePath: string;
+  isActive: boolean;
+  isFocused: boolean;
+  onClick: (node: FileTreeNode) => void;
+  onCopyPath: (path: string) => void;
+  onRevealInExplorer: (path: string) => void;
+  onFileOpen?: (filePath: string) => void;
+  gitStatusMap: Map<string, GitFileStatus>;
+  projectPath: string;
+}
+
+function FlatFileRow({
+  node,
+  relativePath,
+  isActive,
+  isFocused,
+  onClick,
+  onCopyPath,
+  onRevealInExplorer,
+  onFileOpen,
+  gitStatusMap,
+  projectPath,
+}: FlatFileRowProps) {
+  const Icon = getFileIcon(node.name);
+  const relPath = node.path.replace(projectPath, '').replace(/^[\\/]+/, '').replace(/\\/g, '/');
+  const gitFile = gitStatusMap.get(relPath);
+  const gitIndicator = gitFile ? getGitIndicator(gitFile) : null;
+
+  // Split relativePath into directory prefix and filename
+  const lastSlash = relativePath.lastIndexOf('/');
+  const dirPrefix = lastSlash > -1 ? relativePath.slice(0, lastSlash + 1) : '';
+  const fileName = lastSlash > -1 ? relativePath.slice(lastSlash + 1) : relativePath;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          data-path={node.path}
+          className={`flex items-center gap-1.5 py-[3px] px-2 cursor-pointer text-xs select-none
+            transition-colors
+            ${isActive ? 'bg-accent-subtle text-text-primary' : 'text-text-secondary hover:bg-bg-hover'}
+            ${isFocused ? 'ring-1 ring-inset ring-accent/40' : ''}
+          `}
+          onClick={() => onClick(node)}
+        >
+          <Icon className="w-3.5 h-3.5 flex-shrink-0 text-text-tertiary" />
+          <span className="truncate">
+            {dirPrefix && <span className="text-text-muted">{dirPrefix}</span>}
+            <span className="text-text-primary">{fileName}</span>
+          </span>
+          {gitIndicator && (
+            <span className={`ml-auto flex-shrink-0 text-[10px] font-mono font-bold ${gitIndicator.color}`} title={gitIndicator.title} aria-label={`File status: ${gitIndicator.title}`}>
+              {gitIndicator.label}
+            </span>
+          )}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="bg-bg-elevated border-border-subtle">
+        <ContextMenuItem
+          onClick={() => onFileOpen?.(node.path)}
+          className="text-xs gap-2"
+        >
+          <FileSearch className="w-3.5 h-3.5" />
+          Open in Editor
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onRevealInExplorer(node.path)}
+          className="text-xs gap-2"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          Reveal in Explorer
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={() => onCopyPath(node.path)}
+          className="text-xs gap-2"
+        >
+          <Copy className="w-3.5 h-3.5" />
+          Copy Path
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

@@ -918,6 +918,8 @@ export interface WorkflowJob {
 
 export interface WorkflowDefinition {
   name: string;
+  /** Human-readable description shown in the pipeline selector */
+  description?: string;
   /** On-disk filename (e.g. "health-check.yml"). Set by listWorkflows. */
   filename?: string;
   on: {

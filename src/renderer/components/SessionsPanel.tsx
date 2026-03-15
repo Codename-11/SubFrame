@@ -17,6 +17,13 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from './ui/context-menu';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -314,177 +321,205 @@ export function SessionsPanel() {
               const isExpanded = expandedSlug === s.slug && hasSegments;
 
               return (
-                <div
-                  key={s.sessionId}
-                  className="border-b border-border-subtle/50"
-                >
-                  {/* Session row */}
-                  <div
-                    className={cn(
-                      'flex items-start gap-3 px-3 py-2.5 hover:bg-bg-hover/30 transition-colors group',
-                      hasSegments && 'cursor-pointer',
-                    )}
-                    onClick={() => {
-                      if (!hasSegments) return;
-                      setExpandedSlug(prev => prev === s.slug ? null : s.slug);
-                      setShowAllSegments(false);
-                    }}
-                  >
-                    {/* Expand chevron or state dot */}
-                    {hasSegments ? (
-                      <ChevronRight
-                        size={14}
-                        className={cn(
-                          'shrink-0 mt-1 text-text-tertiary transition-transform duration-200',
-                          isExpanded && 'rotate-90',
-                        )}
-                      />
-                    ) : (
-                      <div className={cn('w-2 h-2 rounded-full shrink-0 mt-1.5', STATE_DOT[s.state])} title={s.state} />
-                    )}
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      {isRenaming ? (
-                        <RenameInput
-                          initial={s.friendlyName || ''}
-                          onSubmit={(name) => handleRename(s, name)}
-                          onCancel={() => setRenamingId(null)}
-                        />
-                      ) : (
-                        <>
-                          <div className="text-xs font-medium text-text-primary line-clamp-2 break-words">{displayTitle}</div>
-                          {originalName && (
-                            <div className="text-[10px] text-text-tertiary truncate mt-0.5 italic opacity-60">
-                              {originalName}
-                            </div>
-                          )}
-                        </>
-                      )}
-                      <div className="flex items-center gap-2 mt-1 text-[10px] text-text-tertiary flex-wrap min-w-0">
-                        <span className="shrink-0">{formatRelativeTime(modified || s.created)}</span>
-                        <span className="shrink-0">{msgCount} msg{msgCount !== 1 ? 's' : ''}</span>
-                        {hasSegments && (
-                          <span className="text-text-muted shrink-0">{s.segmentCount} segments</span>
-                        )}
-                        {branch && (
-                          <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-bg-hover text-text-secondary truncate max-w-[120px]">
-                            {branch}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
+                <ContextMenu key={s.sessionId}>
+                  <ContextMenuTrigger asChild>
                     <div
-                      className="flex items-center gap-0.5 shrink-0 mt-0.5 opacity-50 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => e.stopPropagation()}
+                      className="border-b border-border-subtle/50"
                     >
-                      <button
-                        onClick={() => resumeSession(s)}
-                        className="p-1.5 rounded text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer"
-                        title="Resume session"
+                      {/* Session row */}
+                      <div
+                        className={cn(
+                          'flex items-start gap-3 px-3 py-2.5 hover:bg-bg-hover/30 transition-colors group',
+                          hasSegments && 'cursor-pointer',
+                        )}
+                        onClick={() => {
+                          if (!hasSegments) return;
+                          setExpandedSlug(prev => prev === s.slug ? null : s.slug);
+                          setShowAllSegments(false);
+                        }}
                       >
-                        <Play size={14} />
-                      </button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                            title="Session options"
-                          >
-                            <ChevronDown size={12} />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="bg-bg-primary border-border-subtle min-w-[160px]"
-                        >
-                          <DropdownMenuItem
-                            onClick={() => resumeSession(s)}
-                            className="text-xs cursor-pointer"
-                          >
-                            <Play size={12} className="mr-1.5" />
-                            {defaultStartCommand} (default)
-                          </DropdownMenuItem>
-                          {defaultStartCommand !== 'claude' && (
-                            <DropdownMenuItem
-                              onClick={() => resumeSession(s, 'claude')}
-                              className="text-xs cursor-pointer"
-                            >
-                              <Play size={12} className="mr-1.5 opacity-0" />
-                              claude
-                            </DropdownMenuItem>
+                        {/* Expand chevron or state dot */}
+                        {hasSegments ? (
+                          <ChevronRight
+                            size={14}
+                            className={cn(
+                              'shrink-0 mt-1 text-text-tertiary transition-transform duration-200',
+                              isExpanded && 'rotate-90',
+                            )}
+                          />
+                        ) : (
+                          <div className={cn('w-2 h-2 rounded-full shrink-0 mt-1.5', STATE_DOT[s.state])} title={s.state} />
+                        )}
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {isRenaming ? (
+                            <RenameInput
+                              initial={s.friendlyName || ''}
+                              onSubmit={(name) => handleRename(s, name)}
+                              onCancel={() => setRenamingId(null)}
+                            />
+                          ) : (
+                            <>
+                              <div className="text-xs font-medium text-text-primary line-clamp-2 break-words">{displayTitle}</div>
+                              {originalName && (
+                                <div className="text-[10px] text-text-tertiary truncate mt-0.5 italic opacity-60">
+                                  {originalName}
+                                </div>
+                              )}
+                            </>
                           )}
-                          <DropdownMenuItem
-                            onClick={() => {
-                              // Find correlated terminal for this session
-                              const { terminals: allTerminals } = useTerminalStore.getState();
-                              let tid: string | undefined;
-                              for (const [, info] of allTerminals) {
-                                if (info.claudeSessionId === s.sessionId) { tid = info.id; break; }
-                              }
-                              sendCommandToTerminal(`${defaultStartCommand} --continue`, tid);
-                            }}
-                            className="text-xs cursor-pointer"
-                          >
-                            <Play size={12} className="mr-1.5 opacity-0" />
-                            {defaultStartCommand} --continue
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              const cmd = window.prompt('Enter command to resume session:', defaultStartCommand);
-                              if (cmd?.trim()) resumeSession(s, cmd.trim());
-                            }}
-                            className="text-xs cursor-pointer"
-                          >
-                            <Play size={12} className="mr-1.5 opacity-0" />
-                            Custom command...
-                          </DropdownMenuItem>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-text-tertiary flex-wrap min-w-0">
+                            <span className="shrink-0">{formatRelativeTime(modified || s.created)}</span>
+                            <span className="shrink-0">{msgCount} msg{msgCount !== 1 ? 's' : ''}</span>
+                            {hasSegments && (
+                              <span className="text-text-muted shrink-0">{s.segmentCount} segments</span>
+                            )}
+                            {branch && (
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-bg-hover text-text-secondary truncate max-w-[120px]">
+                                {branch}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
 
-                          <DropdownMenuSeparator />
+                        {/* Actions */}
+                        <div
+                          className="flex items-center gap-0.5 shrink-0 mt-0.5 opacity-50 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => resumeSession(s)}
+                            className="p-1.5 rounded text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors cursor-pointer"
+                            title="Resume session"
+                          >
+                            <Play size={14} />
+                          </button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                                title="Session options"
+                              >
+                                <ChevronDown size={12} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="bg-bg-primary border-border-subtle min-w-[160px]"
+                            >
+                              <DropdownMenuItem
+                                onClick={() => resumeSession(s)}
+                                className="text-xs cursor-pointer"
+                              >
+                                <Play size={12} className="mr-1.5" />
+                                {defaultStartCommand} (default)
+                              </DropdownMenuItem>
+                              {defaultStartCommand !== 'claude' && (
+                                <DropdownMenuItem
+                                  onClick={() => resumeSession(s, 'claude')}
+                                  className="text-xs cursor-pointer"
+                                >
+                                  <Play size={12} className="mr-1.5 opacity-0" />
+                                  claude
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  // Find correlated terminal for this session
+                                  const { terminals: allTerminals } = useTerminalStore.getState();
+                                  let tid: string | undefined;
+                                  for (const [, info] of allTerminals) {
+                                    if (info.claudeSessionId === s.sessionId) { tid = info.id; break; }
+                                  }
+                                  sendCommandToTerminal(`${defaultStartCommand} --continue`, tid);
+                                }}
+                                className="text-xs cursor-pointer"
+                              >
+                                <Play size={12} className="mr-1.5 opacity-0" />
+                                {defaultStartCommand} --continue
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  const cmd = window.prompt('Enter command to resume session:', defaultStartCommand);
+                                  if (cmd?.trim()) resumeSession(s, cmd.trim());
+                                }}
+                                className="text-xs cursor-pointer"
+                              >
+                                <Play size={12} className="mr-1.5 opacity-0" />
+                                Custom command...
+                              </DropdownMenuItem>
 
-                          <DropdownMenuItem
-                            onClick={() => setRenamingId(s.sessionId)}
-                            className="text-xs cursor-pointer"
+                              <DropdownMenuSeparator />
+
+                              <DropdownMenuItem
+                                onClick={() => setRenamingId(s.sessionId)}
+                                className="text-xs cursor-pointer"
+                              >
+                                <Pencil size={12} className="mr-1.5" />
+                                Rename...
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget(s)}
+                                className="text-xs cursor-pointer text-error focus:text-error"
+                              >
+                                <Trash2 size={12} className="mr-1.5" />
+                                Delete session
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+
+                      {/* Expandable segment timeline */}
+                      <AnimatePresence initial={false}>
+                        {isExpanded && s.segments && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                            className="overflow-hidden"
                           >
-                            <Pencil size={12} className="mr-1.5" />
-                            Rename...
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDeleteTarget(s)}
-                            className="text-xs cursor-pointer text-error focus:text-error"
-                          >
-                            <Trash2 size={12} className="mr-1.5" />
-                            Delete session
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <SegmentTimeline
+                              segments={s.segments}
+                              showAll={showAllSegments}
+                              onToggleShowAll={() => setShowAllSegments(prev => !prev)}
+                              onResume={(seg) => {
+                                resumeSession(s, undefined, seg.sessionId);
+                              }}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  </div>
-
-                  {/* Expandable segment timeline */}
-                  <AnimatePresence initial={false}>
-                    {isExpanded && s.segments && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2, ease: 'easeInOut' }}
-                        className="overflow-hidden"
-                      >
-                        <SegmentTimeline
-                          segments={s.segments}
-                          showAll={showAllSegments}
-                          onToggleShowAll={() => setShowAllSegments(prev => !prev)}
-                          onResume={(seg) => {
-                            resumeSession(s, undefined, seg.sessionId);
-                          }}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="bg-bg-elevated border-border-subtle">
+                    <ContextMenuItem
+                      onClick={() => resumeSession(s)}
+                      className="text-xs gap-2"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      Resume
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => setRenamingId(s.sessionId)}
+                      className="text-xs gap-2"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Rename
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      onClick={() => setDeleteTarget(s)}
+                      variant="destructive"
+                      className="text-xs gap-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               );
             })}
           </div>

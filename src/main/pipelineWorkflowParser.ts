@@ -54,6 +54,7 @@ export function parseWorkflow(content: string): WorkflowDefinition {
 
   return {
     name: raw.name as string,
+    description: typeof raw.description === 'string' ? raw.description : undefined,
     on: raw.on as WorkflowDefinition['on'],
     jobs: raw.jobs as WorkflowDefinition['jobs'],
   };
