@@ -255,6 +255,7 @@ export const IPC = {
   // CLI Integration (main → renderer)
   CLI_OPEN_FILE: 'cli-open-file',
   CLI_OPEN_PROJECT: 'cli-open-project',
+  INSTALL_CLI: 'install-cli',
 
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
@@ -695,8 +696,10 @@ export interface ClaudeUsageData {
 
 /** Shell info */
 export interface ShellInfo {
+  id: string;
   name: string;
   path: string;
+  isDefault?: boolean;
 }
 
 /** Frame config */
@@ -1075,6 +1078,12 @@ export interface IPCHandleMap {
   [IPC.ACTIVITY_CANCEL]: {
     args: [streamId: string];
     return: { success: boolean };
+  };
+
+  // CLI Install
+  [IPC.INSTALL_CLI]: {
+    args: [];
+    return: { success: boolean; path?: string; message: string };
   };
 }
 

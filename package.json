@@ -192,6 +192,12 @@
     "directories": {
       "output": "release"
     },
+    "extraResources": [
+      {
+        "from": "scripts/subframe-cli.js",
+        "to": "scripts/subframe-cli.js"
+      }
+    ],
     "files": [
       "index.html",
       "RELEASE_NOTES.md",

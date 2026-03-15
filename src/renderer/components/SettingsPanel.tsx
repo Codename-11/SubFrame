@@ -15,7 +15,7 @@ import {
 import { useUIStore } from '../stores/useUIStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke } from '../lib/ipc';
-import { IPC } from '../../shared/ipcChannels';
+import { IPC, type ShellInfo } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 import { EDITOR_THEMES } from '../lib/codemirror-theme';
 import { motion } from 'framer-motion';
@@ -28,6 +28,7 @@ import {
   getThemeById,
 } from '../../shared/themeTypes';
 
+const { ipcRenderer } = require('electron');
 const APP_VERSION = require('../../../package.json').version;
 
 const BUILTIN_TOOL_IDS = new Set(['claude', 'codex', 'gemini']);
@@ -75,7 +76,7 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Show hidden files (.dotfiles)', 'Confirm before closing',
     'Auto-poll usage', 'Grid overflow auto-switch',
     'Highlight user messages', 'Default Project Directory',
-    'Startup', 'Behavior', 'Paths', 'Git', 'Auto-fetch',
+    'Startup', 'Behavior', 'Paths', 'Git', 'Auto-fetch', 'Install CLI', 'CLI',
   ],
   terminal: [
     'Font Size', 'Font Family', 'Line Height', 'Scrollback Lines',
@@ -256,6 +257,7 @@ export function SettingsPanel() {
   const [cursorBlink, setCursorBlink] = useState(true);
   const [cursorStyle, setCursorStyle] = useState('bar');
   const [defaultShell, setDefaultShell] = useState('');
+  const [availableShells, setAvailableShells] = useState<ShellInfo[]>([]);
   const [bellSound, setBellSound] = useState(false);
   const [copyOnSelect, setCopyOnSelect] = useState(false);
 
@@ -326,6 +328,16 @@ export function SettingsPanel() {
       setAiCommand(customCmd || activeTool.command);
     }
   }, [settings, aiToolConfig]);
+
+  // Fetch available shells for the terminal shell dropdown
+  useEffect(() => {
+    const handler = (_event: unknown, data: { shells: ShellInfo[]; success: boolean }) => {
+      if (data.success) setAvailableShells(data.shells);
+    };
+    ipcRenderer.on(IPC.AVAILABLE_SHELLS_DATA, handler);
+    ipcRenderer.send(IPC.GET_AVAILABLE_SHELLS);
+    return () => { ipcRenderer.removeListener(IPC.AVAILABLE_SHELLS_DATA, handler); };
+  }, []);
 
   const general = (settings.general as Record<string, unknown>) || {};
   const autoCreateTerminal = (general.autoCreateTerminal as boolean) || false;
@@ -936,6 +948,37 @@ export function SettingsPanel() {
                     )}
                   </SettingGroup>
                 )}
+
+                {/* CLI group */}
+                {(matchesSearch('Install CLI') || matchesSearch('CLI')) && (
+                  <SettingGroup label="CLI">
+                    <div data-setting-label="Install CLI">
+                      <div className="text-sm text-text-primary mb-1">SubFrame CLI</div>
+                      <div className="text-xs text-text-tertiary mb-2">
+                        Install the <code className="text-accent">subframe</code> command to open files and projects from your terminal.
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        onClick={async () => {
+                          try {
+                            const result = await typedInvoke(IPC.INSTALL_CLI);
+                            if (result.success) {
+                              toast.success(result.message);
+                            } else {
+                              toast.error(result.message);
+                            }
+                          } catch {
+                            toast.error('Failed to install CLI');
+                          }
+                        }}
+                      >
+                        Install CLI to PATH
+                      </Button>
+                    </div>
+                  </SettingGroup>
+                )}
               </>
             )}
 
@@ -1037,16 +1080,29 @@ export function SettingsPanel() {
                 {/* Behavior group */}
                 {(matchesSearch('Default Shell') || matchesSearch('Bell Sound') || matchesSearch('Copy on Select') || matchesSearch('Behavior')) && (
                   <SettingGroup label="Behavior">
-                    {matchesSearch('Default Shell') && (
-                      <div data-setting-label="Default Shell">
-                        <SettingInput
-                          label="Default Shell"
-                          value={defaultShell}
-                          onChange={setDefaultShell}
-                          placeholder="System default"
-                        />
-                        <div className="text-xs text-text-tertiary mt-1">Leave empty to use the system default shell</div>
-                      </div>
+                    {matchesSearch('Default Shell') && availableShells.length > 0 && (
+                      <SettingSelect
+                        label="Default Shell"
+                        description="Shell used for new terminals"
+                        value={defaultShell}
+                        onChange={(v) => setDefaultShell(v)}
+                        options={[
+                          { value: '', label: 'System Default' },
+                          ...availableShells.map((s) => ({
+                            value: s.path,
+                            label: `${s.name}${s.isDefault ? ' (default)' : ''}`,
+                          })),
+                        ]}
+                      />
+                    )}
+                    {matchesSearch('Default Shell') && availableShells.length === 0 && (
+                      <SettingInput
+                        label="Default Shell"
+                        description="Leave empty for system default"
+                        value={defaultShell}
+                        onChange={setDefaultShell}
+                        placeholder="System default"
+                      />
                     )}
                     {matchesSearch('Bell Sound') && (
                       <SettingToggle

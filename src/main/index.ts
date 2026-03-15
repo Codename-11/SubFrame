@@ -6,6 +6,7 @@
 import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { IPC } from '../shared/ipcChannels';
 
 // Import modules
@@ -444,6 +445,51 @@ function setupAllIPC(): void {
       content = `# SubFrame v${version}\n\nNo release notes available for this version.`;
     }
     return { version, content };
+  });
+
+  // CLI install — create a shell wrapper in a PATH-accessible location
+  ipcMain.handle(IPC.INSTALL_CLI, async () => {
+    try {
+      const cliSource = path.join(__dirname, '..', 'scripts', 'subframe-cli.js');
+
+      if (process.platform === 'win32') {
+        // Windows: create a batch file in a common PATH location
+        const appData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+        const binDir = path.join(appData, 'SubFrame', 'bin');
+        if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
+
+        const batPath = path.join(binDir, 'subframe.cmd');
+        const scriptPath = app.isPackaged
+          ? path.join(process.resourcesPath!, 'scripts', 'subframe-cli.js')
+          : cliSource;
+        fs.writeFileSync(batPath, `@echo off\nnode "${scriptPath}" %*\n`, 'utf8');
+
+        return {
+          success: true,
+          path: binDir,
+          message: `CLI installed to ${binDir}. Add this directory to your PATH if not already present.`
+        };
+      } else {
+        // macOS/Linux: symlink to /usr/local/bin
+        const linkPath = '/usr/local/bin/subframe';
+        const scriptPath = app.isPackaged
+          ? path.join(process.resourcesPath!, 'scripts', 'subframe-cli.js')
+          : cliSource;
+
+        // Remove existing symlink if present
+        try { fs.unlinkSync(linkPath); } catch { /* ignore */ }
+        fs.symlinkSync(scriptPath, linkPath);
+        // Make executable
+        fs.chmodSync(scriptPath, '755');
+
+        return { success: true, path: linkPath, message: `CLI installed to ${linkPath}` };
+      }
+    } catch (err) {
+      return {
+        success: false,
+        message: `Failed to install CLI: ${(err as Error).message}. You may need to run with elevated permissions.`
+      };
+    }
   });
 
   // Legacy single-terminal input handler
