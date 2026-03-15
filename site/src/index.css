@@ -1,0 +1,217 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-bg-deep: #0e0e12;
+  --color-bg-primary: #13131a;
+  --color-bg-secondary: #1a1a24;
+  --color-bg-elevated: #22222e;
+  --color-bg-card: #16161e;
+  --color-text-primary: #eeeef0;
+  --color-text-secondary: #9d9db0;
+  --color-text-tertiary: #6b6b80;
+  --color-accent-purple: #a855f7;
+  --color-accent-pink: #e040a0;
+  --color-accent-cyan: #38d9f5;
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-deep);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+:root {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.7 0.2 290);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.7 0.2 290);
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+  --color-1: oklch(66.2% 0.225 25.9);
+  --color-2: oklch(60.4% 0.26 302);
+  --color-3: oklch(69.6% 0.165 251);
+  --color-4: oklch(80.2% 0.134 225);
+  --color-5: oklch(90.7% 0.231 133);
+}
+
+@theme inline {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --animate-line-shadow: line-shadow 15s linear infinite;
+  @keyframes line-shadow {
+  0% {
+    background-position: 0 0;
+    }
+  100% {
+    background-position: 100% -100%;
+    }
+  }
+  --animate-pulse: pulse var(--duration) ease-out infinite
+;
+  @keyframes pulse {
+  0%, 100% {
+    boxShadow: 0 0 0 0 var(--pulse-color);
+    }
+  50% {
+    boxShadow: 0 0 0 8px var(--pulse-color);
+    }
+  }
+  --animate-aurora: aurora 8s ease-in-out infinite alternate;
+  @keyframes aurora {
+  0% {
+    background-position: 0% 50%;
+    transform: rotate(-5deg) scale(0.9);
+    }
+  25% {
+    background-position: 50% 100%;
+    transform: rotate(5deg) scale(1.1);
+    }
+  50% {
+    background-position: 100% 50%;
+    transform: rotate(-3deg) scale(0.95);
+    }
+  75% {
+    background-position: 50% 0%;
+    transform: rotate(3deg) scale(1.05);
+    }
+  100% {
+    background-position: 0% 50%;
+    transform: rotate(-5deg) scale(0.9);
+    }
+  }
+  --animate-rainbow: rainbow var(--speed, 2s) infinite linear;
+  --color-color-5: var(--color-5);
+  --color-color-4: var(--color-4);
+  --color-color-3: var(--color-3);
+  --color-color-2: var(--color-2);
+  --color-color-1: var(--color-1);
+  @keyframes rainbow {
+  0% {
+    background-position: 0%;
+    }
+  100% {
+    background-position: 200%;
+    }
+  }}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* LineShadowText animation — standalone keyframe for inline style usage */
+@keyframes line-shadow {
+  0% { background-position: 0 0; }
+  100% { background-position: 100% -100%; }
+}
+
+/* Aurora gradient text for rotating hero words */
+.aurora-rotate {
+  background: linear-gradient(135deg, #a855f7, #e040a0, #38d9f5, #a855f7);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: aurora-shift 8s ease infinite;
+  padding: 4px 0.15em;
+  margin: -4px -0.15em;
+}
+
+@keyframes aurora-shift {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 200% center; }
+}
+
+.dark {
+  --color-1: oklch(66.2% 0.225 25.9);
+  --color-2: oklch(60.4% 0.26 302);
+  --color-3: oklch(69.6% 0.165 251);
+  --color-4: oklch(80.2% 0.134 225);
+  --color-5: oklch(90.7% 0.231 133);
+}
