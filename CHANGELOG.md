@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2-beta] - 2026-03-15
+
+### Fixed
+- **CLI install auto-PATH** — Windows installer now automatically adds SubFrame\bin to user PATH via PowerShell registry API
+- **CLI uninstall** — "Uninstall" button in Settings removes the CLI command and cleans the PATH entry
+
 ## [0.5.1-beta] - 2026-03-15
 
 ### Fixed
@@ -388,7 +394,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.1-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.2-beta...HEAD
+[0.5.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.1-beta...v0.5.2-beta
 [0.5.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.0-beta...v0.5.1-beta
 [0.5.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.4.0-beta...v0.5.0-beta
 [0.4.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.3.1-beta...v0.4.0-beta

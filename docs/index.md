@@ -31,7 +31,7 @@ head:
         "operatingSystem": "Windows (stable), macOS (beta), Linux (beta)",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "author": { "@type": "Organization", "name": "Axiom-Labs", "url": "https://github.com/Codename-11/SubFrame" },
-        "softwareVersion": "0.5.1-beta",
+        "softwareVersion": "0.5.2-beta",
         "license": "https://spdx.org/licenses/MIT.html",
         "codeRepository": "https://github.com/Codename-11/SubFrame"
       }
