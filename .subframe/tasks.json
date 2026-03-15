@@ -1,33 +1,13 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking index (SubFrame's task system)",
+    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
     "lastUpdated": "2026-03-15",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-15T02:56:51.851Z",
-  "taskSchema": {
-    "_comment": "This schema shows the expected structure for each task",
-    "id": "unique-id (task-xxx format)",
-    "title": "Short actionable title (max 60 chars)",
-    "description": "Claude's detailed explanation - what, how, which files affected",
-    "userRequest": "Original user prompt/request - copy verbatim",
-    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
-    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
-    "status": "pending | in_progress | completed",
-    "priority": "high | medium | low",
-    "category": "feature | fix | refactor | docs | test",
-    "context": "Session date and context",
-    "blockedBy": "Array of task IDs this task is blocked by",
-    "blocks": "Array of task IDs this task blocks",
-    "steps": "Array of { label, completed } step objects",
-    "private": "boolean — if true, task is stored locally and excluded from git",
-    "createdAt": "ISO timestamp",
-    "updatedAt": "ISO timestamp",
-    "completedAt": "ISO timestamp | null"
-  },
+  "lastUpdated": "2026-03-15T18:50:24.642Z",
   "tasks": {
     "pending": [
       {
@@ -99,29 +79,6 @@
         "completedAt": null,
         "description": "Our current approach for Usage Stats (at least for Claude) works - however it results in frequent 'Usage Unavailable'. We need to research this and ensure we're using the best approach.",
         "steps": []
-      },
-      {
-        "id": "task-1773496619358-rlfv6r601",
-        "title": "Workspace Enhancements",
-        "status": "pending",
-        "priority": "medium",
-        "category": "enhancement",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-14T13:56:59.358Z",
-        "updatedAt": "2026-03-14T13:56:59.358Z",
-        "completedAt": null,
-        "description": "Workspaces should be enhanced for UI/UX.",
-        "steps": [
-          {
-            "completed": false,
-            "label": "When creating a new workspace present the naming modal"
-          },
-          {
-            "completed": false,
-            "label": "Allow workspaces to be re-ordered"
-          }
-        ]
       },
       {
         "id": "task-m6",
@@ -261,13 +218,13 @@
         "id": "task-mma0m6ak-kkod",
         "title": "Agent persona visualization — avatar cards, sub-agent tree, and task/tool map",
         "status": "pending",
-        "priority": "medium",
+        "priority": "low",
         "category": "feature",
         "context": "Session 2026-03-03",
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-03T02:55:17.851Z",
-        "updatedAt": "2026-03-03T02:55:17.851Z",
+        "updatedAt": "2026-03-15T18:44:58.134Z",
         "completedAt": null,
         "description": "Add a visual personification view for agents that makes multi-session and sub-agent workflows tangible and intuitive.",
         "acceptanceCriteria": "- Agent cards render with status-colored aura and tool badge\n- Sub-agent hierarchy visually represented as a tree\n- Multiple sessions render side-by-side with clear boundaries\n- Smooth animations for agent spawn/complete lifecycle\n- Works in both sidebar (compact) and full-view modes",
@@ -738,6 +695,108 @@
             "label": "Verify rendering across all theme presets"
           }
         ]
+      },
+      {
+        "id": "task-mms3geq6q0zck",
+        "title": "Add E2E tests for critical user flows",
+        "status": "pending",
+        "priority": "medium",
+        "category": "test",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-15T18:34:38.862Z",
+        "updatedAt": "2026-03-15T18:34:38.862Z",
+        "completedAt": null,
+        "description": "The project has 781 unit tests but no end-to-end tests visible. Adding Playwright or Cypress tests for critical flows (onboarding wizard, agent chat, theme switching, slash commands) would catch integration regressions that unit tests miss.",
+        "steps": []
+      },
+      {
+        "id": "task-mms3geq6yl2fv",
+        "title": "Add error boundary components for graceful failure handling",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-15T18:34:38.862Z",
+        "updatedAt": "2026-03-15T18:34:38.862Z",
+        "completedAt": null,
+        "description": "Chat, pipeline graph, and cost dashboard are complex UI surfaces that could benefit from React error boundaries to prevent full-page crashes when a single component fails (e.g., malformed SSE data, unexpected API responses).",
+        "steps": []
+      },
+      {
+        "id": "task-mms3geq7ksyv5",
+        "title": "Migrate conversation storage from localStorage to IndexedDB",
+        "status": "pending",
+        "priority": "low",
+        "category": "refactor",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-15T18:34:38.862Z",
+        "updatedAt": "2026-03-15T18:34:38.862Z",
+        "completedAt": null,
+        "description": "localStorage has a ~5-10MB limit per origin. With base64 media attachments in conversations, power users could hit this limit. IndexedDB would provide much larger storage capacity and better performance for large conversation histories.",
+        "steps": []
+      },
+      {
+        "id": "task-mms3geq7m0njf",
+        "title": "Add accessibility audit and ARIA attributes",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-15T18:34:38.862Z",
+        "updatedAt": "2026-03-15T18:34:38.862Z",
+        "completedAt": null,
+        "description": "The onboarding wizard, slash command autocomplete dropdown, pipeline graph, and kanban board likely need ARIA roles, keyboard navigation improvements, and screen reader support to meet WCAG guidelines.",
+        "steps": []
+      },
+      {
+        "id": "task-mms3geq8ofzuf",
+        "title": "Add rate limiting and request deduplication to chat API routes",
+        "status": "pending",
+        "priority": "low",
+        "category": "fix",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-15T18:34:38.862Z",
+        "updatedAt": "2026-03-15T18:34:38.862Z",
+        "completedAt": null,
+        "description": "The chat API route (POST /api/chat/[id]) and vision polling pipeline could benefit from request deduplication to prevent double-sends on rapid clicks, and basic rate limiting to avoid overwhelming the gateway during rapid interactions.",
+        "steps": []
+      },
+      {
+        "id": "task-mms40ogv-2p06",
+        "title": "Per-workspace UI state persistence",
+        "status": "pending",
+        "priority": "high",
+        "category": "enhancement",
+        "context": "Session 2026-03-15",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-15T18:50:24.606Z",
+        "updatedAt": "2026-03-15T18:50:24.606Z",
+        "completedAt": null,
+        "description": "When switching workspaces, UI state like active right panel, sidebar collapsed state, grid layout, and editor open files should be saved and restored per-workspace. Currently all UI state is global — switching from a workspace where you had GitHub panel open to one where you were using Sub-Tasks retains the old panel. Save UI preferences (activePanel, sidebarState, gridLayout, viewMode, editorOpenFiles) to the workspace data file and restore on switch.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Add uiPreferences field to workspace data model"
+          },
+          {
+            "completed": false,
+            "label": "Save current UI state on workspace switch-away"
+          },
+          {
+            "completed": false,
+            "label": "Restore UI state on workspace switch-to"
+          },
+          {
+            "completed": false,
+            "label": "Handle missing preferences gracefully (first switch to a workspace)"
+          }
+        ]
       }
     ],
     "inProgress": [
@@ -754,6 +813,29 @@
         "completedAt": null,
         "description": "",
         "steps": []
+      },
+      {
+        "id": "task-1773496619358-rlfv6r601",
+        "title": "Workspace Enhancements",
+        "status": "in_progress",
+        "priority": "medium",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T13:56:59.358Z",
+        "updatedAt": "2026-03-15T18:46:40.584Z",
+        "completedAt": null,
+        "description": "Workspaces should be enhanced for UI/UX.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "When creating a new workspace present the naming modal"
+          },
+          {
+            "completed": false,
+            "label": "Allow workspaces to be re-ordered"
+          }
+        ]
       }
     ],
     "completed": [
@@ -1789,6 +1871,38 @@
         ]
       },
       {
+        "id": "task-mms2ez0w-2hod",
+        "title": "Enhance auto-update check interval and strategy",
+        "status": "completed",
+        "priority": "high",
+        "category": "enhancement",
+        "context": "Session 2026-03-15",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-15T18:05:32.240Z",
+        "updatedAt": "2026-03-15T18:49:05.651Z",
+        "completedAt": "2026-03-15T18:49:05.651Z",
+        "description": "Current default check interval is 4 hours which is too long for a fast-moving beta. Consider: shorter default interval (30min-1hr) during beta, configurable interval in settings (already exists but default too high), check-on-focus (check when app regains focus after being backgrounded, like VS Code), check-on-push (if we detect a git push in the project, trigger a check), exponential backoff on repeated 'up to date' responses. Also evaluate whether electron-updater's differential downloads are working — full re-download on every patch is wasteful.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Research electron-updater best practices for beta update frequency"
+          },
+          {
+            "completed": false,
+            "label": "Lower default check interval to 1hr for beta builds"
+          },
+          {
+            "completed": false,
+            "label": "Add check-on-focus trigger (app.on focus event)"
+          },
+          {
+            "completed": false,
+            "label": "Evaluate differential/delta updates"
+          }
+        ]
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -1991,9 +2105,5 @@
         "steps": []
       }
     ]
-  },
-  "metadata": {
-    "totalCreated": 111,
-    "totalCompleted": 71
   }
 }

@@ -14,6 +14,10 @@ let isPackaged = false;
 let checkInterval: ReturnType<typeof setInterval> | null = null;
 /** True while a user-initiated check is in flight — included in status events so the UI can show feedback */
 let isManualCheck = false;
+/** Timestamp of last check — used to debounce focus-triggered checks */
+let lastCheckTime = 0;
+/** Minimum gap between focus-triggered checks (5 minutes) */
+const FOCUS_CHECK_DEBOUNCE_MS = 5 * 60_000;
 
 /**
  * Send updater status to the renderer process
@@ -104,22 +108,30 @@ function init(window: BrowserWindow, app: App): void {
     return;
   }
 
-  const checkIntervalHours = (getSetting('updater.checkIntervalHours') as number) || 4;
+  const checkIntervalHours = (getSetting('updater.checkIntervalHours') as number) || 1;
   const checkIntervalMs = checkIntervalHours * 3600000;
 
-  // Initial check (delayed to not block startup)
-  setTimeout(() => {
+  /** Silent background check with debounce tracking */
+  const silentCheck = () => {
+    lastCheckTime = Date.now();
     autoUpdater.checkForUpdates().catch((err: Error) => {
       console.error('[updater] Check failed:', err.message);
     });
-  }, 10_000);
+  };
+
+  // Initial check (delayed to not block startup)
+  setTimeout(silentCheck, 10_000);
 
   // Periodic checks
-  checkInterval = setInterval(() => {
-    autoUpdater.checkForUpdates().catch((err: Error) => {
-      console.error('[updater] Periodic check failed:', err.message);
-    });
-  }, checkIntervalMs);
+  checkInterval = setInterval(silentCheck, checkIntervalMs);
+
+  // Check on window focus — catches updates quickly when user returns
+  // Debounced to avoid hammering the update server on rapid focus changes
+  window.on('focus', () => {
+    if (Date.now() - lastCheckTime >= FOCUS_CHECK_DEBOUNCE_MS) {
+      silentCheck();
+    }
+  });
 }
 
 /**

@@ -107,7 +107,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   updater: {
     autoCheck: true,
     allowPrerelease: 'auto',
-    checkIntervalHours: 4,
+    checkIntervalHours: 1,
   },
   onboarding: {
     analysisTimeout: 120000,
