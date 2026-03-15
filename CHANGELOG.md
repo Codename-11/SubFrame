@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1-beta] - 2026-03-15
+
+### Fixed
+- **Shell selector dropdown** — replaced raw text input with dropdown of detected shells (pwsh, bash, zsh, fish, nushell, WSL, Git Bash)
+- **CLI install helper** — "Install CLI to PATH" button in Settings creates symlink/batch file for `subframe` command
+- **CLI packaging** — `subframe-cli.js` bundled via `extraResources` for packaged builds
+- **Ctrl+G shortcut conflict** — editor Go-to-Line changed to Ctrl+L (no longer conflicts with grid toggle)
+- **macOS open-file race** — file path queued when window not yet ready
+- **Auto-fetch timer leak** — stopped on app close
+- **Auto-fetch minimum interval** — 30-second guard prevents runaway fetch loops
+- **Push button stub** — removed non-functional "push" button from sidebar
+
 ## [0.5.0-beta] - 2026-03-15
 
 ### Added
@@ -376,7 +388,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.0-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.1-beta...HEAD
+[0.5.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.0-beta...v0.5.1-beta
 [0.5.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.4.0-beta...v0.5.0-beta
 [0.4.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.3.1-beta...v0.4.0-beta
 [0.3.1-beta]: https://github.com/Codename-11/SubFrame/compare/v0.3.0-beta...v0.3.1-beta

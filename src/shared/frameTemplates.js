@@ -42,7 +42,7 @@ var require_package = __commonJS({
     module2.exports = {
       name: "subframe",
       productName: "SubFrame",
-      version: "0.5.0-beta",
+      version: "0.5.1-beta",
       description: "SubFrame - Project Management IDE for Claude Code",
       main: "dist/main/index.js",
       scripts: {
@@ -233,6 +233,12 @@ var require_package = __commonJS({
         directories: {
           output: "release"
         },
+        extraResources: [
+          {
+            from: "scripts/subframe-cli.js",
+            to: "scripts/subframe-cli.js"
+          }
+        ],
         files: [
           "index.html",
           "RELEASE_NOTES.md",

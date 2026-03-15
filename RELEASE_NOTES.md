@@ -1,28 +1,15 @@
-Adds git sync awareness, editor enhancements with tab mode, CLI integration for opening files/projects from the terminal, and documentation updates across the board.
+Fix release — shell selector, CLI install helper, shortcut conflicts, and path handling improvements.
 
 ## What's Changed
 
-### Features
-- **Git Auto-Fetch** - Opt-in background fetch interval (3-15 minutes) in Settings > Git, with sync status header in the GitHub panel showing branch, ahead/behind, and change counts
-- **Editor Find & Replace** - Ctrl+H opens CodeMirror's built-in search panel with regex support
-- **Editor Go to Line** - Ctrl+L opens go-to-line dialog; also available via toolbar button
-- **Editor Tab Mode** - Toggle between overlay dialog (default) and persistent tabs alongside terminal tabs, with recent files tracking (last 10)
-- **CLI Integration** - `subframe edit <file>`, `subframe open <dir>`, and `subframe .` from the command line. Single-instance enforcement forwards args to the running window
-- **macOS File Associations** - Open files via Finder or `open -a SubFrame file.ts` with pre-ready path queuing
-
 ### Improvements
-- **Code Folding** - Fold gutters with clickable arrows for collapsible code blocks
-- **Rectangular Selection** - Alt+drag for column selection in the editor
-- **Active Line Highlighting** - Current line subtly highlighted in the editor
-- **Editor Shortcuts Category** - Find/Replace and Go to Line appear in the keyboard shortcuts panel
+- **Shell Selector Dropdown** - Default shell setting now shows a dropdown of detected shells (PowerShell Core, Bash, Zsh, Fish, Nushell, WSL, Git Bash) instead of a raw text input
+- **CLI Install Helper** - New "Install CLI to PATH" button in Settings > General > CLI. Creates `subframe.cmd` on Windows or `/usr/local/bin/subframe` symlink on macOS/Linux
+- **CLI Packaging** - `subframe-cli.js` now bundled via `extraResources` so the install button works on packaged builds
 
 ### Bug Fixes
-- **Ctrl+G Conflict** - Go to Line changed from Ctrl+G (conflicted with grid toggle) to Ctrl+L
-- **macOS open-file Race** - File path no longer dropped when the window isn't ready yet
-- **Auto-fetch Timer Leak** - Timer properly stopped on app close
-- **Push Button Stub** - Removed fake "push" button that only showed a toast
-
-### Documentation
-- CLAUDE.md: added 8 missing managers, 6 missing components, utility sections, CLI command
-- README.md: added CLI Integration section and updated feature descriptions
-- docs/guide/features.md: added Activity Streams, CLI, editor tab mode, git sync sections
+- **Ctrl+G Shortcut Conflict** - Editor Go-to-Line changed from Ctrl+G (conflicted with grid toggle) to Ctrl+L
+- **macOS open-file Race** - File path no longer dropped when Finder opens a file before SubFrame's window is ready
+- **Auto-fetch Timer Leak** - Background fetch timer properly stopped on app close
+- **Auto-fetch Minimum Interval** - 30-second guard prevents corrupt settings from triggering rapid fetch loops
+- **Push Button Stub** - Removed non-functional "push" button from sidebar that only showed a toast
