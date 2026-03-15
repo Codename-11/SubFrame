@@ -131,6 +131,8 @@ Project-level hooks in `.claude/settings.json` automate sub-task awareness:
 After significant work (code changes, architecture decisions, new tooling), verify the SubFrame system is in sync:
 
 1. **Quality gates** — Run `npm run check` (typecheck + lint + test + verify:hooks + build) **before every commit/push**. Fix all errors before proceeding — warnings are acceptable, errors are not.
+   - If `verify:templates` fails, run `node scripts/build-templates.js` to recompile `frameTemplates.js` and `projectInit.js` from their `.ts` sources.
+   - If `package.json` dependencies or scripts changed, run `npm install --package-lock-only --ignore-scripts` to regenerate `package-lock.json` — CI uses `npm ci` which requires the lock file to be in sync.
 2. **Sub-Task** — Was this work tracked? `node scripts/task.js list` → create/complete as needed
 3. **PROJECT_NOTES.md** — Any decisions worth preserving? Ask the user
 4. **Changelog** — Does `CHANGELOG.md` (keepachangelog) have entries under `[Unreleased]`? Also update `.subframe/docs-internal/changelog.md` for detailed internal notes
@@ -160,6 +162,8 @@ When changing any of these, update **all** locations that reference them:
 | **Significant session work** | `CHANGELOG.md` (user-facing, keepachangelog), `.subframe/docs-internal/changelog.md` (internal detail), `.subframe/PROJECT_NOTES.md` (decisions), `.subframe/tasks.json` (sub-task tracking) |
 | **Version bump** | `npm version <newversion>` (updates `package.json` + git tag), then `docs/index.md` JSON-LD `softwareVersion`. `FRAME_VERSION` auto-reads from `package.json`. |
 | **Hook templates** (any change to `frameTemplates.ts` hook functions) | Run `node scripts/build-templates.js && npm run generate:hooks`. Commit updated `frameTemplates.js` + `scripts/hooks/*.js`. User projects auto-detect drift via SubFrame Health Panel (`@subframe-version` stamps). See AGENTS.md "Hook Template Deployment". |
+| **Init logic** (any change to `projectInit.ts` or its imports) | Run `node scripts/build-templates.js` to recompile `projectInit.js`. Commit both `.ts` and `.js`. The CLI `subframe init` requires the compiled `.js`. |
+| **`package.json`** (deps, scripts, or metadata changed) | Run `npm install --package-lock-only --ignore-scripts` to sync `package-lock.json`. CI (`npm ci`) will fail if the lock file is stale. |
 
 ## Conventions
 
