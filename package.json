@@ -117,7 +117,7 @@
     "dagre": "^0.8.5",
     "electron-updater": "^6.8.3",
     "esbuild-postcss-plugin": "^0.0.7",
-    "framer-motion": "^12.35.2",
+    "framer-motion": "^12.37.0",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.577.0",
