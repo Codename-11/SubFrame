@@ -23,12 +23,11 @@ jobs:
           node-version: 24
           cache: npm
 
-      # Skip postinstall (electron-builder install-app-deps) — native modules
-      # like node-pty aren't needed for type checking, linting, or shared tests.
-      # If main-process tests are added later that need node-pty, remove --ignore-scripts
-      # and add electron-builder install-app-deps as a separate step.
+      # Use npm install instead of npm ci — the lock file is generated on Windows
+      # and may miss Linux-only optional transitive deps. --ignore-scripts skips
+      # electron-builder install-app-deps (node-pty not needed for CI checks).
       - name: Install dependencies
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts
 
       - name: Build templates
         run: node scripts/build-templates.js
