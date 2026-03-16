@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { withBase } from 'vitepress'
 import NavBar from './components/NavBar.vue'
 import Footer from './components/Footer.vue'
 import { data as posts } from '../../blog.data.mts'
@@ -12,6 +13,18 @@ function formatDate(dateStr: string): string {
     day: 'numeric',
   })
 }
+
+const tagColors: Record<string, string> = {
+  Guide: 'tag-green',
+  Feature: 'tag-purple',
+  Architecture: 'tag-cyan',
+  Vision: 'tag-pink',
+  Roadmap: 'tag-amber',
+}
+
+function tagClass(tag: string): string {
+  return tagColors[tag] || ''
+}
 </script>
 
 <template>
@@ -20,8 +33,9 @@ function formatDate(dateStr: string): string {
 
     <section class="blog-hero">
       <div class="blog-container">
-        <h1>Blog</h1>
-        <p>Engineering insights from building SubFrame</p>
+        <p class="blog-hero-label">Blog</p>
+        <h1>Engineering Insights</h1>
+        <p class="blog-hero-sub">Behind-the-scenes on building SubFrame — architecture decisions, feature deep dives, and lessons learned.</p>
       </div>
     </section>
 
@@ -30,12 +44,12 @@ function formatDate(dateStr: string): string {
         <a
           v-for="post in posts"
           :key="post.url"
-          :href="post.url"
+          :href="withBase(post.url)"
           class="blog-card"
         >
           <div class="blog-card-meta">
             <span class="blog-card-date">{{ formatDate(post.date) }}</span>
-            <span class="blog-card-tag">{{ post.tag }}</span>
+            <span class="blog-card-tag" :class="tagClass(post.tag)">{{ post.tag }}</span>
           </div>
           <h2>{{ post.title }}</h2>
           <p>{{ post.description }}</p>
