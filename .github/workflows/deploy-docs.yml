@@ -42,9 +42,9 @@ jobs:
       - name: Install root dependencies
         run: npm install --ignore-scripts
 
-      # Install site deps
+      # Install site deps — use npm install for same cross-platform reason as root
       - name: Install site dependencies
-        run: cd site && npm ci
+        run: cd site && npm install --legacy-peer-deps
 
       # Build React landing site → site/dist/
       - name: Build landing site
