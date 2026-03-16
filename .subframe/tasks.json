@@ -1,33 +1,13 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking index (SubFrame's task system)",
+    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
     "lastUpdated": "2026-03-16",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-16T00:25:04.079Z",
-  "taskSchema": {
-    "_comment": "This schema shows the expected structure for each task",
-    "id": "unique-id (task-xxx format)",
-    "title": "Short actionable title (max 60 chars)",
-    "description": "Claude's detailed explanation - what, how, which files affected",
-    "userRequest": "Original user prompt/request - copy verbatim",
-    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
-    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
-    "status": "pending | in_progress | completed",
-    "priority": "high | medium | low",
-    "category": "feature | fix | refactor | docs | test",
-    "context": "Session date and context",
-    "blockedBy": "Array of task IDs this task is blocked by",
-    "blocks": "Array of task IDs this task blocks",
-    "steps": "Array of { label, completed } step objects",
-    "private": "boolean — if true, task is stored locally and excluded from git",
-    "createdAt": "ISO timestamp",
-    "updatedAt": "ISO timestamp",
-    "completedAt": "ISO timestamp | null"
-  },
+  "lastUpdated": "2026-03-16T01:10:44.041Z",
   "tasks": {
     "pending": [
       {
@@ -2160,11 +2140,49 @@
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
         "steps": []
+      },
+      {
+        "id": "task-mmsgscec-9ajy",
+        "title": "Audit and fix long-running AI task UX (dialog/activity bar coupling)",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-16",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-16T00:47:50.723Z",
+        "updatedAt": "2026-03-16T01:10:44.036Z",
+        "completedAt": "2026-03-16T01:10:44.036Z",
+        "description": "Modal dialogs that initiate background AI operations (Enhance Sub-Task, Onboarding Analysis) break UX when closed — the operation continues in the background (visible in ActivityBar) but the user can't reopen the dialog to see current state/results. Need to either: (1) make dialogs resumable by linking to in-progress operations, (2) move long-running operations out of modals into persistent panels, or (3) add a global 'running operations' view that shows results. Pipelines are fine (persistent panel). The ActivityBar infrastructure is solid — the flaw is purely at the UI coupling layer.",
+        "userRequest": "Ensure all long-running AI tasks properly use global activity system AND that UI supports reopening/reattaching to in-progress operations",
+        "notes": "[2026-03-16] Implemented Option C (hybrid): pendingEnhance in Zustand store survives dialog close, toast with View Results action reopens dialog pre-populated. Also fixed: SettingsPanel CLI install/uninstall loading states. Audit found: CLI install (high), SCAN_PROJECT_DIR (medium), RECHECK_AI_TOOLS (medium) — first two fixed, third already had spinner.\n[2026-03-16] Audit pass 2: Fixed 5 additional issues — View Results navigates to Tasks panel, pendingEnhance cleared on form submit, Create/Update disabled during enhance, SCAN_PROJECT_DIR loading state added. OnboardingDialog confirmed clean (has cancel-on-close logic). ActivityBar cancel does not interact with pendingEnhance (acceptable).",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Audit all long-running operation entry points (Enhance, Onboarding, Pipeline, AI Tool)"
+          },
+          {
+            "completed": false,
+            "label": "Map each operation's lifecycle: initiation → progress → completion → result delivery"
+          },
+          {
+            "completed": false,
+            "label": "Design UX pattern for resumable/persistent background operations"
+          },
+          {
+            "completed": false,
+            "label": "Implement operation-to-UI linking (e.g. store active operation IDs, reattach on dialog open)"
+          },
+          {
+            "completed": true,
+            "label": "Test: close dialog during Enhance, reopen, verify state restoration"
+          },
+          {
+            "completed": true,
+            "label": "Test: navigate away during pipeline, return, verify state persists"
+          }
+        ]
       }
     ]
-  },
-  "metadata": {
-    "totalCreated": 119,
-    "totalCompleted": 73
   }
 }

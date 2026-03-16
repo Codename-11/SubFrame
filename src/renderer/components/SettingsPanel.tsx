@@ -242,6 +242,9 @@ export function SettingsPanel() {
   const { settings, updateSetting } = useSettings();
   const { config: aiToolConfig, setAITool, addCustomTool, removeCustomTool, refetch: refetchAITools } = useAIToolConfig();
   const [recheckingTools, setRecheckingTools] = useState(false);
+  const [cliInstalling, setCliInstalling] = useState(false);
+  const [cliUninstalling, setCliUninstalling] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   // Local form state
   const [activeTab, setActiveTab] = useState('appearance');
@@ -912,13 +915,21 @@ export function SettingsPanel() {
                         size="sm"
                         variant="ghost"
                         className="cursor-pointer mt-2 text-xs"
+                        disabled={scanning}
                         onClick={async () => {
-                          toast.info('Scanning directory...');
-                          await typedInvoke(IPC.SCAN_PROJECT_DIR, defaultProjectDir);
-                          toast.success('Scan complete');
+                          setScanning(true);
+                          try {
+                            toast.info('Scanning directory...');
+                            await typedInvoke(IPC.SCAN_PROJECT_DIR, defaultProjectDir);
+                            toast.success('Scan complete');
+                          } catch {
+                            toast.error('Failed to scan directory');
+                          } finally {
+                            setScanning(false);
+                          }
                         }}
                       >
-                        <FolderSearch className="h-3.5 w-3.5 mr-1.5" />
+                        {scanning ? <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <FolderSearch className="h-3.5 w-3.5 mr-1.5" />}
                         Scan Now
                       </Button>
                     )}
@@ -961,7 +972,9 @@ export function SettingsPanel() {
                         size="sm"
                         variant="outline"
                         className="text-xs"
+                        disabled={cliInstalling || cliUninstalling}
                         onClick={async () => {
+                          setCliInstalling(true);
                           try {
                             const result = await typedInvoke(IPC.INSTALL_CLI);
                             if (result.success) {
@@ -971,16 +984,21 @@ export function SettingsPanel() {
                             }
                           } catch {
                             toast.error('Failed to install CLI');
+                          } finally {
+                            setCliInstalling(false);
                           }
                         }}
                       >
+                        {cliInstalling && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
                         Install CLI to PATH
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
                         className="text-xs text-text-muted hover:text-error ml-2"
+                        disabled={cliInstalling || cliUninstalling}
                         onClick={async () => {
+                          setCliUninstalling(true);
                           try {
                             const result = await typedInvoke(IPC.UNINSTALL_CLI);
                             if (result.success) {
@@ -990,9 +1008,12 @@ export function SettingsPanel() {
                             }
                           } catch {
                             toast.error('Failed to uninstall CLI');
+                          } finally {
+                            setCliUninstalling(false);
                           }
                         }}
                       >
+                        {cliUninstalling && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
                         Uninstall
                       </Button>
                     </div>

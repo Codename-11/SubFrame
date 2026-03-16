@@ -3,7 +3,7 @@
  * Supports filtering, sorting, inline expand, add/edit/delete.
  */
 
-import { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -337,6 +337,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const setTasksFilterSetByUser = useUIStore((s) => s.setTasksFilterSetByUser);
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
   const closeRightPanel = useUIStore((s) => s.closeRightPanel);
+  const pendingEnhance = useUIStore((s) => s.pendingEnhance);
+  const clearPendingEnhance = useUIStore((s) => s.clearPendingEnhance);
 
   // TanStack Table passes Updater<SortingState> (value or function) — resolve before setting store
   const handleSortingChange = useCallback(
@@ -404,9 +406,27 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
 
+  // Ref tracks dialog state for async callbacks (closures can't see latest useState)
+  const dialogOpenRef = useRef(dialogOpen);
+  useEffect(() => { dialogOpenRef.current = dialogOpen; }, [dialogOpen]);
+
+  /** Apply enhanced data to form fields */
+  const applyEnhancedData = useCallback((e: Record<string, unknown>) => {
+    if (e.title) setFormTitle(e.title as string);
+    if (e.description) setFormDescription(e.description as string);
+    if (e.acceptanceCriteria) { setFormAcceptanceCriteria(e.acceptanceCriteria as string); setShowAdvanced(true); }
+    if (e.steps && Array.isArray(e.steps)) setFormSteps(e.steps as TaskStep[]);
+    if (e.priority) setFormPriority(e.priority as 'high' | 'medium' | 'low');
+    if (e.category) setFormCategory(e.category as string);
+  }, []);
+
   const handleEnhance = useCallback(async () => {
     if (!currentProjectPath || enhancing) return;
     setEnhancing(true);
+    // Dismiss any previous enhance toast (prevents stale "View Results" from overlapping)
+    toast.dismiss('enhance-result');
+    // Clear any previous pending enhance to avoid stale data
+    useUIStore.getState().clearPendingEnhance();
     try {
       const result = await typedInvoke(IPC.ENHANCE_TASK, {
         projectPath: currentProjectPath,
@@ -418,14 +438,33 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         },
       });
       if (result.success && result.enhanced) {
-        const e = result.enhanced;
-        if (e.title) setFormTitle(e.title);
-        if (e.description) setFormDescription(e.description);
-        if (e.acceptanceCriteria) { setFormAcceptanceCriteria(e.acceptanceCriteria); setShowAdvanced(true); }
-        if (e.steps && Array.isArray(e.steps)) setFormSteps(e.steps as TaskStep[]);
-        if (e.priority) setFormPriority(e.priority as 'high' | 'medium' | 'low');
-        if (e.category) setFormCategory(e.category);
-        toast.success('Task enhanced by AI');
+        if (dialogOpenRef.current) {
+          // Dialog still open — apply directly
+          applyEnhancedData(result.enhanced);
+          toast.success('Task enhanced by AI');
+        } else {
+          // Dialog was closed — store result for later retrieval
+          useUIStore.getState().setPendingEnhance({
+            enhanced: result.enhanced,
+            editingTaskId: editingTask?.id ?? null,
+            openRequested: false,
+          });
+          toast.success('Task enhanced by AI', {
+            id: 'enhance-result',
+            action: {
+              label: 'View Results',
+              onClick: () => {
+                const store = useUIStore.getState();
+                if (store.pendingEnhance) {
+                  store.setPendingEnhance({ ...store.pendingEnhance, openRequested: true });
+                  // Ensure Tasks panel is mounted so the reopen effect can fire
+                  store.setActivePanel('tasks');
+                }
+              },
+            },
+            duration: 10_000,
+          });
+        }
       } else {
         toast.error(result.error || 'AI enhancement failed');
       }
@@ -434,7 +473,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     } finally {
       setEnhancing(false);
     }
-  }, [currentProjectPath, enhancing, formTitle, formDescription, formPriority, formCategory]);
+  }, [currentProjectPath, enhancing, formTitle, formDescription, formPriority, formCategory, editingTask, applyEnhancedData]);
 
   // Stable callbacks — mutation refs are stable from useTasks, so no deps needed
   const handleUpdateStatus = useCallback(
@@ -677,7 +716,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  function openAddDialog() {
+  // useCallback — stable reference needed by the pendingEnhance reopen effect
+  const openAddDialog = useCallback(() => {
     setEditingTask(null);
     setFormTitle('');
     setFormDescription('');
@@ -694,7 +734,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setBlocksSelect('');
     setShowAdvanced(false);
     setDialogOpen(true);
-  }
+  }, []);
 
   // React 18 batches all these setState calls into a single render
   const openEditDialog = useCallback((task: Task) => {
@@ -715,6 +755,32 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
     setShowAdvanced(!!(task.acceptanceCriteria || task.notes || task.blockedBy?.length || task.blocks?.length));
     setDialogOpen(true);
   }, []);
+
+  // Re-open dialog with enhanced data when "View Results" toast action is clicked
+  useEffect(() => {
+    if (!pendingEnhance?.openRequested) return;
+    const { enhanced, editingTaskId } = pendingEnhance;
+
+    // If it was an edit, restore the task context
+    if (editingTaskId) {
+      const task = tasks.find((t) => t.id === editingTaskId);
+      if (task) {
+        openEditDialog(task);
+      } else {
+        // Task not found (deleted?) — fall back to add dialog
+        openAddDialog();
+      }
+    } else {
+      openAddDialog();
+    }
+
+    // Apply enhanced fields on top of the base form + clear pending
+    // setTimeout(0) ensures the dialog opens (setState batch) before fields overwrite
+    setTimeout(() => {
+      applyEnhancedData(enhanced);
+      clearPendingEnhance();
+    }, 0);
+  }, [pendingEnhance, tasks, openAddDialog, openEditDialog, applyEnhancedData, clearPendingEnhance]);
 
   function handleSubmit() {
     if (!formTitle.trim()) return;
@@ -741,6 +807,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       toast.success('Sub-task created');
     }
     setDialogOpen(false);
+    // Discard any stale pending enhance result
+    clearPendingEnhance();
   }
 
 
@@ -1214,7 +1282,13 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       </Dialog>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        // Prevent accidental close while AI enhance is running
+        if (!open && enhancing) {
+          toast.info('AI enhancement in progress — close will continue in background');
+        }
+        setDialogOpen(open);
+      }}>
         <DialogContent
           className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-lg max-h-[85vh] !flex !flex-col overflow-hidden"
           aria-describedby={undefined}
@@ -1578,7 +1652,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
             <DialogClose asChild>
               <Button variant="ghost" className="cursor-pointer">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleSubmit} disabled={!formTitle.trim()} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
+            <Button onClick={handleSubmit} disabled={!formTitle.trim() || enhancing} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
               {editingTask ? 'Update' : 'Create'}
             </Button>
           </DialogFooter>

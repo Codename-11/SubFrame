@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Asymmetric terminal grid layouts** — 4 new layouts: 2+1 (two stacked left, one full right), 1+2 (one full left, two stacked right), 2/1 (two top, one full bottom), 1/2 (one full top, two bottom)
 
+### Fixed
+- **Task Enhance survives dialog close** — AI enhance results now persist in global state; toast with "View Results" action reopens the dialog pre-populated with enhanced data
+- **Settings CLI install/uninstall feedback** — buttons now show spinners, disable during operation, and handle errors
+- **Settings Scan Now feedback** — directory scan button shows spinner, disables during scan, handles errors
+- **Task dialog close during enhance** — Create/Update button disabled while AI enhance is in-flight to prevent submitting stale data
+
 ## [0.5.4-beta] - 2026-03-15
 
 ### Fixed
