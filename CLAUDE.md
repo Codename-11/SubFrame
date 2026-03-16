@@ -160,7 +160,7 @@ When changing any of these, update **all** locations that reference them:
 | **UI terminology** (label/branding change) | index.html, renderer TSX (user-facing strings), CLAUDE.md, AGENTS.md, frameTemplates.ts |
 | **Quality tooling** (test/lint/CI config) | `vitest.config.ts`, `eslint.config.mjs`, `.prettierrc`, `tsconfig.test.json`, `.github/workflows/ci.yml` |
 | **Significant session work** | `CHANGELOG.md` (user-facing, keepachangelog), `.subframe/docs-internal/changelog.md` (internal detail), `.subframe/PROJECT_NOTES.md` (decisions), `.subframe/tasks.json` (sub-task tracking) |
-| **Version bump** | `npm version <newversion>` (updates `package.json` + git tag), then `docs/index.md` JSON-LD `softwareVersion`. `FRAME_VERSION` auto-reads from `package.json`. |
+| **Version bump** | `npm version <newversion>` (updates `package.json` + git tag), then `README.md` footer. `FRAME_VERSION` and `site/` NavBar auto-read from `package.json`. |
 | **Hook templates** (any change to `frameTemplates.ts` hook functions) | Run `node scripts/build-templates.js && npm run generate:hooks`. Commit updated `frameTemplates.js` + `scripts/hooks/*.js`. User projects auto-detect drift via SubFrame Health Panel (`@subframe-version` stamps). See AGENTS.md "Hook Template Deployment". |
 | **Init logic** (any change to `projectInit.ts` or its imports) | Run `node scripts/build-templates.js` to recompile `projectInit.js`. Commit both `.ts` and `.js`. The CLI `subframe init` requires the compiled `.js`. |
 | **`package.json`** (deps, scripts, or metadata changed) | Run `npm install --package-lock-only --ignore-scripts` to sync `package-lock.json`. CI (`npm ci`) will fail if the lock file is stale. |
@@ -177,7 +177,8 @@ When changing any of these, update **all** locations that reference them:
 
 **Single source of truth:** `package.json` `"version"` field. All other version references derive from it:
 - `src/shared/frameConstants.ts` (and `.js` fallback) — `FRAME_VERSION` reads `require('../../package.json').version` at runtime
-- `docs/index.md` — `softwareVersion` in JSON-LD frontmatter (VitePress source)
+- `site/` NavBar — auto-injected via `__APP_VERSION__` build-time define (reads root `package.json`)
+- `README.md` — footer version badge (manual update)
 
 **Note:** Template schema versions in `frameTemplates.ts` (STRUCTURE.json `"1.0"`, tasks.json `"1.2"`, config.json `"1.0"`) are **file format versions**, not the app version — they evolve independently.
 

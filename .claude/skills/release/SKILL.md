@@ -71,13 +71,15 @@ Verify with `npm run verify:templates && npm run verify:hooks`. Both must pass o
 - `src/shared/frameTemplates.js`
 - `scripts/hooks/*.js`
 
-### Step 3: Update version references in docs
+### Step 3: Update version references
 
 Update these version strings to match the new version:
-1. **`docs/index.md`** — the `"softwareVersion"` field in the Schema.org JSON-LD structured data (in the frontmatter `head` array)
-2. **`docs/.vitepress/theme/components/NavBar.vue`** — the `logo-version` span text (e.g., `Latest: v0.2.0`)
-3. **`README.md`** — the version in the footer `<strong>` tag
-4. **`promo/src/ui/SidebarMock.tsx`** — the version string in the sidebar mock UI
+1. **`README.md`** — the version in the footer `<strong>` tag
+2. **`promo/src/ui/SidebarMock.tsx`** — the version string in the sidebar mock UI (if changed)
+
+**Auto-updated (no manual action needed):**
+- `site/` NavBar — reads `__APP_VERSION__` injected from root `package.json` at build time
+- `src/shared/frameConstants.ts` — reads `package.json` version at runtime
 
 ### Step 4: Update CHANGELOG.md
 
@@ -95,12 +97,13 @@ Analyze ALL commits since the last tag to build the notes. Group by category, be
 
 Stage exactly these files:
 - `package.json`
+- `package-lock.json` (regenerate with `npm install --package-lock-only --ignore-scripts`)
 - `src/shared/frameTemplates.js`
+- `src/shared/projectInit.js`
 - `scripts/hooks/*.js`
-- `docs/index.md`
-- `docs/.vitepress/theme/components/NavBar.vue`
 - `README.md`
-- `promo/src/ui/SidebarMock.tsx`
+- `CHANGELOG.md`
+- `RELEASE_NOTES.md`
 - `CHANGELOG.md`
 - `RELEASE_NOTES.md`
 
