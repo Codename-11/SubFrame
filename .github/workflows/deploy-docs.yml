@@ -37,9 +37,10 @@ jobs:
           node-version: 24
           cache: npm
 
-      # Install root deps (for VitePress)
+      # Install root deps (for VitePress) — use npm install instead of npm ci
+      # because the lock file is generated on Windows and may miss Linux optional deps
       - name: Install root dependencies
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts
 
       # Install site deps
       - name: Install site dependencies
