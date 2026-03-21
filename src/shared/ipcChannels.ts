@@ -47,6 +47,7 @@ export const IPC = {
   WORKSPACE_CREATE: 'workspace-create',
   WORKSPACE_RENAME: 'workspace-rename',
   WORKSPACE_DELETE: 'workspace-delete',
+  WORKSPACE_REORDER: 'workspace-reorder',
 
   // Default Project Directory
   SCAN_PROJECT_DIR: 'scan-project-dir',
@@ -257,6 +258,14 @@ export const IPC = {
   CLI_OPEN_PROJECT: 'cli-open-project',
   INSTALL_CLI: 'install-cli',
   UNINSTALL_CLI: 'uninstall-cli',
+
+  // Graceful Shutdown
+  GRACEFUL_SHUTDOWN_REQUEST: 'graceful-shutdown-request',
+  GRACEFUL_SHUTDOWN_STATUS: 'graceful-shutdown-status',
+  GRACEFUL_SHUTDOWN_COMPLETE: 'graceful-shutdown-complete',
+  GRACEFUL_SHUTDOWN_CONFIRM: 'graceful-shutdown-confirm',
+  GRACEFUL_SHUTDOWN_CANCEL: 'graceful-shutdown-cancel',
+  GRACEFUL_SHUTDOWN_FORCE: 'graceful-shutdown-force',
 
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
@@ -767,6 +776,14 @@ export interface OnboardingProgressEvent {
   progress: number;
   /** Set once the analysis terminal is created, so the renderer can focus it immediately */
   terminalId?: string;
+  /** Total timeout for the analysis (ms) */
+  timeoutMs?: number;
+  /** Time elapsed since analysis started (ms) */
+  elapsedMs?: number;
+  /** True if no output received for 30+ seconds */
+  stalled?: boolean;
+  /** How long the stall has lasted (ms) */
+  stallDurationMs?: number;
 }
 
 /** Result of importing onboarding analysis */
@@ -789,6 +806,8 @@ export interface OnboardingAnalysisOptions {
   customContext?: string;
   /** Extra file/directory paths to include in the context (absolute paths) */
   extraFiles?: string[];
+  /** Custom timeout in ms (used for "retry with longer timeout") */
+  timeoutOverride?: number;
 }
 
 // ─── Updater Types ───────────────────────────────────────────────────────────
@@ -815,6 +834,37 @@ export interface UpdaterProgress {
   bytesPerSecond: number;
   transferred: number;
   total: number;
+}
+
+// ─── Graceful Shutdown Types ─────────────────────────────────────────────
+
+/** Per-terminal status during graceful shutdown */
+export interface GracefulShutdownTerminalInfo {
+  terminalId: string;
+  claudeActive: boolean;
+  label: string;
+  status: 'waiting' | 'exiting' | 'exited' | 'timeout' | 'killed';
+}
+
+/** Sent from main → renderer to open the graceful shutdown dialog */
+export interface GracefulShutdownRequest {
+  reason: 'close' | 'update';
+  terminals: GracefulShutdownTerminalInfo[];
+  pipelineRunning: boolean;
+  analysisRunning: boolean;
+  activeStreams: boolean;
+}
+
+/** Per-terminal status update during shutdown */
+export interface GracefulShutdownStatusEvent {
+  terminalId: string;
+  status: 'exiting' | 'exited' | 'timeout' | 'killed';
+}
+
+/** Sent when graceful shutdown is complete */
+export interface GracefulShutdownCompleteEvent {
+  reason: 'close' | 'update';
+  success: boolean;
 }
 
 // ─── Pipeline Types ──────────────────────────────────────────────────────────
@@ -967,6 +1017,7 @@ export interface IPCHandleMap {
   [IPC.WORKSPACE_CREATE]: { args: [name: string]; return: unknown };
   [IPC.WORKSPACE_RENAME]: { args: [payload: { key: string; newName: string }]; return: unknown };
   [IPC.WORKSPACE_DELETE]: { args: [key: string]; return: unknown };
+  [IPC.WORKSPACE_REORDER]: { args: [orderedKeys: string[]]; return: boolean };
   [IPC.SELECT_DEFAULT_PROJECT_DIR]: { args: []; return: string | null };
 
   // GitHub
@@ -1080,6 +1131,11 @@ export interface IPCHandleMap {
     args: [streamId: string];
     return: { success: boolean };
   };
+
+  // Graceful Shutdown
+  [IPC.GRACEFUL_SHUTDOWN_CONFIRM]: { args: []; return: void };
+  [IPC.GRACEFUL_SHUTDOWN_CANCEL]: { args: []; return: void };
+  [IPC.GRACEFUL_SHUTDOWN_FORCE]: { args: []; return: void };
 
   // CLI Install/Uninstall
   [IPC.INSTALL_CLI]: {
@@ -1265,6 +1321,11 @@ export interface IPCEventMap {
   // CLI Integration
   [IPC.CLI_OPEN_FILE]: string; // absolute file path
   [IPC.CLI_OPEN_PROJECT]: string; // absolute directory path
+
+  // Graceful Shutdown
+  [IPC.GRACEFUL_SHUTDOWN_REQUEST]: GracefulShutdownRequest;
+  [IPC.GRACEFUL_SHUTDOWN_STATUS]: GracefulShutdownStatusEvent;
+  [IPC.GRACEFUL_SHUTDOWN_COMPLETE]: GracefulShutdownCompleteEvent;
 
   // Menu Actions
   [IPC.MENU_TOGGLE_SIDEBAR]: void;

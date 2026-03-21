@@ -1,5 +1,5 @@
 #!/bin/bash
-# @subframe-version 0.5.1-beta
+# @subframe-version 0.5.5-beta
 # @subframe-managed
 # SubFrame pre-push hook
 # Triggers pipeline workflows configured with "on: { push: true }"

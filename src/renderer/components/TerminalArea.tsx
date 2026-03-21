@@ -81,7 +81,7 @@ function saveSession(projectPath: string | null, store: ReturnType<typeof useTer
       terminals.filter((t) => t.nameSource).map((t) => [t.id, t.nameSource!])
     ),
     gridLayout: store.gridLayout,
-    gridSlots: store.gridSlots,
+    gridSlots: store.gridSlotsByProject.get(normalizedPath) ?? store.gridSlots,
     tabOrder,
     maximizedTerminalId: terminals.length > 0 ? store.maximizedTerminalId : null,
   };
@@ -133,7 +133,9 @@ export function TerminalArea() {
   const { config: aiToolConfig } = useAIToolConfig();
   const aiToolName = aiToolConfig?.activeTool.name || 'AI Tool';
   const prevProjectRef = useRef<string | null>(null);
-  const hasRestoredInitialRef = useRef(false);
+  /** Tracks which project path we have successfully restored terminal-dependent state for.
+   *  `null` means restoration is pending (terminals not yet available). */
+  const restoredForProjectRef = useRef<string | null>(null);
   const terminalCounterRef = useRef(0);
 
   // Filter terminals for current project (normalise null → '' for comparison)
@@ -341,69 +343,121 @@ export function TerminalArea() {
     return () => window.removeEventListener('menu-new-terminal', handler);
   }, [createTerminal]);
 
-  // Per-project session save/restore on project switch and initial mount
+  // Per-project session save/restore on project switch and deferred terminal arrival.
+  //
+  // Two-phase restoration: non-terminal-dependent state (viewMode, gridLayout, gridSlots) is
+  // restored immediately on project switch.  Terminal-dependent state (tab order, names, active
+  // terminal, maximized) is deferred until ALL session terminals exist in the store — fixing the
+  // race where the effect fires before TERMINAL_CREATED IPC events arrive on app launch.
+  // A 3-second timeout prevents permanent blocking if a terminal was destroyed between sessions.
+  const restoreStartTimeRef = useRef<number>(0);
   useEffect(() => {
     const isProjectSwitch = prevProjectRef.current !== currentProjectPath;
-    const isInitialMount = !hasRestoredInitialRef.current;
 
-    if (isProjectSwitch || isInitialMount) {
-      // Save outgoing project session (only on project switch, not initial mount)
-      if (isProjectSwitch && prevProjectRef.current !== null) {
+    // ── Phase 1: Save outgoing + restore non-terminal state (only on project switch) ──
+    if (isProjectSwitch) {
+      if (prevProjectRef.current !== null) {
         saveSession(prevProjectRef.current, useTerminalStore.getState());
       }
+      // Cancel any pending auto-save from the previous project
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+      prevProjectRef.current = currentProjectPath;
+      restoredForProjectRef.current = null; // Reset — need to restore for new project
+      restoreStartTimeRef.current = Date.now();
 
-      // Restore incoming project session
       const session = loadSession(currentProjectPath);
       if (session) {
         if (session.viewMode) setViewMode(session.viewMode);
-        // Restore names for any terminals that already exist (preserve original nameSource)
-        for (const [id, name] of Object.entries(session.terminalNames)) {
-          if (terminals.has(id)) {
-            // Default to 'default' for old session data that didn't persist nameSource,
-            // so user-renamed tabs aren't accidentally overwritten by auto-rename
-            const source = session.terminalNameSources?.[id] ?? 'default';
-            renameTerminal(id, name, source);
-          }
-        }
-        // Gap 2: Restore per-project grid layout
         if (session.gridLayout) {
           useTerminalStore.getState().setGridLayout(session.gridLayout as any);
         }
-        // Restore grid slot assignments (drag-swap positions) — scoped to project
         if (session.gridSlots && Array.isArray(session.gridSlots)) {
           useTerminalStore.getState().setGridSlots(session.gridSlots, normalizedPath);
         }
-        // Gap 3: Restore tab order by updating createdAt timestamps
-        if (session.tabOrder && session.tabOrder.length > 0) {
-          const store = useTerminalStore.getState();
-          // Only reorder IDs that still exist
-          const validIds = session.tabOrder.filter((id) => store.terminals.has(id));
-          if (validIds.length > 0) {
-            store.reorderTerminals(validIds);
-          }
-        }
-        // Gap 4: Populate activeByProject from saved activeTerminalId
-        if (session.activeTerminalId && terminals.has(session.activeTerminalId)) {
-          const store = useTerminalStore.getState();
-          const abp = new Map(store.activeByProject);
-          abp.set(normalizedPath, session.activeTerminalId);
-          useTerminalStore.setState({ activeByProject: abp });
-        }
-        // Gap 5: Restore maximized terminal state
-        if (session.maximizedTerminalId && terminals.has(session.maximizedTerminalId)) {
-          useTerminalStore.getState().setMaximizedTerminal(session.maximizedTerminalId);
-        } else {
-          useTerminalStore.getState().setMaximizedTerminal(null);
-        }
       }
-
-      // Use switchToProject for O(1) active terminal restoration
-      switchToProject(normalizedPath);
-
-      prevProjectRef.current = currentProjectPath;
-      hasRestoredInitialRef.current = true;
     }
+
+    // ── Phase 2: Restore terminal-dependent state (retries until terminals exist) ──
+    if (restoredForProjectRef.current === normalizedPath) {
+      return; // Already restored for this project
+    }
+
+    const session = loadSession(currentProjectPath);
+    if (!session) {
+      switchToProject(normalizedPath);
+      restoredForProjectRef.current = normalizedPath;
+      return;
+    }
+
+    // Check if ALL session terminals exist yet (not just any one — partial restore loses later arrivals)
+    const sessionTerminalIds = new Set([
+      ...(session.tabOrder ?? []),
+      ...Object.keys(session.terminalNames),
+      ...(session.activeTerminalId ? [session.activeTerminalId] : []),
+    ]);
+    const store = useTerminalStore.getState();
+    const allPresent = sessionTerminalIds.size === 0 ||
+      [...sessionTerminalIds].every((id) => store.terminals.has(id));
+    // Timeout fallback: if a terminal was destroyed between sessions, don't block forever
+    const timedOut = Date.now() - restoreStartTimeRef.current > 3000;
+
+    if (!allPresent && !timedOut) {
+      return; // Terminals not all populated yet — will retry when terminals Map changes
+    }
+
+    // Restore names (preserve original nameSource)
+    for (const [id, name] of Object.entries(session.terminalNames)) {
+      if (store.terminals.has(id)) {
+        const source = session.terminalNameSources?.[id] ?? 'default';
+        renameTerminal(id, name, source);
+      }
+    }
+
+    // Restore tab order by updating createdAt timestamps
+    if (session.tabOrder && session.tabOrder.length > 0) {
+      const validIds = session.tabOrder.filter((id) => store.terminals.has(id));
+      if (validIds.length > 0) {
+        store.reorderTerminals(validIds);
+      }
+    }
+
+    // Populate activeByProject from saved activeTerminalId
+    if (session.activeTerminalId && store.terminals.has(session.activeTerminalId)) {
+      const abp = new Map(store.activeByProject);
+      abp.set(normalizedPath, session.activeTerminalId);
+      useTerminalStore.setState({ activeByProject: abp });
+    }
+
+    // Restore maximized terminal state
+    if (session.maximizedTerminalId && store.terminals.has(session.maximizedTerminalId)) {
+      store.setMaximizedTerminal(session.maximizedTerminalId);
+    } else {
+      store.setMaximizedTerminal(null);
+    }
+
+    // switchToProject before marking restored — so auto-save captures post-switch state
+    switchToProject(normalizedPath);
+    restoredForProjectRef.current = normalizedPath;
   }, [currentProjectPath, terminals, setViewMode, renameTerminal, switchToProject, normalizedPath]);
+
+  // Auto-save session when tab order or grid slots change (debounced).
+  // Ensures reorder and grid-swap state persists immediately — not just on project switch / beforeunload.
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gridSlots = useTerminalStore((s) => s.gridSlots);
+  useEffect(() => {
+    // Skip during initial restoration
+    if (restoredForProjectRef.current !== normalizedPath) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveSession(currentProjectPath, useTerminalStore.getState());
+    }, 300);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+    // projectTerminals changes when createdAt changes (reorder), gridSlots changes on grid swap
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectTerminals, gridSlots, currentProjectPath]);
 
   // Save session on app close so grid slot positions persist across restarts
   useEffect(() => {

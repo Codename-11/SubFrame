@@ -9,6 +9,7 @@ import { CommandPalette } from './CommandPalette';
 import { PromptLibrary } from './PromptLibrary';
 import { WhatsNew } from './WhatsNew';
 import { UpdateNotification } from './UpdateNotification';
+import { GracefulShutdownDialog } from './GracefulShutdownDialog';
 import { OnboardingDialog } from './OnboardingDialog';
 import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -511,6 +512,9 @@ export function App() {
       {/* Auto-updater notification (side-effect only, renders null) */}
       <UpdateNotification />
 
+      {/* Graceful shutdown dialog (opens when closing with active work) */}
+      <GracefulShutdownDialog />
+
       {/* Theme provider (side-effect only, applies CSS custom properties) */}
       <ThemeProvider />
 
@@ -563,6 +567,9 @@ export function App() {
           }
         }}
         isRollingBack={isRollingBack}
+        stalled={onboarding.stalled}
+        stallDurationMs={onboarding.stallDurationMs}
+        timeoutMs={onboarding.timeoutMs}
         onViewTerminal={() => {
           if (onboarding.terminalId) {
             // Close right panel and switch to the analysis terminal

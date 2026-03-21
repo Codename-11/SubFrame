@@ -18,6 +18,8 @@ let isManualCheck = false;
 let lastCheckTime = 0;
 /** Minimum gap between focus-triggered checks (5 minutes) */
 const FOCUS_CHECK_DEBOUNCE_MS = 5 * 60_000;
+/** Optional hook called before install — returns false to defer (e.g. for graceful shutdown) */
+let beforeInstallHook: (() => boolean) | null = null;
 
 /**
  * Send updater status to the renderer process
@@ -180,6 +182,10 @@ function setupIPC(): void {
   });
 
   ipcMain.handle(IPC.UPDATER_INSTALL, () => {
+    // If a before-install hook is set and returns false, defer to graceful shutdown
+    if (beforeInstallHook && !beforeInstallHook()) {
+      return;
+    }
     autoUpdater.quitAndInstall();
   });
 }
@@ -214,4 +220,21 @@ function destroy(): void {
   }
 }
 
-export { init, setupIPC, destroy, checkForUpdates };
+/**
+ * Set a hook that runs before quitAndInstall.
+ * Return false to defer install (e.g. to perform graceful shutdown first).
+ */
+function setBeforeInstallHook(hook: () => boolean): void {
+  beforeInstallHook = hook;
+}
+
+/**
+ * Programmatically call quitAndInstall (e.g. after graceful shutdown completes).
+ */
+function performQuitAndInstall(): void {
+  if (!isPackaged) return;
+  const { autoUpdater } = require('electron-updater');
+  autoUpdater.quitAndInstall();
+}
+
+export { init, setupIPC, destroy, checkForUpdates, setBeforeInstallHook, performQuitAndInstall };

@@ -547,6 +547,29 @@ function isClaudeActive(terminalId: string): boolean {
 }
 
 /**
+ * Wait for a terminal to exit, with timeout.
+ * Returns 'exited' if the terminal process ends, or 'timeout' if the deadline passes.
+ */
+function waitForExit(terminalId: string, timeoutMs: number): Promise<'exited' | 'timeout'> {
+  return new Promise((resolve) => {
+    if (!ptyInstances.has(terminalId)) {
+      resolve('exited');
+      return;
+    }
+    const startTime = Date.now();
+    const check = setInterval(() => {
+      if (!ptyInstances.has(terminalId)) {
+        clearInterval(check);
+        resolve('exited');
+      } else if (Date.now() - startTime >= timeoutMs) {
+        clearInterval(check);
+        resolve('timeout');
+      }
+    }, 300);
+  });
+}
+
+/**
  * Setup IPC handlers for multi-terminal
  */
 function setupIPC(ipcMain: IpcMain): void {
@@ -657,7 +680,7 @@ export {
   init, createTerminal, writeToTerminal, resizeTerminal,
   destroyTerminal, destroyAll, getTerminalCount, getTerminalIds,
   hasTerminal, isClaudeActive, getTerminalsByProject, getTerminalInfo,
-  getAvailableShells, setupIPC,
+  getAvailableShells, setupIPC, waitForExit,
   startCapturing, stopCapturing,
   addOutputHandler, removeOutputHandler,
   registerPopoutWebContents, unregisterPopoutWebContents

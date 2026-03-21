@@ -31,6 +31,7 @@ interface WorkspaceData {
   version: string;
   activeWorkspace: string;
   workspaces: Record<string, WorkspaceEntry>;
+  workspaceOrder?: string[]; // Display order of workspace keys
 }
 
 interface WorkspaceListItem {
@@ -347,6 +348,18 @@ function getProjectAITool(projectPath: string): string | null {
   return project?.aiTool || null;
 }
 
+/** Get workspace keys in display order, falling back to insertion order for migration. */
+function getOrderedKeys(data: WorkspaceData): string[] {
+  const allKeys = Object.keys(data.workspaces);
+  if (data.workspaceOrder && data.workspaceOrder.length > 0) {
+    // Use saved order, appending any new keys not in the order array
+    const ordered = data.workspaceOrder.filter(k => allKeys.includes(k));
+    const remaining = allKeys.filter(k => !ordered.includes(k));
+    return [...ordered, ...remaining];
+  }
+  return allKeys;
+}
+
 /**
  * Convert workspace name to slug key
  */
@@ -365,14 +378,16 @@ function slugify(name: string): string {
  */
 function getWorkspaceList(): WorkspaceListResult {
   const workspace = loadWorkspace();
-  const workspaces: WorkspaceListItem[] = Object.entries(workspace.workspaces).map(([key, ws]) => ({
-    key,
-    name: ws.name,
-    projectCount: ws.projects ? ws.projects.length : 0
-  }));
+  const orderedKeys = getOrderedKeys(workspace);
   return {
     active: workspace.activeWorkspace,
-    workspaces
+    workspaces: orderedKeys
+      .filter(key => workspace.workspaces[key])
+      .map(key => ({
+        key,
+        name: workspace.workspaces[key].name,
+        projectCount: workspace.workspaces[key].projects ? workspace.workspaces[key].projects.length : 0,
+      })),
   };
 }
 
@@ -412,6 +427,11 @@ function createWorkspace(name: string): WorkspaceListResult | null {
     projects: []
   };
   workspace.activeWorkspace = slug;
+
+  // Append to display order
+  if (!workspace.workspaceOrder) workspace.workspaceOrder = Object.keys(workspace.workspaces);
+  if (!workspace.workspaceOrder.includes(slug)) workspace.workspaceOrder.push(slug);
+
   saveWorkspace(workspace);
 
   return getWorkspaceList();
@@ -440,6 +460,11 @@ function deleteWorkspace(key: string): { success: boolean; error?: string } {
 
   delete workspace.workspaces[key];
 
+  // Remove from display order
+  if (workspace.workspaceOrder) {
+    workspace.workspaceOrder = workspace.workspaceOrder.filter(k => k !== key);
+  }
+
   // If deleting the active workspace, switch to another or create a fresh default
   if (workspace.activeWorkspace === key) {
     const remaining = Object.keys(workspace.workspaces);
@@ -458,6 +483,27 @@ function deleteWorkspace(key: string): { success: boolean; error?: string } {
 
   saveWorkspace(workspace);
   return { success: true };
+}
+
+/**
+ * Reorder workspaces by providing the new order of keys.
+ * Keys not in the provided array are appended at the end.
+ */
+function reorderWorkspaces(orderedKeys: string[]): boolean {
+  try {
+    const workspace = loadWorkspace();
+    const allKeys = Object.keys(workspace.workspaces);
+    // Validate: all provided keys must exist
+    const validKeys = orderedKeys.filter(k => allKeys.includes(k));
+    // Append any keys not in the provided order
+    const remaining = allKeys.filter(k => !validKeys.includes(k));
+    workspace.workspaceOrder = [...validKeys, ...remaining];
+    saveWorkspace(workspace);
+    return true;
+  } catch (err) {
+    console.error('[Workspace] Failed to reorder:', err);
+    return false;
+  }
 }
 
 /**
@@ -503,12 +549,15 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.WORKSPACE_CREATE, (_e, name: string) => createWorkspace(name));
   ipcMain.handle(IPC.WORKSPACE_RENAME, (_e, { key, newName }: { key: string; newName: string }) => renameWorkspace(key, newName));
   ipcMain.handle(IPC.WORKSPACE_DELETE, (_e, key: string) => deleteWorkspace(key));
+  ipcMain.handle(IPC.WORKSPACE_REORDER, (_event, orderedKeys: string[]) => {
+    return reorderWorkspaces(orderedKeys);
+  });
 }
 
 export {
   init, loadWorkspace, getProjects, getProjectsWithScanned, scanProjectDir,
   addProject, removeProject, renameProject, updateProjectLastOpened,
   updateProjectFrameStatus, getWorkspaceList, switchWorkspace,
-  createWorkspace, renameWorkspace, deleteWorkspace, setProjectAITool,
-  getProjectAITool, setupIPC
+  createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspaces,
+  setProjectAITool, getProjectAITool, setupIPC
 };

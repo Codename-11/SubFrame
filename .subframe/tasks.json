@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-16",
+    "lastUpdated": "2026-03-21",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-16T01:10:44.041Z",
+  "lastUpdated": "2026-03-21T22:10:44.816Z",
   "tasks": {
     "pending": [
       {
@@ -835,32 +835,7 @@
         ]
       }
     ],
-    "inProgress": [
-      {
-        "id": "task-1773496619358-rlfv6r601",
-        "title": "Workspace Enhancements",
-        "status": "in_progress",
-        "priority": "medium",
-        "category": "enhancement",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-14T13:56:59.358Z",
-        "updatedAt": "2026-03-15T18:53:32.165Z",
-        "completedAt": null,
-        "description": "Workspaces should be enhanced for UI/UX.",
-        "notes": "[2026-03-15] Step 1 done: workspace create dialog with name input shipped in v0.4.0-beta. Step 2 (reorder) still pending. Per-workspace UI state tracked separately as task-mms40ogv-2p06.",
-        "steps": [
-          {
-            "completed": true,
-            "label": "When creating a new workspace present the naming modal"
-          },
-          {
-            "completed": false,
-            "label": "Allow workspaces to be re-ordered"
-          }
-        ]
-      }
-    ],
+    "inProgress": [],
     "completed": [
       {
         "id": "task-1772674776397-kc624grpq",
@@ -1940,6 +1915,48 @@
         ]
       },
       {
+        "id": "task-mmsgscec-9ajy",
+        "title": "Audit and fix long-running AI task UX (dialog/activity bar coupling)",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-16",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-16T00:47:50.723Z",
+        "updatedAt": "2026-03-16T01:10:44.036Z",
+        "completedAt": "2026-03-16T01:10:44.036Z",
+        "description": "Modal dialogs that initiate background AI operations (Enhance Sub-Task, Onboarding Analysis) break UX when closed — the operation continues in the background (visible in ActivityBar) but the user can't reopen the dialog to see current state/results. Need to either: (1) make dialogs resumable by linking to in-progress operations, (2) move long-running operations out of modals into persistent panels, or (3) add a global 'running operations' view that shows results. Pipelines are fine (persistent panel). The ActivityBar infrastructure is solid — the flaw is purely at the UI coupling layer.",
+        "userRequest": "Ensure all long-running AI tasks properly use global activity system AND that UI supports reopening/reattaching to in-progress operations",
+        "notes": "[2026-03-16] Implemented Option C (hybrid): pendingEnhance in Zustand store survives dialog close, toast with View Results action reopens dialog pre-populated. Also fixed: SettingsPanel CLI install/uninstall loading states. Audit found: CLI install (high), SCAN_PROJECT_DIR (medium), RECHECK_AI_TOOLS (medium) — first two fixed, third already had spinner.\n[2026-03-16] Audit pass 2: Fixed 5 additional issues — View Results navigates to Tasks panel, pendingEnhance cleared on form submit, Create/Update disabled during enhance, SCAN_PROJECT_DIR loading state added. OnboardingDialog confirmed clean (has cancel-on-close logic). ActivityBar cancel does not interact with pendingEnhance (acceptable).",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Audit all long-running operation entry points (Enhance, Onboarding, Pipeline, AI Tool)"
+          },
+          {
+            "completed": false,
+            "label": "Map each operation's lifecycle: initiation → progress → completion → result delivery"
+          },
+          {
+            "completed": false,
+            "label": "Design UX pattern for resumable/persistent background operations"
+          },
+          {
+            "completed": false,
+            "label": "Implement operation-to-UI linking (e.g. store active operation IDs, reattach on dialog open)"
+          },
+          {
+            "completed": true,
+            "label": "Test: close dialog during Enhance, reopen, verify state restoration"
+          },
+          {
+            "completed": true,
+            "label": "Test: navigate away during pipeline, return, verify state persists"
+          }
+        ]
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -2142,44 +2159,26 @@
         "steps": []
       },
       {
-        "id": "task-mmsgscec-9ajy",
-        "title": "Audit and fix long-running AI task UX (dialog/activity bar coupling)",
+        "id": "task-1773496619358-rlfv6r601",
+        "title": "Workspace Enhancements",
         "status": "completed",
-        "priority": "high",
-        "category": "feature",
-        "context": "Session 2026-03-16",
+        "priority": "medium",
+        "category": "enhancement",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-16T00:47:50.723Z",
-        "updatedAt": "2026-03-16T01:10:44.036Z",
-        "completedAt": "2026-03-16T01:10:44.036Z",
-        "description": "Modal dialogs that initiate background AI operations (Enhance Sub-Task, Onboarding Analysis) break UX when closed — the operation continues in the background (visible in ActivityBar) but the user can't reopen the dialog to see current state/results. Need to either: (1) make dialogs resumable by linking to in-progress operations, (2) move long-running operations out of modals into persistent panels, or (3) add a global 'running operations' view that shows results. Pipelines are fine (persistent panel). The ActivityBar infrastructure is solid — the flaw is purely at the UI coupling layer.",
-        "userRequest": "Ensure all long-running AI tasks properly use global activity system AND that UI supports reopening/reattaching to in-progress operations",
-        "notes": "[2026-03-16] Implemented Option C (hybrid): pendingEnhance in Zustand store survives dialog close, toast with View Results action reopens dialog pre-populated. Also fixed: SettingsPanel CLI install/uninstall loading states. Audit found: CLI install (high), SCAN_PROJECT_DIR (medium), RECHECK_AI_TOOLS (medium) — first two fixed, third already had spinner.\n[2026-03-16] Audit pass 2: Fixed 5 additional issues — View Results navigates to Tasks panel, pendingEnhance cleared on form submit, Create/Update disabled during enhance, SCAN_PROJECT_DIR loading state added. OnboardingDialog confirmed clean (has cancel-on-close logic). ActivityBar cancel does not interact with pendingEnhance (acceptable).",
+        "createdAt": "2026-03-14T13:56:59.358Z",
+        "updatedAt": "2026-03-21T22:10:44.805Z",
+        "completedAt": "2026-03-21T22:10:44.805Z",
+        "description": "Workspaces should be enhanced for UI/UX.",
+        "notes": "[2026-03-15] Step 1 done: workspace create dialog with name input shipped in v0.4.0-beta. Step 2 (reorder) still pending. Per-workspace UI state tracked separately as task-mms40ogv-2p06.",
         "steps": [
           {
-            "completed": false,
-            "label": "Audit all long-running operation entry points (Enhance, Onboarding, Pipeline, AI Tool)"
-          },
-          {
-            "completed": false,
-            "label": "Map each operation's lifecycle: initiation → progress → completion → result delivery"
-          },
-          {
-            "completed": false,
-            "label": "Design UX pattern for resumable/persistent background operations"
-          },
-          {
-            "completed": false,
-            "label": "Implement operation-to-UI linking (e.g. store active operation IDs, reattach on dialog open)"
+            "completed": true,
+            "label": "When creating a new workspace present the naming modal"
           },
           {
             "completed": true,
-            "label": "Test: close dialog during Enhance, reopen, verify state restoration"
-          },
-          {
-            "completed": true,
-            "label": "Test: navigate away during pipeline, return, verify state persists"
+            "label": "Allow workspaces to be re-ordered"
           }
         ]
       }

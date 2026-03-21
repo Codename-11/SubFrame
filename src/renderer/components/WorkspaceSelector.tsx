@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronDown, Plus, FolderOpen, MoreVertical, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, FolderOpen, MoreVertical, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -176,6 +176,42 @@ export function WorkspaceSelector() {
     setDeleteTarget(null);
   }, [deleteTarget, refetch, loading]);
 
+  const handleMoveUp = useCallback(async () => {
+    if (!activeWs || loading) return;
+    const idx = workspaces.findIndex(ws => ws.key === activeWs.key);
+    if (idx <= 0) return; // Already first
+    setLoading(true);
+    try {
+      const keys = workspaces.map(ws => ws.key);
+      // Swap with previous
+      [keys[idx - 1], keys[idx]] = [keys[idx], keys[idx - 1]];
+      await typedInvoke(IPC.WORKSPACE_REORDER, keys);
+      refetch();
+    } catch {
+      toast.error('Failed to reorder workspace');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeWs, workspaces, loading, refetch]);
+
+  const handleMoveDown = useCallback(async () => {
+    if (!activeWs || loading) return;
+    const idx = workspaces.findIndex(ws => ws.key === activeWs.key);
+    if (idx < 0 || idx >= workspaces.length - 1) return; // Already last
+    setLoading(true);
+    try {
+      const keys = workspaces.map(ws => ws.key);
+      // Swap with next
+      [keys[idx], keys[idx + 1]] = [keys[idx + 1], keys[idx]];
+      await typedInvoke(IPC.WORKSPACE_REORDER, keys);
+      refetch();
+    } catch {
+      toast.error('Failed to reorder workspace');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeWs, workspaces, loading, refetch]);
+
   return (
     <div className="flex items-center gap-1 px-3 py-2 border-b border-border-subtle">
       {/* Workspace dropdown */}
@@ -220,7 +256,7 @@ export function WorkspaceSelector() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* More options (rename/delete) */}
+      {/* More options (rename/delete/reorder) */}
       {activeWs && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -232,6 +268,21 @@ export function WorkspaceSelector() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={handleMoveUp}
+              disabled={activeIndex <= 1}
+            >
+              <ChevronUp className="w-3.5 h-3.5 mr-2" />
+              Move Up
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleMoveDown}
+              disabled={activeIndex >= workspaces.length}
+            >
+              <ChevronDown className="w-3.5 h-3.5 mr-2" />
+              Move Down
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => handleRename(activeWs.key)}>
               Rename
             </DropdownMenuItem>

@@ -14,6 +14,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from './ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from './ui/alert-dialog';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
@@ -109,6 +119,9 @@ interface OnboardingDialogProps {
   importResult: OnboardingImportResult | null;
   onPreviewPrompt: (options?: OnboardingAnalysisOptions) => Promise<{ prompt: string; contextSize: number }>;
   onBrowseFiles: (type: 'file' | 'directory') => Promise<string[]>;
+  stalled?: boolean;
+  stallDurationMs?: number;
+  timeoutMs?: number | null;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -134,6 +147,9 @@ export function OnboardingDialog({
   importResult,
   onPreviewPrompt,
   onBrowseFiles,
+  stalled,
+  stallDurationMs,
+  timeoutMs,
 }: OnboardingDialogProps) {
   const [activeStep, setActiveStep] = useState<StepIndex>(0);
   const [analysisSkipped, setAnalysisSkipped] = useState(false);
@@ -149,6 +165,7 @@ export function OnboardingDialog({
   const outputRef = useRef<HTMLDivElement>(null);
   const suppressCancelRef = useRef(false);
   const [confirmRollback, setConfirmRollback] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   // Elapsed timer for analyzing phase
   const [analyzeStartTime, setAnalyzeStartTime] = useState<number | null>(null);
@@ -288,6 +305,7 @@ export function OnboardingDialog({
       suppressCancelRef.current = false;
       setAnalysisSkipped(false);
       setConfirmRollback(false);
+      setShowCloseConfirm(false);
       setShowAdvanced(false);
       setPromptPreview(null);
       setIsLoadingPreview(false);
@@ -382,9 +400,12 @@ export function OnboardingDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(nextOpen) => {
       if (!nextOpen && (isAnalyzing || isImporting || isRollingBack) && !suppressCancelRef.current) {
-        onCancel();
+        // Show confirmation instead of immediately cancelling
+        setShowCloseConfirm(true);
+        return; // Don't close yet
       }
       suppressCancelRef.current = false;
       onOpenChange(nextOpen);
@@ -756,7 +777,7 @@ export function OnboardingDialog({
                       <p className="text-[11px] text-text-secondary truncate flex-1">{progress.message}</p>
                       {progress.phase === 'analyzing' && elapsed > 0 && (
                         <span className="text-[10px] text-text-muted tabular-nums shrink-0">
-                          {elapsed}s{outputLines.length > 0 ? ` · ${outputLines.length} lines` : ''}
+                          {elapsed}s{timeoutMs ? ` / ${Math.floor(timeoutMs / 1000)}s` : ''}{outputLines.length > 0 ? ` · ${outputLines.length} lines` : ''}
                         </span>
                       )}
                     </div>
@@ -783,6 +804,21 @@ export function OnboardingDialog({
                   ))}
                 </div>
               )}
+
+              {/* Stall warning */}
+              {stalled && (
+                <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/5 px-2.5 py-1.5">
+                  <AlertCircle className="size-3.5 text-warning shrink-0" />
+                  <p className="text-[11px] text-warning">
+                    No output for {Math.floor((stallDurationMs ?? 0) / 1000)}s — the AI tool may be processing a large response.
+                  </p>
+                </div>
+              )}
+
+              {/* Background hint */}
+              <p className="text-[10px] text-text-muted italic">
+                You can close this dialog — analysis continues in the background terminal.
+              </p>
             </div>
           )}
 
@@ -1026,10 +1062,34 @@ export function OnboardingDialog({
             {activeStep === 1 && (
               <>
                 {error && (
-                  <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5">
-                    <RotateCcw className="size-3.5" />
-                    Retry
-                  </Button>
+                  <>
+                    <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5">
+                      <RotateCcw className="size-3.5" />
+                      Retry
+                    </Button>
+                    {error.toLowerCase().includes('timed out') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          onRetry();
+                          // Schedule analyze with double timeout after retry clears state
+                          setTimeout(() => {
+                            const opts: OnboardingAnalysisOptions = {
+                              timeoutOverride: (timeoutMs ?? 600_000) * 2,
+                            };
+                            if (customContext.trim()) opts.customContext = customContext.trim();
+                            if (extraFiles.length > 0) opts.extraFiles = extraFiles.map(f => f.path);
+                            onAnalyze(opts);
+                          }, 100);
+                        }}
+                        className="gap-1.5"
+                      >
+                        <RotateCcw className="size-3.5" />
+                        Retry ({Math.floor((timeoutMs ?? 600_000) * 2 / 60_000)}m timeout)
+                      </Button>
+                    )}
+                  </>
                 )}
                 {!isAnalyzing && (
                   <Button
@@ -1104,6 +1164,44 @@ export function OnboardingDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Close confirmation when analysis is running */}
+    <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+      <AlertDialogContent className="bg-bg-primary border-border-subtle">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-text-primary text-sm">Analysis in progress</AlertDialogTitle>
+          <AlertDialogDescription className="text-text-secondary text-xs">
+            The AI analysis is still running. You can keep it running in the background terminal, or cancel it.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="text-xs h-8">
+            Keep Open
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="text-xs h-8 bg-transparent border border-border-default text-text-secondary hover:bg-bg-hover"
+            onClick={() => {
+              onCancel();
+              setShowCloseConfirm(false);
+              onOpenChange(false);
+            }}
+          >
+            Cancel Analysis
+          </AlertDialogAction>
+          <AlertDialogAction
+            className="text-xs h-8"
+            onClick={() => {
+              suppressCancelRef.current = true;
+              setShowCloseConfirm(false);
+              onOpenChange(false);
+            }}
+          >
+            Continue in Background
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

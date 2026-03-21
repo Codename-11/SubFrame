@@ -115,6 +115,7 @@ function sendProgress(
   phase: OnboardingProgressEvent['phase'],
   message: string,
   progress: number,
+  extra?: { terminalId?: string; timeoutMs?: number; elapsedMs?: number; stalled?: boolean; stallDurationMs?: number },
 ): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
@@ -122,6 +123,7 @@ function sendProgress(
       phase,
       message,
       progress,
+      ...extra,
     } satisfies OnboardingProgressEvent);
   }
 }
@@ -430,7 +432,11 @@ function getAnalysisTimeout(): number {
  * This is the reusable pipeline core — it writes a prompt to a temp file,
  * pipes it through the active AI tool, captures output, and returns the raw result.
  */
-async function runAnalysisInTerminal(projectPath: string, prompt: string): Promise<{ raw: string; terminalId: string }> {
+async function runAnalysisInTerminal(
+  projectPath: string,
+  prompt: string,
+  opts?: { timeoutMs?: number; analysisStartMs?: number },
+): Promise<{ raw: string; terminalId: string }> {
   // Write prompt to temp file
   const timestamp = Date.now();
   const promptFile = path.join(os.tmpdir(), `sf-onboard-prompt-${timestamp}.txt`);
@@ -487,18 +493,31 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
     });
   }
 
+  // Track analysis timing for timeout metadata and stall detection
+  const analysisStartMs = opts?.analysisStartMs ?? Date.now();
+  const effectiveTimeoutMs = opts?.timeoutMs ?? getAnalysisTimeout();
+
   // Notify renderer of the terminalId so "View Terminal" works during analysis
-  const sendProgress = (message: string, progress: number, phase: OnboardingProgressEvent['phase'] = 'analyzing') => {
+  const sendProgress = (
+    message: string,
+    progress: number,
+    phase: OnboardingProgressEvent['phase'] = 'analyzing',
+    extra?: { stalled?: boolean; stallDurationMs?: number },
+  ) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
         projectPath, phase, message, progress, terminalId,
+        timeoutMs: effectiveTimeoutMs,
+        elapsedMs: Date.now() - analysisStartMs,
+        ...extra,
       } satisfies OnboardingProgressEvent);
     }
   };
   sendProgress('AI analysis started', 50);
 
-  // Hoisted timer ref so cleanup() can clear it (trust prompt retry)
+  // Hoisted timer refs so cleanup() can clear them
   let claudeRetryTimer: ReturnType<typeof setInterval> | null = null;
+  let stallCheckTimer: ReturnType<typeof setInterval> | null = null;
 
   return new Promise<{ raw: string; terminalId: string }>((resolve, reject) => {
     let resolved = false;
@@ -510,6 +529,7 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
       if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
+      if (stallCheckTimer) { clearInterval(stallCheckTimer); stallCheckTimer = null; }
       activeAnalyses.delete(projectPath);
       ptyManager.removeOutputHandler(terminalId);
       try { fs.unlinkSync(promptFile); } catch { /* ignore */ }
@@ -541,7 +561,7 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
     });
 
     // Timeout guard
-    const timeoutMs = getAnalysisTimeout();
+    const timeoutMs = effectiveTimeoutMs;
     timeoutId = setTimeout(() => {
       fail(new Error(`Analysis timed out after ${timeoutMs / 1000} seconds`));
     }, timeoutMs);
@@ -559,6 +579,7 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
 
         if (!menuReady && /enter to confirm/i.test(stripped)) {
           menuReady = true;
+          lastOutputTime = Date.now(); // Reset stall timer during trust prompt handling
           console.log('[Onboarding] Trust prompt menu detected, sending Enter');
           sendProgress('Accepting directory trust prompt...', 52);
           let attempts = 0;
@@ -573,6 +594,7 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
         }
         if (menuReady && !/trust|folder|directory|security|confirm|cancel|exit/i.test(stripped) && stripped.trim().length > 5) {
           trustConfirmed = true;
+          lastOutputTime = Date.now(); // Reset stall timer after trust prompt accepted
           if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
           console.log('[Onboarding] Trust prompt accepted');
         }
@@ -582,6 +604,7 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
     // ── Streaming progress — count output lines and creep progress 50→79% ──
     let outputLineCount = 0;
     let lastProgressUpdate = 0; // 0 so first output triggers an immediate update
+    let lastOutputTime = Date.now();
     const PROGRESS_INTERVAL_MS = 3000; // throttle progress events
     const streamHandlerId = 'onboarding-stream';
 
@@ -591,6 +614,7 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
       const stripped = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
       const newLines = stripped.split('\n').filter(l => l.trim().length > 0).length;
       if (newLines > 0) {
+        lastOutputTime = Date.now();
         outputLineCount += newLines;
         const now = Date.now();
         if (now - lastProgressUpdate >= PROGRESS_INTERVAL_MS) {
@@ -601,6 +625,22 @@ async function runAnalysisInTerminal(projectPath: string, prompt: string): Promi
         }
       }
     }, streamHandlerId);
+
+    // ── Stall detection — warn if no output received for 30+ seconds ──
+    const STALL_THRESHOLD_MS = 30_000;
+    stallCheckTimer = setInterval(() => {
+      if (resolved) return;
+      const stallDuration = Date.now() - lastOutputTime;
+      if (stallDuration >= STALL_THRESHOLD_MS) {
+        const creep = Math.min(29, Math.floor(15 * Math.log2(1 + outputLineCount / 10)));
+        sendProgress(
+          `No output received for ${Math.floor(stallDuration / 1000)}s \u2014 AI tool may be processing a large response...`,
+          50 + creep,
+          'analyzing',
+          { stalled: true, stallDurationMs: stallDuration },
+        );
+      }
+    }, 5_000);
 
     // ── Sentinel file polling (all tools) ──────────────────────────
     const sentinelFile = resultFile + '.done';
@@ -1036,19 +1076,24 @@ function setupIPC(ipcMain: IpcMain): void {
         return { terminalId: existing.terminalId };
       }
 
+      // Compute effective timeout (user override or default)
+      const analysisStartMs = Date.now();
+      const effectiveTimeout = options?.timeoutOverride ?? getAnalysisTimeout();
+      const timeoutMeta = () => ({ timeoutMs: effectiveTimeout, elapsedMs: Date.now() - analysisStartMs });
+
       // Create activity stream for onboarding analysis
       const streamId = activityManager.createStream({
         name: 'Project Analysis',
         type: 'pty',
         source: 'onboarding',
-        timeout: getAnalysisTimeout(),
+        timeout: effectiveTimeout,
         heartbeatInterval: 3_000,
       });
       activityStreamId = streamId;
       activityManager.updateStatus(streamId, 'running');
 
       // Phase: detecting
-      sendProgress(projectPath, 'detecting', 'Scanning for project intelligence files...', 10);
+      sendProgress(projectPath, 'detecting', 'Scanning for project intelligence files...', 10, timeoutMeta());
       activityManager.emit(streamId, 'Scanning for project intelligence files...');
       activityManager.updateProgress(streamId, 10);
       const detection = detectProjectIntelligence(projectPath);
@@ -1059,6 +1104,7 @@ function setupIPC(ipcMain: IpcMain): void {
           'error',
           'Not enough project files found for meaningful analysis.',
           10,
+          timeoutMeta(),
         );
         activityManager.updateStatus(streamId, 'failed', 'Not enough project files found for meaningful analysis.');
         return { terminalId: '' };
@@ -1068,7 +1114,7 @@ function setupIPC(ipcMain: IpcMain): void {
       const toolCheck = await checkAIToolAvailable();
       if (!toolCheck.available) {
         const toolError = toolCheck.error || `AI tool "${toolCheck.command}" not found.`;
-        sendProgress(projectPath, 'error', toolError, 15);
+        sendProgress(projectPath, 'error', toolError, 15, timeoutMeta());
         activityManager.updateStatus(streamId, 'failed', toolError);
         return { terminalId: '' };
       }
@@ -1079,20 +1125,20 @@ function setupIPC(ipcMain: IpcMain): void {
           findBashShell();
         } catch (shellErr) {
           const shellErrMsg = (shellErr as Error).message;
-          sendProgress(projectPath, 'error', shellErrMsg, 15);
+          sendProgress(projectPath, 'error', shellErrMsg, 15, timeoutMeta());
           activityManager.updateStatus(streamId, 'failed', shellErrMsg);
           return { terminalId: '' };
         }
       }
 
       // Phase: gathering
-      sendProgress(projectPath, 'gathering', `Reading ${detection.detected.length} detected files...`, 30);
+      sendProgress(projectPath, 'gathering', `Reading ${detection.detected.length} detected files...`, 30, timeoutMeta());
       activityManager.emit(streamId, `Reading ${detection.detected.length} detected files...`);
       activityManager.updateProgress(streamId, 30);
       const context = gatherContext(projectPath, detection.detected, options?.extraFiles);
 
       if (context.trim().length === 0) {
-        sendProgress(projectPath, 'error', 'No readable content found in detected files.', 30);
+        sendProgress(projectPath, 'error', 'No readable content found in detected files.', 30, timeoutMeta());
         activityManager.updateStatus(streamId, 'failed', 'No readable content found in detected files.');
         return { terminalId: '' };
       }
@@ -1101,14 +1147,17 @@ function setupIPC(ipcMain: IpcMain): void {
       const prompt = buildAnalysisPrompt(context, detection.projectName, options?.customContext);
 
       // Phase: analyzing
-      sendProgress(projectPath, 'analyzing', 'Running AI analysis (this may take a minute)...', 50);
+      sendProgress(projectPath, 'analyzing', 'Running AI analysis (this may take a minute)...', 50, timeoutMeta());
       activityManager.emit(streamId, 'Running AI analysis (this may take a minute)...');
       activityManager.updateProgress(streamId, 50);
 
       let raw: string;
       let analysisTerminalId = '';
       try {
-        const result = await runAnalysisInTerminal(projectPath, prompt);
+        const result = await runAnalysisInTerminal(projectPath, prompt, {
+          timeoutMs: options?.timeoutOverride,
+          analysisStartMs,
+        });
         raw = result.raw;
         analysisTerminalId = result.terminalId;
       } catch (err) {
@@ -1122,6 +1171,7 @@ function setupIPC(ipcMain: IpcMain): void {
             message: msg,
             progress: 50,
             terminalId: errTerminalId,
+            ...timeoutMeta(),
           } satisfies OnboardingProgressEvent);
         }
         activityManager.updateStatus(streamId, 'failed', msg);
@@ -1147,7 +1197,7 @@ function setupIPC(ipcMain: IpcMain): void {
       }
 
       // Phase: parsing
-      sendProgress(projectPath, 'parsing', 'Parsing AI response...', 80);
+      sendProgress(projectPath, 'parsing', 'Parsing AI response...', 80, timeoutMeta());
       activityManager.emit(streamId, 'Parsing AI response...');
       activityManager.updateProgress(streamId, 80);
       const { result: parsed, error: parseError } = parseAnalysisResponse(raw);
@@ -1184,6 +1234,7 @@ function setupIPC(ipcMain: IpcMain): void {
             message: errorMsg,
             progress: 80,
             terminalId: errorTerminalId,
+            ...timeoutMeta(),
           } satisfies OnboardingProgressEvent);
         }
         activityManager.updateStatus(streamId, 'failed', errorMsg);
@@ -1194,7 +1245,7 @@ function setupIPC(ipcMain: IpcMain): void {
       analysisResultsCache.set(projectPath, parsed);
 
       // Phase: done — include serialized results so the renderer hook can parse them
-      sendProgress(projectPath, 'done', JSON.stringify(parsed), 100);
+      sendProgress(projectPath, 'done', JSON.stringify(parsed), 100, timeoutMeta());
       activityManager.emit(streamId, 'Analysis complete.');
       activityManager.updateProgress(streamId, 100);
       activityManager.updateStatus(streamId, 'completed');

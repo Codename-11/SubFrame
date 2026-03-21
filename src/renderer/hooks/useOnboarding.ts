@@ -28,6 +28,14 @@ export function useOnboarding() {
   const [error, setError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<OnboardingImportResult | null>(null);
 
+  // Stall detection state
+  const [stalled, setStalled] = useState(false);
+  const [stallDurationMs, setStallDurationMs] = useState(0);
+
+  // Timeout tracking from progress events
+  const [timeoutMs, setTimeoutMs] = useState<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
+
   // ── Mutations ────────────────────────────────────────────────────────────
   const detectMutation = useIpcMutation(IPC.DETECT_PROJECT_INTELLIGENCE);
   const analyzeMutation = useIpcMutation(IPC.RUN_ONBOARDING_ANALYSIS);
@@ -44,6 +52,20 @@ export function useOnboarding() {
       // Capture terminalId as soon as it arrives (sent during 'analyzing' phase)
       if (data.terminalId) {
         setTerminalId(data.terminalId);
+      }
+
+      // Track timeout info from progress events
+      if (data.timeoutMs !== undefined) setTimeoutMs(data.timeoutMs);
+      if (data.elapsedMs !== undefined) setElapsedMs(data.elapsedMs);
+
+      // Track stall state — always clear on non-stall events (no-op if already false,
+      // avoids stale closure issues from depending on `stalled` in this callback)
+      if (data.stalled) {
+        setStalled(true);
+        setStallDurationMs(data.stallDurationMs ?? 0);
+      } else {
+        setStalled(false);
+        setStallDurationMs(0);
       }
 
       if (data.phase === 'done') {
@@ -148,6 +170,10 @@ export function useOnboarding() {
     setIsAnalyzing(false);
     setError(null);
     setImportResult(null);
+    setStalled(false);
+    setStallDurationMs(0);
+    setTimeoutMs(null);
+    setElapsedMs(null);
   }, []);
 
   const reset = useCallback((): void => {
@@ -158,6 +184,10 @@ export function useOnboarding() {
     setIsAnalyzing(false);
     setError(null);
     setImportResult(null);
+    setStalled(false);
+    setStallDurationMs(0);
+    setTimeoutMs(null);
+    setElapsedMs(null);
   }, []);
 
   return {
@@ -183,5 +213,9 @@ export function useOnboarding() {
     isBrowsingFiles: browseFilesMutation.isPending,
     error,
     importResult,
+    stalled,
+    stallDurationMs,
+    timeoutMs,
+    elapsedMs,
   };
 }

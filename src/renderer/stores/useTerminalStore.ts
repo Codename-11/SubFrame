@@ -82,10 +82,19 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   addTerminal: (info) => {
     const terminals = new Map(get().terminals);
-    terminals.set(info.id, { ...info, createdAt: info.createdAt ?? Date.now() });
+    const existing = terminals.get(info.id);
+    // Preserve createdAt for existing terminals (prevents reorder loss from duplicate TERMINAL_CREATED events)
+    const createdAt = existing?.createdAt ?? info.createdAt ?? Date.now();
+    terminals.set(info.id, { ...info, createdAt });
     const activeByProject = new Map(get().activeByProject);
-    activeByProject.set(info.projectPath || '', info.id);
-    set({ terminals, activeTerminalId: info.id, activeByProject });
+    if (info.isActive) {
+      // Foreground terminal — activate and update per-project mapping
+      activeByProject.set(info.projectPath || '', info.id);
+      set({ terminals, activeTerminalId: info.id, activeByProject });
+    } else {
+      // Background terminal (e.g. onboarding analysis) — register without stealing focus
+      set({ terminals, activeByProject });
+    }
   },
 
   removeTerminal: (id, currentProjectPath) => {

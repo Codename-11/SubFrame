@@ -337,22 +337,145 @@ function createWindow(): BrowserWindow {
     if (!mainWindow!.isMaximized()) (mainWindow as any)._normalBounds = mainWindow!.getBounds();
   });
 
-  // Save state before close — with active-work protection
-  mainWindow.on('close', (event) => {
-    saveWindowState();
+  // ── Graceful Shutdown State ───────────────────────────────────────────────
+  let shutdownInProgress = false;
+  let pendingShutdownReason: 'close' | 'update' | null = null;
 
-    // Detect active work across all subsystems
+  /** Detect active work across all subsystems */
+  function detectActiveWork() {
     const activeAgentTerminals = ptyManager.getTerminalIds().filter(id => ptyManager.isClaudeActive(id));
     const pipelineRunning = pipelineManager.hasActiveRuns();
     const analysisRunning = onboardingManager.hasActiveAnalyses();
-    const hasActiveWork = activeAgentTerminals.length > 0 || pipelineRunning || analysisRunning || activityManager.hasActiveStreams();
+    const activeStreams = activityManager.hasActiveStreams();
+    const hasActiveWork = activeAgentTerminals.length > 0 || pipelineRunning || analysisRunning || activeStreams;
+    return { activeAgentTerminals, pipelineRunning, analysisRunning, activeStreams, hasActiveWork };
+  }
 
+  /** Build terminal info list for the shutdown dialog */
+  function buildTerminalInfoList(activeTerminalIds: string[]) {
+    return ptyManager.getTerminalIds().map(id => ({
+      terminalId: id,
+      claudeActive: activeTerminalIds.includes(id),
+      label: `Terminal ${id.replace('term-', '#')}`,
+      status: 'waiting' as const,
+    }));
+  }
+
+  /** Send graceful shutdown request to renderer */
+  function requestGracefulShutdown(reason: 'close' | 'update'): void {
+    if (shutdownInProgress || !mainWindow || mainWindow.isDestroyed()) return;
+    shutdownInProgress = true;
+    pendingShutdownReason = reason;
+    const { activeAgentTerminals, pipelineRunning, analysisRunning, activeStreams } = detectActiveWork();
+    mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_REQUEST, {
+      reason,
+      terminals: buildTerminalInfoList(activeAgentTerminals),
+      pipelineRunning,
+      analysisRunning,
+      activeStreams,
+    });
+  }
+
+  /** Perform the graceful shutdown — inject /exit, wait for terminals, then finish */
+  async function performGracefulShutdown(): Promise<void> {
+    const TIMEOUT_MS = 15_000;
+    const activeTerminals = ptyManager.getTerminalIds().filter(id => ptyManager.isClaudeActive(id));
+
+    // Inject /exit into each active Claude terminal
+    for (const terminalId of activeTerminals) {
+      ptyManager.writeToTerminal(terminalId, '/exit\n');
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'exiting' });
+      }
+    }
+
+    // Wait for each active terminal to exit (with timeout)
+    for (const terminalId of activeTerminals) {
+      const result = await ptyManager.waitForExit(terminalId, TIMEOUT_MS);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: result });
+      }
+    }
+
+    // Now kill any remaining non-Claude terminals cleanly
+    const remaining = ptyManager.getTerminalIds();
+    for (const terminalId of remaining) {
+      ptyManager.destroyTerminal(terminalId);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'killed' });
+      }
+    }
+
+    // Notify renderer that shutdown is complete
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_COMPLETE, {
+        reason: pendingShutdownReason,
+        success: true,
+      });
+    }
+
+    // Brief delay so the renderer can show completion state
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    // Finish based on reason
+    if (pendingShutdownReason === 'update') {
+      updaterManager.performQuitAndInstall();
+    } else if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.destroy();
+    }
+    shutdownInProgress = false;
+    pendingShutdownReason = null;
+  }
+
+  // ── Graceful Shutdown IPC Handlers ────────────────────────────────────────
+
+  ipcMain.handle(IPC.GRACEFUL_SHUTDOWN_CONFIRM, async () => {
+    await performGracefulShutdown();
+  });
+
+  ipcMain.handle(IPC.GRACEFUL_SHUTDOWN_CANCEL, () => {
+    shutdownInProgress = false;
+    pendingShutdownReason = null;
+  });
+
+  ipcMain.handle(IPC.GRACEFUL_SHUTDOWN_FORCE, () => {
+    if (pendingShutdownReason === 'update') {
+      updaterManager.performQuitAndInstall();
+    } else if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.destroy();
+    }
+    shutdownInProgress = false;
+    pendingShutdownReason = null;
+  });
+
+  // ── Updater Pre-Install Hook ──────────────────────────────────────────────
+  // Route update installs through graceful shutdown when active work exists
+  updaterManager.setBeforeInstallHook(() => {
+    const { hasActiveWork } = detectActiveWork();
+    if (hasActiveWork) {
+      requestGracefulShutdown('update');
+      return false; // Defer — graceful shutdown will call performQuitAndInstall when ready
+    }
+    return true; // No active work, proceed directly
+  });
+
+  // ── Save state before close — with active-work protection ─────────────────
+  mainWindow.on('close', (event) => {
+    saveWindowState();
+
+    // If a graceful shutdown is already in progress, just block the close
+    if (shutdownInProgress) {
+      event.preventDefault();
+      return;
+    }
+
+    const { hasActiveWork } = detectActiveWork();
     const confirmBeforeClose = settingsManager.getSetting('general.confirmBeforeClose') as boolean ?? true;
 
     // If nothing is active and the setting is off, close immediately
     if (!hasActiveWork && !confirmBeforeClose) return;
 
-    // If nothing is active but user wants confirmation on every close
+    // If nothing is active but user wants confirmation on every close — native dialog
     if (!hasActiveWork && confirmBeforeClose) {
       event.preventDefault();
       const result = dialog.showMessageBoxSync(mainWindow!, {
@@ -369,35 +492,9 @@ function createWindow(): BrowserWindow {
       return;
     }
 
-    // Active work detected — always warn, regardless of setting
-    const parts: string[] = [];
-    if (activeAgentTerminals.length > 0) {
-      parts.push(`An AI agent is currently running in ${activeAgentTerminals.length} terminal(s).`);
-    }
-    if (pipelineRunning) {
-      parts.push('A pipeline is currently running.');
-    }
-    if (analysisRunning) {
-      parts.push('Project analysis is in progress.');
-    }
-    if (activityManager.hasActiveStreams()) {
-      parts.push('Background operations are in progress.');
-    }
-    const detailMessage = parts.join(' ') + '\nClosing will terminate all running processes.';
-
+    // Active work detected — route through graceful shutdown UI dialog
     event.preventDefault();
-    const result = dialog.showMessageBoxSync(mainWindow!, {
-      type: 'warning',
-      buttons: ['Cancel', 'Close Anyway'],
-      defaultId: 0,
-      cancelId: 0,
-      title: 'Active Work in Progress',
-      message: 'Are you sure you want to close SubFrame?',
-      detail: detailMessage,
-    });
-    if (result === 1) {
-      mainWindow!.destroy();
-    }
+    requestGracefulShutdown('close');
   });
 
   mainWindow.on('closed', () => {
