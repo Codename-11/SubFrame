@@ -81,7 +81,7 @@ const SECTION_LABELS: Record<string, string[]> = {
   terminal: [
     'Font Size', 'Font Family', 'Line Height', 'Scrollback Lines',
     'Cursor Style', 'Cursor Blink', 'Default Shell', 'Bell Sound',
-    'Copy on Select', 'Font', 'Display', 'Behavior', 'Nerd Font',
+    'Copy on Select', 'Max Terminals', 'Font', 'Display', 'Behavior', 'Nerd Font',
   ],
   editor: [
     'Font Size', 'Font Family', 'Tab Size', 'Theme',
@@ -252,6 +252,7 @@ export function SettingsPanel() {
   const [aiCommand, setAiCommand] = useState('');
   const [fontSize, setFontSize] = useState(14);
   const [scrollback, setScrollback] = useState(10000);
+  const [maxTerminals, setMaxTerminals] = useState(9);
 
   // Terminal settings
   const [nerdFontDetected] = useState(() => detectNerdFont());
@@ -296,6 +297,7 @@ export function SettingsPanel() {
     const terminal = (settings.terminal as Record<string, unknown>) || {};
     setFontSize((terminal.fontSize as number) || 14);
     setScrollback((terminal.scrollback as number) || 10000);
+    setMaxTerminals((terminal.maxTerminals as number) || 9);
     setFontFamily((terminal.fontFamily as string) || DEFAULT_FONT);
     setLineHeight((terminal.lineHeight as number) || 1.2);
     setCursorBlink(terminal.cursorBlink !== false);
@@ -374,6 +376,7 @@ export function SettingsPanel() {
     updateSetting.mutate([{ key: 'terminal.defaultShell', value: defaultShell }]);
     updateSetting.mutate([{ key: 'terminal.bellSound', value: bellSound }]);
     updateSetting.mutate([{ key: 'terminal.copyOnSelect', value: copyOnSelect }]);
+    updateSetting.mutate([{ key: 'terminal.maxTerminals', value: maxTerminals }]);
     toast.success('Terminal settings saved');
   }
 
@@ -1118,7 +1121,7 @@ export function SettingsPanel() {
                 )}
 
                 {/* Behavior group */}
-                {(matchesSearch('Default Shell') || matchesSearch('Bell Sound') || matchesSearch('Copy on Select') || matchesSearch('Behavior')) && (
+                {(matchesSearch('Default Shell') || matchesSearch('Bell Sound') || matchesSearch('Copy on Select') || matchesSearch('Max Terminals') || matchesSearch('Behavior')) && (
                   <SettingGroup label="Behavior">
                     {matchesSearch('Default Shell') && availableShells.length > 0 && (
                       <SettingSelect
@@ -1158,6 +1161,17 @@ export function SettingsPanel() {
                         description="Automatically copy selected text to clipboard"
                         value={copyOnSelect}
                         onChange={setCopyOnSelect}
+                      />
+                    )}
+                    {matchesSearch('Max Terminals') && (
+                      <SettingSlider
+                        label="Max Terminals"
+                        description="Maximum number of terminal instances allowed (global, across all projects)"
+                        value={maxTerminals}
+                        onChange={setMaxTerminals}
+                        min={1}
+                        max={20}
+                        step={1}
                       />
                     )}
                   </SettingGroup>

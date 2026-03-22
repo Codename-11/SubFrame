@@ -232,6 +232,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     // Fit + sync PTY dimensions + restore scroll + auto-focus after (re)attach
     const scrollState = savedScrollStateRef.current;
     savedScrollStateRef.current = undefined; // consume once
+    let deferredSyncTimer: ReturnType<typeof setTimeout> | null = null;
     requestAnimationFrame(() => {
       if (fitAddonRef.current) {
         try {
@@ -260,12 +261,37 @@ export function Terminal({ terminalId, className }: TerminalProps) {
           terminal.scrollToBottom();
         }
         terminal.focus();
+
+        // Deferred viewport sync — when terminals are reparented from the
+        // off-screen holder (1px container), xterm's viewport DOM has stale
+        // scroll dimensions. The initial scrollToBottom() sets xterm's internal
+        // buffer state (ydisp=ybase) but the DOM viewport's scrollTop may not
+        // update because scrollHeight hasn't been re-measured by the browser
+        // after reparenting. Re-scroll after a short delay to ensure the
+        // viewport has been laid out at its new visible dimensions.
+        deferredSyncTimer = setTimeout(() => {
+          deferredSyncTimer = null;
+          if (!terminalRef.current) return;
+          const shouldScrollToBottom = !scrollState || scrollState.wasAtBottom;
+          if (shouldScrollToBottom) {
+            terminalRef.current.scrollToBottom();
+          } else {
+            terminalRef.current.scrollToLine(scrollState.viewportY);
+          }
+          // Direct DOM fallback — if xterm's internal scroll sync still hasn't
+          // propagated to the DOM, set scrollTop explicitly
+          const viewport = containerRef.current?.querySelector('.xterm-viewport') as HTMLElement | null;
+          if (viewport && shouldScrollToBottom) {
+            viewport.scrollTop = viewport.scrollHeight;
+          }
+        }, 80);
       });
     });
 
     return () => {
       dataDisposable.dispose();
       resizeDisposable.dispose();
+      if (deferredSyncTimer) clearTimeout(deferredSyncTimer);
     };
   }, [terminalId, terminalRef, fitAddonRef]);
 
@@ -507,6 +533,13 @@ export function Terminal({ terminalId, className }: TerminalProps) {
 
   const handleScrollToBottom = useCallback(() => {
     terminalRef.current?.scrollToBottom();
+    // Direct viewport DOM fallback — when xterm's viewport is desynced after
+    // reparenting (workspace switch), scrollToBottom() sets internal state but
+    // the DOM scrollTop may not update. Explicitly set scrollTop as backup.
+    const viewport = containerRef.current?.querySelector('.xterm-viewport') as HTMLElement | null;
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
+    }
     setShowScrollBtn(false);
     setRecentOutput([]);
     outputBufferRef.current = '';

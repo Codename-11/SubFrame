@@ -34,6 +34,7 @@ interface DefaultSettings {
     defaultShell: string;
     bellSound: boolean;
     copyOnSelect: boolean;
+    maxTerminals: number;
   };
   editor: {
     minimap: boolean;
@@ -92,6 +93,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     defaultShell: '',
     bellSound: false,
     copyOnSelect: false,
+    maxTerminals: 9,
   },
   editor: {
     minimap: false,

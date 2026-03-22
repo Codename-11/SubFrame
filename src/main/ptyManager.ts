@@ -250,7 +250,14 @@ interface ShellInfo {
 const ptyInstances = new Map<string, PTYInstance>();
 let mainWindow: BrowserWindow | null = null;
 let terminalCounter = 0;
-const MAX_TERMINALS = 9;
+const DEFAULT_MAX_TERMINALS = 9;
+
+/** Read max terminals from settings (falls back to default if unconfigured) */
+function getMaxTerminals(): number {
+  const val = getSetting('terminal.maxTerminals') as number | undefined;
+  if (typeof val === 'number' && val >= 1 && val <= 20) return val;
+  return DEFAULT_MAX_TERMINALS;
+}
 
 /**
  * Initialize PTY manager with window reference
@@ -359,8 +366,9 @@ function getAvailableShells(): ShellInfo[] {
  * Create a new terminal instance
  */
 function createTerminal(workingDir: string | null = null, projectPath: string | null = null, shellPath: string | null = null): string {
-  if (ptyInstances.size >= MAX_TERMINALS) {
-    throw new Error(`Maximum terminal limit (${MAX_TERMINALS}) reached`);
+  const maxTerminals = getMaxTerminals();
+  if (ptyInstances.size >= maxTerminals) {
+    throw new Error(`Maximum terminal limit (${maxTerminals}) reached`);
   }
 
   const terminalId = `term-${++terminalCounter}`;
