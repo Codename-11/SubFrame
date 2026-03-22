@@ -42,7 +42,7 @@ var require_package = __commonJS({
     module2.exports = {
       name: "subframe",
       productName: "SubFrame",
-      version: "0.6.1-beta",
+      version: "0.7.0-beta",
       description: "SubFrame - Project Management IDE for Claude Code",
       main: "dist/main/index.js",
       scripts: {

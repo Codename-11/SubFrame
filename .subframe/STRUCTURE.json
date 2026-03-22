@@ -1980,25 +1980,25 @@
           ]
         },
         "setupAllIPC": {
-          "line": 519,
+          "line": 521,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 678,
+          "line": 680,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 689,
+          "line": 691,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 782,
+      "loc": 784,
       "ipc": {
         "listens": [
           "GRACEFUL_SHUTDOWN_CONFIRM",
@@ -5489,7 +5489,7 @@
           ]
         }
       },
-      "loc": 296
+      "loc": 324
     },
     "renderer/components/HistoryPanel": {
       "file": "src\\renderer\\components\\HistoryPanel.tsx",
@@ -6085,7 +6085,7 @@
       ],
       "functions": {
         "ProjectList": {
-          "line": 41,
+          "line": 42,
           "purpose": "Supports keyboard navigation (Arrow Up/Down, Enter, F2, Escape) and inline rename.",
           "calls": [
             "sortProjects",
@@ -6093,7 +6093,7 @@
           ]
         },
         "ProjectCard": {
-          "line": 288,
+          "line": 289,
           "params": [
             "{\r\n  project",
             "isActive",
@@ -6112,13 +6112,13 @@
           ]
         },
         "sortProjects": {
-          "line": 424,
+          "line": 429,
           "params": [
             "list"
           ]
         }
       },
-      "loc": 434,
+      "loc": 439,
       "ipc": {
         "listens": [],
         "emits": [
@@ -6865,13 +6865,13 @@
           ]
         },
         "SystemPanel": {
-          "line": 73,
+          "line": 72,
           "params": [
             "{ isFullView"
           ]
         },
         "VersionCard": {
-          "line": 140,
+          "line": 139,
           "purpose": "─── Card 1: Version & Update ─────────────────────────────────────────────────",
           "calls": [
             "getLogoSVG",
@@ -6879,7 +6879,7 @@
           ]
         },
         "UpdateStatusLine": {
-          "line": 210,
+          "line": 209,
           "params": [
             "{\n  status",
             "updateVersion",
@@ -6891,7 +6891,7 @@
           ]
         },
         "AIToolCard": {
-          "line": 301,
+          "line": 300,
           "purpose": "─── Card 2: AI Tool Picker ──────────────────────────────────────────────────",
           "calls": [
             "cn",
@@ -6899,14 +6899,14 @@
           ]
         },
         "HealthQuickCard": {
-          "line": 352,
+          "line": 351,
           "purpose": "─── Card 3: Health Quick ─────────────────────────────────────────────────────",
           "calls": [
             "useSubFrameHealth"
           ]
         },
         "APIServerCard": {
-          "line": 409,
+          "line": 408,
           "purpose": "─── Card 4: Local API Server ─────────────────────────────────────────────────",
           "calls": [
             "cn",
@@ -6915,7 +6915,7 @@
           ]
         },
         "DTSPCard": {
-          "line": 622,
+          "line": 621,
           "purpose": "─── Card 5: DTSP Registration ────────────────────────────────────────────────",
           "calls": [
             "cn",
@@ -6924,7 +6924,7 @@
           ]
         },
         "FeatureDetectionCard": {
-          "line": 739,
+          "line": 738,
           "purpose": "─── Card 6: Feature Detection ───────────────────────────────────────────────",
           "calls": [
             "useAIToolConfig",
@@ -6932,18 +6932,18 @@
           ]
         },
         "ShortcutsCard": {
-          "line": 811,
+          "line": 810,
           "purpose": "─── Card 6: Keyboard Shortcuts ───────────────────────────────────────────────"
         },
         "PromptLibraryCard": {
-          "line": 832,
+          "line": 831,
           "purpose": "─── Card 7: Prompt Library ───────────────────────────────────────────────────",
           "calls": [
             "usePrompts"
           ]
         }
       },
-      "loc": 853
+      "loc": 852
     },
     "renderer/components/TaskGraph": {
       "file": "src\\renderer\\components\\TaskGraph.tsx",
