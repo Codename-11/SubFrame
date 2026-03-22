@@ -3,6 +3,7 @@ import {
   FolderOpen,
   X,
   Plus,
+  Copy,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -398,6 +399,10 @@ function ProjectCard({
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onRename(project.path, project.name)}>
           Rename
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => { navigator.clipboard.writeText(project.path); toast.success('Path copied'); }}>
+          <Copy className="w-3.5 h-3.5 mr-2" />
+          Copy Path
         </ContextMenuItem>
         {isScanned && (
           <>

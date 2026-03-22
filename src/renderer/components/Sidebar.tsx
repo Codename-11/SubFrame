@@ -409,13 +409,13 @@ export function Sidebar() {
         })}
       </div>
 
+      {/* Workspace selector — always visible above tab content */}
+      <WorkspaceSelector />
+
       {/* Tab content */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {activeTab === 'projects' && (
           <div ref={projectListContainerRef} className="flex-1 min-h-0 flex flex-col">
-            {/* Workspace selector */}
-            <WorkspaceSelector />
-
             {/* Project list */}
             <ScrollArea className="flex-1 min-h-0">
               <ProjectList />
