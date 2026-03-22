@@ -545,7 +545,8 @@ function UsageItem({ label, utilization, resetsAt }: { label: string; utilizatio
 /** Formats reset time as relative countdown: "42m", "3h 15m", "2d 5h" */
 function ResetTime({ resetsAt }: { resetsAt: string }) {
   const diff = new Date(resetsAt).getTime() - Date.now();
-  if (diff <= 0) return <span className="text-[9px] text-text-muted font-mono">(soon)</span>;
+  // If reset time is in the past, hide it — the data is stale and the countdown is meaningless
+  if (diff <= 0) return null;
 
   const mins = Math.floor(diff / 60000);
   let label: string;
