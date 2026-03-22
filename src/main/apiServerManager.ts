@@ -24,6 +24,7 @@ let mainWindow: BrowserWindow | null = null;
 let authToken = '';
 let serverPort = 0;
 let enabled = false;
+let requestCount = 0;
 
 /** Per-terminal selection text, synced from renderer on selection change */
 const terminalSelections = new Map<string, string>();
@@ -125,6 +126,7 @@ function sendError(res: http.ServerResponse, status: number, message: string): v
 }
 
 async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  requestCount++;
   // CORS preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -313,7 +315,13 @@ function setupIPC(ipcMain: IpcMain): void {
 
   // IPC handler to get current server info
   ipcMain.handle(IPC.API_SERVER_INFO, () => {
-    return { enabled, port: serverPort, token: authToken };
+    return {
+      enabled,
+      port: serverPort,
+      token: authToken,
+      connectedClients: sseClients.size,
+      totalRequests: requestCount,
+    };
   });
 
   // Toggle API server on/off

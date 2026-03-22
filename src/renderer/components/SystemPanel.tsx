@@ -543,6 +543,25 @@ function APIServerCard() {
               ))}
             </div>
           )}
+
+          {/* Connected consumers + DTSP */}
+          <div className="flex flex-col gap-1 mt-2 pt-1.5 border-t border-border-subtle">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', isRunning ? 'bg-emerald-400' : 'bg-border-default')} />
+                <span className="text-[10px] text-text-muted">DTSP</span>
+                <span className="text-[10px] text-text-tertiary">
+                  {isRunning ? 'Registered' : 'Inactive'}
+                </span>
+              </div>
+              {isRunning && (
+                <div className="flex items-center gap-3 text-[10px] text-text-tertiary">
+                  <span>{serverInfo?.connectedClients ?? 0} {(serverInfo?.connectedClients ?? 0) === 1 ? 'client' : 'clients'}</span>
+                  <span>{serverInfo?.totalRequests ?? 0} requests</span>
+                </div>
+              )}
+            </div>
+          </div>
         </>
       )}
     </motion.div>
