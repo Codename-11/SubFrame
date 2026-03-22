@@ -6,6 +6,32 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Usage Stats — Hybrid 4-Layer Approach (2026-03-21)
+
+#### Main Process (`claudeUsageManager.ts` — full rewrite)
+- **Layer 1: Local cache** — reads `$TEMP/claude-statusline-usage-cache.json` (written by Claude's statusline script). If fresh (<120s), returns data with zero network calls.
+- **Layer 2: OAuth API with token refresh** — when local cache is stale/missing, calls `api.anthropic.com/api/oauth/usage`. Pre-emptively refreshes token if near expiry using `refreshToken` from credentials. Retries with refreshed token on failure.
+- **Layer 3: Credentials metadata** — always reads `subscriptionType` and `rateLimitTier` from `~/.claude/.credentials.json`. Available even when usage numbers aren't.
+- **Layer 4: In-memory cache** — falls back to last successful fetch data when all else fails.
+- **New fields parsed**: `seven_day_sonnet`, `seven_day_opus`, `extra_usage` (Max plan credits), `seven_day_oauth_apps`, `seven_day_cowork`
+- **Source tracking**: every response carries `source` discriminator (`local-cache` | `api` | `credentials-only` | `none`) and `cacheAgeSeconds`
+- **Token refresh**: reads `refreshToken` from credentials, POSTs to `/api/oauth/token`, persists new token back to disk
+- Initial fetch delay reduced from 2s to 1s (local cache is near-instant)
+- Manual refresh (click pill) bypasses local cache, goes straight to API
+
+#### IPC Types (`ipcChannels.ts`)
+- `ClaudeUsageData` expanded: `sevenDaySonnet`, `sevenDayOpus`, `extraUsage`, `source`, `cacheAgeSeconds`, `subscriptionType`, `rateLimitTier`
+- Extracted shared types: `UsageWindow`, `ExtraUsageInfo`, `UsageSource`
+- IPC channels unchanged (same 3: LOAD, DATA, REFRESH)
+
+#### Renderer (`ViewTabBar.tsx`)
+- Usage pill now shows source-colored dot: green (local-cache), blue (API), amber (credentials-only), red (unavailable)
+- When no usage data available but credentials exist, shows tier name (e.g., "Max 20x") instead of "Usage unavailable"
+- Rich tooltip via shadcn `TooltipContent`: shows all usage windows with full-width bars, tier info, source label with cache age, extra credits, error message, and source explanation
+- Per-model breakdown (Sonnet 7d, Opus 7d) shown in tooltip when available
+- Extra usage credits section shown for Max plan users
+- Removed old `title` attribute tooltip in favor of structured `TooltipContent`
+
 ### Documentation Sync & Feature Discovery (2026-03-15)
 - Audited all documentation files against actual source code
 - Updated CLAUDE.md: added missing managers (`claudeUsageManager`, `githubManager`), utilities (`fileEditor`, `dialogs`, `menu`, `promptLogger`, `pty`), shared types (`agentStateTypes`, `subframeHealth`, `claudeSettingsUtils`, `projectInit`, `logoSVG`), renderer components (`CritiqueView`, `PatchReview`, `PromptsPanel`, `ShortcutsPanel`, `ViewTabBar`, `ThemeProvider`), and lib modules (`terminalRegistry`)

@@ -31,6 +31,7 @@ import {
 } from './ui/tooltip';
 import { toast } from 'sonner';
 import { IPC } from '../../shared/ipcChannels';
+import type { ClaudeUsageData, UsageWindow, UsageSource } from '../../shared/ipcChannels';
 import { SHORTCUTS } from '../lib/shortcuts';
 
 const { ipcRenderer } = require('electron');
@@ -57,18 +58,45 @@ const PANEL_SHORTCUTS = [
   { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard, shortcut: 'Ctrl+Shift+O' },
 ] as const;
 
-/** Usage data shape from claudeUsageManager */
-interface UsageWindow {
-  utilization: number; // 0–100 (already a percentage)
-  resetsAt: string | null;
+// ── Source indicator helpers ─────────────────────────────────────────────────
+
+const SOURCE_META: Record<UsageSource, { color: string; label: string; description: string }> = {
+  'local-cache': {
+    color: 'bg-success',
+    label: 'Local',
+    description: 'Read from Claude\'s local statusline cache — fast, no network',
+  },
+  'api': {
+    color: 'bg-info',
+    label: 'API',
+    description: 'Fetched live from Anthropic\'s OAuth usage API',
+  },
+  'credentials-only': {
+    color: 'bg-warning',
+    label: 'Tier',
+    description: 'Usage data unavailable — showing account tier from credentials',
+  },
+  'none': {
+    color: 'bg-error',
+    label: '',
+    description: 'No usage data or credentials available',
+  },
+};
+
+function formatTierName(tier: string | null): string | null {
+  if (!tier) return null;
+  // "default_claude_max_20x" → "Max 20x"
+  const match = tier.match(/claude_(\w+?)(?:_(\d+x))?$/);
+  if (match) {
+    const plan = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+    return match[2] ? `${plan} ${match[2]}` : plan;
+  }
+  return tier;
 }
 
-interface UsageData {
-  fiveHour: UsageWindow | null;
-  sevenDay: UsageWindow | null;
-  lastUpdated?: string;
-  error?: string | null;
-  persistentFailure?: boolean;
+function formatSubType(subType: string | null): string | null {
+  if (!subType) return null;
+  return subType.charAt(0).toUpperCase() + subType.slice(1);
 }
 
 export function ViewTabBar() {
@@ -93,8 +121,8 @@ export function ViewTabBar() {
   const activeToolName = aiToolConfig?.activeTool?.name ?? 'Claude Code';
   const activeToolInstalled = aiToolConfig?.activeTool?.installed !== false;
 
-  // Usage data state (moved from TerminalTabBar)
-  const [usageData, setUsageData] = useState<UsageData | null>(null);
+  // Usage data state
+  const [usageData, setUsageData] = useState<ClaudeUsageData | null>(null);
   const [usageFetching, setUsageFetching] = useState(false);
 
   // Map sub-views to their parent tab for active highlighting
@@ -107,12 +135,12 @@ export function ViewTabBar() {
 
   // Load Claude usage data (main process handles periodic polling via settings)
   useEffect(() => {
-    const handler = (_event: unknown, data: any) => {
+    const handler = (_event: unknown, data: ClaudeUsageData) => {
       setUsageFetching(false);
       // On error, preserve existing usage values if backend didn't
       if (data?.error && !(data.fiveHour || data.sevenDay)) {
         setUsageData(prev => prev?.fiveHour || prev?.sevenDay
-          ? { ...prev, error: data.error, lastUpdated: data.lastUpdated }
+          ? { ...prev, error: data.error, lastUpdated: data.lastUpdated, source: data.source }
           : data
         );
       } else {
@@ -150,6 +178,13 @@ export function ViewTabBar() {
       persistentFailureShown.current = false;
     }
   }, [usageData?.persistentFailure, usageData?.error]);
+
+  // Derived display state
+  const hasUsage = usageData?.fiveHour || usageData?.sevenDay;
+  const showPill = usageFetching || hasUsage || usageData?.error || usageData?.subscriptionType;
+  const source = usageData?.source ?? 'none';
+  const sourceMeta = SOURCE_META[source];
+  const tierDisplay = formatTierName(usageData?.rateLimitTier ?? null) || formatSubType(usageData?.subscriptionType ?? null);
 
   return (
     <div className="flex items-center bg-bg-secondary border-b border-border-subtle shrink-0" data-neon-bar="">
@@ -254,42 +289,56 @@ export function ViewTabBar() {
 
       {/* Usage pill + view shortcuts + sidebar toggle on the right */}
       <div className="flex items-center gap-1 px-1.5 flex-shrink-0">
-        {/* Context usage bars */}
-        {(usageFetching || (usageData && (usageData.fiveHour || usageData.sevenDay || usageData.error))) && (
-          <div
-            className={`group/usage flex items-center gap-2 px-2 py-0.5 bg-bg-tertiary border border-border-subtle
-                       rounded-md cursor-pointer hover:bg-bg-hover hover:border-border-default transition-all
-                       flex-shrink-0 overflow-hidden ${usageData?.error && usageData.fiveHour ? 'opacity-80' : ''}`}
-            onClick={() => {
-              if (!usageFetching) {
-                setUsageFetching(true);
-                ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE);
-              }
-            }}
-            title={usageFetching
-              ? 'Fetching usage data…'
-              : usageData?.error
-                ? `${usageData.error}\n${usageData.error.includes('429') ? 'Rate limited by Anthropic API — will retry automatically' : usageData.error.includes('401') ? 'OAuth token may be expired — re-authenticate Claude Code' : usageData.error.includes('No OAuth') ? 'No OAuth token found — sign in to Claude Code first' : 'Temporary error'}${usageData.fiveHour ? '\nShowing cached data' : ''}\nClick to retry now`
-                : 'Click to refresh'}
-          >
-            {usageFetching && (
-              <Loader2 className="h-3 w-3 text-text-tertiary animate-spin flex-shrink-0" />
-            )}
-            {!usageFetching && usageData?.error && (
-              <span className="h-1.5 w-1.5 rounded-full bg-warning flex-shrink-0 animate-pulse" title={usageData.fiveHour ? 'Stale data' : 'Unavailable'} />
-            )}
-            {usageData?.fiveHour ? (
-              <UsageItem label="Session" utilization={usageData.fiveHour.utilization} resetsAt={usageData.fiveHour.resetsAt} />
-            ) : usageData?.error && (
-              <span className="text-[10px] text-text-secondary whitespace-nowrap">Usage unavailable</span>
-            )}
-            {usageData?.sevenDay && (
-              <div className="max-w-0 opacity-0 overflow-hidden transition-all duration-300 ease-in-out
-                              group-hover/usage:max-w-[160px] group-hover/usage:opacity-100 group-hover/usage:ml-1">
-                <UsageItem label="Weekly" utilization={usageData.sevenDay.utilization} resetsAt={usageData.sevenDay.resetsAt} />
-              </div>
-            )}
-          </div>
+        {/* Usage pill */}
+        {showPill && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className={`group/usage flex items-center gap-1.5 px-2 py-0.5 bg-bg-tertiary border border-border-subtle
+                             rounded-md cursor-pointer hover:bg-bg-hover hover:border-border-default transition-all
+                             flex-shrink-0 overflow-hidden ${usageData?.error && hasUsage ? 'opacity-80' : ''}`}
+                  onClick={() => {
+                    if (!usageFetching) {
+                      setUsageFetching(true);
+                      ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE);
+                    }
+                  }}
+                >
+                  {/* Source / status indicator */}
+                  {usageFetching ? (
+                    <Loader2 className="h-3 w-3 text-text-tertiary animate-spin flex-shrink-0" />
+                  ) : (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${sourceMeta.color}${
+                        usageData?.error ? ' animate-pulse' : ''
+                      }`}
+                    />
+                  )}
+
+                  {/* Primary: Session (5h) usage */}
+                  {usageData?.fiveHour ? (
+                    <UsageItem label="Session" utilization={usageData.fiveHour.utilization} resetsAt={usageData.fiveHour.resetsAt} />
+                  ) : tierDisplay && !hasUsage ? (
+                    <span className="text-[10px] text-text-secondary whitespace-nowrap font-medium">{tierDisplay}</span>
+                  ) : usageData?.error ? (
+                    <span className="text-[10px] text-text-secondary whitespace-nowrap">Usage unavailable</span>
+                  ) : null}
+
+                  {/* Hover expand: Weekly (7d) usage */}
+                  {usageData?.sevenDay && (
+                    <div className="max-w-0 opacity-0 overflow-hidden transition-all duration-300 ease-in-out
+                                    group-hover/usage:max-w-[160px] group-hover/usage:opacity-100 group-hover/usage:ml-0.5">
+                      <UsageItem label="Weekly" utilization={usageData.sevenDay.utilization} resetsAt={usageData.sevenDay.resetsAt} />
+                    </div>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <UsageTooltip data={usageData} fetching={usageFetching} />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         <div className="h-4 w-px bg-border-subtle mx-0.5" />
@@ -334,7 +383,6 @@ export function ViewTabBar() {
                   if (activePanel) {
                     closeRightPanel();
                   } else {
-                    // Re-open overview panel as default (or last-used could be tracked later)
                     togglePanel('overview');
                   }
                 }}
@@ -357,6 +405,102 @@ export function ViewTabBar() {
     </div>
   );
 }
+
+// ── Rich tooltip ────────────────────────────────────────────────────────────
+
+function UsageTooltip({ data, fetching }: { data: ClaudeUsageData | null; fetching: boolean }) {
+  if (fetching) return <p className="text-xs">Fetching usage data...</p>;
+  if (!data) return <p className="text-xs">Click to load usage</p>;
+
+  const source = data.source ?? 'none';
+  const sourceMeta = SOURCE_META[source];
+  const tierDisplay = formatTierName(data.rateLimitTier) || formatSubType(data.subscriptionType);
+
+  // Collect all windows for display
+  const windows: { label: string; window: UsageWindow }[] = [];
+  if (data.fiveHour) windows.push({ label: 'Session (5h)', window: data.fiveHour });
+  if (data.sevenDay) windows.push({ label: 'Weekly (7d)', window: data.sevenDay });
+  if (data.sevenDaySonnet) windows.push({ label: 'Sonnet (7d)', window: data.sevenDaySonnet });
+  if (data.sevenDayOpus) windows.push({ label: 'Opus (7d)', window: data.sevenDayOpus });
+
+  return (
+    <div className="space-y-2 text-xs min-w-[180px]">
+      {/* Header: tier + source */}
+      <div className="flex items-center justify-between gap-3">
+        {tierDisplay && (
+          <span className="font-semibold text-text-primary">{tierDisplay}</span>
+        )}
+        <span className="flex items-center gap-1 text-text-muted">
+          <span className={`h-1.5 w-1.5 rounded-full ${sourceMeta.color} inline-block`} />
+          {sourceMeta.label}
+          {data.cacheAgeSeconds !== null && data.cacheAgeSeconds !== undefined && (
+            <span className="font-mono">({data.cacheAgeSeconds}s ago)</span>
+          )}
+        </span>
+      </div>
+
+      {/* Usage windows */}
+      {windows.length > 0 ? (
+        <div className="space-y-1.5">
+          {windows.map(({ label, window: w }) => (
+            <TooltipUsageRow key={label} label={label} utilization={w.utilization} resetsAt={w.resetsAt} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-text-muted">No usage data available</p>
+      )}
+
+      {/* Extra usage (Max plan credits) */}
+      {data.extraUsage?.isEnabled && (
+        <div className="border-t border-border-subtle pt-1.5">
+          <div className="flex items-center justify-between text-text-secondary">
+            <span>Extra credits</span>
+            <span className="font-mono">
+              {data.extraUsage.utilization !== null ? `${Math.round(data.extraUsage.utilization)}%` : '—'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Error message */}
+      {data.error && (
+        <p className="text-warning text-[10px]">{data.error}</p>
+      )}
+
+      {/* Source explanation */}
+      <p className="text-text-muted text-[10px] border-t border-border-subtle pt-1">
+        {sourceMeta.description}
+        {' · '}Click to refresh
+      </p>
+    </div>
+  );
+}
+
+/** Tooltip row with wider bar and reset time */
+function TooltipUsageRow({ label, utilization, resetsAt }: { label: string; utilization: number; resetsAt: string | null }) {
+  const pct = Math.round(Math.min(utilization, 100));
+  const colorClass = pct >= 80 ? 'bg-error' : pct >= 50 ? 'bg-warning' : 'bg-success';
+
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center justify-between">
+        <span className="text-text-secondary">{label}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="font-mono font-semibold text-text-primary">{pct}%</span>
+          {resetsAt && <ResetTime resetsAt={resetsAt} />}
+        </span>
+      </div>
+      <div className="w-full h-[4px] rounded-full bg-bg-deep overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${colorClass}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Shared sub-components ───────────────────────────────────────────────────
 
 /** A single usage row: LABEL [BAR] PERCENT (RESET) */
 function UsageItem({ label, utilization, resetsAt }: { label: string; utilization: number; resetsAt: string | null }) {

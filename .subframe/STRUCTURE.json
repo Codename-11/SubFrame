@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-15",
+  "lastUpdated": "2026-03-22",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -846,7 +846,7 @@
     },
     "main/claudeUsageManager": {
       "file": "src\\main\\claudeUsageManager.ts",
-      "description": "Claude Usage Manager Module Fetches Claude Code usage data from OAuth API and provides periodic updates.",
+      "description": "Claude Usage Manager — Hybrid 4-Layer Approach",
       "exports": [
         "init",
         "setupIPC",
@@ -867,18 +867,197 @@
       ],
       "functions": {
         "getPollingMs": {
-          "line": 54,
-          "purpose": "Returns 0 when polling is disabled, otherwise clamped to 30–600.",
+          "line": 79,
+          "purpose": "── Settings helpers ────────────────────────────────────────────────────────",
           "calls": [
             "getSetting"
           ]
         },
+        "readCredentials": {
+          "line": 88,
+          "purpose": "── Layer 3: Credentials metadata (always available) ────────────────────────"
+        },
+        "getCredentialsMeta": {
+          "line": 98
+        },
+        "extractToken": {
+          "line": 108,
+          "params": [
+            "credentials"
+          ],
+          "purpose": "── Token retrieval ─────────────────────────────────────────────────────────"
+        },
+        "getTokenFromCredentialsFile": {
+          "line": 112,
+          "calls": [
+            "extractToken",
+            "readCredentials"
+          ]
+        },
+        "getTokenFromKeychain": {
+          "line": 122,
+          "calls": [
+            "extractToken"
+          ]
+        },
+        "getOAuthToken": {
+          "line": 135,
+          "calls": [
+            "getTokenFromCredentialsFile",
+            "getTokenFromKeychain"
+          ]
+        },
+        "getRefreshToken": {
+          "line": 154,
+          "purpose": "── Token refresh ───────────────────────────────────────────────────────────",
+          "calls": [
+            "readCredentials"
+          ]
+        },
+        "isTokenExpired": {
+          "line": 159,
+          "calls": [
+            "readCredentials"
+          ]
+        },
+        "refreshAccessToken": {
+          "line": 171,
+          "purpose": "Best-effort — returns new token on success, null on failure.",
+          "calls": [
+            "getRefreshToken",
+            "persistRefreshedToken"
+          ]
+        },
+        "persistRefreshedToken": {
+          "line": 228,
+          "params": [
+            "accessToken",
+            "expiresAt",
+            "refreshToken"
+          ],
+          "purpose": "Write refreshed token back to the credentials file so Claude Code picks it up too."
+        },
+        "parseWindow": {
+          "line": 249,
+          "params": [
+            "raw"
+          ],
+          "purpose": "── Raw response → normalized UsageWindow ───────────────────────────────────"
+        },
+        "parseExtraUsage": {
+          "line": 254,
+          "params": [
+            "raw"
+          ]
+        },
+        "rawToUsageData": {
+          "line": 264,
+          "params": [
+            "raw",
+            "source",
+            "cacheAgeSeconds"
+          ],
+          "calls": [
+            "getCredentialsMeta",
+            "parseExtraUsage",
+            "parseWindow"
+          ]
+        },
+        "readLocalCache": {
+          "line": 283,
+          "purpose": "── Layer 1: Local cache ────────────────────────────────────────────────────",
+          "calls": [
+            "rawToUsageData"
+          ]
+        },
+        "fetchFromApi": {
+          "line": 305,
+          "params": [
+            "token"
+          ],
+          "purpose": "── Layer 2: OAuth API ──────────────────────────────────────────────────────",
+          "calls": [
+            "rawToUsageData"
+          ]
+        },
+        "getUsage": {
+          "line": 344,
+          "params": [
+            "forceApi"
+          ],
+          "purpose": "── Orchestrator: tries all layers ──────────────────────────────────────────",
+          "calls": [
+            "fetchFromApi",
+            "getCredentialsMeta",
+            "getOAuthToken",
+            "isTokenExpired",
+            "readLocalCache",
+            "refreshAccessToken"
+          ]
+        },
+        "fetchUsage": {
+          "line": 419,
+          "purpose": "── Legacy compat wrapper (used by sendUsageToRenderer) ─────────────────────",
+          "calls": [
+            "getUsage"
+          ]
+        },
+        "resetBackoff": {
+          "line": 425,
+          "purpose": "── Backoff ─────────────────────────────────────────────────────────────────"
+        },
+        "computeBackoff": {
+          "line": 429,
+          "params": [
+            "baseMs"
+          ]
+        },
+        "sendUsageToRenderer": {
+          "line": 436,
+          "purpose": "── Renderer communication ──────────────────────────────────────────────────",
+          "calls": [
+            "fetchUsage",
+            "resetBackoff"
+          ]
+        },
+        "scheduleNextPoll": {
+          "line": 456,
+          "params": [
+            "baseMs"
+          ],
+          "purpose": "── Polling ─────────────────────────────────────────────────────────────────",
+          "calls": [
+            "computeBackoff",
+            "getPollingMs",
+            "sendUsageToRenderer"
+          ]
+        },
+        "startPolling": {
+          "line": 475,
+          "calls": [
+            "getPollingMs",
+            "scheduleNextPoll",
+            "stopPolling"
+          ]
+        },
+        "stopPolling": {
+          "line": 482
+        },
+        "restartPolling": {
+          "line": 493,
+          "calls": [
+            "getPollingMs",
+            "scheduleNextPoll",
+            "sendUsageToRenderer",
+            "stopPolling"
+          ]
+        },
         "init": {
-          "line": 65,
+          "line": 504,
           "params": [
             "window"
           ],
-          "purpose": "Initialize the module with window reference",
+          "purpose": "── Init & IPC ──────────────────────────────────────────────────────────────",
           "calls": [
             "getPollingMs",
             "onSettingChange",
@@ -888,116 +1067,24 @@
             "sendUsageToRenderer"
           ]
         },
-        "extractToken": {
-          "line": 92,
-          "params": [
-            "credentials"
-          ],
-          "purpose": "Extract access token from a parsed credentials object"
-        },
-        "getTokenFromCredentialsFile": {
-          "line": 105,
-          "purpose": "Read OAuth token from the Claude credentials file (~/.claude/.credentials.json)",
-          "calls": [
-            "extractToken"
-          ]
-        },
-        "getTokenFromKeychain": {
-          "line": 122,
-          "purpose": "Read OAuth token from macOS Keychain",
-          "calls": [
-            "extractToken"
-          ]
-        },
-        "getOAuthToken": {
-          "line": 142,
-          "purpose": "Get OAuth token using platform-appropriate method",
-          "calls": [
-            "getTokenFromCredentialsFile",
-            "getTokenFromKeychain"
-          ]
-        },
-        "fetchUsage": {
-          "line": 171,
-          "purpose": "Fetch usage data from Claude OAuth API",
-          "calls": [
-            "getOAuthToken"
-          ]
-        },
-        "resetBackoff": {
-          "line": 277,
-          "purpose": "Reset exponential backoff state (on success or setting change)"
-        },
-        "computeBackoff": {
-          "line": 284,
-          "params": [
-            "baseMs"
-          ],
-          "purpose": "Compute next backoff delay: doubles from base up to MAX_BACKOFF_MS"
-        },
-        "sendUsageToRenderer": {
-          "line": 293,
-          "purpose": "Send usage data to renderer. Tracks consecutive failures for backoff.",
-          "calls": [
-            "fetchUsage",
-            "resetBackoff"
-          ]
-        },
-        "scheduleNextPoll": {
-          "line": 317,
-          "params": [
-            "baseMs"
-          ],
-          "purpose": "Uses setTimeout (not setInterval) so each cycle can adjust its delay.",
-          "calls": [
-            "computeBackoff",
-            "getPollingMs",
-            "sendUsageToRenderer"
-          ]
-        },
-        "startPolling": {
-          "line": 341,
-          "purpose": "Uses setTimeout chains with exponential backoff instead of fixed setInterval.",
-          "calls": [
-            "getPollingMs",
-            "scheduleNextPoll",
-            "stopPolling"
-          ]
-        },
-        "stopPolling": {
-          "line": 353,
-          "purpose": "Stop polling"
-        },
-        "restartPolling": {
-          "line": 367,
-          "purpose": "Restart polling (called when the setting changes)",
-          "calls": [
-            "getPollingMs",
-            "scheduleNextPoll",
-            "sendUsageToRenderer",
-            "stopPolling"
-          ]
-        },
         "setupIPC": {
-          "line": 381,
+          "line": 526,
           "params": [
             "ipcMain"
           ],
-          "purpose": "Setup IPC handlers",
           "calls": [
-            "fetchUsage",
+            "getUsage",
             "resetBackoff"
           ]
         },
         "cleanup": {
-          "line": 402,
-          "purpose": "Cleanup on app quit",
+          "line": 541,
           "calls": [
             "stopPolling"
           ]
         }
       },
-      "loc": 408,
+      "loc": 547,
       "ipc": {
         "listens": [
           "LOAD_CLAUDE_USAGE",
@@ -1747,27 +1834,30 @@
           ]
         },
         "setupAllIPC": {
-          "line": 421,
+          "line": 518,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 579,
+          "line": 676,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 590,
+          "line": 687,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 676,
+      "loc": 773,
       "ipc": {
         "listens": [
+          "GRACEFUL_SHUTDOWN_CONFIRM",
+          "GRACEFUL_SHUTDOWN_CANCEL",
+          "GRACEFUL_SHUTDOWN_FORCE",
           "GET_RELEASE_NOTES",
           "INSTALL_CLI",
           "UNINSTALL_CLI",
@@ -1775,7 +1865,12 @@
         ],
         "emits": [
           "WORKSPACE_UPDATED",
-          "WORKSPACE_UPDATED"
+          "WORKSPACE_UPDATED",
+          "GRACEFUL_SHUTDOWN_REQUEST",
+          "GRACEFUL_SHUTDOWN_STATUS",
+          "GRACEFUL_SHUTDOWN_STATUS",
+          "GRACEFUL_SHUTDOWN_STATUS",
+          "GRACEFUL_SHUTDOWN_COMPLETE"
         ]
       }
     },
@@ -1929,12 +2024,13 @@
             "projectPath",
             "phase",
             "message",
-            "progress"
+            "progress",
+            "extra"
           ],
           "purpose": "Send a progress event to the renderer."
         },
         "detectProjectIntelligence": {
-          "line": 134,
+          "line": 136,
           "params": [
             "projectPath"
           ],
@@ -1945,7 +2041,7 @@
           ]
         },
         "gatherContext": {
-          "line": 199,
+          "line": 201,
           "params": [
             "projectPath",
             "detected",
@@ -1954,7 +2050,7 @@
           "purpose": "Read detected files into a concatenated context string, respecting budgets."
         },
         "buildAnalysisPrompt": {
-          "line": 291,
+          "line": 293,
           "params": [
             "context",
             "projectName",
@@ -1963,45 +2059,46 @@
           "purpose": "Build the analysis prompt that instructs the AI to output structured JSON."
         },
         "findBashShell": {
-          "line": 356,
+          "line": 358,
           "purpose": "Throws if on Windows and no bash-compatible shell is found."
         },
         "checkAIToolAvailable": {
-          "line": 391,
+          "line": 393,
           "purpose": "Delegates to aiToolManager which caches install checks for 1 minute."
         },
         "getAnalysisTimeout": {
-          "line": 417,
+          "line": 419,
           "purpose": "Get the configured analysis timeout, falling back to the default."
         },
         "runAnalysisInTerminal": {
-          "line": 433,
+          "line": 435,
           "params": [
             "projectPath",
-            "prompt"
+            "prompt",
+            "opts"
           ],
           "purpose": "pipes it through the active AI tool, captures output, and returns the raw result."
         },
         "parseAnalysisResponse": {
-          "line": 644,
+          "line": 684,
           "params": [
             "raw"
           ],
           "purpose": "Looks for the first ```json ... ``` block."
         },
         "generateTaskId": {
-          "line": 758,
+          "line": 798,
           "purpose": "Generate a short unique-ish task ID."
         },
         "getExistingTaskTitles": {
-          "line": 767,
+          "line": 807,
           "params": [
             "projectPath"
           ],
           "purpose": "Get existing task titles from .subframe/tasks/ to avoid duplicates."
         },
         "importResults": {
-          "line": 794,
+          "line": 834,
           "params": [
             "projectPath",
             "results",
@@ -2014,14 +2111,14 @@
           ]
         },
         "init": {
-          "line": 1000,
+          "line": 1040,
           "params": [
             "window"
           ],
           "purpose": "Initialize the onboarding manager with a window reference."
         },
         "setupIPC": {
-          "line": 1007,
+          "line": 1047,
           "params": [
             "ipcMain"
           ],
@@ -2040,11 +2137,11 @@
           ]
         },
         "hasActiveAnalyses": {
-          "line": 1322,
+          "line": 1373,
           "purpose": "─── Exports ─────────────────────────────────────────────────────────────────"
         }
       },
-      "loc": 1339,
+      "loc": 1390,
       "ipc": {
         "listens": [
           "DETECT_PROJECT_INTELLIGENCE",
@@ -3266,14 +3363,14 @@
         },
         "seedGlobalPromptsIfNeeded": {
           "line": 198,
-          "purpose": "Only writes if the file does not exist yet.",
+          "purpose": "Seeds are identified by the 'starter' tag — only prompts not already present are added.",
           "calls": [
             "getGlobalPromptsPath",
             "getSeedPrompts"
           ]
         },
         "loadGlobalPrompts": {
-          "line": 216,
+          "line": 236,
           "purpose": "Load global prompts from ~/.subframe/prompts.json",
           "calls": [
             "getGlobalPromptsPath",
@@ -3282,7 +3379,7 @@
           ]
         },
         "saveGlobalPrompt": {
-          "line": 224,
+          "line": 244,
           "params": [
             "prompt"
           ],
@@ -3293,7 +3390,7 @@
           ]
         },
         "deleteGlobalPrompt": {
-          "line": 231,
+          "line": 251,
           "params": [
             "promptId"
           ],
@@ -3304,7 +3401,7 @@
           ]
         },
         "setupIPC": {
-          "line": 240,
+          "line": 260,
           "params": [
             "ipcMain"
           ],
@@ -3319,7 +3416,7 @@
           ]
         }
       },
-      "loc": 269,
+      "loc": 289,
       "ipc": {
         "listens": [
           "LOAD_PROMPTS",
@@ -3449,6 +3546,7 @@
         "getTerminalInfo",
         "getAvailableShells",
         "setupIPC",
+        "waitForExit",
         "startCapturing",
         "stopCapturing",
         "addOutputHandler",
@@ -3599,8 +3697,16 @@
           ],
           "purpose": "Check if Claude Code is currently active in a terminal"
         },
+        "waitForExit": {
+          "line": 553,
+          "params": [
+            "terminalId",
+            "timeoutMs"
+          ],
+          "purpose": "Returns 'exited' if the terminal process ends, or 'timeout' if the deadline passes."
+        },
         "setupIPC": {
-          "line": 552,
+          "line": 575,
           "params": [
             "ipcMain"
           ],
@@ -3615,47 +3721,47 @@
           ]
         },
         "startCapturing": {
-          "line": 612,
+          "line": 635,
           "params": [
             "terminalId"
           ],
           "purpose": "─── Output Capture API ──────────────────────────────────────────────────────"
         },
         "stopCapturing": {
-          "line": 617,
+          "line": 640,
           "params": [
             "terminalId"
           ]
         },
         "registerPopoutWebContents": {
-          "line": 624,
+          "line": 647,
           "params": [
             "terminalId",
             "wc"
           ]
         },
         "unregisterPopoutWebContents": {
-          "line": 629,
+          "line": 652,
           "params": [
             "terminalId"
           ]
         },
         "addOutputHandler": {
-          "line": 634,
+          "line": 657,
           "params": [
             "terminalId",
             "handler"
           ]
         },
         "removeOutputHandler": {
-          "line": 644,
+          "line": 667,
           "params": [
             "terminalId",
             "handlerId"
           ]
         }
       },
-      "loc": 665,
+      "loc": 688,
       "ipc": {
         "listens": [
           "GET_AVAILABLE_SHELLS",
@@ -4140,7 +4246,9 @@
         "init",
         "setupIPC",
         "destroy",
-        "checkForUpdates"
+        "checkForUpdates",
+        "setBeforeInstallHook",
+        "performQuitAndInstall"
       ],
       "depends": [
         "electron-updater",
@@ -4151,21 +4259,21 @@
       ],
       "functions": {
         "sendStatus": {
-          "line": 25,
+          "line": 27,
           "params": [
             "status"
           ],
           "purpose": "Send updater status to the renderer process"
         },
         "sendProgress": {
-          "line": 34,
+          "line": 36,
           "params": [
             "progress"
           ],
           "purpose": "Send download progress to the renderer process"
         },
         "init": {
-          "line": 44,
+          "line": 46,
           "params": [
             "window",
             "app"
@@ -4179,22 +4287,33 @@
           ]
         },
         "setupIPC": {
-          "line": 140,
+          "line": 142,
           "purpose": "Setup IPC handlers for updater actions."
         },
         "checkForUpdates": {
-          "line": 191,
+          "line": 197,
           "purpose": "In dev mode, sends a no-op status to the renderer.",
           "calls": [
             "sendStatus"
           ]
         },
         "destroy": {
-          "line": 210,
+          "line": 216,
           "purpose": "Cleanup on shutdown"
+        },
+        "setBeforeInstallHook": {
+          "line": 227,
+          "params": [
+            "hook"
+          ],
+          "purpose": "Return false to defer install (e.g. to perform graceful shutdown first)."
+        },
+        "performQuitAndInstall": {
+          "line": 234,
+          "purpose": "Programmatically call quitAndInstall (e.g. after graceful shutdown completes)."
         }
       },
-      "loc": 218,
+      "loc": 241,
       "ipc": {
         "listens": [
           "UPDATER_CHECK",
@@ -4229,6 +4348,7 @@
         "createWorkspace",
         "renameWorkspace",
         "deleteWorkspace",
+        "reorderWorkspaces",
         "setProjectAITool",
         "getProjectAITool",
         "setupIPC"
@@ -4242,7 +4362,7 @@
       ],
       "functions": {
         "init": {
-          "line": 63,
+          "line": 64,
           "params": [
             "app",
             "_window",
@@ -4254,7 +4374,7 @@
           ]
         },
         "ensureWorkspaceDir": {
-          "line": 73,
+          "line": 74,
           "purpose": "Ensure workspace directory and file exist",
           "calls": [
             "createDefaultWorkspace",
@@ -4262,11 +4382,11 @@
           ]
         },
         "createDefaultWorkspace": {
-          "line": 87,
+          "line": 88,
           "purpose": "Create default workspace structure"
         },
         "loadWorkspace": {
-          "line": 104,
+          "line": 105,
           "purpose": "Load workspace from file",
           "calls": [
             "createDefaultWorkspace",
@@ -4274,21 +4394,21 @@
           ]
         },
         "saveWorkspace": {
-          "line": 134,
+          "line": 135,
           "params": [
             "data"
           ],
           "purpose": "Save workspace to file"
         },
         "getProjects": {
-          "line": 147,
+          "line": 148,
           "purpose": "Get projects from active workspace",
           "calls": [
             "loadWorkspace"
           ]
         },
         "addProject": {
-          "line": 156,
+          "line": 157,
           "params": [
             "projectPath",
             "name",
@@ -4301,7 +4421,7 @@
           ]
         },
         "removeProject": {
-          "line": 181,
+          "line": 182,
           "params": [
             "projectPath"
           ],
@@ -4312,7 +4432,7 @@
           ]
         },
         "updateProjectLastOpened": {
-          "line": 194,
+          "line": 195,
           "params": [
             "projectPath"
           ],
@@ -4323,7 +4443,7 @@
           ]
         },
         "renameProject": {
-          "line": 210,
+          "line": 211,
           "params": [
             "projectPath",
             "newName"
@@ -4335,21 +4455,21 @@
           ]
         },
         "scanProjectDir": {
-          "line": 230,
+          "line": 231,
           "params": [
             "dirPath"
           ],
           "purpose": "Scan a directory for projects"
         },
         "recheckFrameStatus": {
-          "line": 262,
+          "line": 263,
           "params": [
             "project"
           ],
           "purpose": "Re-check isFrameProject by looking for .subframe/config.json on disk."
         },
         "getProjectsWithScanned": {
-          "line": 275,
+          "line": 276,
           "purpose": "Get projects merged with scanned results from default project dir",
           "calls": [
             "getProjects",
@@ -4359,7 +4479,7 @@
           ]
         },
         "updateProjectFrameStatus": {
-          "line": 303,
+          "line": 304,
           "params": [
             "projectPath",
             "isFrame"
@@ -4371,7 +4491,7 @@
           ]
         },
         "setProjectAITool": {
-          "line": 319,
+          "line": 320,
           "params": [
             "projectPath",
             "aiTool"
@@ -4383,7 +4503,7 @@
           ]
         },
         "getProjectAITool": {
-          "line": 340,
+          "line": 341,
           "params": [
             "projectPath"
           ],
@@ -4392,22 +4512,29 @@
             "loadWorkspace"
           ]
         },
+        "getOrderedKeys": {
+          "line": 352,
+          "params": [
+            "data"
+          ]
+        },
         "slugify": {
-          "line": 353,
+          "line": 366,
           "params": [
             "name"
           ],
           "purpose": "Convert workspace name to slug key"
         },
         "getWorkspaceList": {
-          "line": 366,
+          "line": 379,
           "purpose": "Get workspace list for the renderer selector",
           "calls": [
+            "getOrderedKeys",
             "loadWorkspace"
           ]
         },
         "switchWorkspace": {
-          "line": 382,
+          "line": 397,
           "params": [
             "key"
           ],
@@ -4419,7 +4546,7 @@
           ]
         },
         "createWorkspace": {
-          "line": 394,
+          "line": 409,
           "params": [
             "name"
           ],
@@ -4432,7 +4559,7 @@
           ]
         },
         "renameWorkspace": {
-          "line": 423,
+          "line": 443,
           "params": [
             "key",
             "newName"
@@ -4444,14 +4571,25 @@
           ]
         },
         "deleteWorkspace": {
-          "line": 437,
+          "line": 457,
           "params": [
             "key"
           ],
           "purpose": "Delete a workspace"
         },
+        "reorderWorkspaces": {
+          "line": 492,
+          "params": [
+            "orderedKeys"
+          ],
+          "purpose": "Keys not in the provided array are appended at the end.",
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
+        },
         "setupIPC": {
-          "line": 466,
+          "line": 512,
           "params": [
             "ipcMain"
           ],
@@ -4465,13 +4603,14 @@
             "removeProject",
             "renameProject",
             "renameWorkspace",
+            "reorderWorkspaces",
             "scanProjectDir",
             "setProjectAITool",
             "switchWorkspace"
           ]
         }
       },
-      "loc": 515,
+      "loc": 564,
       "ipc": {
         "listens": [
           "LOAD_WORKSPACE",
@@ -4484,7 +4623,8 @@
           "WORKSPACE_SWITCH",
           "WORKSPACE_CREATE",
           "WORKSPACE_RENAME",
-          "WORKSPACE_DELETE"
+          "WORKSPACE_DELETE",
+          "WORKSPACE_REORDER"
         ],
         "emits": [
           "WORKSPACE_DATA",
@@ -4727,6 +4867,7 @@
         "PromptLibrary",
         "WhatsNew",
         "UpdateNotification",
+        "GracefulShutdownDialog",
         "OnboardingDialog",
         "Editor",
         "ErrorBoundary",
@@ -4746,7 +4887,7 @@
       ],
       "functions": {
         "App": {
-          "line": 38,
+          "line": 39,
           "purpose": "Keyboard shortcuts are wired here to match the original app.",
           "calls": [
             "TerminalArea",
@@ -4759,7 +4900,7 @@
           ]
         }
       },
-      "loc": 578,
+      "loc": 585,
       "ipc": {
         "listens": [
           "WORKSPACE_DATA",
@@ -5171,6 +5312,31 @@
         ]
       }
     },
+    "renderer/components/GracefulShutdownDialog": {
+      "file": "src\\renderer\\components\\GracefulShutdownDialog.tsx",
+      "description": "GracefulShutdownDialog — UI dialog shown when closing SubFrame with active work.",
+      "exports": [
+        "GracefulShutdownDialog"
+      ],
+      "depends": [
+        "react",
+        "ui/button",
+        "lib/utils",
+        "hooks/useIPCListener",
+        "../shared/ipcChannels",
+        "lib/ipc"
+      ],
+      "functions": {
+        "GracefulShutdownDialog": {
+          "line": 49,
+          "calls": [
+            "cn",
+            "typedInvoke"
+          ]
+        }
+      },
+      "loc": 296
+    },
     "renderer/components/HistoryPanel": {
       "file": "src\\renderer\\components\\HistoryPanel.tsx",
       "description": "HistoryPanel — Prompt history list. Loads via LOAD_PROMPT_HISTORY send/on pattern.",
@@ -5231,7 +5397,7 @@
       ],
       "functions": {
         "OnboardingDialog": {
-          "line": 116,
+          "line": 129,
           "params": [
             "{\r\n  open",
             "onOpenChange",
@@ -5253,12 +5419,15 @@
             "importResult",
             "onPreviewPrompt",
             "onBrowseFiles",
+            "stalled",
+            "stallDurationMs",
+            "timeoutMs",
             "}"
           ],
           "purpose": "── Component ────────────────────────────────────────────────────────────────"
         },
         "ReviewSection": {
-          "line": 1112,
+          "line": 1210,
           "params": [
             "{\r\n  checked",
             "onCheckedChange",
@@ -5270,14 +5439,14 @@
           "purpose": "── ReviewSection helper ─────────────────────────────────────────────────────"
         },
         "PriorityBadge": {
-          "line": 1147,
+          "line": 1245,
           "params": [
             "{ priority }"
           ],
           "purpose": "── PriorityBadge helper ─────────────────────────────────────────────────────"
         }
       },
-      "loc": 1165
+      "loc": 1263
     },
     "renderer/components/OverviewPanel": {
       "file": "src\\renderer\\components\\OverviewPanel.tsx",
@@ -6119,7 +6288,7 @@
           ]
         }
       },
-      "loc": 1579,
+      "loc": 1600,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA"
@@ -6719,7 +6888,7 @@
           ]
         },
         "TaskDetail": {
-          "line": 1591,
+          "line": 1665,
           "params": [
             "{ task",
             "updateTask",
@@ -6729,7 +6898,7 @@
           ]
         }
       },
-      "loc": 1774,
+      "loc": 1848,
       "ipc": {
         "listens": [],
         "emits": [
@@ -6868,7 +7037,7 @@
           ]
         }
       },
-      "loc": 840,
+      "loc": 894,
       "ipc": {
         "listens": [
           "TERMINAL_POPOUT_STATUS",
@@ -7014,30 +7183,61 @@
         "lib/shortcuts"
       ],
       "functions": {
+        "formatTierName": {
+          "line": 86,
+          "params": [
+            "tier"
+          ]
+        },
+        "formatSubType": {
+          "line": 97,
+          "params": [
+            "subType"
+          ]
+        },
         "ViewTabBar": {
-          "line": 74,
+          "line": 102,
           "calls": [
+            "formatSubType",
+            "formatTierName",
             "getTabIdForContent",
             "useAIToolConfig",
             "useSettings"
           ]
         },
-        "UsageItem": {
-          "line": 362,
+        "UsageTooltip": {
+          "line": 411,
+          "params": [
+            "{ data",
+            "fetching }"
+          ],
+          "purpose": "── Rich tooltip ────────────────────────────────────────────────────────────"
+        },
+        "TooltipUsageRow": {
+          "line": 480,
           "params": [
             "{ label",
             "utilization",
             "resetsAt }"
           ]
         },
+        "UsageItem": {
+          "line": 506,
+          "params": [
+            "{ label",
+            "utilization",
+            "resetsAt }"
+          ],
+          "purpose": "── Shared sub-components ───────────────────────────────────────────────────"
+        },
         "ResetTime": {
-          "line": 385,
+          "line": 529,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 404,
+      "loc": 548,
       "ipc": {
         "listens": [
           "CLAUDE_USAGE_DATA"
@@ -7207,14 +7407,14 @@
           ]
         },
         "AddProjectButton": {
-          "line": 356,
+          "line": 407,
           "calls": [
             "typedInvoke",
             "typedSend"
           ]
         }
       },
-      "loc": 433
+      "loc": 484
     },
     "renderer/global.d": {
       "file": "src\\renderer\\global.d.ts",
@@ -7507,7 +7707,7 @@
           ]
         }
       },
-      "loc": 188
+      "loc": 222
     },
     "renderer/hooks/useOverview": {
       "file": "src\\renderer\\hooks\\useOverview.ts",
@@ -7955,13 +8155,14 @@
           ]
         },
         "getFontSizeExtension": {
-          "line": 238,
+          "line": 239,
           "params": [
             "size"
-          ]
+          ],
+          "purpose": "to prevent selection highlight offset (CM6 computes selection rects from content metrics). */"
         },
         "reconfigureFontSize": {
-          "line": 245,
+          "line": 246,
           "params": [
             "view",
             "size"
@@ -7971,13 +8172,13 @@
           ]
         },
         "getFontFamilyExtension": {
-          "line": 256,
+          "line": 257,
           "params": [
             "family"
           ]
         },
         "reconfigureFontFamily": {
-          "line": 263,
+          "line": 264,
           "params": [
             "view",
             "family"
@@ -7987,18 +8188,18 @@
           ]
         },
         "getJsonLinter": {
-          "line": 272,
+          "line": 273,
           "purpose": "Returns a linter extension that validates JSON syntax using JSON.parse."
         },
         "getIndentExtension": {
-          "line": 303,
+          "line": 304,
           "params": [
             "tabSize"
           ],
           "purpose": "Returns extensions that configure tab size and indent unit."
         }
       },
-      "loc": 309
+      "loc": 310
     },
     "renderer/lib/codemirror-theme": {
       "file": "src\\renderer\\lib\\codemirror-theme.ts",
@@ -8225,6 +8426,7 @@
         "clearUserMessageMarkers",
         "setLastActive",
         "wasRecentlyActive",
+        "registerWebLinkProvider",
         "registerFilePathLinkProvider"
       ],
       "depends": [
@@ -8233,45 +8435,44 @@
         "xterm-addon-search",
         "xterm-addon-webgl",
         "xterm-addon-canvas",
-        "xterm-addon-web-links",
         "xterm-addon-unicode11",
         "electron",
         "../shared/ipcChannels"
       ],
       "functions": {
         "getTerminalTheme": {
-          "line": 74
+          "line": 67
         },
         "refreshTerminalThemes": {
-          "line": 89,
+          "line": 82,
           "calls": [
             "getTerminalTheme"
           ]
         },
         "onMarkerChange": {
-          "line": 122,
+          "line": 115,
           "params": [
             "id",
             "cb"
           ]
         },
         "notifyMarkerChange": {
-          "line": 129,
+          "line": 122,
           "params": [
             "id"
           ]
         },
         "getHolderRoot": {
-          "line": 156
+          "line": 149
         },
         "loadGpuRenderer": {
-          "line": 167,
+          "line": 160,
           "params": [
             "terminal"
           ]
         },
         "getOrCreate": {
-          "line": 204,
+          "line": 197,
           "params": [
             "id",
             "options"
@@ -8280,11 +8481,12 @@
           "calls": [
             "getHolderRoot",
             "getTerminalTheme",
-            "loadGpuRenderer"
+            "loadGpuRenderer",
+            "registerWebLinkProvider"
           ]
         },
         "attach": {
-          "line": 294,
+          "line": 274,
           "params": [
             "id",
             "container"
@@ -8292,7 +8494,7 @@
           "purpose": "Returns the instance plus any saved scroll state from the last detach (consumed once)."
         },
         "detach": {
-          "line": 313,
+          "line": 293,
           "params": [
             "id"
           ],
@@ -8302,26 +8504,26 @@
           ]
         },
         "dispose": {
-          "line": 330,
+          "line": 310,
           "params": [
             "id"
           ],
           "purpose": "Only call when the user explicitly closes a terminal."
         },
         "has": {
-          "line": 352,
+          "line": 332,
           "params": [
             "id"
           ]
         },
         "get": {
-          "line": 357,
+          "line": 337,
           "params": [
             "id"
           ]
         },
         "addUserMessageMarker": {
-          "line": 365,
+          "line": 345,
           "params": [
             "id",
             "showDecoration",
@@ -8333,42 +8535,71 @@
           ]
         },
         "getUserMessageMarkers": {
-          "line": 415,
+          "line": 395,
           "params": [
             "id"
           ]
         },
         "clearUserMessageMarkers": {
-          "line": 420,
+          "line": 400,
           "params": [
             "id"
           ]
         },
         "setLastActive": {
-          "line": 431,
+          "line": 411,
           "params": [
             "id"
           ]
         },
         "wasRecentlyActive": {
-          "line": 437,
+          "line": 417,
           "params": [
             "id",
             "windowMs"
           ]
         },
+        "getTooltip": {
+          "line": 429
+        },
+        "showLinkTooltip": {
+          "line": 447,
+          "params": [
+            "event",
+            "text"
+          ],
+          "calls": [
+            "getTooltip"
+          ]
+        },
+        "hideLinkTooltip": {
+          "line": 456
+        },
+        "registerWebLinkProvider": {
+          "line": 473,
+          "params": [
+            "terminal"
+          ],
+          "purpose": "Detects URLs and opens them on Ctrl+Click with hover tooltip.",
+          "calls": [
+            "hideLinkTooltip",
+            "showLinkTooltip"
+          ]
+        },
         "registerFilePathLinkProvider": {
-          "line": 482,
+          "line": 570,
           "params": [
             "terminal",
             "getProjectPath"
           ],
           "calls": [
-            "getProjectPath"
+            "getProjectPath",
+            "hideLinkTooltip",
+            "showLinkTooltip"
           ]
         }
       },
-      "loc": 554,
+      "loc": 644,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID"
@@ -8433,7 +8664,7 @@
           "line": 8
         }
       },
-      "loc": 188
+      "loc": 197
     },
     "renderer/stores/useUIStore": {
       "file": "src\\renderer\\stores\\useUIStore.ts",
@@ -8463,7 +8694,7 @@
           ]
         }
       },
-      "loc": 351
+      "loc": 365
     },
     "shared/activityTypes": {
       "file": "src\\shared\\activityTypes.ts",
@@ -9078,7 +9309,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1283
+      "loc": 1375
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -9742,7 +9973,7 @@
       {
         "module": "main/claudeUsageManager",
         "file": "src\\main\\claudeUsageManager.ts",
-        "description": "Claude Usage Manager Module Fetches Claude Code usage data from OAuth API and provides periodic updates."
+        "description": "Claude Usage Manager — Hybrid 4-Layer Approach"
       }
     ],
     "codemirror-extensions": [
@@ -9861,6 +10092,13 @@
         "module": "renderer/global.d",
         "file": "src\\renderer\\global.d.ts",
         "description": "Global window augmentations for SubFrame renderer"
+      }
+    ],
+    "graceful-shutdown-dialog": [
+      {
+        "module": "renderer/components/GracefulShutdownDialog",
+        "file": "src\\renderer\\components\\GracefulShutdownDialog.tsx",
+        "description": "GracefulShutdownDialog — UI dialog shown when closing SubFrame with active work."
       }
     ],
     "history": [

@@ -234,10 +234,11 @@ export function reconfigureWordWrap(view: EditorView, enabled: boolean): void {
   });
 }
 
-/** Returns a font-size theme extension. */
+/** Returns a font-size theme extension. lineHeight must match .cm-scroller
+ *  to prevent selection highlight offset (CM6 computes selection rects from content metrics). */
 export function getFontSizeExtension(size: number): Extension {
   return EditorView.theme({
-    '.cm-content, .cm-gutters': { fontSize: `${size}px` },
+    '.cm-content, .cm-gutters': { fontSize: `${size}px`, lineHeight: '1.6' },
   });
 }
 

@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-21",
+    "lastUpdated": "2026-03-22",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-21T22:10:44.816Z",
+  "lastUpdated": "2026-03-22T02:26:55.622Z",
   "tasks": {
     "pending": [
       {
@@ -64,20 +64,6 @@
         "updatedAt": "2026-03-08T00:49:39.470Z",
         "completedAt": null,
         "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
-        "steps": []
-      },
-      {
-        "id": "task-1773106824704-yhkq4hg7n",
-        "title": "Research better method for Usage Stats",
-        "status": "pending",
-        "priority": "high",
-        "category": "enhancement",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-10T01:40:24.704Z",
-        "updatedAt": "2026-03-10T01:40:24.704Z",
-        "completedAt": null,
-        "description": "Our current approach for Usage Stats (at least for Claude) works - however it results in frequent 'Usage Unavailable'. We need to research this and ensure we're using the best approach.",
         "steps": []
       },
       {
@@ -409,7 +395,7 @@
       },
       {
         "id": "task-mme7xagk-7omc",
-        "title": "Research Claude Code remote/headless mode for session enhancement",
+        "title": "Research Claude Code remote/headless mode + tmux/SSH remote session management",
         "status": "pending",
         "priority": "medium",
         "category": "research",
@@ -417,9 +403,10 @@
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-06T01:30:58.484Z",
-        "updatedAt": "2026-03-06T01:30:58.484Z",
+        "updatedAt": "2026-03-22T02:05:12.272Z",
         "completedAt": null,
-        "description": "Investigate Claude Code's recently released remote code execution feature. Explore its capabilities, API surface, and how SubFrame could integrate with it to build enhanced session management — potentially enabling richer session context, persistent agent state, or background task execution beyond the local PTY model.",
+        "description": "Investigate Claude Code's remote execution capabilities AND explore tmux session management + SSH remote terminal support for SubFrame. Two complementary tracks: (1) Claude Code remote/headless API for persistent agent state, background tasks beyond local PTY. (2) tmux integration for session persistence, SSH remote terminal management UI — attach/detach sessions, reconnect to remote machines, manage long-running processes across connections.",
+        "notes": "[2026-03-22] Enhanced scope: original research was Claude remote only. Now includes tmux session management (attach/detach, session persistence, split panes) and SSH remote terminal support (connect to remote machines, manage connections, key management UI). These can be separate features but share the 'persistent session beyond local PTY' theme.",
         "steps": []
       },
       {
@@ -833,6 +820,40 @@
             "label": "Handle missing preferences gracefully (first switch to a workspace)"
           }
         ]
+      },
+      {
+        "id": "task-mn14eui7-b72d",
+        "title": "SubFrame System Panel — app dashboard with AI tool management",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-22",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-22T02:11:21.197Z",
+        "updatedAt": "2026-03-22T02:11:21.197Z",
+        "completedAt": null,
+        "description": "Add a dedicated System panel/view (similar to Overview but for SubFrame itself) that surfaces app-level information and management in a clean, unified UI. Includes: version info and update status, AI tool configuration and feature detection, keyboard shortcuts reference, integration status, tips/hints, and system health. Should also detect and surface AI tool capabilities (e.g. Claude Code channels, MCP servers, permissions) and suggest relevant features the user hasn't tried yet.",
+        "userRequest": "Add a subtask for enhancing our SubFrame system itself with a System panel/view similar to overview but for SubFrame itself - updates, version, integrations, hints, shortcuts, etc. Also manage AI tools - detect used features and link/suggest such as the new channels feature for claude code",
+        "acceptanceCriteria": "Panel accessible from sidebar or view tabs. Shows: app version + update status, AI tool config with feature detection, shortcuts summary, integration/plugin status, contextual tips. Clean, scannable layout — not a settings dump.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Design panel layout and sections (version, AI tools, shortcuts, integrations, tips)"
+          },
+          {
+            "completed": false,
+            "label": "Implement AI tool feature detection (scan capabilities, suggest unused features)"
+          },
+          {
+            "completed": false,
+            "label": "Build System panel component with all sections"
+          },
+          {
+            "completed": false,
+            "label": "Add sidebar entry and routing"
+          }
+        ]
       }
     ],
     "inProgress": [],
@@ -1034,6 +1055,20 @@
         "updatedAt": "2026-03-11T20:06:03.858Z",
         "completedAt": "2026-03-11T20:06:03.858Z",
         "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1773496619358-rlfv6r601",
+        "title": "Workspace Enhancements",
+        "status": "completed",
+        "priority": "medium",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-14T13:56:59.358Z",
+        "updatedAt": "2026-03-21T22:10:44.805Z",
+        "completedAt": "2026-03-21T22:10:44.805Z",
+        "description": "Workspaces should be enhanced for UI/UX.",
         "steps": []
       },
       {
@@ -1927,34 +1962,7 @@
         "updatedAt": "2026-03-16T01:10:44.036Z",
         "completedAt": "2026-03-16T01:10:44.036Z",
         "description": "Modal dialogs that initiate background AI operations (Enhance Sub-Task, Onboarding Analysis) break UX when closed — the operation continues in the background (visible in ActivityBar) but the user can't reopen the dialog to see current state/results. Need to either: (1) make dialogs resumable by linking to in-progress operations, (2) move long-running operations out of modals into persistent panels, or (3) add a global 'running operations' view that shows results. Pipelines are fine (persistent panel). The ActivityBar infrastructure is solid — the flaw is purely at the UI coupling layer.",
-        "userRequest": "Ensure all long-running AI tasks properly use global activity system AND that UI supports reopening/reattaching to in-progress operations",
-        "notes": "[2026-03-16] Implemented Option C (hybrid): pendingEnhance in Zustand store survives dialog close, toast with View Results action reopens dialog pre-populated. Also fixed: SettingsPanel CLI install/uninstall loading states. Audit found: CLI install (high), SCAN_PROJECT_DIR (medium), RECHECK_AI_TOOLS (medium) — first two fixed, third already had spinner.\n[2026-03-16] Audit pass 2: Fixed 5 additional issues — View Results navigates to Tasks panel, pendingEnhance cleared on form submit, Create/Update disabled during enhance, SCAN_PROJECT_DIR loading state added. OnboardingDialog confirmed clean (has cancel-on-close logic). ActivityBar cancel does not interact with pendingEnhance (acceptable).",
-        "steps": [
-          {
-            "completed": false,
-            "label": "Audit all long-running operation entry points (Enhance, Onboarding, Pipeline, AI Tool)"
-          },
-          {
-            "completed": false,
-            "label": "Map each operation's lifecycle: initiation → progress → completion → result delivery"
-          },
-          {
-            "completed": false,
-            "label": "Design UX pattern for resumable/persistent background operations"
-          },
-          {
-            "completed": false,
-            "label": "Implement operation-to-UI linking (e.g. store active operation IDs, reattach on dialog open)"
-          },
-          {
-            "completed": true,
-            "label": "Test: close dialog during Enhance, reopen, verify state restoration"
-          },
-          {
-            "completed": true,
-            "label": "Test: navigate away during pipeline, return, verify state persists"
-          }
-        ]
+        "steps": []
       },
       {
         "id": "task-qol",
@@ -2159,28 +2167,18 @@
         "steps": []
       },
       {
-        "id": "task-1773496619358-rlfv6r601",
-        "title": "Workspace Enhancements",
+        "id": "task-1773106824704-yhkq4hg7n",
+        "title": "Research better method for Usage Stats",
         "status": "completed",
-        "priority": "medium",
+        "priority": "high",
         "category": "enhancement",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-14T13:56:59.358Z",
-        "updatedAt": "2026-03-21T22:10:44.805Z",
-        "completedAt": "2026-03-21T22:10:44.805Z",
-        "description": "Workspaces should be enhanced for UI/UX.",
-        "notes": "[2026-03-15] Step 1 done: workspace create dialog with name input shipped in v0.4.0-beta. Step 2 (reorder) still pending. Per-workspace UI state tracked separately as task-mms40ogv-2p06.",
-        "steps": [
-          {
-            "completed": true,
-            "label": "When creating a new workspace present the naming modal"
-          },
-          {
-            "completed": true,
-            "label": "Allow workspaces to be re-ordered"
-          }
-        ]
+        "createdAt": "2026-03-10T01:40:24.704Z",
+        "updatedAt": "2026-03-22T02:26:55.616Z",
+        "completedAt": "2026-03-22T02:26:55.616Z",
+        "description": "Our current approach for Usage Stats (at least for Claude) works - however it results in frequent 'Usage Unavailable'. We need to research this and ensure we're using the best approach.",
+        "steps": []
       }
     ]
   }

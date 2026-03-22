@@ -694,10 +694,41 @@ export interface SkillInfo {
   healthStatus?: 'healthy' | 'outdated' | 'missing';
 }
 
-/** Claude usage data (from claudeUsageManager) */
+/** Usage window with utilization percentage and reset time */
+export interface UsageWindow {
+  utilization: number;  // 0–100 (already a percentage)
+  resetsAt: string | null;
+}
+
+/** Extra usage credits info (Max/Team plan) */
+export interface ExtraUsageInfo {
+  isEnabled: boolean;
+  monthlyLimit: number | null;
+  usedCredits: number | null;
+  utilization: number | null;
+}
+
+/** Which data source provided usage data */
+export type UsageSource = 'local-cache' | 'api' | 'credentials-only' | 'none';
+
+/** Claude usage data (from claudeUsageManager — hybrid 4-layer approach) */
 export interface ClaudeUsageData {
-  fiveHour: { utilization: number; resetsAt: string | null } | null;
-  sevenDay: { utilization: number; resetsAt: string | null } | null;
+  // Primary usage windows
+  fiveHour: UsageWindow | null;
+  sevenDay: UsageWindow | null;
+  // Per-model breakdowns
+  sevenDaySonnet: UsageWindow | null;
+  sevenDayOpus: UsageWindow | null;
+  // Extra usage credits (Max plan)
+  extraUsage: ExtraUsageInfo | null;
+  // Data source transparency
+  source: UsageSource;
+  /** How old the local cache was when read (null if API or no cache) */
+  cacheAgeSeconds: number | null;
+  // Account metadata (from credentials file — always available)
+  subscriptionType: string | null;
+  rateLimitTier: string | null;
+  // Metadata
   lastUpdated: string;
   error: string | null;
   /** Set after consecutive polling failures — suggests user disable polling */

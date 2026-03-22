@@ -113,7 +113,7 @@ var require_package = __commonJS({
         "@types/react-dom": "^19.2.3",
         electron: "^28.0.0",
         "electron-builder": "^26.8.1",
-        esbuild: "^0.27.3",
+        esbuild: "^0.27.4",
         eslint: "^9.39.3",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-react-hooks": "^5.2.0",
@@ -158,7 +158,7 @@ var require_package = __commonJS({
         dagre: "^0.8.5",
         "electron-updater": "^6.8.3",
         "esbuild-postcss-plugin": "^0.0.7",
-        "framer-motion": "^12.35.2",
+        "framer-motion": "^12.37.0",
         "gray-matter": "^4.0.3",
         "highlight.js": "^11.11.1",
         "lucide-react": "^0.577.0",
@@ -169,7 +169,7 @@ var require_package = __commonJS({
         react: "^19.2.4",
         "react-dom": "^19.2.4",
         "react-markdown": "^10.1.0",
-        "react-resizable-panels": "^4.7.2",
+        "react-resizable-panels": "^4.7.3",
         "react-zoom-pan-pinch": "^3.7.0",
         recharts: "^2.15.4",
         "remark-gfm": "^4.0.1",
@@ -185,7 +185,7 @@ var require_package = __commonJS({
         "xterm-addon-web-links": "^0.9.0",
         "xterm-addon-webgl": "^0.16.0",
         yaml: "^2.8.2",
-        zustand: "^5.0.11"
+        zustand: "^5.0.12"
       },
       build: {
         appId: "com.subframe.ide",

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Asymmetric terminal grid layouts** — 4 new layouts: 2+1 (two stacked left, one full right), 1+2 (one full left, two stacked right), 2/1 (two top, one full bottom), 1/2 (one full top, two bottom)
 
+### Improved
+- **Usage stats — hybrid 4-layer approach** — reads Claude's local statusline cache first (zero network cost), falls back to OAuth API with automatic token refresh, then credentials metadata; dramatically reduces "Usage unavailable" errors
+- **Usage pill tooltip** — rich tooltip showing all usage windows (Session, Weekly, per-model Sonnet/Opus), data source indicator, account tier, extra usage credits, and cache age
+- **Usage data source transparency** — colored dot indicator shows where data came from: green (local cache), blue (API), amber (credentials-only), red (unavailable)
+
 ### Fixed
 - **Task Enhance survives dialog close** — AI enhance results now persist in global state; toast with "View Results" action reopens the dialog pre-populated with enhanced data
 - **Settings CLI install/uninstall feedback** — buttons now show spinners, disable during operation, and handle errors

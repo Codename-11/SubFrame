@@ -14,7 +14,6 @@ import { IPC } from '../../shared/ipcChannels';
 import type { Terminal, IMarker, IDecoration, IDisposable, ILinkProvider, ILink, IBufferRange } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import type { SearchAddon } from 'xterm-addon-search';
-import type { WebLinksAddon } from 'xterm-addon-web-links';
 import type { Unicode11Addon } from 'xterm-addon-unicode11';
 
 const { Terminal: XTerminal } = require('xterm') as { Terminal: typeof Terminal };
@@ -25,7 +24,6 @@ const { SearchAddon: XSearchAddon } = require('xterm-addon-search') as {
 
 let XWebglAddon: any = null;
 let XCanvasAddon: any = null;
-let XWebLinksAddon: (typeof WebLinksAddon) | null = null;
 let XUnicode11Addon: (typeof Unicode11Addon) | null = null;
 try {
   XWebglAddon = require('xterm-addon-webgl').WebglAddon;
@@ -34,11 +32,6 @@ try {
 }
 try {
   XCanvasAddon = require('xterm-addon-canvas').CanvasAddon;
-} catch {
-  /* not available */
-}
-try {
-  XWebLinksAddon = require('xterm-addon-web-links').WebLinksAddon;
 } catch {
   /* not available */
 }
@@ -246,21 +239,8 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
   terminal.loadAddon(searchAddon);
   loadGpuRenderer(terminal);
 
-  // Web links — makes URLs clickable, opens in default browser
-  if (XWebLinksAddon) {
-    try {
-      terminal.loadAddon(new XWebLinksAddon((_event: MouseEvent, uri: string) => {
-        try {
-          const { protocol } = new URL(uri);
-          if (protocol === 'https:' || protocol === 'http:') {
-            shell.openExternal(uri);
-          }
-        } catch { /* malformed URL — ignore */ }
-      }));
-    } catch {
-      /* addon failed to load */
-    }
-  }
+  // Web links — Ctrl+click to open URLs in default browser (with hover tooltip)
+  registerWebLinkProvider(terminal);
 
   // Unicode 11 — fixes emoji width calculation and CJK character rendering
   if (XUnicode11Addon) {
@@ -441,6 +421,114 @@ export function wasRecentlyActive(id: string, windowMs = 60_000): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Link tooltip — shared floating tooltip for terminal link hover
+// ---------------------------------------------------------------------------
+
+let linkTooltip: HTMLDivElement | null = null;
+
+function getTooltip(): HTMLDivElement {
+  if (!linkTooltip) {
+    linkTooltip = document.createElement('div');
+    linkTooltip.style.cssText = [
+      'position:fixed', 'z-index:9999', 'padding:2px 8px',
+      'font-size:11px', 'line-height:1.4',
+      'color:var(--color-text-secondary)',
+      'background:var(--color-bg-elevated)',
+      'border:1px solid var(--color-border-subtle)',
+      'border-radius:4px', 'pointer-events:none',
+      'display:none', 'white-space:nowrap',
+      'box-shadow:0 2px 8px rgba(0,0,0,0.3)',
+    ].join(';');
+    document.body.appendChild(linkTooltip);
+  }
+  return linkTooltip;
+}
+
+function showLinkTooltip(event: MouseEvent, text: string): void {
+  const tip = getTooltip();
+  tip.textContent = text;
+  tip.style.display = 'block';
+  // Position near cursor, slightly above and to the right
+  tip.style.left = `${event.clientX + 8}px`;
+  tip.style.top = `${event.clientY - 28}px`;
+}
+
+function hideLinkTooltip(): void {
+  if (linkTooltip) linkTooltip.style.display = 'none';
+}
+
+const ctrlLabel = process.platform === 'darwin' ? 'Cmd' : 'Ctrl';
+
+// ---------------------------------------------------------------------------
+// Web link provider — Ctrl+click to open URLs in browser (with tooltip)
+// ---------------------------------------------------------------------------
+
+/** URL pattern — matches http/https URLs, stops at whitespace/quotes/brackets */
+const URL_REGEX = /https?:\/\/[^\s<>"'`)\]}>]+/g;
+
+/**
+ * Register a web link provider on a terminal instance.
+ * Detects URLs and opens them on Ctrl+Click with hover tooltip.
+ */
+export function registerWebLinkProvider(terminal: Terminal): IDisposable {
+  const provider: ILinkProvider = {
+    provideLinks(bufferLineNumber: number, callback: (links: ILink[] | undefined) => void): void {
+      const line = terminal.buffer.active.getLine(bufferLineNumber - 1);
+      if (!line) { callback(undefined); return; }
+
+      const lineText = line.translateToString(true);
+      const links: ILink[] = [];
+      const regex = new RegExp(URL_REGEX.source, 'g');
+      let match: RegExpExecArray | null;
+
+      while ((match = regex.exec(lineText)) !== null) {
+        const url = match[0];
+        // Strip trailing punctuation that's likely not part of the URL
+        const cleaned = url.replace(/[.,;:!?)]+$/, '');
+        const startX = match.index + 1;
+        const endX = match.index + cleaned.length;
+
+        links.push({
+          range: {
+            start: { x: startX, y: bufferLineNumber },
+            end: { x: endX, y: bufferLineNumber },
+          },
+          text: cleaned,
+          decorations: { underline: false, pointerCursor: false },
+
+          activate(event: MouseEvent, text: string): void {
+            if (!event.ctrlKey && !event.metaKey) return;
+            try {
+              const { protocol } = new URL(text);
+              if (protocol === 'https:' || protocol === 'http:') {
+                shell.openExternal(text);
+              }
+            } catch { /* malformed URL */ }
+          },
+
+          hover(event: MouseEvent, text: string): void {
+            if (event.ctrlKey || event.metaKey) {
+              this.decorations = { underline: true, pointerCursor: true };
+              const display = text.length > 60 ? text.slice(0, 57) + '...' : text;
+              showLinkTooltip(event, `Follow ${display} (${ctrlLabel}+Click)`);
+            }
+          },
+
+          leave(): void {
+            this.decorations = { underline: false, pointerCursor: false };
+            hideLinkTooltip();
+          },
+        });
+      }
+
+      callback(links.length > 0 ? links : undefined);
+    },
+  };
+
+  return terminal.registerLinkProvider(provider);
+}
+
+// ---------------------------------------------------------------------------
 // File path link provider — Ctrl+click to open files in editor
 // ---------------------------------------------------------------------------
 
@@ -533,14 +621,16 @@ export function registerFilePathLinkProvider(
             openFile(resolved, lineNum);
           },
 
-          hover(event: MouseEvent, _text: string): void {
+          hover(event: MouseEvent, text: string): void {
             if (event.ctrlKey || event.metaKey) {
               this.decorations = { underline: true, pointerCursor: true };
+              showLinkTooltip(event, `Open ${text} (${ctrlLabel}+Click)`);
             }
           },
 
-          leave(_event: MouseEvent, _text: string): void {
+          leave(): void {
             this.decorations = { underline: false, pointerCursor: false };
+            hideLinkTooltip();
           },
         });
       }
