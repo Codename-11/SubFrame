@@ -109,6 +109,7 @@ export function ViewTabBar() {
   const activePanel = useUIStore(s => s.activePanel);
   const togglePanel = useUIStore(s => s.togglePanel);
   const closeRightPanel = useUIStore(s => s.closeRightPanel);
+  const toggleFullView = useUIStore(s => s.toggleFullView);
   const sidebarState = useUIStore(s => s.sidebarState);
   const setSidebarState = useUIStore(s => s.setSidebarState);
   const currentProjectPath = useProjectStore(s => s.currentProjectPath);
@@ -345,16 +346,20 @@ export function ViewTabBar() {
 
         <div className="h-4 w-px bg-border-subtle mx-0.5" />
 
-        {/* Panel shortcut buttons — open right sidebar */}
+        {/* Panel shortcut buttons — full-view dashboards open as tabs, others open right sidebar */}
         {PANEL_SHORTCUTS.map((panel) => {
           const Icon = panel.icon;
-          const isActive = activePanel === panel.id;
+          // Overview opens as full-view tab (primary), not right sidebar
+          const isFullViewPanel = panel.id === 'overview';
+          const isActive = isFullViewPanel
+            ? fullViewContent === panel.id
+            : activePanel === panel.id;
           return (
             <TooltipProvider key={panel.id} delayDuration={400}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => togglePanel(panel.id)}
+                    onClick={() => isFullViewPanel ? toggleFullView(panel.id as any) : togglePanel(panel.id)}
                     className={`flex items-center gap-1.5 h-6 px-2 rounded text-xs font-medium transition-colors cursor-pointer ${
                       isActive
                         ? 'text-accent bg-accent-subtle'
