@@ -8,10 +8,13 @@ import { motion } from 'framer-motion';
 import {
   Cpu, Download, RefreshCw, Loader2, CheckCircle,
   Terminal, Keyboard, BookMarked, Globe, Copy, Zap,
-  ChevronDown, ChevronUp, RotateCw,
+  ChevronDown, ChevronUp, RotateCw, Info,
 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Button } from './ui/button';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from './ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { useUpdater } from '../hooks/useUpdater';
@@ -403,14 +406,18 @@ function HealthQuickCard() {
 // ─── Card 4: Local API Server ─────────────────────────────────────────────────
 
 function APIServerCard() {
-  const { data: serverInfo, isLoading, refetch: refetchServerInfo } = useIpcQuery(IPC.API_SERVER_INFO, []);
+  const { data: serverInfo, isLoading, refetch: refetchServerInfo } = useIpcQuery(IPC.API_SERVER_INFO, [], {
+    refetchInterval: 5000, // Live counters (clients, requests) refresh while panel is open
+    staleTime: 4000,
+  });
   const toggleServer = useIpcMutation(IPC.API_SERVER_TOGGLE, {
     onSuccess: () => { refetchServerInfo(); },
   });
   const regenToken = useIpcMutation(IPC.API_SERVER_REGEN_TOKEN, {
-    onSuccess: () => { refetchServerInfo(); },
+    onSuccess: () => { refetchServerInfo(); toast.success('Token regenerated'); },
   });
   const [endpointsExpanded, setEndpointsExpanded] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   const enabled = serverInfo?.enabled ?? false;
   const port = serverInfo?.port ?? 0;
@@ -441,7 +448,6 @@ function APIServerCard() {
   const handleRegenToken = (e: React.MouseEvent) => {
     e.stopPropagation();
     regenToken.mutate([]);
-    toast.success('Token regenerated');
   };
 
   const endpoints = [
@@ -454,12 +460,22 @@ function APIServerCard() {
       variants={cardVariants}
       className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 col-span-2 hover:border-accent/30 transition-colors"
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Globe size={14} className="text-accent" />
-          <span className="text-xs font-medium text-text-primary">Local API Server</span>
+          <div>
+            <span className="text-xs font-medium text-text-primary">Local API Server</span>
+            <div className="text-[10px] text-text-tertiary">Expose terminal state to external tools</div>
+          </div>
         </div>
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowInfo(true)}
+            className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer p-0.5"
+            title="About this integration"
+          >
+            <Info size={12} />
+          </button>
           <Button size="sm" variant="ghost" onClick={copyConfig} className="h-6 px-2 cursor-pointer">
             <Copy size={12} />
             <span className="text-[10px] ml-1">Copy</span>
@@ -564,6 +580,60 @@ function APIServerCard() {
           </div>
         </>
       )}
+
+      {/* Info dialog */}
+      <Dialog open={showInfo} onOpenChange={setShowInfo}>
+        <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-md" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Globe size={16} className="text-accent" />
+              Local API Server
+            </DialogTitle>
+            <DialogDescription className="text-text-secondary text-xs">
+              Exposes terminal selection, buffer, and context via localhost HTTP for external tools.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-[11px] text-text-secondary">
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Protocol</div>
+              <p>DTSP (Desktop Text Source Protocol) — generic discovery protocol for desktop apps to expose text data. Consumer apps scan <span className="font-mono text-[10px]">~/.dtsp/sources/*.json</span> to find sources.</p>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Authentication</div>
+              <p>Bearer token (auto-generated). Pass via <span className="font-mono text-[10px]">Authorization: Bearer {'<token>'}</span> header or <span className="font-mono text-[10px]">?token=</span> query parameter. Health endpoint is public.</p>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Endpoints</div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                {[
+                  ['/api/health', 'Server status (public)'],
+                  ['/api/selection', 'Active terminal selection'],
+                  ['/api/context', 'Terminal name, project, agent status'],
+                  ['/api/terminals', 'List all terminals'],
+                  ['/api/buffer', 'Visible terminal buffer'],
+                  ['/api/events', 'SSE event stream'],
+                ].map(([ep, desc]) => (
+                  <div key={ep}>
+                    <span className="font-mono text-accent text-[10px]">{ep}</span>
+                    <div className="text-[10px] text-text-tertiary">{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Discovery</div>
+              <div className="font-mono text-[10px] text-text-tertiary space-y-0.5">
+                <div>~/.subframe/api.json</div>
+                <div>~/.dtsp/sources/subframe.json</div>
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Compatible Tools</div>
+              <p>Conjure (TTS), custom scripts, Stream Deck plugins, any DTSP-aware app.</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

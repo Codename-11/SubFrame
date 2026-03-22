@@ -67,10 +67,13 @@ function writeServiceConfig(): void {
       port: serverPort,
       token: authToken,
       pid: process.pid,
-      version: '1.0',
+      protocolVersion: '1.0',
+      appVersion,
       capabilities: ['selection', 'context', 'buffer', 'events'],
     }, null, 2), 'utf8');
-  } catch { /* DTSP dir may not exist yet — non-critical */ }
+  } catch (err) {
+    console.warn('[API Server] DTSP registration failed:', err);
+  }
 }
 
 function removeServiceConfig(): void {
@@ -126,8 +129,7 @@ function sendError(res: http.ServerResponse, status: number, message: string): v
 }
 
 async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-  requestCount++;
-  // CORS preflight
+  // CORS preflight — don't count toward request total
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -137,6 +139,7 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
     res.end();
     return;
   }
+  requestCount++;
 
   // Auth check (except /api/health which is public for service discovery)
   const url = new URL(req.url || '/', `http://localhost:${serverPort}`);
@@ -271,14 +274,20 @@ function stopServer(): void {
 function init(window: BrowserWindow): void {
   mainWindow = window;
 
-  // Clean up stale api.json from a previous crash (pid no longer running)
-  try {
-    const raw = fs.readFileSync(API_CONFIG_PATH, 'utf8');
-    const existing = JSON.parse(raw) as { pid?: number };
-    if (existing.pid) {
-      try { process.kill(existing.pid, 0); } catch { removeServiceConfig(); }
-    }
-  } catch { /* no existing file or parse error — ok */ }
+  // Clean up stale config files from a previous crash (pid no longer running).
+  // Note: process.kill(pid, 0) on Windows may not detect recycled PIDs — writeServiceConfig
+  // overwrites on startup anyway, so the window of stale data is brief.
+  for (const configPath of [API_CONFIG_PATH, DTSP_PATH]) {
+    try {
+      const raw = fs.readFileSync(configPath, 'utf8');
+      const existing = JSON.parse(raw) as { pid?: number };
+      if (existing.pid) {
+        try { process.kill(existing.pid, 0); } catch {
+          try { fs.unlinkSync(configPath); } catch { /* ignore */ }
+        }
+      }
+    } catch { /* no existing file or parse error — ok */ }
+  }
 
   // Check if API server is enabled in settings
   try {
@@ -312,6 +321,19 @@ function setupIPC(ipcMain: IpcMain): void {
       pending.resolve(data.payload);
     }
   });
+
+  // React to settings changes from SettingsPanel (keeps live server in sync)
+  try {
+    const settingsManager = require('./settingsManager');
+    if (typeof settingsManager.onSettingChange === 'function') {
+      settingsManager.onSettingChange((key: string, value: unknown) => {
+        if (key !== 'integrations.apiServer') return;
+        const enable = value !== false;
+        if (enable && !server) { enabled = true; startServer(); }
+        else if (!enable && server) { enabled = false; stopServer(); }
+      });
+    }
+  } catch { /* settingsManager not available */ }
 
   // IPC handler to get current server info
   ipcMain.handle(IPC.API_SERVER_INFO, () => {
