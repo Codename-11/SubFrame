@@ -65,7 +65,7 @@ const PANEL_SHORTCUTS = [
 const SOURCE_META: Record<UsageSource, { color: string; label: string; description: string }> = {
   'local-cache': {
     color: 'bg-success',
-    label: 'Local',
+    label: 'Live',
     description: 'Read from Claude\'s local statusline cache — fast, no network',
   },
   'api': {
@@ -435,8 +435,13 @@ function UsageTooltip({ data, fetching }: { data: ClaudeUsageData | null; fetchi
         <span className="flex items-center gap-1 text-text-muted">
           <span className={`h-1.5 w-1.5 rounded-full ${sourceMeta.color} inline-block`} />
           {sourceMeta.label}
-          {data.cacheAgeSeconds !== null && data.cacheAgeSeconds !== undefined && (
+          {source !== 'local-cache' && data.cacheAgeSeconds !== null && data.cacheAgeSeconds !== undefined && (
             <span className="font-mono">({data.cacheAgeSeconds}s ago)</span>
+          )}
+          {data.error && data.lastUpdated && (
+            <span className="font-mono">
+              {new Date(data.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
           )}
         </span>
       </div>
