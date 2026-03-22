@@ -208,6 +208,47 @@ export function broadcastEvent(eventType: string, data: unknown): void {
   }
 }
 
+// ── Server start/stop ─────────────────────────────────────────────────────
+
+function startServer(): void {
+  if (server) return; // Already running
+  authToken = authToken || crypto.randomBytes(24).toString('hex');
+
+  server = http.createServer((req, res) => {
+    handleRequest(req, res).catch((err) => {
+      sendError(res, 500, (err as Error).message);
+    });
+  });
+
+  server.listen(0, '127.0.0.1', () => {
+    const addr = server!.address();
+    serverPort = typeof addr === 'object' && addr ? addr.port : 0;
+    console.log(`[API Server] Listening on http://127.0.0.1:${serverPort}`);
+    writeServiceConfig();
+  });
+
+  server.on('error', (err) => {
+    console.error('[API Server] Server error:', err);
+  });
+}
+
+function stopServer(): void {
+  for (const [id, req] of pendingRequests) {
+    clearTimeout(req.timer);
+    pendingRequests.delete(id);
+  }
+  for (const client of sseClients) {
+    try { client.end(); } catch { /* ignore */ }
+  }
+  sseClients.clear();
+  if (server) {
+    server.close();
+    server = null;
+  }
+  serverPort = 0;
+  removeServiceConfig();
+}
+
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
 function init(window: BrowserWindow): void {
@@ -235,27 +276,7 @@ function init(window: BrowserWindow): void {
     return;
   }
 
-  // Generate auth token
-  authToken = crypto.randomBytes(24).toString('hex');
-
-  // Create HTTP server
-  server = http.createServer((req, res) => {
-    handleRequest(req, res).catch((err) => {
-      sendError(res, 500, (err as Error).message);
-    });
-  });
-
-  // Listen on random available port (localhost only)
-  server.listen(0, '127.0.0.1', () => {
-    const addr = server!.address();
-    serverPort = typeof addr === 'object' && addr ? addr.port : 0;
-    console.log(`[API Server] Listening on http://127.0.0.1:${serverPort}`);
-    writeServiceConfig();
-  });
-
-  server.on('error', (err) => {
-    console.error('[API Server] Server error:', err);
-  });
+  startServer();
 }
 
 function setupIPC(ipcMain: IpcMain): void {
@@ -279,29 +300,37 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.API_SERVER_INFO, () => {
     return { enabled, port: serverPort, token: authToken };
   });
+
+  // Toggle API server on/off
+  ipcMain.handle(IPC.API_SERVER_TOGGLE, (_event, enable: boolean) => {
+    if (enable && !server) {
+      enabled = true;
+      startServer();
+      try {
+        const settingsManager = require('./settingsManager');
+        settingsManager.updateSetting('integrations.apiServer', true);
+      } catch { /* ignore */ }
+    } else if (!enable && server) {
+      enabled = false;
+      stopServer();
+      try {
+        const settingsManager = require('./settingsManager');
+        settingsManager.updateSetting('integrations.apiServer', false);
+      } catch { /* ignore */ }
+    }
+    return { enabled, port: serverPort, token: authToken };
+  });
+
+  // Regenerate auth token
+  ipcMain.handle(IPC.API_SERVER_REGEN_TOKEN, () => {
+    authToken = crypto.randomBytes(24).toString('hex');
+    if (server) writeServiceConfig(); // Update api.json with new token
+    return { token: authToken };
+  });
 }
 
 function shutdown(): void {
-  // Cancel pending renderer requests (prevents timer leaks on quit)
-  for (const [id, req] of pendingRequests) {
-    clearTimeout(req.timer);
-    pendingRequests.delete(id);
-  }
-
-  // Close all SSE connections
-  for (const client of sseClients) {
-    try { client.end(); } catch { /* ignore */ }
-  }
-  sseClients.clear();
-
-  // Stop server
-  if (server) {
-    server.close();
-    server = null;
-  }
-
-  // Remove service discovery file
-  removeServiceConfig();
+  stopServer();
 }
 
-export { init, setupIPC, shutdown };
+export { init, setupIPC, shutdown, startServer, stopServer };

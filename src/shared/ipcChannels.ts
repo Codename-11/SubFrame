@@ -275,6 +275,8 @@ export const IPC = {
   API_GET_CONTEXT: 'api-get-context',                 // main → renderer: request terminal context
   API_RENDERER_RESPONSE: 'api-renderer-response',     // renderer → main: response to request
   API_SERVER_INFO: 'api-server-info',                  // handle: get server port/token
+  API_SERVER_TOGGLE: 'api-server-toggle',              // handle: enable/disable server
+  API_SERVER_REGEN_TOKEN: 'api-server-regen-token',    // handle: regenerate auth token
 
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
@@ -1061,6 +1063,8 @@ export interface IPCHandleMap {
 
   // API Server
   [IPC.API_SERVER_INFO]: { args: []; return: { enabled: boolean; port: number; token: string } };
+  [IPC.API_SERVER_TOGGLE]: { args: [enabled: boolean]; return: { enabled: boolean; port: number; token: string } };
+  [IPC.API_SERVER_REGEN_TOKEN]: { args: []; return: { token: string } };
   [IPC.SELECT_DEFAULT_PROJECT_DIR]: { args: []; return: string | null };
 
   // GitHub

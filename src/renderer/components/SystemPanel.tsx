@@ -1,22 +1,24 @@
 /**
  * SystemPanel — App dashboard for SubFrame itself.
- * Shows version/update status, AI tool, health, integrations, and quick access.
+ * Shows version/update status, AI tool picker, health, integrations, and quick access.
  */
 
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Cpu, Download, RefreshCw, Loader2, CheckCircle,
   Terminal, Keyboard, BookMarked, Globe, Copy, Zap, Shield,
+  ChevronDown, ChevronUp, RotateCw,
 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { useUpdater } from '../hooks/useUpdater';
-import { useAIToolConfig } from '../hooks/useSettings';
+import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { useSubFrameHealth } from '../hooks/useSubFrameHealth';
 import { usePrompts } from '../hooks/usePrompts';
-import { useIpcQuery } from '../hooks/useIpc';
+import { useIpcQuery, useIpcMutation } from '../hooks/useIpc';
 import { useUIStore } from '../stores/useUIStore';
 import { IPC } from '../../shared/ipcChannels';
 // Read version from package.json directly (frameConstants uses Node's `path` — unavailable in renderer)
@@ -55,11 +57,24 @@ export function SystemPanel() {
             animate="visible"
           >
             <VersionCard />
-            <AIToolCard />
-            <HealthQuickCard />
           </motion.div>
 
-          {/* Section 2: Integrations */}
+          {/* Section 2: AI Tools */}
+          <div className="flex items-center gap-2 mt-2 mb-0.5 px-0.5">
+            <Terminal size={12} className="text-text-muted" />
+            <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">AI Tools</span>
+            <div className="flex-1 h-px bg-border-subtle" />
+          </div>
+          <motion.div
+            className="grid gap-2 grid-cols-2"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <AIToolCard />
+          </motion.div>
+
+          {/* Section 3: Integrations */}
           <div className="flex items-center gap-2 mt-2 mb-0.5 px-0.5">
             <Globe size={12} className="text-text-muted" />
             <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Integrations</span>
@@ -72,9 +87,10 @@ export function SystemPanel() {
             animate="visible"
           >
             <APIServerCard />
+            <FeatureDetectionCard />
           </motion.div>
 
-          {/* Section 3: Quick Access */}
+          {/* Section 4: Quick Access */}
           <div className="flex items-center gap-2 mt-2 mb-0.5 px-0.5">
             <Zap size={12} className="text-text-muted" />
             <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Quick Access</span>
@@ -86,6 +102,7 @@ export function SystemPanel() {
             initial="hidden"
             animate="visible"
           >
+            <HealthQuickCard />
             <ShortcutsCard />
             <PromptLibraryCard />
           </motion.div>
@@ -231,19 +248,15 @@ function UpdateStatusLine({
   );
 }
 
-// ─── Card 2: AI Tool ──────────────────────────────────────────────────────────
+// ─── Card 2: AI Tool Picker ──────────────────────────────────────────────────
 
 function AIToolCard() {
-  const { config, isLoading } = useAIToolConfig();
-  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
-
-  const tool = config?.activeTool;
+  const { config, isLoading, setAITool } = useAIToolConfig();
 
   return (
     <motion.div
       variants={cardVariants}
-      className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 cursor-pointer hover:border-accent/30 transition-colors"
-      onClick={() => setSettingsOpen(true)}
+      className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 col-span-2 hover:border-accent/30 transition-colors"
     >
       <div className="flex items-center gap-2 mb-2">
         <Terminal size={14} className="text-accent" />
@@ -253,18 +266,31 @@ function AIToolCard() {
         <div className="flex items-center justify-center py-3">
           <Loader2 size={14} className="animate-spin text-text-muted" />
         </div>
-      ) : tool ? (
+      ) : config ? (
         <>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] text-text-secondary">{tool.name}</span>
-            <span
-              className={cn(
-                'w-1.5 h-1.5 rounded-full shrink-0',
-                tool.installed ? 'bg-emerald-400' : 'bg-red-400'
-              )}
-            />
+          <div className="space-y-1.5">
+            {Object.entries(config.availableTools).map(([id, tool]) => (
+              <button
+                key={id}
+                onClick={() => setAITool.mutate([id])}
+                className={cn(
+                  'w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-[11px] transition-colors cursor-pointer',
+                  id === config.activeTool.id
+                    ? 'bg-accent/10 border border-accent/30 text-text-primary'
+                    : 'hover:bg-bg-hover text-text-secondary border border-transparent'
+                )}
+              >
+                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', tool.installed ? 'bg-emerald-400' : 'bg-red-400')} />
+                <span className="font-medium">{tool.name}</span>
+                {id === config.activeTool.id && (
+                  <CheckCircle size={12} className="ml-auto text-accent" />
+                )}
+              </button>
+            ))}
           </div>
-          <div className="text-[10px] font-mono text-text-tertiary truncate">{tool.command}</div>
+          <div className="mt-2 px-2 py-1 rounded bg-bg-deep font-mono text-[10px] text-text-tertiary truncate">
+            {config.activeTool.command || config.activeTool.name}
+          </div>
         </>
       ) : (
         <div className="text-[10px] text-text-tertiary">No AI tool configured</div>
@@ -332,11 +358,19 @@ function HealthQuickCard() {
 // ─── Card 4: Local API Server ─────────────────────────────────────────────────
 
 function APIServerCard() {
-  const { data: serverInfo, isLoading } = useIpcQuery(IPC.API_SERVER_INFO, []);
+  const { data: serverInfo, isLoading, refetch: refetchServerInfo } = useIpcQuery(IPC.API_SERVER_INFO, []);
+  const toggleServer = useIpcMutation(IPC.API_SERVER_TOGGLE, {
+    onSuccess: () => { refetchServerInfo(); },
+  });
+  const regenToken = useIpcMutation(IPC.API_SERVER_REGEN_TOKEN, {
+    onSuccess: () => { refetchServerInfo(); },
+  });
+  const [endpointsExpanded, setEndpointsExpanded] = useState(false);
 
   const enabled = serverInfo?.enabled ?? false;
   const port = serverInfo?.port ?? 0;
   const token = serverInfo?.token ?? '';
+  const isRunning = enabled && port > 0;
 
   const maskedToken = token.length > 8 ? token.slice(0, 8) + '...' : token;
 
@@ -355,6 +389,16 @@ function APIServerCard() {
     toast.success('Config copied');
   };
 
+  const handleToggle = () => {
+    toggleServer.mutate([!enabled]);
+  };
+
+  const handleRegenToken = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    regenToken.mutate([]);
+    toast.success('Token regenerated');
+  };
+
   const endpoints = ['/api/selection', '/api/context', '/api/events'];
 
   return (
@@ -367,10 +411,30 @@ function APIServerCard() {
           <Globe size={14} className="text-accent" />
           <span className="text-xs font-medium text-text-primary">Local API Server</span>
         </div>
-        <Button size="sm" variant="ghost" onClick={copyConfig} className="h-6 px-2 cursor-pointer">
-          <Copy size={12} />
-          <span className="text-[10px] ml-1">Copy Config</span>
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="ghost" onClick={copyConfig} className="h-6 px-2 cursor-pointer">
+            <Copy size={12} />
+            <span className="text-[10px] ml-1">Copy</span>
+          </Button>
+          {/* Toggle switch */}
+          <button
+            onClick={handleToggle}
+            disabled={toggleServer.isPending}
+            className={cn(
+              'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+              enabled ? 'bg-accent' : 'bg-bg-hover border border-border-default'
+            )}
+          >
+            <span
+              className={cn(
+                'inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform',
+                enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+              )}
+            />
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -383,13 +447,13 @@ function APIServerCard() {
             <span
               className={cn(
                 'w-2 h-2 rounded-full shrink-0',
-                enabled && port > 0 ? 'bg-emerald-400' : 'bg-red-400'
+                isRunning ? 'bg-emerald-400' : 'bg-red-400'
               )}
             />
             <span className="text-[11px] text-text-secondary">
-              {enabled && port > 0 ? 'Running' : 'Stopped'}
+              {isRunning ? 'Running' : 'Stopped'}
             </span>
-            {enabled && port > 0 && (
+            {isRunning && (
               <span className="text-[10px] font-mono text-text-tertiary">:{port}</span>
             )}
           </div>
@@ -401,24 +465,107 @@ function APIServerCard() {
               <button
                 onClick={copyToken}
                 className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+                title="Copy token"
               >
                 <Copy size={10} />
+              </button>
+              <button
+                onClick={handleRegenToken}
+                disabled={regenToken.isPending}
+                className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer disabled:opacity-50"
+                title="Regenerate token"
+              >
+                <RotateCw size={10} className={cn(regenToken.isPending && 'animate-spin')} />
               </button>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-            {endpoints.map((ep) => (
-              <span key={ep} className="text-[10px] font-mono text-text-tertiary">{ep}</span>
-            ))}
-          </div>
+          {/* Collapsible endpoints */}
+          <button
+            onClick={() => setEndpointsExpanded(!endpointsExpanded)}
+            className="flex items-center gap-1 text-[10px] text-text-muted hover:text-text-secondary transition-colors cursor-pointer mt-1"
+          >
+            {endpointsExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            <span>{endpoints.length} endpoints</span>
+          </button>
+          {endpointsExpanded && (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 pl-3.5">
+              {endpoints.map((ep) => (
+                <span key={ep} className="text-[10px] font-mono text-text-tertiary">{ep}</span>
+              ))}
+            </div>
+          )}
         </>
       )}
     </motion.div>
   );
 }
 
-// ─── Card 5: Keyboard Shortcuts ───────────────────────────────────────────────
+// ─── Card 5: Feature Detection ───────────────────────────────────────────────
+
+function FeatureDetectionCard() {
+  const { config: aiToolConfig } = useAIToolConfig();
+  const { settings } = useSettings();
+
+  const features = useMemo(() => {
+    if (!aiToolConfig) return [];
+    const tool = aiToolConfig.activeTool;
+    const isClaude = tool.id === 'claude';
+
+    // Detect hooks: settings.hooks should be a non-empty object
+    const hooksConfigured = (() => {
+      if (!settings || typeof settings !== 'object') return false;
+      const hooks = settings.hooks;
+      if (!hooks || typeof hooks !== 'object') return false;
+      return Object.keys(hooks as Record<string, unknown>).length > 0;
+    })();
+
+    return [
+      { name: 'AI Tool Installed', detected: !!tool.installed, hint: `Install ${tool.name}` },
+      ...(isClaude ? [
+        { name: 'Hooks Configured', detected: hooksConfigured, hint: 'Enable in Settings' },
+        { name: 'MCP Servers', detected: false, hint: 'Add MCP servers for extended capabilities' },
+        { name: 'Channels', detected: false, hint: 'New in Claude Code -- multiplexed sessions' },
+        { name: 'Custom Slash Commands', detected: false, hint: 'Create project-specific commands' },
+      ] : []),
+    ];
+  }, [aiToolConfig, settings]);
+
+  if (!aiToolConfig) return null;
+
+  return (
+    <motion.div
+      variants={cardVariants}
+      className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 col-span-2 hover:border-accent/30 transition-colors"
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Zap size={14} className="text-purple-400" />
+        <span className="text-xs font-medium text-text-primary">Feature Detection</span>
+        <span className="text-[10px] text-text-tertiary ml-auto">{aiToolConfig.activeTool.name}</span>
+      </div>
+
+      <div className="space-y-1">
+        {features.map((feature) => (
+          <div key={feature.name} className="flex items-center gap-2 text-[11px]">
+            {feature.detected ? (
+              <CheckCircle size={12} className="text-emerald-400 shrink-0" />
+            ) : (
+              <span className="w-3 h-3 rounded-full border border-border-default shrink-0" />
+            )}
+            <span className={feature.detected ? 'text-text-secondary' : 'text-text-muted'}>
+              {feature.name}
+            </span>
+            {!feature.detected && feature.hint && (
+              <span className="text-[10px] text-accent ml-auto">{feature.hint}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Card 6: Keyboard Shortcuts ───────────────────────────────────────────────
 
 function ShortcutsCard() {
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
@@ -438,7 +585,7 @@ function ShortcutsCard() {
   );
 }
 
-// ─── Card 6: Prompt Library ───────────────────────────────────────────────────
+// ─── Card 7: Prompt Library ───────────────────────────────────────────────────
 
 function PromptLibraryCard() {
   const { prompts, globalPrompts } = usePrompts();
