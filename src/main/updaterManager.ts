@@ -16,6 +16,8 @@ let checkInterval: ReturnType<typeof setInterval> | null = null;
 let isManualCheck = false;
 /** Timestamp of last check — used to debounce focus-triggered checks */
 let lastCheckTime = 0;
+/** Once an update is downloaded, stop all automatic checks */
+let updateDownloaded = false;
 /** Minimum gap between focus-triggered checks (5 minutes) */
 const FOCUS_CHECK_DEBOUNCE_MS = 5 * 60_000;
 /** Optional hook called before install — returns false to defer (e.g. for graceful shutdown) */
@@ -93,7 +95,10 @@ function init(window: BrowserWindow, app: App): void {
   });
 
   autoUpdater.on('update-downloaded', (info: { version?: string }) => {
+    updateDownloaded = true;
     sendStatus({ status: 'downloaded', version: info.version });
+    // Stop periodic checks — update is ready, no need to keep checking
+    if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
   });
 
   autoUpdater.on('error', (err: Error) => {
@@ -115,6 +120,7 @@ function init(window: BrowserWindow, app: App): void {
 
   /** Silent background check with debounce tracking */
   const silentCheck = () => {
+    if (updateDownloaded) return; // Update already staged — don't re-check
     lastCheckTime = Date.now();
     autoUpdater.checkForUpdates().catch((err: Error) => {
       console.error('[updater] Check failed:', err.message);

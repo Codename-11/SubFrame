@@ -18,6 +18,9 @@ export function UpdateNotification() {
   useEffect(() => {
     // Only react to status changes
     if (status === prevStatus.current) return;
+    // Don't regress from 'downloaded' — periodic checks could cycle through
+    // checking → not-available and dismiss the "Restart Now" toast
+    if (prevStatus.current === 'downloaded' && status !== 'error') return;
     prevStatus.current = status;
 
     switch (status) {
@@ -78,8 +81,11 @@ export function UpdateNotification() {
         break;
 
       case 'not-available':
-        // Silently dismiss — no "you're on the latest version" toast
-        toast.dismiss('updater');
+        if (manual) {
+          toast.success('You\'re on the latest version', { id: 'updater', duration: 4000 });
+        } else {
+          toast.dismiss('updater');
+        }
         break;
     }
   }, [status, version, error, manual, downloadUpdate, installUpdate]);

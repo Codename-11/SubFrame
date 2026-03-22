@@ -87,7 +87,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
-          prerelease: false
-          make_latest: true
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') }}
+          make_latest: ${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') && !contains(github.ref_name, '-rc') }}
           body_path: ${{ steps.release_notes.outputs.has_notes == 'true' && 'RELEASE_NOTES.md' || '' }}
           generate_release_notes: ${{ steps.release_notes.outputs.has_notes != 'true' }}
