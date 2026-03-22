@@ -405,7 +405,8 @@ async function getUsage(forceApi = false): Promise<ClaudeUsageData> {
   if (cachedUsage && (cachedUsage.fiveHour || cachedUsage.sevenDay)) {
     return {
       ...cachedUsage,
-      error: 'API unavailable — showing cached data',
+      source: 'cached',
+      error: null,
       subscriptionType: meta.subscriptionType,
       rateLimitTier: meta.rateLimitTier,
     };

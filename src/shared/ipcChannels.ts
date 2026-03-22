@@ -718,7 +718,7 @@ export interface ExtraUsageInfo {
 }
 
 /** Which data source provided usage data */
-export type UsageSource = 'local-cache' | 'api' | 'credentials-only' | 'none';
+export type UsageSource = 'local-cache' | 'api' | 'cached' | 'credentials-only' | 'none';
 
 /** Claude usage data (from claudeUsageManager — hybrid 4-layer approach) */
 export interface ClaudeUsageData {

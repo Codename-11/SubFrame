@@ -73,6 +73,11 @@ const SOURCE_META: Record<UsageSource, { color: string; label: string; descripti
     label: 'API',
     description: 'Fetched live from Anthropic\'s OAuth usage API',
   },
+  'cached': {
+    color: 'bg-warning',
+    label: 'Cached',
+    description: 'Showing data from a previous fetch — API is currently unavailable',
+  },
   'credentials-only': {
     color: 'bg-warning',
     label: 'Tier',
@@ -443,7 +448,7 @@ function UsageTooltip({ data, fetching }: { data: ClaudeUsageData | null; fetchi
           {source !== 'local-cache' && !data.error && data.cacheAgeSeconds != null && (
             <span className="font-mono">({data.cacheAgeSeconds}s ago)</span>
           )}
-          {data.error && data.lastUpdated && (
+          {(data.error || source === 'cached') && data.lastUpdated && (
             <span className="font-mono">
               {new Date(data.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
