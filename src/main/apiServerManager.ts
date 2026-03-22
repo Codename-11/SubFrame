@@ -42,24 +42,39 @@ const pendingRequests = new Map<string, {
 const API_CONFIG_DIR = path.join(os.homedir(), '.subframe');
 const API_CONFIG_PATH = path.join(API_CONFIG_DIR, 'api.json');
 
+// DTSP (Desktop Text Source Protocol) — generic discovery for text-source consumers like Conjure
+const DTSP_DIR = path.join(os.homedir(), '.dtsp', 'sources');
+const DTSP_PATH = path.join(DTSP_DIR, 'subframe.json');
+
 function writeServiceConfig(): void {
+  const appVersion = require('../../package.json').version;
+  const config = { port: serverPort, token: authToken, pid: process.pid, version: appVersion };
+
+  // SubFrame-specific discovery
   try {
     if (!fs.existsSync(API_CONFIG_DIR)) fs.mkdirSync(API_CONFIG_DIR, { recursive: true });
-    fs.writeFileSync(API_CONFIG_PATH, JSON.stringify({
-      port: serverPort,
-      token: authToken,
-      pid: process.pid,
-      version: require('../../package.json').version,
-    }, null, 2), 'utf8');
+    fs.writeFileSync(API_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
   } catch (err) {
     console.error('[API Server] Failed to write service config:', err);
   }
+
+  // DTSP source registration
+  try {
+    if (!fs.existsSync(DTSP_DIR)) fs.mkdirSync(DTSP_DIR, { recursive: true });
+    fs.writeFileSync(DTSP_PATH, JSON.stringify({
+      name: 'SubFrame',
+      port: serverPort,
+      token: authToken,
+      pid: process.pid,
+      version: '1.0',
+      capabilities: ['selection', 'context', 'buffer', 'events'],
+    }, null, 2), 'utf8');
+  } catch { /* DTSP dir may not exist yet — non-critical */ }
 }
 
 function removeServiceConfig(): void {
-  try {
-    if (fs.existsSync(API_CONFIG_PATH)) fs.unlinkSync(API_CONFIG_PATH);
-  } catch { /* ignore */ }
+  try { if (fs.existsSync(API_CONFIG_PATH)) fs.unlinkSync(API_CONFIG_PATH); } catch { /* ignore */ }
+  try { if (fs.existsSync(DTSP_PATH)) fs.unlinkSync(DTSP_PATH); } catch { /* ignore */ }
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────
@@ -133,7 +148,7 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
   try {
     // ── GET /api/health — public, for service discovery ──
     if (pathname === '/api/health') {
-      sendJSON(res, 200, { status: 'ok', version: require('../../package.json').version });
+      sendJSON(res, 200, { status: 'ok', name: 'SubFrame', version: require('../../package.json').version });
       return;
     }
 
