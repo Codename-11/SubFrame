@@ -166,6 +166,43 @@ The Agent Activity panel provides real-time visibility into what your AI coding 
 Open the Agent panel from the terminal tab bar or press `Ctrl+Shift+A`.
 :::
 
+## Usage Monitoring
+
+The usage pill in the terminal tab bar shows your Claude API utilization at a glance. Click to refresh, hover for a detailed tooltip breakdown.
+
+### Data Sources
+
+SubFrame retrieves usage data through a 4-layer fallback system (first success wins):
+
+| Layer | Source | Speed | Indicator |
+|---|---|---|---|
+| **Local cache** | Claude's statusline cache file (`claude-statusline-usage-cache.json` in temp) | Instant | Green dot, "Live" |
+| **OAuth API** | `api.anthropic.com/api/oauth/usage` with automatic token refresh | ~1-2s | Blue dot, "API" |
+| **Credentials** | Account tier from `~/.claude/.credentials.json` (no utilization data) | Instant | Amber dot, "Tier" |
+| **Fallback** | In-memory data from a previous successful fetch | Instant | Shows last updated time |
+
+The local cache is the primary path during active Claude Code sessions — Claude writes this file automatically. No configuration needed.
+
+### Usage Windows
+
+| Window | Description |
+|---|---|
+| **Session (5h)** | Rolling 5-hour utilization — resets periodically |
+| **Weekly (7d)** | Rolling 7-day utilization |
+| **Sonnet (7d)** | Per-model breakdown for Sonnet |
+| **Opus (7d)** | Per-model breakdown for Opus |
+| **Extra credits** | Max plan extra usage credits (if enabled) |
+
+The inline pill shows Session usage by default. Hover to expand the Weekly bar. Click the pill or hover for the full tooltip with all windows.
+
+### Configuration
+
+Usage polling is **off by default** (data loads on startup and on click). To enable periodic polling, set the **Usage Polling Interval** in Settings > General > Behavior (30–600 seconds). The system uses exponential backoff on failures and will suggest disabling polling after persistent errors.
+
+::: tip
+If usage shows "unavailable", ensure you're logged into Claude Code (`claude` in a terminal) — SubFrame reads its credentials and cache files.
+:::
+
 ## Structure Map
 
 The Structure Map is an interactive D3.js visualization of your project's module architecture. It reads from `.subframe/STRUCTURE.json` and offers two view modes:

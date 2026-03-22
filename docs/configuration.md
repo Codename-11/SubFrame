@@ -23,6 +23,8 @@ Changes take effect immediately and are persisted to disk.
 | **Open terminal on startup** | Automatically create a terminal tab when SubFrame launches | `false` |
 | **Show hidden files (.dotfiles)** | Display files and directories starting with `.` in the file tree | `false` |
 | **Default Project Directory** | A directory whose subdirectories appear automatically in the project list. Use the folder icon to browse, or the **X** button to clear. The **Scan Now** button re-reads the directory on demand. | _(empty)_ |
+| **Usage Polling Interval** | How often to refresh Claude usage data (0 = off, click to refresh manually). Uses exponential backoff on failures. | `0` (off) |
+| **Highlight User Messages** | Show colored markers on terminal lines where you sent a message to Claude | `true` |
 
 ## Terminal Settings
 
@@ -30,6 +32,7 @@ Changes take effect immediately and are persisted to disk.
 |---|---|---|---|
 | **Font Size** | Terminal text size in pixels | `14` | 10 -- 24 |
 | **Scrollback Lines** | Number of lines the terminal keeps in its buffer | `10000` | 1,000 -- 100,000 |
+| **Max Terminals** | Maximum number of terminal instances allowed (global, across all projects) | `9` | 1 -- 20 |
 | **Auto-rename to session name** | Rename terminal tabs to the detected AI session name | `true` | -- |
 
 ## Editor Settings
