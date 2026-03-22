@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import {
   Cpu, Download, RefreshCw, Loader2, CheckCircle,
   Terminal, Keyboard, BookMarked, Globe, Copy, Zap,
-  ChevronDown, ChevronUp, RotateCw, Info,
+  ChevronDown, ChevronUp, RotateCw, Info, Link2,
 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Button } from './ui/button';
@@ -113,6 +113,7 @@ export function SystemPanel({ isFullView = false }: { isFullView?: boolean }) {
             animate="visible"
           >
             <APIServerCard />
+            <DTSPCard />
             <FeatureDetectionCard />
           </motion.div>
 
@@ -560,24 +561,13 @@ function APIServerCard() {
             </div>
           )}
 
-          {/* Connected consumers + DTSP */}
-          <div className="flex flex-col gap-1 mt-2 pt-1.5 border-t border-border-subtle">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', isRunning ? 'bg-emerald-400' : 'bg-border-default')} />
-                <span className="text-[10px] text-text-muted">DTSP</span>
-                <span className="text-[10px] text-text-tertiary">
-                  {isRunning ? 'Registered' : 'Inactive'}
-                </span>
-              </div>
-              {isRunning && (
-                <div className="flex items-center gap-3 text-[10px] text-text-tertiary">
-                  <span>{serverInfo?.connectedClients ?? 0} {(serverInfo?.connectedClients ?? 0) === 1 ? 'client' : 'clients'}</span>
-                  <span>{serverInfo?.totalRequests ?? 0} requests</span>
-                </div>
-              )}
+          {/* Usage stats */}
+          {isRunning && (
+            <div className="flex items-center gap-3 mt-1.5 text-[10px] text-text-tertiary">
+              <span>{serverInfo?.connectedClients ?? 0} {(serverInfo?.connectedClients ?? 0) === 1 ? 'client' : 'clients'}</span>
+              <span>{serverInfo?.totalRequests ?? 0} requests</span>
             </div>
-          </div>
+          )}
         </>
       )}
 
@@ -594,10 +584,6 @@ function APIServerCard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-[11px] text-text-secondary">
-            <div>
-              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Protocol</div>
-              <p>DTSP (Desktop Text Source Protocol) — generic discovery protocol for desktop apps to expose text data. Consumer apps scan <span className="font-mono text-[10px]">~/.dtsp/sources/*.json</span> to find sources.</p>
-            </div>
             <div>
               <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Authentication</div>
               <p>Bearer token (auto-generated). Pass via <span className="font-mono text-[10px]">Authorization: Bearer {'<token>'}</span> header or <span className="font-mono text-[10px]">?token=</span> query parameter. Health endpoint is public.</p>
@@ -622,14 +608,7 @@ function APIServerCard() {
             </div>
             <div>
               <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Discovery</div>
-              <div className="font-mono text-[10px] text-text-tertiary space-y-0.5">
-                <div>~/.subframe/api.json</div>
-                <div>~/.dtsp/sources/subframe.json</div>
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Compatible Tools</div>
-              <p>Conjure (TTS), custom scripts, Stream Deck plugins, any DTSP-aware app.</p>
+              <div className="font-mono text-[10px] text-text-tertiary">~/.subframe/api.json</div>
             </div>
           </div>
         </DialogContent>
@@ -638,7 +617,97 @@ function APIServerCard() {
   );
 }
 
-// ─── Card 5: Feature Detection ───────────────────────────────────────────────
+// ─── Card 5: DTSP Registration ────────────────────────────────────────────────
+
+function DTSPCard() {
+  const { data: serverInfo } = useIpcQuery(IPC.API_SERVER_INFO, [], {
+    refetchInterval: 5000,
+    staleTime: 4000,
+  });
+  const [showInfo, setShowInfo] = useState(false);
+
+  const isRegistered = (serverInfo?.enabled ?? false) && (serverInfo?.port ?? 0) > 0;
+
+  return (
+    <motion.div
+      variants={cardVariants}
+      className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 col-span-2 hover:border-accent/30 transition-colors"
+    >
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          <Link2 size={14} className="text-cyan-400" />
+          <div>
+            <span className="text-xs font-medium text-text-primary">DTSP</span>
+            <div className="text-[10px] text-text-tertiary">Desktop Text Source Protocol — app discovery for external tools</div>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowInfo(true)}
+          className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer p-0.5"
+          title="About DTSP"
+        >
+          <Info size={12} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className={cn('w-2 h-2 rounded-full shrink-0', isRegistered ? 'bg-emerald-400' : 'bg-border-default')} />
+        <span className="text-[11px] text-text-secondary">
+          {isRegistered ? 'Registered' : 'Inactive'}
+        </span>
+        {isRegistered && (
+          <span className="text-[10px] font-mono text-text-tertiary">~/.dtsp/sources/subframe.json</span>
+        )}
+      </div>
+      {!isRegistered && (
+        <div className="text-[10px] text-text-muted mt-1">Enable the Local API Server to register as a DTSP source.</div>
+      )}
+
+      {/* Info dialog */}
+      <Dialog open={showInfo} onOpenChange={setShowInfo}>
+        <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-md" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Link2 size={16} className="text-cyan-400" />
+              Desktop Text Source Protocol
+            </DialogTitle>
+            <DialogDescription className="text-text-secondary text-xs">
+              Generic discovery protocol for desktop apps to expose text selection and context.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-[11px] text-text-secondary">
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">How it works</div>
+              <p>SubFrame registers as a DTSP source by writing a JSON file to <span className="font-mono text-[10px]">~/.dtsp/sources/subframe.json</span>. Consumer apps (like Conjure) scan this directory to discover available text sources, verify the PID is alive, then query the API endpoints.</p>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Capabilities declared</div>
+              <div className="flex flex-wrap gap-1.5 mt-0.5">
+                {['selection', 'context', 'buffer', 'events'].map((cap) => (
+                  <span key={cap} className="inline-flex items-center gap-1 rounded bg-bg-tertiary px-1.5 py-0.5 text-[10px] font-mono text-text-secondary">
+                    {cap}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Registration file</div>
+              <div className="rounded bg-bg-deep p-2 font-mono text-[10px] text-text-tertiary">
+                {'{ name, port, token, pid, protocolVersion, appVersion, capabilities }'}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Compatible consumers</div>
+              <p>Conjure (TTS via text selection), custom scripts, Stream Deck, any DTSP-aware tool.</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+}
+
+// ─── Card 6: Feature Detection ───────────────────────────────────────────────
 
 function FeatureDetectionCard() {
   const { config: aiToolConfig } = useAIToolConfig();
