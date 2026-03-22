@@ -16,6 +16,7 @@ import {
   ListTodo,
   Activity,
   FileDiff,
+  Github,
   PanelRight,
   FolderOpen,
   Loader2,
@@ -52,7 +53,7 @@ const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 /** Panel shortcut buttons shown on the right side of the tab bar — open right sidebar */
 const PANEL_SHORTCUTS = [
   { id: 'tasks' as const, label: 'Sub-Tasks', icon: ListTodo, shortcut: 'Ctrl+Shift+S' },
-  { id: 'gitChanges' as const, label: 'GitHub', icon: FileDiff, shortcut: 'Ctrl+Shift+G' },
+  { id: 'gitChanges' as const, label: 'GitHub', icon: Github, shortcut: 'Ctrl+Shift+G' },
   { id: 'agentState' as const, label: 'Agents', icon: Activity, shortcut: 'Ctrl+Shift+A' },
   { id: 'prompts' as const, label: 'Prompts', icon: BookMarked, shortcut: 'Ctrl+Shift+L' },
   { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
