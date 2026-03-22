@@ -207,11 +207,10 @@ The `/release` skill handles the full workflow: version bump, `docs/index.md` sy
 # 6. Push: git push origin main --tags
 ```
 
-**Creating a GitHub release after push:**
-```bash
-gh release create v<version> --prerelease --title "v<version>" --notes-file RELEASE_NOTES.md  # Pre-release
-gh release create v<version> --title "v<version>" --notes-file RELEASE_NOTES.md               # Stable
-```
+**GitHub releases** are auto-created by `.github/workflows/release.yml` on `v*` tag push:
+- **Beta tags** (`-beta`, `-alpha`, `-rc`): marked `prerelease: true` so electron-updater can detect them with `allowPrerelease`
+- **`make_latest: true` always** — while the project is beta-only, every release is "Latest" so the repo page shows an active release and the shields.io badge works. When stable releases exist, change to `make_latest` only for stable.
+- No manual `gh release create` needed — CI handles artifacts, notes, and metadata
 
 ## CSS Design System
 
