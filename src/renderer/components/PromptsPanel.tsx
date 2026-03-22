@@ -281,10 +281,10 @@ export function PromptsPanel() {
     [deleteGlobalPrompt, deletePrompt, projectPath]
   );
 
-  // Insert prompt
+  // Insert prompt (Shift+Click = insert & execute)
   const handleInsert = useCallback(
-    (prompt: SavedPrompt) => {
-      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath, templateContext);
+    (prompt: SavedPrompt, execute = false) => {
+      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath, templateContext, execute);
       if (ok) {
         handleScopedSave({ ...prompt, usageCount: (prompt.usageCount || 0) + 1 });
       }
@@ -419,7 +419,7 @@ export function PromptsPanel() {
         setFocusedIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < flatList.length) {
         e.preventDefault();
-        handleInsert(flatList[focusedIndex]);
+        handleInsert(flatList[focusedIndex], e.shiftKey);
       } else if (e.key === 'e' && focusedIndex >= 0 && focusedIndex < flatList.length && !editingId) {
         e.preventDefault();
         handleEdit(flatList[focusedIndex]);
@@ -731,9 +731,9 @@ export function PromptsPanel() {
                                   {/* Actions — visible on hover */}
                                   <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button
-                                      onClick={() => handleInsert(prompt)}
+                                      onClick={(e) => handleInsert(prompt, e.shiftKey)}
                                       className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-success hover:bg-success/10 transition-colors cursor-pointer"
-                                      title="Insert into terminal (Enter)"
+                                      title="Insert into terminal — Shift+Click to insert & execute"
                                     >
                                       <Send className="h-3 w-3" /> Insert
                                     </button>

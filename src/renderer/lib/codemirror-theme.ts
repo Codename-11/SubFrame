@@ -130,6 +130,13 @@ export const subframeTheme = EditorView.theme(
       color: text.primary,
     },
 
+    // Selection matches (word under cursor / selected text matches)
+    '.cm-selectionMatch': {
+      backgroundColor: 'rgba(212, 165, 116, 0.15)',
+      outline: '1px solid rgba(212, 165, 116, 0.3)',
+      borderRadius: '2px',
+    },
+
     // Search
     '.cm-searchMatch': {
       backgroundColor: 'rgba(212, 165, 116, 0.2)',
@@ -372,6 +379,7 @@ const subframeLightTheme = EditorView.theme(
     '.cm-tooltip': { backgroundColor: lightBg.tertiary, color: lightText.primary, border: `1px solid ${lightBorder.default}`, borderRadius: '6px' },
     '.cm-tooltip-autocomplete': { backgroundColor: lightBg.tertiary, border: `1px solid ${lightBorder.default}`, borderRadius: '6px' },
     '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: lightBg.hover, color: lightText.primary },
+    '.cm-selectionMatch': { backgroundColor: 'rgba(212, 165, 116, 0.2)', outline: '1px solid rgba(212, 165, 116, 0.35)', borderRadius: '2px' },
     '.cm-searchMatch': { backgroundColor: 'rgba(212, 165, 116, 0.3)', outline: '1px solid rgba(212, 165, 116, 0.5)' },
     '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'rgba(212, 165, 116, 0.45)' },
     '&.cm-focused .cm-matchingBracket, &.cm-focused .cm-nonmatchingBracket': {
@@ -480,6 +488,7 @@ const highContrastTheme = EditorView.theme(
     '.cm-tooltip': { backgroundColor: hcBg.tertiary, color: hcText.primary, border: `1px solid ${hcBorder.default}`, borderRadius: '6px' },
     '.cm-tooltip-autocomplete': { backgroundColor: hcBg.tertiary, border: `1px solid ${hcBorder.default}`, borderRadius: '6px' },
     '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: hcBg.hover, color: hcText.primary },
+    '.cm-selectionMatch': { backgroundColor: 'rgba(255, 204, 0, 0.2)', outline: '1px solid rgba(255, 204, 0, 0.35)', borderRadius: '2px' },
     '.cm-searchMatch': { backgroundColor: 'rgba(255, 204, 0, 0.3)', outline: '1px solid rgba(255, 204, 0, 0.5)' },
     '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'rgba(255, 204, 0, 0.5)' },
     '&.cm-focused .cm-matchingBracket, &.cm-focused .cm-nonmatchingBracket': {

@@ -166,7 +166,7 @@ export function getBaseExtensions(options?: { lineNumbers?: boolean; bracketMatc
     rectangularSelection(),
     crosshairCursor(),
     highlightActiveLine(),
-    highlightSelectionMatches(),
+    highlightSelectionMatches({ highlightWordAroundCursor: true, wholeWords: true }),
     search(),
     keymap.of([
       ...closeBracketsKeymap,

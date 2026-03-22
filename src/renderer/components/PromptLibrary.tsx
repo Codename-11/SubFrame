@@ -5,7 +5,7 @@
  * Supports both global (user-level) and project-level prompts.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, Pencil, Send, Tag, Copy, Globe, FolderOpen, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import {
   CommandDialog,
@@ -113,6 +113,16 @@ export function PromptLibrary() {
     [branch, aiToolConfig]
   );
 
+  // Track Shift key for insert+execute (cmdk's onSelect doesn't pass MouseEvent)
+  const shiftHeldRef = useRef(false);
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftHeldRef.current = true; };
+    const up = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftHeldRef.current = false; };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, []);
+
   const allPrompts = useMemo(
     () => [...globalPrompts, ...prompts],
     [globalPrompts, prompts]
@@ -125,6 +135,7 @@ export function PromptLibrary() {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
         e.preventDefault();
+        shiftHeldRef.current = false; // Clear stale Shift state from the hotkey combo
         setOpen((o) => !o);
       }
     };
@@ -160,10 +171,11 @@ export function PromptLibrary() {
     return map;
   }, [prompts]);
 
-  // Insert prompt text into active terminal
+  // Insert prompt text into active terminal (Shift+Click = insert & execute)
   const handleInsert = useCallback(
     (prompt: SavedPrompt) => {
-      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath, templateContext);
+      const execute = shiftHeldRef.current;
+      const ok = insertPromptIntoTerminal(prompt, activeTerminalId, projectPath, templateContext, execute);
       if (ok) {
         // Increment usage count in the appropriate store
         const scope = prompt.scope ?? 'project';
@@ -409,6 +421,10 @@ export function PromptLibrary() {
             </>
           )}
         </CommandList>
+        <div className="flex items-center justify-between px-3 py-1.5 border-t border-border-subtle text-[10px] text-text-muted">
+          <span>Enter — insert</span>
+          <span>Shift — insert &amp; execute</span>
+        </div>
       </CommandDialog>
 
       {/* Prompt editor dialog */}

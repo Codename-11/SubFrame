@@ -78,21 +78,23 @@ export function insertPromptIntoTerminal(
   prompt: SavedPrompt,
   activeTerminalId: string | null,
   projectPath: string | null,
-  context?: TemplateContext
+  context?: TemplateContext,
+  /** When true, appends carriage return to execute immediately (Shift+Click) */
+  execute: boolean = false
 ): boolean {
   if (!activeTerminalId) {
     toast.warning('No active terminal', { description: 'Open a terminal first.' });
     return false;
   }
   const text = resolveTemplateVariables(prompt.content, projectPath, context);
-  typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: text });
+  typedSend(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: text + (execute ? '\r' : '') });
   // Focus the xterm instance so the user can immediately edit or press Enter.
   // 100ms delay ensures Radix Dialog focus-restore (on close) completes first.
   setTimeout(() => {
     const instance = terminalRegistry.get(activeTerminalId);
     if (instance) instance.terminal.focus();
   }, 100);
-  toast.success('Inserted into terminal');
+  toast.success(execute ? 'Sent to terminal' : 'Inserted into terminal');
   return true;
 }
 

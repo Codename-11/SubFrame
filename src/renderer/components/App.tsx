@@ -84,6 +84,60 @@ export function App() {
     }
   }, [currentProjectPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Per-project right panel state save/restore
+  const prevPanelProjectRef = useRef<string | null>(null);
+  useEffect(() => {
+    const PANEL_KEY = 'subframe-panel-sessions';
+    const normalize = (p: string | null) => p ?? '__global__';
+    const ui = useUIStore.getState();
+
+    // Save outgoing project's panel state
+    if (prevPanelProjectRef.current !== currentProjectPath && prevPanelProjectRef.current !== null) {
+      try {
+        const all = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
+        all[normalize(prevPanelProjectRef.current)] = {
+          activePanel: ui.activePanel,
+          collapsed: ui.rightPanelCollapsed,
+        };
+        localStorage.setItem(PANEL_KEY, JSON.stringify(all));
+      } catch { /* ignore */ }
+    }
+
+    // Restore incoming project's panel state
+    if (prevPanelProjectRef.current !== currentProjectPath) {
+      try {
+        const all = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
+        const session = all[normalize(currentProjectPath)];
+        if (session) {
+          if (session.activePanel) {
+            ui.setActivePanel(session.activePanel);
+            if (session.collapsed) ui.setRightPanelCollapsed(true);
+          } else {
+            ui.closeRightPanel();
+          }
+        }
+        // If no saved session, leave panel as-is (first visit)
+      } catch { /* ignore */ }
+      prevPanelProjectRef.current = currentProjectPath;
+    }
+  }, [currentProjectPath]);
+
+  // Save panel state on app close
+  useEffect(() => {
+    const handler = () => {
+      const PANEL_KEY = 'subframe-panel-sessions';
+      const key = currentProjectPath ?? '__global__';
+      const ui = useUIStore.getState();
+      try {
+        const all = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
+        all[key] = { activePanel: ui.activePanel, collapsed: ui.rightPanelCollapsed };
+        localStorage.setItem(PANEL_KEY, JSON.stringify(all));
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [currentProjectPath]);
+
   // Persistent workspace data listener — ensures project store is updated
   // even when Sidebar/ProjectList are not mounted (collapsed or hidden sidebar).
   // When ProjectList IS mounted it also handles these events; the duplicate
