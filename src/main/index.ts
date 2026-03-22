@@ -473,6 +473,9 @@ function createWindow(): BrowserWindow {
   mainWindow.on('close', (event) => {
     saveWindowState();
 
+    // User already confirmed via in-app dialog — let the close proceed
+    if (closeConfirmed) { closeConfirmed = false; return; }
+
     // If a graceful shutdown is already in progress, just block the close
     if (shutdownInProgress) {
       event.preventDefault();
@@ -484,9 +487,6 @@ function createWindow(): BrowserWindow {
 
     // If nothing is active and the setting is off, close immediately
     if (!hasActiveWork && !confirmBeforeClose) return;
-
-    // Already confirmed by the user — let the close proceed
-    if (closeConfirmed) { closeConfirmed = false; return; }
 
     // If nothing is active but user wants confirmation on every close — in-app dialog
     if (!hasActiveWork && confirmBeforeClose) {
