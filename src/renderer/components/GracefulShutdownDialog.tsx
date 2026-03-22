@@ -125,7 +125,7 @@ export function GracefulShutdownDialog() {
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && phase === 'confirm') handleCancel(); }}>
       <DialogContent
-        className="max-w-md bg-bg-deep border-border-default"
+        className="max-w-md bg-bg-primary border-border-subtle text-text-primary"
         onPointerDownOutside={(e) => { if (phase !== 'confirm') e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (phase !== 'confirm') e.preventDefault(); }}
         showCloseButton={phase === 'confirm'}
