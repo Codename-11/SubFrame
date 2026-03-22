@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-22T02:26:55.622Z",
+  "lastUpdated": "2026-03-22T14:54:53.705Z",
   "tasks": {
     "pending": [
       {
@@ -44,26 +44,15 @@
         "status": "pending",
         "priority": "medium",
         "category": "feature",
-        "blockedBy": [],
+        "blockedBy": [
+          "task-1772930979470-cx0ermf3t"
+        ],
         "blocks": [],
         "createdAt": "2026-03-07T12:39:44.123Z",
-        "updatedAt": "2026-03-07T12:39:44.123Z",
+        "updatedAt": "2026-03-22T14:12:39.049Z",
         "completedAt": null,
         "description": "I'd like to add an optional feature/enhancement to enable TTS for agent output available via local and paid models - similar to Voquil OSS software for ref. I'd like to add optional opt-in per terminal with state saving for lifecycle of window session for now. This should be agent agnostic but we will focus on Claude and getting that working at first. This should have similar UI features to maintain consistancy as the other aspects of our app. Allowing the user to set similar to voquil AI rewording/fixing optionally and releated feature/functionality in MVP to allow for prompt man-in-middle catch of raw output/re-transcribe to desired output-style.",
-        "steps": []
-      },
-      {
-        "id": "task-1772930979470-cx0ermf3t",
-        "title": "Plugin/Integrations system?",
-        "status": "pending",
-        "priority": "medium",
-        "category": "research",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-08T00:49:39.470Z",
-        "updatedAt": "2026-03-08T00:49:39.470Z",
-        "completedAt": null,
-        "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
+        "notes": "[2026-03-22] Depends on Local API Server (task-cx0ermf3t). Conjure will consume SubFrame's /api/selection and /api/events endpoints for TTS. The TTS task itself is Conjure-side work — SubFrame's role is exposing the API.",
         "steps": []
       },
       {
@@ -820,43 +809,30 @@
             "label": "Handle missing preferences gracefully (first switch to a workspace)"
           }
         ]
-      },
+      }
+    ],
+    "inProgress": [
       {
-        "id": "task-mn14eui7-b72d",
-        "title": "SubFrame System Panel — app dashboard with AI tool management",
-        "status": "pending",
+        "id": "task-1772930979470-cx0ermf3t",
+        "title": "Local API Server — external integration foundation",
+        "status": "in_progress",
         "priority": "medium",
-        "category": "feature",
-        "context": "Session 2026-03-22",
+        "category": "research",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-22T02:11:21.197Z",
-        "updatedAt": "2026-03-22T02:11:21.197Z",
+        "createdAt": "2026-03-08T00:49:39.470Z",
+        "updatedAt": "2026-03-22T14:21:49.687Z",
         "completedAt": null,
-        "description": "Add a dedicated System panel/view (similar to Overview but for SubFrame itself) that surfaces app-level information and management in a clean, unified UI. Includes: version info and update status, AI tool configuration and feature detection, keyboard shortcuts reference, integration status, tips/hints, and system health. Should also detect and surface AI tool capabilities (e.g. Claude Code channels, MCP servers, permissions) and suggest relevant features the user hasn't tried yet.",
-        "userRequest": "Add a subtask for enhancing our SubFrame system itself with a System panel/view similar to overview but for SubFrame itself - updates, version, integrations, hints, shortcuts, etc. Also manage AI tools - detect used features and link/suggest such as the new channels feature for claude code",
-        "acceptanceCriteria": "Panel accessible from sidebar or view tabs. Shows: app version + update status, AI tool config with feature detection, shortcuts summary, integration/plugin status, contextual tips. Clean, scannable layout — not a settings dump.",
+        "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
+        "notes": "[2026-03-22] Refined scope: localhost HTTP server in main process exposing terminal state (selection, buffer, context) and SSE event stream. Service discovery via well-known config file. Auth via startup-generated token. This is the foundation that Conjure TTS, Stream Deck, custom scripts, etc. consume. Plugin system (install/uninstall/manifest) is a separate future concern.\n[2026-03-22] MVP complete: HTTP server with token auth, 6 endpoints (health, terminals, selection, buffer, context, SSE events), renderer bridge, selection sync, service discovery. Settings UI toggle remaining for future.",
         "steps": [
           {
-            "completed": false,
-            "label": "Design panel layout and sections (version, AI tools, shortcuts, integrations, tips)"
-          },
-          {
-            "completed": false,
-            "label": "Implement AI tool feature detection (scan capabilities, suggest unused features)"
-          },
-          {
-            "completed": false,
-            "label": "Build System panel component with all sections"
-          },
-          {
-            "completed": false,
-            "label": "Add sidebar entry and routing"
+            "completed": true,
+            "label": "Settings UI toggle and port configuration"
           }
         ]
       }
     ],
-    "inProgress": [],
     "completed": [
       {
         "id": "task-1772674776397-kc624grpq",
@@ -1055,6 +1031,20 @@
         "updatedAt": "2026-03-11T20:06:03.858Z",
         "completedAt": "2026-03-11T20:06:03.858Z",
         "description": "",
+        "steps": []
+      },
+      {
+        "id": "task-1773106824704-yhkq4hg7n",
+        "title": "Research better method for Usage Stats",
+        "status": "completed",
+        "priority": "high",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-10T01:40:24.704Z",
+        "updatedAt": "2026-03-22T02:26:55.616Z",
+        "completedAt": "2026-03-22T02:26:55.616Z",
+        "description": "Our current approach for Usage Stats (at least for Claude) works - however it results in frequent 'Usage Unavailable'. We need to research this and ensure we're using the best approach.",
         "steps": []
       },
       {
@@ -2167,18 +2157,38 @@
         "steps": []
       },
       {
-        "id": "task-1773106824704-yhkq4hg7n",
-        "title": "Research better method for Usage Stats",
+        "id": "task-mn14eui7-b72d",
+        "title": "SubFrame System Panel — app dashboard with AI tool management",
         "status": "completed",
-        "priority": "high",
-        "category": "enhancement",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-22",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-10T01:40:24.704Z",
-        "updatedAt": "2026-03-22T02:26:55.616Z",
-        "completedAt": "2026-03-22T02:26:55.616Z",
-        "description": "Our current approach for Usage Stats (at least for Claude) works - however it results in frequent 'Usage Unavailable'. We need to research this and ensure we're using the best approach.",
-        "steps": []
+        "createdAt": "2026-03-22T02:11:21.197Z",
+        "updatedAt": "2026-03-22T14:54:53.699Z",
+        "completedAt": "2026-03-22T14:54:53.699Z",
+        "description": "Add a dedicated System panel/view (similar to Overview but for SubFrame itself) that surfaces app-level information and management in a clean, unified UI. Includes: version info and update status, AI tool configuration and feature detection, keyboard shortcuts reference, integration status, tips/hints, and system health. Should also detect and surface AI tool capabilities (e.g. Claude Code channels, MCP servers, permissions) and suggest relevant features the user hasn't tried yet.",
+        "userRequest": "Add a subtask for enhancing our SubFrame system itself with a System panel/view similar to overview but for SubFrame itself - updates, version, integrations, hints, shortcuts, etc. Also manage AI tools - detect used features and link/suggest such as the new channels feature for claude code",
+        "acceptanceCriteria": "Panel accessible from sidebar or view tabs. Shows: app version + update status, AI tool config with feature detection, shortcuts summary, integration/plugin status, contextual tips. Clean, scannable layout — not a settings dump.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Design panel layout and sections (version, AI tools, shortcuts, integrations, tips)"
+          },
+          {
+            "completed": false,
+            "label": "Implement AI tool feature detection (scan capabilities, suggest unused features)"
+          },
+          {
+            "completed": false,
+            "label": "Build System panel component with all sections"
+          },
+          {
+            "completed": true,
+            "label": "Add sidebar entry and routing"
+          }
+        ]
       }
     ]
   }

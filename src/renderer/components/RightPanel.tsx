@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   FileText,
   Heart,
+  Cpu,
   Activity,
   Zap,
   BookMarked,
@@ -54,8 +55,9 @@ import { AgentStateView } from './AgentStateView';
 import { SkillsPanel } from './SkillsPanel';
 import { PromptsPanel } from './PromptsPanel';
 import { PipelinePanel } from './PipelinePanel';
+import { SystemPanel } from './SystemPanel';
 
-type PanelId = 'tasks' | 'sessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline';
+type PanelId = 'tasks' | 'sessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system';
 
 interface PanelDef {
   id: PanelId;
@@ -82,6 +84,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   skills:          { id: 'skills',          label: 'Skills',     icon: Zap },
   prompts:         { id: 'prompts',         label: 'Prompts',    icon: BookMarked,     shortcut: 'Ctrl+Shift+L' },
   pipeline:        { id: 'pipeline',        label: 'Pipeline',   icon: Workflow,       shortcut: 'Ctrl+Shift+Y' },
+  system:          { id: 'system',          label: 'System',     icon: Cpu,            shortcut: 'Ctrl+Shift+U' },
 };
 
 /**
@@ -100,7 +103,7 @@ const PANEL_GROUPS: PanelGroup[] = [
   { panels: ['agentState', 'sessions', 'history', 'skills', 'plugins'],                     label: 'Agent' },
   { panels: ['prompts'],                                                                    label: 'Prompts' },
   { panels: ['pipeline'],                                                                   label: 'Pipeline' },
-  { panels: ['overview', 'aiFiles', 'subframeHealth'],                                      label: 'Project' },
+  { panels: ['overview', 'aiFiles', 'subframeHealth', 'system'],                              label: 'Project' },
 ];
 
 /** Find which group a panel belongs to */
@@ -130,6 +133,7 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   skills: SkillsPanel,
   prompts: PromptsPanel,
   pipeline: PipelinePanel,
+  system: SystemPanel,
 };
 
 /** Panels that can be opened as a full-view tab (maps panel ID to FullViewContent ID) */

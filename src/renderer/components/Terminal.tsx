@@ -472,7 +472,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     const terminal = terminalRef.current;
     if (!terminal) return;
 
-    const disposable = terminalRegistry.registerFilePathLinkProvider(
+    const linkDisposable = terminalRegistry.registerFilePathLinkProvider(
       terminal,
       () => useProjectStore.getState().currentProjectPath,
       (filePath: string, _line?: number) => {
@@ -480,7 +480,10 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       },
     );
 
-    return () => disposable.dispose();
+    // Register selection sync for the Local API Server
+    const selectionDisposable = terminalRegistry.registerSelectionSync(terminalId);
+
+    return () => { linkDisposable.dispose(); selectionDisposable.dispose(); };
   }, [terminalRef]);
 
   // Ctrl+F listener scoped to this terminal's container

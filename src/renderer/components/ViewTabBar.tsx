@@ -22,6 +22,7 @@ import {
   Terminal,
   Pin,
   BookMarked,
+  Cpu,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -56,6 +57,7 @@ const PANEL_SHORTCUTS = [
   { id: 'prompts' as const, label: 'Prompts', icon: BookMarked, shortcut: 'Ctrl+Shift+L' },
   { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
   { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard, shortcut: 'Ctrl+Shift+O' },
+  { id: 'system' as const, label: 'System', icon: Cpu, shortcut: 'Ctrl+Shift+U' },
 ] as const;
 
 // ── Source indicator helpers ─────────────────────────────────────────────────

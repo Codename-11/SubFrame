@@ -31,6 +31,7 @@ import {
   Layers,
   BookOpen,
   Workflow,
+  Cpu,
 } from 'lucide-react';
 import {
   CommandDialog,
@@ -176,6 +177,11 @@ export function CommandPalette() {
           <CommandItem onSelect={() => runAction(() => togglePanel('subframeHealth'))}>
             <Shield className="text-text-tertiary" />
             <span>SubFrame Health</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runAction(() => togglePanel('system'))}>
+            <Cpu className="text-text-tertiary" />
+            <span>System</span>
+            <CommandShortcut>{SHORTCUTS.PANEL_SYSTEM.keys}</CommandShortcut>
           </CommandItem>
         </CommandGroup>
 

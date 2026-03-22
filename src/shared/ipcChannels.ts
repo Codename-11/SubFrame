@@ -267,6 +267,15 @@ export const IPC = {
   GRACEFUL_SHUTDOWN_CANCEL: 'graceful-shutdown-cancel',
   GRACEFUL_SHUTDOWN_FORCE: 'graceful-shutdown-force',
 
+  // Local API Server (integration bridge)
+  API_SELECTION_SYNC: 'api-selection-sync',           // renderer → main: sync terminal selection
+  API_GET_TERMINALS: 'api-get-terminals',             // main → renderer: request terminal list
+  API_GET_BUFFER: 'api-get-buffer',                   // main → renderer: request visible buffer
+  API_GET_ACTIVE_SELECTION: 'api-get-active-selection', // main → renderer: request active terminal selection
+  API_GET_CONTEXT: 'api-get-context',                 // main → renderer: request terminal context
+  API_RENDERER_RESPONSE: 'api-renderer-response',     // renderer → main: response to request
+  API_SERVER_INFO: 'api-server-info',                  // handle: get server port/token
+
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
   MENU_TOGGLE_RIGHT_PANEL: 'menu-toggle-right-panel',
@@ -1049,6 +1058,9 @@ export interface IPCHandleMap {
   [IPC.WORKSPACE_RENAME]: { args: [payload: { key: string; newName: string }]; return: unknown };
   [IPC.WORKSPACE_DELETE]: { args: [key: string]; return: unknown };
   [IPC.WORKSPACE_REORDER]: { args: [orderedKeys: string[]]; return: boolean };
+
+  // API Server
+  [IPC.API_SERVER_INFO]: { args: []; return: { enabled: boolean; port: number; token: string } };
   [IPC.SELECT_DEFAULT_PROJECT_DIR]: { args: []; return: string | null };
 
   // GitHub

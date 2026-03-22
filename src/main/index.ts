@@ -37,6 +37,7 @@ import * as updaterManager from './updaterManager';
 import * as pipelineManager from './pipelineManager';
 import * as activityManager from './activityManager';
 import * as popoutManager from './popoutManager';
+import * as apiServerManager from './apiServerManager';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
 // ── Global error handlers — surface errors to terminal on crash/exit ──
@@ -540,6 +541,7 @@ function setupAllIPC(): void {
   pipelineManager.setupIPC(ipcMain);
   activityManager.setupIPC(ipcMain);
   popoutManager.setupIPC(ipcMain);
+  apiServerManager.setupIPC(ipcMain);
   // Note: updaterManager.setupIPC() is called inside updaterManager.init()
   // because it needs app.isPackaged to be set first
 
@@ -702,6 +704,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   pipelineManager.init(window);
   popoutManager.init(window);
   updaterManager.init(window, app);
+  apiServerManager.init(window);
 }
 
 // ── Single instance lock — ensures only one SubFrame window ─────────────────
@@ -756,6 +759,7 @@ if (!gotTheLock) {
   });
 
   app.on('window-all-closed', () => {
+    apiServerManager.shutdown();
     // Don't quit if only a pop-out window closed — the main window is still running
     if (process.platform !== 'darwin' && popoutManager.getOpenCount() === 0) {
       app.quit();

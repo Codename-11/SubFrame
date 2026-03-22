@@ -22,6 +22,7 @@ import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
 
 import { cn } from '../lib/utils';
+import * as terminalRegistry from '../lib/terminalRegistry';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useAIToolConfig } from '../hooks/useSettings';
 import { useIpcQuery } from '../hooks/useIpc';
@@ -59,6 +60,9 @@ export function App() {
   const projects = useProjectStore((s) => s.projects);
   // Guard: prevents auto-reopen from fighting with user's explicit close
   const userDismissedAnalysisRef = useRef(false);
+
+  // Initialize API server bridge (renderer-side IPC handlers for terminal data requests)
+  useEffect(() => { terminalRegistry.initAPIBridge(); }, []);
 
   // Workspace list for Ctrl+Alt+N switching — refs avoid stale closure in handleKeyDown
   const { data: workspaceData, refetch: refetchWorkspaceList } = useIpcQuery(IPC.WORKSPACE_LIST, [], { staleTime: 10000 });
@@ -237,6 +241,12 @@ export function App() {
       if (modKey && e.shiftKey && key === 'a') {
         e.preventDefault();
         togglePanel('agentState');
+      }
+
+      // Ctrl/Cmd+Shift+U — Toggle system panel
+      if (modKey && e.shiftKey && key === 'u') {
+        e.preventDefault();
+        togglePanel('system');
       }
 
       // Ctrl/Cmd+Shift+Y — handled by TerminalArea (toggleFullView('pipeline'))

@@ -48,6 +48,7 @@ export type ShortcutId =
   | 'PANEL_HISTORY'
   | 'PANEL_PIPELINE'
   | 'PANEL_PROMPT_LIBRARY'
+  | 'PANEL_SYSTEM'
   // Workspaces
   | 'WORKSPACE_PREV'
   | 'WORKSPACE_NEXT'
@@ -104,6 +105,7 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutEntry> = {
   PANEL_HISTORY:       { keys: 'Ctrl+Shift+H',  description: 'Prompt History',       category: 'Panels' },
   PANEL_PIPELINE:      { keys: 'Ctrl+Shift+Y',  description: 'Pipeline',             category: 'Panels' },
   PANEL_PROMPT_LIBRARY:{ keys: 'Ctrl+Shift+L',  description: 'Prompt Library',       category: 'Panels' },
+  PANEL_SYSTEM:        { keys: 'Ctrl+Shift+U',  description: 'System',               category: 'Panels' },
 
   // ── Workspaces ────────────────────────────────────
   WORKSPACE_PREV:      { keys: 'Ctrl+Alt+[',    description: 'Previous workspace',   category: 'Workspaces' },

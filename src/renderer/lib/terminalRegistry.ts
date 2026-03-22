@@ -641,3 +641,91 @@ export function registerFilePathLinkProvider(
 
   return terminal.registerLinkProvider(provider);
 }
+
+// ---------------------------------------------------------------------------
+// Local API Server bridge — responds to main process requests for terminal data
+// ---------------------------------------------------------------------------
+
+/** Initialize API server IPC handlers. Call once at app startup. */
+export function initAPIBridge(): void {
+  // Main → renderer: get terminal list
+  ipcRenderer.on(IPC.API_GET_TERMINALS, (_event: unknown, data: { requestId: string }) => {
+    const { useTerminalStore } = require('../stores/useTerminalStore');
+    const storeTerminals = useTerminalStore.getState().terminals;
+    const terminals = Array.from(registry.keys()).map((id) => {
+      const info = storeTerminals.get(id);
+      return {
+        id,
+        name: info?.name ?? id,
+        projectPath: info?.projectPath ?? null,
+        claudeActive: info?.claudeActive ?? false,
+      };
+    });
+    ipcRenderer.send(IPC.API_RENDERER_RESPONSE, { requestId: data.requestId, payload: terminals });
+  });
+
+  // Main → renderer: get visible buffer for a terminal
+  ipcRenderer.on(IPC.API_GET_BUFFER, (_event: unknown, data: { requestId: string; terminalId: string }) => {
+    const entry = registry.get(data.terminalId);
+    if (!entry) {
+      ipcRenderer.send(IPC.API_RENDERER_RESPONSE, {
+        requestId: data.requestId,
+        payload: { terminalId: data.terminalId, lines: [], rows: 0, cols: 0 },
+      });
+      return;
+    }
+    const term = entry.terminal;
+    const lines: string[] = [];
+    const buffer = term.buffer.active;
+    const start = buffer.viewportY;
+    for (let i = 0; i < term.rows; i++) {
+      const line = buffer.getLine(start + i);
+      lines.push(line ? line.translateToString(true) : '');
+    }
+    ipcRenderer.send(IPC.API_RENDERER_RESPONSE, {
+      requestId: data.requestId,
+      payload: { terminalId: data.terminalId, lines, rows: term.rows, cols: term.cols },
+    });
+  });
+
+  // Main → renderer: get active terminal selection
+  ipcRenderer.on(IPC.API_GET_ACTIVE_SELECTION, (_event: unknown, data: { requestId: string }) => {
+    const { useTerminalStore } = require('../stores/useTerminalStore');
+    const activeId = useTerminalStore.getState().activeTerminalId;
+    const entry = activeId ? registry.get(activeId) : null;
+    const text = entry ? entry.terminal.getSelection() : '';
+    ipcRenderer.send(IPC.API_RENDERER_RESPONSE, {
+      requestId: data.requestId,
+      payload: { terminalId: activeId ?? null, text },
+    });
+  });
+
+  // Main → renderer: get active terminal context
+  ipcRenderer.on(IPC.API_GET_CONTEXT, (_event: unknown, data: { requestId: string }) => {
+    const { useTerminalStore } = require('../stores/useTerminalStore');
+    const { useProjectStore } = require('../stores/useProjectStore');
+    const store = useTerminalStore.getState();
+    const activeId = store.activeTerminalId;
+    const info = activeId ? store.terminals.get(activeId) : null;
+    const projectPath = useProjectStore.getState().currentProjectPath;
+    ipcRenderer.send(IPC.API_RENDERER_RESPONSE, {
+      requestId: data.requestId,
+      payload: {
+        terminalId: activeId ?? null,
+        name: info?.name ?? null,
+        projectPath: projectPath ?? null,
+        claudeActive: info?.claudeActive ?? false,
+      },
+    });
+  });
+}
+
+/** Register selection sync for a terminal — call after creating each terminal */
+export function registerSelectionSync(terminalId: string): IDisposable {
+  const entry = registry.get(terminalId);
+  if (!entry) return { dispose: () => {} };
+  return entry.terminal.onSelectionChange(() => {
+    const text = entry.terminal.getSelection();
+    ipcRenderer.send(IPC.API_SELECTION_SYNC, { terminalId, text });
+  });
+}
