@@ -476,18 +476,20 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         return false;
       }
 
-      // Pass app-level shortcuts through
+      // Pass app-level shortcuts through (return false = SubFrame handles, not terminal)
+      // Ctrl+Shift+* combos are always SubFrame shortcuts (panels, new terminal, etc.)
       if (modKey && event.shiftKey) return false;
+      // Ctrl+1-9: switch terminal tabs
       if (modKey && event.key >= '1' && event.key <= '9') return false;
-      if (modKey && key === 'k') return false;
-      if (modKey && key === 'i') return false;
-      if (modKey && key === 'h') return false;
-      if (modKey && key === 'b') return false;
-      if (modKey && key === 'e') return false;
+      // Ctrl+B: toggle sidebar | Ctrl+G: toggle grid | Ctrl+K: command palette
+      if (modKey && !event.shiftKey && key === 'b') return false;
       if (modKey && !event.shiftKey && key === 'g') return false;
-      if (modKey && !event.shiftKey && key === 't') return false;
+      if (modKey && key === 'k') return false;
+      // Ctrl+[/]: project switching | Ctrl+Tab: terminal switching
       if (modKey && (event.key === '[' || event.key === ']')) return false;
       if (modKey && event.key === 'Tab') return false;
+      // Note: Ctrl+T, Ctrl+I, Ctrl+H, Ctrl+E pass through to the terminal
+      // so Claude Code's native shortcuts (task toggle, etc.) work
 
       return true;
     });
