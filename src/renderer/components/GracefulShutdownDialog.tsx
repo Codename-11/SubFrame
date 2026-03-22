@@ -39,7 +39,7 @@ import { typedInvoke } from '../lib/ipc';
 type TerminalStatus = GracefulShutdownTerminalInfo['status'];
 
 const STATUS_CONFIG: Record<TerminalStatus, { icon: typeof Loader2; color: string; label: string }> = {
-  waiting:  { icon: Terminal,      color: 'text-muted',   label: 'Waiting' },
+  waiting:  { icon: Terminal,      color: 'text-text-muted',   label: 'Waiting' },
   exiting:  { icon: Loader2,      color: 'text-accent',  label: 'Exiting...' },
   exited:   { icon: CheckCircle,  color: 'text-success',  label: 'Exited' },
   timeout:  { icon: AlertTriangle, color: 'text-warning', label: 'Timed out' },
@@ -125,12 +125,12 @@ export function GracefulShutdownDialog() {
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && phase === 'confirm') handleCancel(); }}>
       <DialogContent
-        className="max-w-md bg-deep border-default"
+        className="max-w-md bg-bg-deep border-border-default"
         onPointerDownOutside={(e) => { if (phase !== 'confirm') e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (phase !== 'confirm') e.preventDefault(); }}
         showCloseButton={phase === 'confirm'}
       >
-        <DialogTitle className="flex items-center gap-2 text-primary">
+        <DialogTitle className="flex items-center gap-2 text-text-primary">
           {isUpdate ? (
             <Download className="h-5 w-5 text-info" />
           ) : (
@@ -142,13 +142,13 @@ export function GracefulShutdownDialog() {
         <div className="space-y-4 py-2">
           {/* Confirm phase — show what's running (or simple confirmation) */}
           {phase === 'confirm' && isSimpleConfirm && (
-            <p className="text-sm text-secondary">
+            <p className="text-sm text-text-secondary">
               Are you sure you want to close SubFrame?
             </p>
           )}
           {phase === 'confirm' && !isSimpleConfirm && (
             <>
-              <p className="text-sm text-secondary">
+              <p className="text-sm text-text-secondary">
                 {isUpdate
                   ? 'An update is ready to install, but active work was detected. SubFrame can gracefully exit running sessions before restarting.'
                   : 'Active work was detected. SubFrame can gracefully exit running AI sessions before closing.'}
@@ -157,13 +157,13 @@ export function GracefulShutdownDialog() {
               {/* Active Claude terminals */}
               {activeClaudeTerminals.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted uppercase tracking-wider">
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
                     AI Sessions ({activeClaudeTerminals.length})
                   </p>
                   {activeClaudeTerminals.map(t => (
-                    <div key={t.terminalId} className="flex items-center gap-2 px-2 py-1.5 rounded bg-secondary/50">
+                    <div key={t.terminalId} className="flex items-center gap-2 px-2 py-1.5 rounded bg-bg-secondary/50">
                       <Terminal className="h-3.5 w-3.5 text-accent" />
-                      <span className="text-sm text-primary flex-1">{t.label}</span>
+                      <span className="text-sm text-text-primary flex-1">{t.label}</span>
                       <span className="text-xs text-accent">Running</span>
                     </div>
                   ))}
@@ -173,14 +173,14 @@ export function GracefulShutdownDialog() {
               {/* Inactive terminals */}
               {inactiveTerminals.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted uppercase tracking-wider">
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
                     Other Terminals ({inactiveTerminals.length})
                   </p>
                   {inactiveTerminals.map(t => (
-                    <div key={t.terminalId} className="flex items-center gap-2 px-2 py-1.5 rounded bg-secondary/50">
-                      <Terminal className="h-3.5 w-3.5 text-muted" />
-                      <span className="text-sm text-secondary flex-1">{t.label}</span>
-                      <span className="text-xs text-muted">Idle</span>
+                    <div key={t.terminalId} className="flex items-center gap-2 px-2 py-1.5 rounded bg-bg-secondary/50">
+                      <Terminal className="h-3.5 w-3.5 text-text-muted" />
+                      <span className="text-sm text-text-secondary flex-1">{t.label}</span>
+                      <span className="text-xs text-text-muted">Idle</span>
                     </div>
                   ))}
                 </div>
@@ -189,30 +189,30 @@ export function GracefulShutdownDialog() {
               {/* Other active subsystems */}
               {(pipelineRunning || analysisRunning || activeStreams) && (
                 <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted uppercase tracking-wider">Other Activity</p>
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider">Other Activity</p>
                   {pipelineRunning && (
-                    <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-secondary/50">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-bg-secondary/50">
                       <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-                      <span className="text-sm text-secondary">Pipeline running</span>
+                      <span className="text-sm text-text-secondary">Pipeline running</span>
                     </div>
                   )}
                   {analysisRunning && (
-                    <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-secondary/50">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-bg-secondary/50">
                       <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-                      <span className="text-sm text-secondary">Project analysis in progress</span>
+                      <span className="text-sm text-text-secondary">Project analysis in progress</span>
                     </div>
                   )}
                   {activeStreams && (
-                    <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-secondary/50">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-bg-secondary/50">
                       <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-                      <span className="text-sm text-secondary">Background operations running</span>
+                      <span className="text-sm text-text-secondary">Background operations running</span>
                     </div>
                   )}
                 </div>
               )}
 
-              <p className="text-xs text-muted">
-                Graceful exit sends <code className="px-1 py-0.5 rounded bg-secondary text-accent">/exit</code> to
+              <p className="text-xs text-text-muted">
+                Graceful exit sends <code className="px-1 py-0.5 rounded bg-bg-secondary text-accent">/exit</code> to
                 active AI sessions and waits for them to save their state before closing.
               </p>
             </>
@@ -232,12 +232,12 @@ export function GracefulShutdownDialog() {
                       'flex items-center gap-2 px-2 py-1.5 rounded transition-colors',
                       t.status === 'exited' ? 'bg-success/10' :
                       t.status === 'timeout' ? 'bg-warning/10' :
-                      t.status === 'killed' ? 'bg-secondary/50' :
-                      'bg-secondary/50'
+                      t.status === 'killed' ? 'bg-bg-secondary/50' :
+                      'bg-bg-secondary/50'
                     )}
                   >
                     <Icon className={cn('h-3.5 w-3.5', config.color, isSpinner && 'animate-spin')} />
-                    <span className="text-sm text-primary flex-1">{t.label}</span>
+                    <span className="text-sm text-text-primary flex-1">{t.label}</span>
                     <span className={cn('text-xs', config.color)}>{config.label}</span>
                   </div>
                 );
@@ -262,7 +262,7 @@ export function GracefulShutdownDialog() {
                 variant="ghost"
                 size="sm"
                 onClick={handleCancel}
-                className="text-muted hover:text-primary"
+                className="text-text-muted hover:text-text-primary"
               >
                 Cancel
               </Button>
@@ -282,7 +282,7 @@ export function GracefulShutdownDialog() {
                 variant="ghost"
                 size="sm"
                 onClick={handleCancel}
-                className="text-muted hover:text-primary"
+                className="text-text-muted hover:text-text-primary"
               >
                 Cancel
               </Button>
