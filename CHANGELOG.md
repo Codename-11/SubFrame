@@ -7,19 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-beta] - 2026-03-22
+
 ### Added
-- **Asymmetric terminal grid layouts** — 4 new layouts: 2+1 (two stacked left, one full right), 1+2 (one full left, two stacked right), 2/1 (two top, one full bottom), 1/2 (one full top, two bottom)
+- **Onboarding close confirmation** — closing the dialog during AI analysis now shows three options: Keep Open, Cancel Analysis, or Continue in Background
+- **Onboarding stall detection** — yellow warning banner when no AI output received for 30+ seconds
+- **Onboarding timeout countdown** — elapsed/total timer display during analysis
+- **Onboarding extended retry** — on timeout errors, offers "Retry with extended timeout" (2x previous)
+- **Ctrl+Click terminal links** — web URLs now require Ctrl+Click (matching file path behavior), with VS Code-style hover tooltips showing target and modifier hint
+- **Workspace reorder** — Move Up/Move Down options in the workspace ⋮ menu to reorder workspaces
+- **Default global prompts** — 7 starter prompts (Quick Audit, Explain This, Refactor Suggestions, etc.) now merge into existing prompt libraries on upgrade
+- **Graceful shutdown dialog** — warns about active work (analysis, pipelines) before app close
+- **Asymmetric terminal grid layouts** — 4 new layouts: 2+1, 1+2, 2/1, 1/2
 
 ### Improved
-- **Usage stats — hybrid 4-layer approach** — reads Claude's local statusline cache first (zero network cost), falls back to OAuth API with automatic token refresh, then credentials metadata; dramatically reduces "Usage unavailable" errors
-- **Usage pill tooltip** — rich tooltip showing all usage windows (Session, Weekly, per-model Sonnet/Opus), data source indicator, account tier, extra usage credits, and cache age
-- **Usage data source transparency** — colored dot indicator shows where data came from: green (local cache), blue (API), amber (credentials-only), red (unavailable)
+- **Terminal tab/grid persistence** — two-phase restore fixes tab reorder and grid slot loss across workspace swaps and app restarts
+- **Background terminal focus** — background terminals (e.g., onboarding analysis) no longer steal active terminal focus
+- **Usage stats — hybrid 4-layer approach** — reads Claude's local statusline cache first (zero network cost), falls back to OAuth API with automatic token refresh, then credentials metadata
+- **Usage pill tooltip** — rich tooltip showing all usage windows, data source indicator, account tier, extra usage credits, and cache age
 
 ### Fixed
-- **Task Enhance survives dialog close** — AI enhance results now persist in global state; toast with "View Results" action reopens the dialog pre-populated with enhanced data
-- **Settings CLI install/uninstall feedback** — buttons now show spinners, disable during operation, and handle errors
-- **Settings Scan Now feedback** — directory scan button shows spinner, disables during scan, handles errors
-- **Task dialog close during enhance** — Create/Update button disabled while AI enhance is in-flight to prevent submitting stale data
+- **CodeMirror selection offset** — text highlight now aligns correctly with text (was rendering below due to lineHeight mismatch between scroller and content)
+- **Terminal tab reorder lost on restart** — deferred restoration waits for all terminal IPC events before applying saved order
+- **Task Enhance survives dialog close** — AI enhance results persist in global state with toast to reopen
+- **Settings CLI install/uninstall feedback** — buttons show spinners and handle errors
+- **Settings Scan Now feedback** — directory scan button shows spinner and handles errors
+- **Task dialog close during enhance** — Create/Update button disabled while AI enhance is in-flight
 
 ## [0.5.4-beta] - 2026-03-15
 

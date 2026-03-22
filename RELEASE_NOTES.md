@@ -1,24 +1,26 @@
-## What's New in v0.5.5-beta
+Major UX overhaul for onboarding, terminal persistence, and link interaction — plus workspace reorder and CodeMirror selection fix.
+
+## What's Changed
 
 ### Features
+- **Onboarding close confirmation** — three-way dialog: Keep Open, Cancel Analysis, or Continue in Background
+- **Onboarding stall detection** — yellow warning banner after 30s of no AI output with duration counter
+- **Onboarding timeout countdown** — live elapsed/total timer and "Retry with extended timeout" on failures
+- **Ctrl+Click terminal links** — web URLs and file paths both require Ctrl+Click with VS Code-style hover tooltips
+- **Workspace reorder** — Move Up/Move Down in workspace options menu, persisted to disk
+- **Default global prompts** — 7 starter prompts seeded into existing prompt libraries on upgrade
+- **Graceful shutdown dialog** — warns about in-progress analysis and pipelines before app close
+- **Asymmetric terminal grid layouts** — 4 new 3-slot layouts: 2+1, 1+2, 2/1, 1/2
 
-- **Asymmetric Grid Layouts** — New terminal grid options: 2L1R, 1L2R, 2T1B, 1T2B alongside existing NxN grids. Mix full-height and split panes for flexible workspace layouts.
-- **Enhanced CLI** — `subframe init [path]` command with polished colored output (checkmarks, categorized file creation, skip detection). Also adds `subframe --version` and improved `--help`.
-- **Update Notification Dismiss** — "Later" button on both update-available and update-ready toasts.
+### Improvements
+- **Terminal tab/grid persistence** — two-phase restore fixes reorder and grid slot loss across workspace swaps and app restarts
+- **Background terminal focus** — background terminals no longer steal active terminal focus
+- **Usage stats** — hybrid 4-layer data source with local cache priority and rich tooltip
 
-### Fixes
+### Bug Fixes
+- **CodeMirror selection offset** — highlight now aligns with text (lineHeight mismatch fix)
+- **Terminal tab order lost on restart** — deferred restoration waits for all terminal IPC events
+- **Prompt seeding** — merges missing default prompts into existing libraries instead of skipping
 
-- **Hook guard for sub-repos** — Hook commands now silently exit when `.subframe/hooks/` doesn't exist (e.g., in nested git repos), instead of crashing with MODULE_NOT_FOUND.
-- **projectInit.js fully synced** — CLI init now creates all files (tasks dir, docs-internal, workflows, onboard skill) matching the Electron app init.
-- **Right panel overflow** — Fixed content cutoff on the right panel.
-- **CI workflows fixed** — Both CI and deploy-docs workflows handle cross-platform lock file differences.
-
-### Documentation
-
-- **Full documentation restructure** — New Introduction page, reorganized sidebar (Guide + Reference groups), blog sidebar.
-- **3 new reference pages** — Sub-Tasks, Hooks & Skills, Pipeline Workflows.
-- **22-issue content audit** — AI tool explanations for beginners, standardized Node.js 20+, fixed shortcuts, removed nonexistent features, added missing feature docs.
-
-### Promo Video
-
-- Updated intro video to match current app UI (ViewTabBar, asymmetric grids, activity bar, 6 panel toggles).
+### Other Changes
+- Dependency bumps: zustand 5.0.12, esbuild 0.27.4, react-resizable-panels 4.7.3, framer-motion update
