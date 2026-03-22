@@ -24,6 +24,7 @@ let mainWindow: BrowserWindow | null = null;
 let authToken = '';
 let serverPort = 0;
 let enabled = false;
+let dtspEnabled = true;
 let requestCount = 0;
 
 /** Per-terminal selection text, synced from renderer on selection change */
@@ -59,20 +60,25 @@ function writeServiceConfig(): void {
     console.error('[API Server] Failed to write service config:', err);
   }
 
-  // DTSP source registration
-  try {
-    if (!fs.existsSync(DTSP_DIR)) fs.mkdirSync(DTSP_DIR, { recursive: true });
-    fs.writeFileSync(DTSP_PATH, JSON.stringify({
-      name: 'SubFrame',
-      port: serverPort,
-      token: authToken,
-      pid: process.pid,
-      protocolVersion: '1.0',
-      appVersion,
-      capabilities: ['selection', 'context', 'buffer', 'events'],
-    }, null, 2), 'utf8');
-  } catch (err) {
-    console.warn('[API Server] DTSP registration failed:', err);
+  // DTSP source registration (only if enabled)
+  if (dtspEnabled) {
+    try {
+      if (!fs.existsSync(DTSP_DIR)) fs.mkdirSync(DTSP_DIR, { recursive: true });
+      fs.writeFileSync(DTSP_PATH, JSON.stringify({
+        name: 'SubFrame',
+        port: serverPort,
+        token: authToken,
+        pid: process.pid,
+        protocolVersion: '1.0',
+        appVersion,
+        capabilities: ['selection', 'context', 'buffer', 'events'],
+      }, null, 2), 'utf8');
+    } catch (err) {
+      console.warn('[API Server] DTSP registration failed:', err);
+    }
+  } else {
+    // Ensure no stale DTSP file exists when disabled
+    try { if (fs.existsSync(DTSP_PATH)) fs.unlinkSync(DTSP_PATH); } catch { /* ignore */ }
   }
 }
 
@@ -289,12 +295,14 @@ function init(window: BrowserWindow): void {
     } catch { /* no existing file or parse error — ok */ }
   }
 
-  // Check if API server is enabled in settings
+  // Check if API server and DTSP are enabled in settings
   try {
     const settingsManager = require('./settingsManager');
     enabled = settingsManager.getSetting('integrations.apiServer') !== false;
+    dtspEnabled = settingsManager.getSetting('integrations.dtsp') !== false;
   } catch {
     enabled = true; // Default: enabled
+    dtspEnabled = true;
   }
 
   if (!enabled) {
@@ -322,15 +330,19 @@ function setupIPC(ipcMain: IpcMain): void {
     }
   });
 
-  // React to settings changes from SettingsPanel (keeps live server in sync)
+  // React to settings changes from SettingsPanel (keeps live server/DTSP in sync)
   try {
     const settingsManager = require('./settingsManager');
     if (typeof settingsManager.onSettingChange === 'function') {
       settingsManager.onSettingChange((key: string, value: unknown) => {
-        if (key !== 'integrations.apiServer') return;
-        const enable = value !== false;
-        if (enable && !server) { enabled = true; startServer(); }
-        else if (!enable && server) { enabled = false; stopServer(); }
+        if (key === 'integrations.apiServer') {
+          const enable = value !== false;
+          if (enable && !server) { enabled = true; startServer(); }
+          else if (!enable && server) { enabled = false; stopServer(); }
+        } else if (key === 'integrations.dtsp') {
+          dtspEnabled = value !== false;
+          if (server) writeServiceConfig(); // Re-write to add/remove DTSP file
+        }
       });
     }
   } catch { /* settingsManager not available */ }
@@ -339,6 +351,7 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.API_SERVER_INFO, () => {
     return {
       enabled,
+      dtspEnabled,
       port: serverPort,
       token: authToken,
       connectedClients: sseClients.size,

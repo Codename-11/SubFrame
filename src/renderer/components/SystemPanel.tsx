@@ -18,7 +18,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { useUpdater } from '../hooks/useUpdater';
-import { useAIToolConfig } from '../hooks/useSettings';
+import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { useSubFrameHealth } from '../hooks/useSubFrameHealth';
 import { usePrompts } from '../hooks/usePrompts';
 import { useIpcQuery, useIpcMutation } from '../hooks/useIpc';
@@ -620,13 +620,22 @@ function APIServerCard() {
 // ─── Card 5: DTSP Registration ────────────────────────────────────────────────
 
 function DTSPCard() {
-  const { data: serverInfo } = useIpcQuery(IPC.API_SERVER_INFO, [], {
+  const { data: serverInfo, refetch: refetchServerInfo } = useIpcQuery(IPC.API_SERVER_INFO, [], {
     refetchInterval: 5000,
     staleTime: 4000,
   });
+  const { settings, updateSetting } = useSettings();
   const [showInfo, setShowInfo] = useState(false);
 
-  const isRegistered = (serverInfo?.enabled ?? false) && (serverInfo?.port ?? 0) > 0;
+  const dtspOn = serverInfo?.dtspEnabled ?? true;
+  const serverRunning = (serverInfo?.enabled ?? false) && (serverInfo?.port ?? 0) > 0;
+  const isRegistered = dtspOn && serverRunning;
+
+  const handleToggle = () => {
+    updateSetting.mutate([{ key: 'integrations.dtsp', value: !dtspOn }], {
+      onSuccess: () => { setTimeout(() => refetchServerInfo(), 300); },
+    });
+  };
 
   return (
     <motion.div
@@ -641,25 +650,43 @@ function DTSPCard() {
             <div className="text-[10px] text-text-tertiary">Desktop Text Source Protocol — app discovery for external tools</div>
           </div>
         </div>
-        <button
-          onClick={() => setShowInfo(true)}
-          className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer p-0.5"
-          title="About DTSP"
-        >
-          <Info size={12} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowInfo(true)}
+            className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer p-0.5"
+            title="About DTSP"
+          >
+            <Info size={12} />
+          </button>
+          {/* Toggle switch */}
+          <button
+            onClick={handleToggle}
+            className={cn(
+              'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50',
+              dtspOn ? 'bg-accent' : 'bg-bg-hover border border-border-default'
+            )}
+          >
+            <span
+              className={cn(
+                'inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform',
+                dtspOn ? 'translate-x-[18px]' : 'translate-x-[3px]'
+              )}
+            />
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
         <span className={cn('w-2 h-2 rounded-full shrink-0', isRegistered ? 'bg-emerald-400' : 'bg-border-default')} />
         <span className="text-[11px] text-text-secondary">
-          {isRegistered ? 'Registered' : 'Inactive'}
+          {isRegistered ? 'Registered' : dtspOn && !serverRunning ? 'Waiting for API Server' : 'Inactive'}
         </span>
         {isRegistered && (
           <span className="text-[10px] font-mono text-text-tertiary">~/.dtsp/sources/subframe.json</span>
         )}
       </div>
-      {!isRegistered && (
+      {dtspOn && !serverRunning && (
         <div className="text-[10px] text-text-muted mt-1">Enable the Local API Server to register as a DTSP source.</div>
       )}
 

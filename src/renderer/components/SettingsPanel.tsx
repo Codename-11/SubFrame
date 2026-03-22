@@ -94,7 +94,7 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Add custom AI tools',
   ],
   integrations: [
-    'Local API Server', 'API Server', 'Enable API',
+    'Local API Server', 'API Server', 'Enable API', 'DTSP', 'Desktop Text Source Protocol',
   ],
   updates: [
     'Auto-check for updates', 'Pre-release Channel',
@@ -1481,10 +1481,16 @@ export function SettingsPanel() {
                       value={(settings?.integrations as Record<string, unknown>)?.apiServer !== false}
                       onChange={(v) => updateSetting.mutate([{ key: 'integrations.apiServer', value: v }])}
                     />
+                    <SettingToggle
+                      label="DTSP Registration"
+                      description="Register as a Desktop Text Source Protocol source for auto-discovery by external tools"
+                      value={(settings?.integrations as Record<string, unknown>)?.dtsp !== false}
+                      onChange={(v) => updateSetting.mutate([{ key: 'integrations.dtsp', value: v }])}
+                    />
                     <div className="text-[10px] text-text-tertiary mt-1 px-1">
-                      Service discovery: <span className="font-mono">~/.subframe/api.json</span>
-                      <br />
-                      Auth: Bearer token (auto-generated, shown in System panel)
+                      API: <span className="font-mono">~/.subframe/api.json</span>
+                      {' · '}
+                      DTSP: <span className="font-mono">~/.dtsp/sources/subframe.json</span>
                     </div>
                   </SettingGroup>
                 )}
