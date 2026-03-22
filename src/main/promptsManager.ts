@@ -192,20 +192,40 @@ function getSeedPrompts(): SavedPrompt[] {
 }
 
 /**
- * Seed global prompts file on first launch.
- * Only writes if the file does not exist yet.
+ * Seed global prompts on first launch or merge missing seeds into existing files.
+ * Seeds are identified by the 'starter' tag — only prompts not already present are added.
  */
 function seedGlobalPromptsIfNeeded(): void {
   const globalPath = getGlobalPromptsPath();
-  if (fs.existsSync(globalPath)) return;
-
   const dir = path.dirname(globalPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
   const seeds = getSeedPrompts();
-  fs.writeFileSync(globalPath, JSON.stringify({ prompts: seeds }, null, 2), 'utf8');
+
+  if (!fs.existsSync(globalPath)) {
+    // First launch — write all seeds
+    fs.writeFileSync(globalPath, JSON.stringify({ prompts: seeds }, null, 2), 'utf8');
+    return;
+  }
+
+  // File exists — merge any missing seed prompts (matched by title)
+  try {
+    const raw = fs.readFileSync(globalPath, 'utf8');
+    const data = JSON.parse(raw);
+    const existing: SavedPrompt[] = Array.isArray(data.prompts) ? data.prompts : [];
+    const existingTitles = new Set(existing.map((p) => p.title.toLowerCase()));
+
+    const missing = seeds.filter((s) => !existingTitles.has(s.title.toLowerCase()));
+    if (missing.length === 0) return; // All seeds present
+
+    data.prompts = [...existing, ...missing];
+    fs.writeFileSync(globalPath, JSON.stringify(data, null, 2), 'utf8');
+    console.log(`[Prompts] Seeded ${missing.length} default prompt(s) into global library`);
+  } catch {
+    // Corrupted file — don't overwrite user data, just skip
+  }
 }
 
 // ─── Global prompts ─────────────────────────────────────────────────────────
