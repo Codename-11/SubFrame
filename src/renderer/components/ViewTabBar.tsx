@@ -354,8 +354,8 @@ export function ViewTabBar() {
         {/* Panel shortcut buttons — full-view dashboards open as tabs, others open right sidebar */}
         {PANEL_SHORTCUTS.map((panel) => {
           const Icon = panel.icon;
-          // Overview opens as full-view tab (primary), not right sidebar
-          const isFullViewPanel = panel.id === 'overview';
+          // Dashboard panels open as full-view tabs (primary), not right sidebar
+          const isFullViewPanel = panel.id === 'overview' || panel.id === 'system';
           const isActive = isFullViewPanel
             ? fullViewContent === panel.id
             : activePanel === panel.id;

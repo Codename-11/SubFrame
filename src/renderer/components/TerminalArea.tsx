@@ -18,6 +18,7 @@ import { DecisionsDetailView } from './DecisionsDetailView';
 import { PipelinePanel } from './PipelinePanel';
 import { AgentStateView } from './AgentStateView';
 import { ShortcutsPanel } from './ShortcutsPanel';
+import { SystemPanel } from './SystemPanel';
 import { Editor } from './Editor';
 import { ViewTabBar } from './ViewTabBar';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -741,6 +742,9 @@ export function TerminalArea() {
                 )}
                 {fullViewContent === 'shortcuts' && (
                   <ShortcutsPanel />
+                )}
+                {fullViewContent === 'system' && (
+                  <SystemPanel />
                 )}
               </ErrorBoundary>
             </div>

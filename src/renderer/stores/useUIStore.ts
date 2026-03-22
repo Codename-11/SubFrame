@@ -3,7 +3,7 @@ import type { SortingState } from '@tanstack/react-table';
 
 type PanelId = 'tasks' | 'plugins' | 'sessions' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system' | null;
 type SidebarState = 'expanded' | 'collapsed' | 'hidden';
-export type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts' | null;
+export type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts' | 'system' | null;
 
 export interface ViewTab {
   id: string;       // 'terminal' | any FullViewContent value
@@ -21,6 +21,7 @@ export const VIEW_TAB_LABELS: Record<string, string> = {
   pipeline: 'Pipeline',
   agentState: 'Agent Activity',
   shortcuts: 'Keyboard Shortcuts',
+  system: 'System',
 };
 
 /** Sub-views that render within a parent tab instead of getting their own tab */
@@ -81,7 +82,7 @@ interface UIState {
   // Full-view overlay (renders inside TerminalArea instead of terminal content)
   fullViewContent: FullViewContent;
   setFullViewContent: (content: FullViewContent) => void;
-  toggleFullView: (content: 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts') => void;
+  toggleFullView: (content: 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts' | 'system') => void;
 
   // Tab system
   openTabs: ViewTab[];

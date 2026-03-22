@@ -45,6 +45,7 @@ export function App() {
   const rightPanelCollapsed = useUIStore((s) => s.rightPanelCollapsed);
   const rightPanelWidth = useUIStore((s) => s.rightPanelWidth);
   const togglePanel = useUIStore((s) => s.togglePanel);
+  const toggleFullView = useUIStore((s) => s.toggleFullView);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
   const isResizing = useUIStore((s) => s.isResizing);
@@ -243,10 +244,10 @@ export function App() {
         togglePanel('agentState');
       }
 
-      // Ctrl/Cmd+Shift+U — Toggle system panel
+      // Ctrl/Cmd+Shift+U — Toggle system panel (full-view)
       if (modKey && e.shiftKey && key === 'u') {
         e.preventDefault();
-        togglePanel('system');
+        toggleFullView('system');
       }
 
       // Ctrl/Cmd+Shift+Y — handled by TerminalArea (toggleFullView('pipeline'))
