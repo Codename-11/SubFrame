@@ -15,11 +15,12 @@ import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { useUpdater } from '../hooks/useUpdater';
-import { useSettings, useAIToolConfig } from '../hooks/useSettings';
+import { useAIToolConfig } from '../hooks/useSettings';
 import { useSubFrameHealth } from '../hooks/useSubFrameHealth';
 import { usePrompts } from '../hooks/usePrompts';
 import { useIpcQuery, useIpcMutation } from '../hooks/useIpc';
 import { useUIStore } from '../stores/useUIStore';
+import { useProjectStore } from '../stores/useProjectStore';
 import { IPC } from '../../shared/ipcChannels';
 // Read version from package.json directly (frameConstants uses Node's `path` — unavailable in renderer)
 const FRAME_VERSION: string = require('../../../package.json').version;
@@ -505,31 +506,40 @@ function APIServerCard() {
 
 function FeatureDetectionCard() {
   const { config: aiToolConfig } = useAIToolConfig();
-  const { settings } = useSettings();
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+  // Query main process for actual AI tool config files (Claude's .claude/settings.json)
+  const { data: aiFeatures } = useIpcQuery(IPC.DETECT_AI_FEATURES, [projectPath ?? ''], {
+    enabled: !!projectPath && aiToolConfig?.activeTool?.id === 'claude',
+    staleTime: 30000,
+  });
 
   const features = useMemo(() => {
     if (!aiToolConfig) return [];
     const tool = aiToolConfig.activeTool;
     const isClaude = tool.id === 'claude';
 
-    // Detect hooks: settings.hooks should be a non-empty object
-    const hooksConfigured = (() => {
-      if (!settings || typeof settings !== 'object') return false;
-      const hooks = settings.hooks;
-      if (!hooks || typeof hooks !== 'object') return false;
-      return Object.keys(hooks as Record<string, unknown>).length > 0;
-    })();
-
     return [
       { name: 'AI Tool Installed', detected: !!tool.installed, hint: `Install ${tool.name}` },
       ...(isClaude ? [
-        { name: 'Hooks Configured', detected: hooksConfigured, hint: 'Enable in Settings' },
-        { name: 'MCP Servers', detected: false, hint: 'Add MCP servers for extended capabilities' },
-        { name: 'Channels', detected: false, hint: 'New in Claude Code -- multiplexed sessions' },
-        { name: 'Custom Slash Commands', detected: false, hint: 'Create project-specific commands' },
+        {
+          name: 'Hooks',
+          detected: !!aiFeatures?.hooks,
+          hint: aiFeatures?.hooks ? `${aiFeatures.hookCount} event types configured` : 'Configure hooks for automation',
+        },
+        {
+          name: 'MCP Servers',
+          detected: !!aiFeatures?.mcpServers,
+          hint: aiFeatures?.mcpServers ? `${aiFeatures.mcpServerCount} servers configured` : 'Add MCP servers for extended capabilities',
+        },
+        {
+          name: 'Skills',
+          detected: !!aiFeatures?.skills,
+          hint: aiFeatures?.skills ? 'Custom slash commands available' : 'Add .claude/skills/ for custom commands',
+        },
+        { name: 'Channels', detected: false, hint: 'New in Claude Code — multiplexed sessions' },
       ] : []),
     ];
-  }, [aiToolConfig, settings]);
+  }, [aiToolConfig, aiFeatures]);
 
   if (!aiToolConfig) return null;
 

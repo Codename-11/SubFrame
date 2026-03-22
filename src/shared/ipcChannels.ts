@@ -277,6 +277,7 @@ export const IPC = {
   API_SERVER_INFO: 'api-server-info',                  // handle: get server port/token
   API_SERVER_TOGGLE: 'api-server-toggle',              // handle: enable/disable server
   API_SERVER_REGEN_TOKEN: 'api-server-regen-token',    // handle: regenerate auth token
+  DETECT_AI_FEATURES: 'detect-ai-features',            // handle: scan AI tool config for features
 
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
@@ -1065,6 +1066,7 @@ export interface IPCHandleMap {
   [IPC.API_SERVER_INFO]: { args: []; return: { enabled: boolean; port: number; token: string } };
   [IPC.API_SERVER_TOGGLE]: { args: [enabled: boolean]; return: { enabled: boolean; port: number; token: string } };
   [IPC.API_SERVER_REGEN_TOKEN]: { args: []; return: { token: string } };
+  [IPC.DETECT_AI_FEATURES]: { args: [projectPath: string]; return: { hooks: boolean; mcpServers: boolean; skills: boolean; hookCount: number; mcpServerCount: number } };
   [IPC.SELECT_DEFAULT_PROJECT_DIR]: { args: []; return: string | null };
 
   // GitHub

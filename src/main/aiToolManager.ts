@@ -313,6 +313,57 @@ function setupIPC(): void {
     installCache.clear();
     return getConfig();
   });
+
+  // Detect AI tool features by reading actual config files
+  ipcMain.handle(IPC.DETECT_AI_FEATURES, async (_event, projectPath: string) => {
+    try {
+      const os = require('os');
+      // Read project-level .claude/settings.json
+      let projectSettings: Record<string, unknown> = {};
+      try {
+        const projPath = path.join(projectPath, '.claude', 'settings.json');
+        if (fs.existsSync(projPath)) {
+          projectSettings = JSON.parse(fs.readFileSync(projPath, 'utf8'));
+        }
+      } catch { /* ignore */ }
+
+      // Read global ~/.claude/settings.json
+      let globalSettings: Record<string, unknown> = {};
+      try {
+        const globalPath = path.join(os.homedir(), '.claude', 'settings.json');
+        if (fs.existsSync(globalPath)) {
+          globalSettings = JSON.parse(fs.readFileSync(globalPath, 'utf8'));
+        }
+      } catch { /* ignore */ }
+
+      // Detect hooks (project or global)
+      const projectHooks = projectSettings.hooks as Record<string, unknown> | undefined;
+      const globalHooks = globalSettings.hooks as Record<string, unknown> | undefined;
+      const hookCount = Object.keys(projectHooks ?? {}).length + Object.keys(globalHooks ?? {}).length;
+
+      // Detect MCP servers (project or global)
+      const projectMcp = projectSettings.mcpServers as Record<string, unknown> | undefined;
+      const globalMcp = globalSettings.mcpServers as Record<string, unknown> | undefined;
+      const mcpServerCount = Object.keys(projectMcp ?? {}).length + Object.keys(globalMcp ?? {}).length;
+
+      // Detect skills (check .claude/skills/ directory)
+      let skills = false;
+      try {
+        const skillsDir = path.join(projectPath, '.claude', 'skills');
+        skills = fs.existsSync(skillsDir) && fs.readdirSync(skillsDir).length > 0;
+      } catch { /* ignore */ }
+
+      return {
+        hooks: hookCount > 0,
+        mcpServers: mcpServerCount > 0,
+        skills,
+        hookCount,
+        mcpServerCount,
+      };
+    } catch {
+      return { hooks: false, mcpServers: false, skills: false, hookCount: 0, mcpServerCount: 0 };
+    }
+  });
 }
 
 /**
