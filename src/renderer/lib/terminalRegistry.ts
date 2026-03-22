@@ -646,8 +646,12 @@ export function registerFilePathLinkProvider(
 // Local API Server bridge — responds to main process requests for terminal data
 // ---------------------------------------------------------------------------
 
-/** Initialize API server IPC handlers. Call once at app startup. */
+let apiBridgeInitialized = false;
+
+/** Initialize API server IPC handlers. Call once at app startup (idempotent — safe for HMR). */
 export function initAPIBridge(): void {
+  if (apiBridgeInitialized) return;
+  apiBridgeInitialized = true;
   // Main → renderer: get terminal list
   ipcRenderer.on(IPC.API_GET_TERMINALS, (_event: unknown, data: { requestId: string }) => {
     const { useTerminalStore } = require('../stores/useTerminalStore');
@@ -720,12 +724,18 @@ export function initAPIBridge(): void {
   });
 }
 
-/** Register selection sync for a terminal — call after creating each terminal */
+/** Register selection sync for a terminal — call after creating each terminal.
+ *  Debounced to 50ms to avoid IPC spam during drag selections. */
 export function registerSelectionSync(terminalId: string): IDisposable {
   const entry = registry.get(terminalId);
   if (!entry) return { dispose: () => {} };
-  return entry.terminal.onSelectionChange(() => {
-    const text = entry.terminal.getSelection();
-    ipcRenderer.send(IPC.API_SELECTION_SYNC, { terminalId, text });
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const handler = entry.terminal.onSelectionChange(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const text = entry.terminal.getSelection();
+      ipcRenderer.send(IPC.API_SELECTION_SYNC, { terminalId, text });
+    }, 50);
   });
+  return { dispose: () => { handler.dispose(); if (debounceTimer) clearTimeout(debounceTimer); } };
 }

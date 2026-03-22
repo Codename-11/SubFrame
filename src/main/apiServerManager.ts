@@ -139,7 +139,6 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
 
     // ── GET /api/terminals — list all terminals ──
     if (pathname === '/api/terminals') {
-      const ptyManager = require('./ptyManager');
       const data = await requestFromRenderer(IPC.API_GET_TERMINALS) as unknown[];
       sendJSON(res, 200, { terminals: data });
       return;
@@ -213,6 +212,15 @@ export function broadcastEvent(eventType: string, data: unknown): void {
 function init(window: BrowserWindow): void {
   mainWindow = window;
 
+  // Clean up stale api.json from a previous crash (pid no longer running)
+  try {
+    const raw = fs.readFileSync(API_CONFIG_PATH, 'utf8');
+    const existing = JSON.parse(raw) as { pid?: number };
+    if (existing.pid) {
+      try { process.kill(existing.pid, 0); } catch { removeServiceConfig(); }
+    }
+  } catch { /* no existing file or parse error — ok */ }
+
   // Check if API server is enabled in settings
   try {
     const settingsManager = require('./settingsManager');
@@ -273,6 +281,12 @@ function setupIPC(ipcMain: IpcMain): void {
 }
 
 function shutdown(): void {
+  // Cancel pending renderer requests (prevents timer leaks on quit)
+  for (const [id, req] of pendingRequests) {
+    clearTimeout(req.timer);
+    pendingRequests.delete(id);
+  }
+
   // Close all SSE connections
   for (const client of sseClients) {
     try { client.end(); } catch { /* ignore */ }

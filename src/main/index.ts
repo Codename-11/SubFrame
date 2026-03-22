@@ -759,11 +759,16 @@ if (!gotTheLock) {
   });
 
   app.on('window-all-closed', () => {
-    apiServerManager.shutdown();
     // Don't quit if only a pop-out window closed — the main window is still running
     if (process.platform !== 'darwin' && popoutManager.getOpenCount() === 0) {
       app.quit();
     }
+  });
+
+  // Clean up API server on actual quit (not window-all-closed, which on macOS
+  // fires when windows close but the app stays alive in the dock)
+  app.on('before-quit', () => {
+    apiServerManager.shutdown();
   });
 
   app.on('activate', () => {

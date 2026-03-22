@@ -143,9 +143,9 @@ export function PromptLibrary() {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  // Listen for command palette trigger
+  // Listen for command palette trigger (e.g., from SystemPanel card click)
   useEffect(() => {
-    const handler = () => setOpen(true);
+    const handler = () => { shiftHeldRef.current = false; setOpen(true); };
     window.addEventListener('open-prompt-library', handler);
     return () => window.removeEventListener('open-prompt-library', handler);
   }, []);
