@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Cpu, Download, RefreshCw, Loader2, CheckCircle,
-  Terminal, Keyboard, BookMarked, Globe, Copy, Zap, Shield,
+  Terminal, Keyboard, BookMarked, Globe, Copy, Zap,
   ChevronDown, ChevronUp, RotateCw,
 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
@@ -22,6 +22,7 @@ import { useIpcQuery, useIpcMutation } from '../hooks/useIpc';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { IPC } from '../../shared/ipcChannels';
+import { getLogoSVG } from '../../shared/logoSVG';
 // Read version from package.json directly (frameConstants uses Node's `path` — unavailable in renderer)
 const FRAME_VERSION: string = require('../../../package.json').version;
 
@@ -35,9 +36,36 @@ const containerVariants = {
 };
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+  hidden: { opacity: 0, y: 12, scale: 0.98 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const } },
 };
+
+/** Shared hover props for interactive cards */
+const cardHover = {
+  whileHover: { scale: 1.012, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' },
+  transition: { type: 'spring' as const, stiffness: 400, damping: 25 },
+};
+
+/** Animated gradient divider — shimmers the logo palette (purple → pink → cyan) */
+function SectionDivider({ icon: Icon, label }: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string }) {
+  return (
+    <div className="flex items-center gap-2 mt-3 mb-0.5 px-0.5">
+      <Icon size={12} className="text-text-muted" />
+      <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">{label}</span>
+      <div className="flex-1 h-px relative overflow-hidden">
+        <div
+          className="absolute inset-0 h-px"
+          style={{
+            background: 'linear-gradient(90deg, #b480ff40, #ff6eb440, #64d8ff40, #b480ff40)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer-divider 4s ease-in-out infinite',
+          }}
+        />
+      </div>
+      <style>{`@keyframes shimmer-divider { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }`}</style>
+    </div>
+  );
+}
 
 export function SystemPanel({ isFullView = false }: { isFullView?: boolean }) {
   return (
@@ -63,11 +91,7 @@ export function SystemPanel({ isFullView = false }: { isFullView?: boolean }) {
           </motion.div>
 
           {/* Section 2: AI Tools */}
-          <div className="flex items-center gap-2 mt-2 mb-0.5 px-0.5">
-            <Terminal size={12} className="text-text-muted" />
-            <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">AI Tools</span>
-            <div className="flex-1 h-px bg-border-subtle" />
-          </div>
+          <SectionDivider icon={Terminal} label="AI Tools" />
           <motion.div
             className="grid gap-2 grid-cols-2"
             variants={containerVariants}
@@ -78,11 +102,7 @@ export function SystemPanel({ isFullView = false }: { isFullView?: boolean }) {
           </motion.div>
 
           {/* Section 3: Integrations */}
-          <div className="flex items-center gap-2 mt-2 mb-0.5 px-0.5">
-            <Globe size={12} className="text-text-muted" />
-            <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Integrations</span>
-            <div className="flex-1 h-px bg-border-subtle" />
-          </div>
+          <SectionDivider icon={Globe} label="Integrations" />
           <motion.div
             className="grid gap-2 grid-cols-2"
             variants={containerVariants}
@@ -94,11 +114,7 @@ export function SystemPanel({ isFullView = false }: { isFullView?: boolean }) {
           </motion.div>
 
           {/* Section 4: Quick Access */}
-          <div className="flex items-center gap-2 mt-2 mb-0.5 px-0.5">
-            <Zap size={12} className="text-text-muted" />
-            <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Quick Access</span>
-            <div className="flex-1 h-px bg-border-subtle" />
-          </div>
+          <SectionDivider icon={Zap} label="Quick Access" />
           <motion.div
             className="grid gap-2 grid-cols-2"
             variants={containerVariants}
@@ -123,18 +139,56 @@ function VersionCard() {
   return (
     <motion.div
       variants={cardVariants}
-      className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 col-span-2 hover:border-accent/30 transition-colors"
+      className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 col-span-2 hover:border-accent/30 transition-colors overflow-hidden relative"
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <Shield size={14} className="text-accent" />
-          <span className="text-xs font-medium text-text-primary">SubFrame</span>
-        </div>
+      {/* Subtle radial glow behind the logo */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: '-20px', left: '50%', transform: 'translateX(-50%)',
+          width: 200, height: 200, opacity: 0.08,
+          background: 'radial-gradient(circle, #ff6eb4, #b480ff 40%, transparent 70%)',
+        }}
+      />
+
+      {/* Logo + version hero */}
+      <div className="flex flex-col items-center pt-1 pb-3 relative">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] as const }}
+          dangerouslySetInnerHTML={{ __html: getLogoSVG({ size: 80, id: 'system-logo', frame: false }) }}
+        />
+        <motion.span
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="text-xl font-bold mt-1"
+          style={{
+            background: 'linear-gradient(135deg, #b480ff, #ff6eb4, #64d8ff)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}
+        >
+          v{FRAME_VERSION}
+        </motion.span>
+      </div>
+
+      {/* Update status + check button */}
+      <div className="flex items-center justify-between relative">
+        <UpdateStatusLine
+          status={status}
+          updateVersion={updateVersion}
+          error={error}
+          progress={progress}
+          onDownload={() => downloadUpdate.mutate([])}
+          onInstall={() => installUpdate.mutate([])}
+        />
         <Button
           size="sm"
           variant="ghost"
           onClick={() => checkForUpdates.mutate([])}
-          className="h-6 px-2 cursor-pointer"
+          className="h-6 px-2 cursor-pointer shrink-0"
           disabled={status === 'checking'}
         >
           {status === 'checking' ? (
@@ -142,22 +196,9 @@ function VersionCard() {
           ) : (
             <RefreshCw size={12} />
           )}
-          <span className="text-[10px] ml-1">Check Now</span>
+          <span className="text-[10px] ml-1">Check</span>
         </Button>
       </div>
-
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-lg font-bold text-text-primary">v{FRAME_VERSION}</span>
-      </div>
-
-      <UpdateStatusLine
-        status={status}
-        updateVersion={updateVersion}
-        error={error}
-        progress={progress}
-        onDownload={() => downloadUpdate.mutate([])}
-        onInstall={() => installUpdate.mutate([])}
-      />
     </motion.div>
   );
 }
@@ -316,6 +357,7 @@ function HealthQuickCard() {
   return (
     <motion.div
       variants={cardVariants}
+      {...cardHover}
       className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 cursor-pointer hover:border-accent/30 transition-colors"
       onClick={() => setActivePanel('subframeHealth')}
     >
@@ -450,12 +492,12 @@ function APIServerCard() {
       ) : (
         <>
           <div className="flex items-center gap-2 mb-1.5">
-            <span
-              className={cn(
-                'w-2 h-2 rounded-full shrink-0',
-                isRunning ? 'bg-emerald-400' : 'bg-red-400'
+            <span className="relative shrink-0">
+              <span className={cn('block w-2 h-2 rounded-full', isRunning ? 'bg-emerald-400' : 'bg-red-400')} />
+              {isRunning && (
+                <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
               )}
-            />
+            </span>
             <span className="text-[11px] text-text-secondary">
               {isRunning ? 'Running' : 'Stopped'}
             </span>
@@ -587,6 +629,7 @@ function ShortcutsCard() {
   return (
     <motion.div
       variants={cardVariants}
+      {...cardHover}
       className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 cursor-pointer hover:border-accent/30 transition-colors"
       onClick={() => setFullViewContent('shortcuts')}
     >
@@ -608,6 +651,7 @@ function PromptLibraryCard() {
   return (
     <motion.div
       variants={cardVariants}
+      {...cardHover}
       className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 cursor-pointer hover:border-accent/30 transition-colors"
       onClick={() => window.dispatchEvent(new CustomEvent('open-prompt-library'))}
     >
