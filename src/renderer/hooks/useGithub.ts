@@ -94,6 +94,22 @@ export function useGitStatus() {
   };
 }
 
+export function useGithubWorkflows() {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+  const query = useIpcQuery(
+    IPC.LOAD_GITHUB_WORKFLOWS,
+    [projectPath ?? ''],
+    { enabled: !!projectPath, staleTime: 30000 }
+  );
+  return {
+    workflows: query.data?.workflows ?? [],
+    error: query.data?.error ?? null,
+    repoName: query.data?.repoName,
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
+}
+
 export function useGitWorktrees() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
 

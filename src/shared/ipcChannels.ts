@@ -115,6 +115,7 @@ export const IPC = {
 
   // GitHub Panel
   LOAD_GITHUB_ISSUES: 'load-github-issues',
+  LOAD_GITHUB_WORKFLOWS: 'load-github-workflows',
   GITHUB_ISSUES_DATA: 'github-issues-data',
   TOGGLE_GITHUB_PANEL: 'toggle-github-panel',
   OPEN_GITHUB_ISSUE: 'open-github-issue',
@@ -513,6 +514,35 @@ export interface GitHubIssue {
 export interface GitHubIssuesResult {
   error: string | null;
   issues: GitHubIssue[];
+  repoName?: string | null;
+}
+
+/** GitHub Actions workflow run */
+export interface GitHubWorkflowRun {
+  databaseId: number;
+  displayTitle: string;
+  status: string;       // 'completed' | 'in_progress' | 'queued' | 'waiting'
+  conclusion: string | null;  // 'success' | 'failure' | 'cancelled' | 'skipped' | null
+  event: string;        // 'push' | 'pull_request' | 'workflow_dispatch' | etc.
+  headBranch: string;
+  createdAt: string;
+  updatedAt: string;
+  url: string;
+}
+
+/** GitHub Actions workflow */
+export interface GitHubWorkflow {
+  id: number;
+  name: string;
+  path: string;
+  state: string;       // 'active' | 'disabled_manually' | etc.
+  runs: GitHubWorkflowRun[];
+}
+
+/** GitHub workflows result wrapper */
+export interface GitHubWorkflowsResult {
+  error: string | null;
+  workflows: GitHubWorkflow[];
   repoName?: string | null;
 }
 
@@ -1071,6 +1101,7 @@ export interface IPCHandleMap {
 
   // GitHub
   [IPC.LOAD_GITHUB_ISSUES]: { args: [payload: { projectPath: string; state?: string }]; return: GitHubIssuesResult };
+  [IPC.LOAD_GITHUB_WORKFLOWS]: { args: [projectPath: string]; return: GitHubWorkflowsResult };
 
   // Git Branches
   [IPC.LOAD_GIT_BRANCHES]: { args: [projectPath: string]; return: GitBranchesResult };

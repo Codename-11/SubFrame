@@ -6,7 +6,7 @@
 import { exec } from 'child_process';
 import { shell } from 'electron';
 import type { BrowserWindow, IpcMain } from 'electron';
-import { IPC } from '../shared/ipcChannels';
+import { IPC, type GitHubWorkflowRun, type GitHubWorkflow, type GitHubWorkflowsResult } from '../shared/ipcChannels';
 
 interface GitHubIssue {
   number: number;
@@ -105,6 +105,69 @@ async function loadIssues(projectPath: string, state: string = 'open'): Promise<
 }
 
 /**
+ * Load workflow runs for a specific workflow
+ */
+function loadWorkflowRuns(projectPath: string, workflowId: number): Promise<GitHubWorkflowRun[]> {
+  return new Promise((resolve) => {
+    exec(
+      `gh run list --workflow=${workflowId} --json databaseId,displayTitle,status,conclusion,event,headBranch,createdAt,updatedAt,url --limit 5`,
+      { cwd: projectPath },
+      (error, stdout) => {
+        if (error) {
+          resolve([]);
+          return;
+        }
+        try {
+          resolve(JSON.parse(stdout) as GitHubWorkflowRun[]);
+        } catch {
+          resolve([]);
+        }
+      }
+    );
+  });
+}
+
+/**
+ * Load GitHub Actions workflows and their recent runs
+ */
+async function loadWorkflows(projectPath: string): Promise<GitHubWorkflowsResult> {
+  const ghAvailable = await checkGhCli();
+  if (!ghAvailable) {
+    return { error: 'gh CLI not installed. Install from https://cli.github.com', workflows: [] };
+  }
+
+  const repoInfo = await checkGitHubRepo(projectPath);
+  if (!repoInfo.isGitHubRepo) {
+    return { error: 'Not a GitHub repository', workflows: [], repoName: null };
+  }
+
+  return new Promise((resolve) => {
+    exec('gh workflow list --json id,name,path,state', { cwd: projectPath }, async (error, stdout, stderr) => {
+      if (error) {
+        resolve({ error: stderr || error.message, workflows: [], repoName: repoInfo.repoName });
+        return;
+      }
+
+      try {
+        const workflows = JSON.parse(stdout) as Array<{ id: number; name: string; path: string; state: string }>;
+
+        // For each workflow, fetch recent runs (limit 5 per workflow)
+        const results: GitHubWorkflow[] = await Promise.all(
+          workflows.map(async (wf) => {
+            const runs = await loadWorkflowRuns(projectPath, wf.id);
+            return { ...wf, runs };
+          })
+        );
+
+        resolve({ error: null, workflows: results, repoName: repoInfo.repoName });
+      } catch (_e) {
+        resolve({ error: 'Failed to parse workflow data', workflows: [], repoName: repoInfo.repoName });
+      }
+    });
+  });
+}
+
+/**
  * Open issue in browser
  */
 function openIssue(url: string): void {
@@ -130,6 +193,15 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.on(IPC.OPEN_GITHUB_ISSUE, (_event, url: string) => {
     openIssue(url);
   });
+
+  // Load workflows
+  ipcMain.handle(IPC.LOAD_GITHUB_WORKFLOWS, async (_event, projectPath: string) => {
+    const targetPath = projectPath || currentProjectPath;
+    if (!targetPath) {
+      return { error: 'No project selected', workflows: [] };
+    }
+    return await loadWorkflows(targetPath);
+  });
 }
 
-export { init, setProjectPath, setupIPC, loadIssues, openIssue };
+export { init, setProjectPath, setupIPC, loadIssues, loadWorkflows, openIssue };

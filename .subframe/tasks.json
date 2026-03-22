@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-22T14:54:53.705Z",
+  "lastUpdated": "2026-03-22T22:00:08.070Z",
   "tasks": {
     "pending": [
       {
@@ -811,28 +811,7 @@
         ]
       }
     ],
-    "inProgress": [
-      {
-        "id": "task-1772930979470-cx0ermf3t",
-        "title": "Local API Server — external integration foundation",
-        "status": "in_progress",
-        "priority": "medium",
-        "category": "research",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-08T00:49:39.470Z",
-        "updatedAt": "2026-03-22T14:21:49.687Z",
-        "completedAt": null,
-        "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
-        "notes": "[2026-03-22] Refined scope: localhost HTTP server in main process exposing terminal state (selection, buffer, context) and SSE event stream. Service discovery via well-known config file. Auth via startup-generated token. This is the foundation that Conjure TTS, Stream Deck, custom scripts, etc. consume. Plugin system (install/uninstall/manifest) is a separate future concern.\n[2026-03-22] MVP complete: HTTP server with token auth, 6 endpoints (health, terminals, selection, buffer, context, SSE events), renderer bridge, selection sync, service discovery. Settings UI toggle remaining for future.",
-        "steps": [
-          {
-            "completed": true,
-            "label": "Settings UI toggle and port configuration"
-          }
-        ]
-      }
-    ],
+    "inProgress": [],
     "completed": [
       {
         "id": "task-1772674776397-kc624grpq",
@@ -948,6 +927,26 @@
         "completedAt": "2026-03-10T00:35:15.656Z",
         "description": "",
         "steps": []
+      },
+      {
+        "id": "task-1772930979470-cx0ermf3t",
+        "title": "Local API Server — external integration foundation",
+        "status": "completed",
+        "priority": "medium",
+        "category": "research",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-08T00:49:39.470Z",
+        "updatedAt": "2026-03-22T21:52:45.380Z",
+        "completedAt": "2026-03-22T21:52:45.380Z",
+        "description": "Certain features/functionalitys may be desired but not neccesarrily be in the general scope/needed for all installations?",
+        "notes": "[2026-03-22] Refined scope: localhost HTTP server in main process exposing terminal state (selection, buffer, context) and SSE event stream. Service discovery via well-known config file. Auth via startup-generated token. This is the foundation that Conjure TTS, Stream Deck, custom scripts, etc. consume. Plugin system (install/uninstall/manifest) is a separate future concern.\n[2026-03-22] MVP complete: HTTP server with token auth, 6 endpoints (health, terminals, selection, buffer, context, SSE events), renderer bridge, selection sync, service discovery. Settings UI toggle remaining for future.",
+        "steps": [
+          {
+            "completed": true,
+            "label": "Settings UI toggle and port configuration"
+          }
+        ]
       },
       {
         "id": "task-1772931003433-4ceksawud",
@@ -1955,6 +1954,40 @@
         "steps": []
       },
       {
+        "id": "task-mn14eui7-b72d",
+        "title": "SubFrame System Panel — app dashboard with AI tool management",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-22",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-22T02:11:21.197Z",
+        "updatedAt": "2026-03-22T14:54:53.699Z",
+        "completedAt": "2026-03-22T14:54:53.699Z",
+        "description": "Add a dedicated System panel/view (similar to Overview but for SubFrame itself) that surfaces app-level information and management in a clean, unified UI. Includes: version info and update status, AI tool configuration and feature detection, keyboard shortcuts reference, integration status, tips/hints, and system health. Should also detect and surface AI tool capabilities (e.g. Claude Code channels, MCP servers, permissions) and suggest relevant features the user hasn't tried yet.",
+        "userRequest": "Add a subtask for enhancing our SubFrame system itself with a System panel/view similar to overview but for SubFrame itself - updates, version, integrations, hints, shortcuts, etc. Also manage AI tools - detect used features and link/suggest such as the new channels feature for claude code",
+        "acceptanceCriteria": "Panel accessible from sidebar or view tabs. Shows: app version + update status, AI tool config with feature detection, shortcuts summary, integration/plugin status, contextual tips. Clean, scannable layout — not a settings dump.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Design panel layout and sections (version, AI tools, shortcuts, integrations, tips)"
+          },
+          {
+            "completed": false,
+            "label": "Implement AI tool feature detection (scan capabilities, suggest unused features)"
+          },
+          {
+            "completed": false,
+            "label": "Build System panel component with all sections"
+          },
+          {
+            "completed": true,
+            "label": "Add sidebar entry and routing"
+          }
+        ]
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -2157,36 +2190,38 @@
         "steps": []
       },
       {
-        "id": "task-mn14eui7-b72d",
-        "title": "SubFrame System Panel — app dashboard with AI tool management",
+        "id": "task-1774215076925-mma0wepgh",
+        "title": "Add GitHub Actions workflow run status to GitHub panel",
         "status": "completed",
         "priority": "medium",
         "category": "feature",
-        "context": "Session 2026-03-22",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-22T02:11:21.197Z",
-        "updatedAt": "2026-03-22T14:54:53.699Z",
-        "completedAt": "2026-03-22T14:54:53.699Z",
-        "description": "Add a dedicated System panel/view (similar to Overview but for SubFrame itself) that surfaces app-level information and management in a clean, unified UI. Includes: version info and update status, AI tool configuration and feature detection, keyboard shortcuts reference, integration status, tips/hints, and system health. Should also detect and surface AI tool capabilities (e.g. Claude Code channels, MCP servers, permissions) and suggest relevant features the user hasn't tried yet.",
-        "userRequest": "Add a subtask for enhancing our SubFrame system itself with a System panel/view similar to overview but for SubFrame itself - updates, version, integrations, hints, shortcuts, etc. Also manage AI tools - detect used features and link/suggest such as the new channels feature for claude code",
-        "acceptanceCriteria": "Panel accessible from sidebar or view tabs. Shows: app version + update status, AI tool config with feature detection, shortcuts summary, integration/plugin status, contextual tips. Clean, scannable layout — not a settings dump.",
+        "createdAt": "2026-03-22T21:31:16.926Z",
+        "updatedAt": "2026-03-22T22:00:08.067Z",
+        "completedAt": "2026-03-22T22:00:08.067Z",
+        "description": "Add a new 'Workflows' tab to the existing GitHub panel that displays GitHub Actions workflows and their recent run statuses using the gh CLI. Users can see at a glance which workflows are passing, failing, or in progress, and click through to view runs on GitHub.",
+        "acceptanceCriteria": "- New 'Workflows' tab appears in the GitHub panel alongside Issues, PRs, Branches, Worktrees, and Changes\n- Lists all repository workflows with their name and current state\n- Shows recent runs for each workflow with status badges (success/failure/in_progress/cancelled)\n- Displays run metadata: branch, commit message summary, trigger event, duration, and timestamp\n- Clicking a workflow run opens it on GitHub via shell.openExternal\n- Loading and error states match existing GitHub panel tab patterns\n- Refresh button fetches latest workflow data\n- Gracefully handles repos with no workflows or when gh CLI is unavailable",
         "steps": [
           {
             "completed": false,
-            "label": "Design panel layout and sections (version, AI tools, shortcuts, integrations, tips)"
+            "label": "Define GitHubWorkflow and GitHubWorkflowRun interfaces and IPC channels in ipcChannels.ts"
           },
           {
             "completed": false,
-            "label": "Implement AI tool feature detection (scan capabilities, suggest unused features)"
+            "label": "Add loadWorkflows and loadWorkflowRuns methods to githubManager.ts using gh CLI"
           },
           {
             "completed": false,
-            "label": "Build System panel component with all sections"
+            "label": "Create useGithubWorkflows and useGithubWorkflowRuns hooks in useGithub.ts"
+          },
+          {
+            "completed": false,
+            "label": "Build GithubWorkflowsPanel component with status badges and run list"
           },
           {
             "completed": true,
-            "label": "Add sidebar entry and routing"
+            "label": "Wire Workflows tab into GithubPanel tab bar and routing"
           }
         ]
       }

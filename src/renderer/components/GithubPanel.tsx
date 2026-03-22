@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { RefreshCw, GitBranch, ExternalLink, Plus, Trash2, ArrowRight, FolderGit2, AlertCircle, Check, ChevronDown, ChevronRight, List, FolderTree, Folder, FolderOpen, FileSearch, Copy } from 'lucide-react';
+import { RefreshCw, GitBranch, ExternalLink, Plus, Trash2, ArrowRight, FolderGit2, AlertCircle, Check, ChevronDown, ChevronRight, ChevronUp, List, FolderTree, Folder, FolderOpen, FileSearch, Copy, CheckCircle, XCircle, MinusCircle, Circle, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -17,10 +17,10 @@ import {
   ContextMenuSeparator,
 } from './ui/context-menu';
 import { cn } from '../lib/utils';
-import { useGithubIssues, useGitBranches, useGitWorktrees, useGitStatus } from '../hooks/useGithub';
+import { useGithubIssues, useGitBranches, useGitWorktrees, useGitStatus, useGithubWorkflows } from '../hooks/useGithub';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
-import type { GitHubIssue, GitHubLabel, GitBranch as GitBranchType, GitFileStatus } from '../../shared/ipcChannels';
+import type { GitHubIssue, GitHubLabel, GitBranch as GitBranchType, GitFileStatus, GitHubWorkflow, GitHubWorkflowRun } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 
 /** Get contrasting text color for a hex background color */
@@ -784,6 +784,134 @@ function BranchesTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+export function GithubWorkflowsPanel() {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+  if (!projectPath) return <NoProject />;
+  return (
+    <div className="flex flex-col h-full">
+      <GitSyncStatus />
+      <div className="flex-1 min-h-0"><WorkflowsTab /></div>
+    </div>
+  );
+}
+
+function WorkflowCard({ workflow }: { workflow: GitHubWorkflow }) {
+  const [expanded, setExpanded] = useState(true);
+  const latestRun = workflow.runs[0];
+
+  const statusColor = (run: GitHubWorkflowRun) => {
+    if (run.status === 'in_progress' || run.status === 'queued') return 'text-amber-400';
+    if (run.conclusion === 'success') return 'text-emerald-400';
+    if (run.conclusion === 'failure') return 'text-red-400';
+    if (run.conclusion === 'cancelled') return 'text-text-muted';
+    return 'text-text-tertiary';
+  };
+
+  const statusIcon = (run: GitHubWorkflowRun) => {
+    if (run.status === 'in_progress' || run.status === 'queued') return Loader2;
+    if (run.conclusion === 'success') return CheckCircle;
+    if (run.conclusion === 'failure') return XCircle;
+    if (run.conclusion === 'cancelled') return MinusCircle;
+    return Circle;
+  };
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  return (
+    <div className="rounded-md border border-border-subtle bg-bg-secondary/30">
+      {/* Workflow header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left cursor-pointer hover:bg-bg-hover/50 transition-colors rounded-t-md"
+      >
+        {latestRun && (() => {
+          const Icon = statusIcon(latestRun);
+          return <Icon size={14} className={cn(statusColor(latestRun), latestRun.status === 'in_progress' && 'animate-spin')} />;
+        })()}
+        {!latestRun && <Circle size={14} className="text-text-muted" />}
+        <span className="text-xs font-medium text-text-primary flex-1 truncate">{workflow.name}</span>
+        <span className="text-[10px] text-text-tertiary">{workflow.state === 'active' ? '' : workflow.state}</span>
+        {expanded ? <ChevronUp size={12} className="text-text-muted" /> : <ChevronDown size={12} className="text-text-muted" />}
+      </button>
+
+      {/* Runs list */}
+      {expanded && workflow.runs.length > 0 && (
+        <div className="border-t border-border-subtle">
+          {workflow.runs.map((run) => {
+            const Icon = statusIcon(run);
+            return (
+              <button
+                key={run.databaseId}
+                onClick={() => { shell.openExternal(run.url); }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left cursor-pointer hover:bg-bg-hover/50 transition-colors group"
+              >
+                <Icon size={12} className={cn(statusColor(run), run.status === 'in_progress' && 'animate-spin')} />
+                <span className="text-[11px] text-text-secondary flex-1 truncate">{run.displayTitle}</span>
+                <span className="text-[10px] text-text-tertiary truncate max-w-[60px]">{run.headBranch}</span>
+                <span className="text-[10px] text-text-muted">{timeAgo(run.createdAt)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {expanded && workflow.runs.length === 0 && (
+        <div className="border-t border-border-subtle px-2.5 py-2 text-[10px] text-text-muted">
+          No recent runs
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WorkflowsTab() {
+  const { workflows, error, isLoading, refetch } = useGithubWorkflows();
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header with refresh */}
+      <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle shrink-0">
+        <span className="text-xs text-text-secondary">Workflows</span>
+        <div className="flex-1" />
+        <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-6 px-1.5 cursor-pointer">
+          <RefreshCw size={12} className={cn(isLoading && 'animate-spin')} />
+        </Button>
+      </div>
+
+      {/* Content */}
+      <ScrollArea className="flex-1 min-h-0">
+        {error ? (
+          <div className="flex flex-col items-center justify-center gap-2 text-text-tertiary p-6">
+            <AlertCircle className="w-5 h-5 text-error/60" />
+            <p className="text-xs text-center">{error}</p>
+            <button onClick={() => refetch()} className="text-xs text-accent hover:underline cursor-pointer">Retry</button>
+          </div>
+        ) : isLoading && workflows.length === 0 ? (
+          <div className="flex items-center justify-center h-32 text-text-tertiary text-sm">Loading...</div>
+        ) : workflows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-1">
+            <span>No workflows found</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 p-2">
+            {workflows.map((workflow) => (
+              <WorkflowCard key={workflow.id} workflow={workflow} />
+            ))}
+          </div>
+        )}
+      </ScrollArea>
     </div>
   );
 }
