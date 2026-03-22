@@ -11,12 +11,33 @@ Notable changes grouped by date and domain.
 - **Scroll-to-bottom after workspace switch** — when terminals reparent from the off-screen 1px holder, xterm's viewport DOM retains stale scroll dimensions. Added deferred re-scroll (80ms setTimeout after double-rAF) that runs after browser layout pass, plus direct `viewport.scrollTop = viewport.scrollHeight` DOM fallback on the scroll button.
 - **Configurable max terminals** — replaced hardcoded `MAX_TERMINALS = 9` in ptyManager with `getMaxTerminals()` that reads `terminal.maxTerminals` from settings (1–20). Added slider to Settings > Terminal > Behavior.
 
-### System Panel & Local API Server (2026-03-22)
+### System Panel & Integrations (2026-03-22)
 
-- **System Panel** (`SystemPanel.tsx`) — new app dashboard at `Ctrl+Shift+U` with cards for version/update status, AI tool configuration, health checks, API server integration, keyboard shortcuts, and prompt library.
-- **Local API Server** (`apiServerManager.ts`) — localhost HTTP server with 48-byte random token auth. Endpoints: `/api/health` (no auth), `/api/terminals`, `/api/selection`, `/api/buffer/:id`, `/api/context`, `/api/events` (SSE). Service discovery via `~/.subframe/api.json`. Renderer bridge in `terminalRegistry.ts` handles main→renderer IPC for terminal data access.
+- **System Panel** (`SystemPanel.tsx`) — full app dashboard at `Ctrl+Shift+U` with 4 sections:
+  - SubFrame: version card with update controls
+  - AI Tools: inline tool picker with installed status, start command display
+  - Integrations: API Server (toggle, port, token, endpoints), DTSP (toggle, registration status), Feature Detection (hooks, MCP, skills with counts)
+  - Quick Access: health, shortcuts, prompt library cards
+- **Standardized integration format** — each integration card has: icon + title + subtitle + info button + toggle. Info dialogs document protocol, auth, endpoints, usage.
+- **Full-view default** — System and Overview open as full-page tabs, not right sidebar.
+
+### Local API Server (2026-03-22)
+
+- **API Server** (`apiServerManager.ts`) — localhost HTTP server with 48-byte random token auth. 7 endpoints: `/api/health` (public), `/api/terminals`, `/api/terminals/:id/selection`, `/api/terminals/:id/buffer`, `/api/selection`, `/api/context`, `/api/events` (SSE).
+- **DTSP registration** — writes `~/.dtsp/sources/subframe.json` for Desktop Text Source Protocol discovery. Independent toggle from API server (`integrations.dtsp` setting).
+- **Service discovery** — `~/.subframe/api.json` (SubFrame-specific) + `~/.dtsp/sources/subframe.json` (DTSP protocol). Both cleaned up on shutdown, stale PID checked on startup.
+- **Live controls** — toggle on/off, regenerate token, copy config. Settings toggle wired to live server via `onSettingChange`. 5s polling for client/request counters.
+- **Renderer bridge** — selection synced via `onSelectionChange` (debounced 50ms), buffer/context/terminals via correlation-ID IPC pattern with 3s timeout.
+
+### Feature Detection (2026-03-22)
+
+- **DETECT_AI_FEATURES IPC** — reads Claude Code's `.claude/settings.json` (project + global) to detect hooks (with event type count), MCP servers (with count), and skills directory. Shown in System Panel with green checkmarks and counts.
+
+### Prompt Execution & Panel State (2026-03-22)
+
 - **Prompt execution** — Shift+Click/Enter inserts prompt text and appends `\r` to execute in terminal.
-- **Per-project panel state** — right sidebar panel open/closed state persists per project path in useUIStore.
+- **Per-project panel state** — right sidebar panel open/closed state persists per project path in localStorage.
+- **Settings > Integrations** — new tab with API Server and DTSP enable/disable toggles.
 
 ### Usage Tooltip Cleanup (2026-03-22)
 

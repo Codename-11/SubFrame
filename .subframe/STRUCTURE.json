@@ -677,20 +677,20 @@
       ],
       "functions": {
         "writeServiceConfig": {
-          "line": 45
+          "line": 51
         },
         "removeServiceConfig": {
-          "line": 59
+          "line": 85
         },
         "authenticate": {
-          "line": 67,
+          "line": 92,
           "params": [
             "req"
           ],
           "purpose": "── Auth ───────────────────────────────────────────────────────────────────"
         },
         "requestFromRenderer": {
-          "line": 80,
+          "line": 105,
           "params": [
             "channel",
             "data"
@@ -698,7 +698,7 @@
           "purpose": "── Renderer bridge (main→renderer request-response) ───────────────────────"
         },
         "sendJSON": {
-          "line": 99,
+          "line": 124,
           "params": [
             "res",
             "status",
@@ -707,7 +707,7 @@
           "purpose": "── Route handling ─────────────────────────────────────────────────────────"
         },
         "sendError": {
-          "line": 108,
+          "line": 133,
           "params": [
             "res",
             "status",
@@ -718,7 +718,7 @@
           ]
         },
         "handleRequest": {
-          "line": 112,
+          "line": 137,
           "params": [
             "req",
             "res"
@@ -731,7 +731,7 @@
           ]
         },
         "broadcastEvent": {
-          "line": 202,
+          "line": 228,
           "params": [
             "eventType",
             "data"
@@ -739,7 +739,7 @@
           "purpose": "── SSE broadcasting ───────────────────────────────────────────────────────"
         },
         "startServer": {
-          "line": 213,
+          "line": 239,
           "purpose": "── Server start/stop ─────────────────────────────────────────────────────",
           "calls": [
             "handleRequest",
@@ -748,28 +748,28 @@
           ]
         },
         "stopServer": {
-          "line": 235,
+          "line": 261,
           "calls": [
             "removeServiceConfig"
           ]
         },
         "init": {
-          "line": 254,
+          "line": 280,
           "params": [
             "window"
           ],
           "purpose": "── Lifecycle ──────────────────────────────────────────────────────────────",
           "calls": [
-            "removeServiceConfig",
             "startServer"
           ]
         },
         "setupIPC": {
-          "line": 282,
+          "line": 316,
           "params": [
             "ipcMain"
           ],
           "calls": [
+            "SettingsPanel",
             "broadcastEvent",
             "startServer",
             "stopServer",
@@ -777,13 +777,13 @@
           ]
         },
         "shutdown": {
-          "line": 332,
+          "line": 390,
           "calls": [
             "stopServer"
           ]
         }
       },
-      "loc": 337,
+      "loc": 395,
       "ipc": {
         "listens": [
           "API_SELECTION_SYNC",
@@ -6376,14 +6376,14 @@
           "line": 47
         },
         "SettingGroup": {
-          "line": 107,
+          "line": 111,
           "params": [
             "{ label",
             "children }"
           ]
         },
         "SettingToggle": {
-          "line": 123,
+          "line": 127,
           "params": [
             "{ label",
             "description",
@@ -6393,7 +6393,7 @@
           ]
         },
         "SettingSelect": {
-          "line": 150,
+          "line": 154,
           "params": [
             "{ label",
             "description",
@@ -6403,7 +6403,7 @@
           ]
         },
         "SettingInput": {
-          "line": 181,
+          "line": 185,
           "params": [
             "{ label",
             "description",
@@ -6419,7 +6419,7 @@
           ]
         },
         "SettingSlider": {
-          "line": 214,
+          "line": 218,
           "params": [
             "{ label",
             "description",
@@ -6432,7 +6432,7 @@
           ]
         },
         "SettingsPanel": {
-          "line": 239,
+          "line": 243,
           "calls": [
             "cn",
             "detectNerdFont",
@@ -6443,7 +6443,7 @@
           ]
         }
       },
-      "loc": 1614,
+      "loc": 1645,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA"
@@ -6853,21 +6853,33 @@
         "hooks/useIpc",
         "stores/useUIStore",
         "stores/useProjectStore",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "../shared/logoSVG"
       ],
       "functions": {
+        "SectionDivider": {
+          "line": 53,
+          "params": [
+            "{ icon",
+            "label }"
+          ]
+        },
         "SystemPanel": {
-          "line": 42
+          "line": 73,
+          "params": [
+            "{ isFullView"
+          ]
         },
         "VersionCard": {
-          "line": 118,
+          "line": 140,
           "purpose": "─── Card 1: Version & Update ─────────────────────────────────────────────────",
           "calls": [
+            "getLogoSVG",
             "useUpdater"
           ]
         },
         "UpdateStatusLine": {
-          "line": 163,
+          "line": 210,
           "params": [
             "{\n  status",
             "updateVersion",
@@ -6879,7 +6891,7 @@
           ]
         },
         "AIToolCard": {
-          "line": 254,
+          "line": 301,
           "purpose": "─── Card 2: AI Tool Picker ──────────────────────────────────────────────────",
           "calls": [
             "cn",
@@ -6887,14 +6899,14 @@
           ]
         },
         "HealthQuickCard": {
-          "line": 305,
+          "line": 352,
           "purpose": "─── Card 3: Health Quick ─────────────────────────────────────────────────────",
           "calls": [
             "useSubFrameHealth"
           ]
         },
         "APIServerCard": {
-          "line": 361,
+          "line": 409,
           "purpose": "─── Card 4: Local API Server ─────────────────────────────────────────────────",
           "calls": [
             "cn",
@@ -6902,27 +6914,36 @@
             "useIpcQuery"
           ]
         },
+        "DTSPCard": {
+          "line": 622,
+          "purpose": "─── Card 5: DTSP Registration ────────────────────────────────────────────────",
+          "calls": [
+            "cn",
+            "useIpcQuery",
+            "useSettings"
+          ]
+        },
         "FeatureDetectionCard": {
-          "line": 507,
-          "purpose": "─── Card 5: Feature Detection ───────────────────────────────────────────────",
+          "line": 739,
+          "purpose": "─── Card 6: Feature Detection ───────────────────────────────────────────────",
           "calls": [
             "useAIToolConfig",
             "useIpcQuery"
           ]
         },
         "ShortcutsCard": {
-          "line": 580,
+          "line": 811,
           "purpose": "─── Card 6: Keyboard Shortcuts ───────────────────────────────────────────────"
         },
         "PromptLibraryCard": {
-          "line": 600,
+          "line": 832,
           "purpose": "─── Card 7: Prompt Library ───────────────────────────────────────────────────",
           "calls": [
             "usePrompts"
           ]
         }
       },
-      "loc": 620
+      "loc": 853
     },
     "renderer/components/TaskGraph": {
       "file": "src\\renderer\\components\\TaskGraph.tsx",
