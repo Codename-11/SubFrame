@@ -65,7 +65,6 @@ function SectionDivider({ icon: Icon, label }: { icon: React.ComponentType<{ siz
           }}
         />
       </div>
-      <style>{`@keyframes shimmer-divider { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }`}</style>
     </div>
   );
 }

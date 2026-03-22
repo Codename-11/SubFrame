@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scroll-to-bottom button** — direct DOM fallback ensures it works when xterm viewport is desynced
 - **API server stale config** — cleans up `api.json` on startup if PID is dead (crash recovery)
 - **API server error response** — no longer echoes user-supplied pathname; SSE event names sanitized
+- **Usage tooltip source mismatch** — in-memory fallback no longer inherits stale `source: 'api'`; new `'cached'` source type with amber indicator and `lastUpdated` time
+- **Usage tooltip double-render** — cache age and stale-time indicators now mutually exclusive
+
+### Improved
+- **System Panel UI** — animated atom logo hero with gradient version number, shimmer gradient section dividers, spring-based card hover micro-interactions, pulsing status dot on running API server
 
 ## [0.6.0-beta] - 2026-03-22
 
