@@ -39,17 +39,19 @@ const cardVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-export function SystemPanel() {
+export function SystemPanel({ isFullView = false }: { isFullView?: boolean }) {
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle shrink-0">
-        <div className="text-xs font-medium text-text-primary">System</div>
-      </div>
+      {/* Header — hidden in full-view mode (TerminalArea provides its own) */}
+      {!isFullView && (
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle shrink-0">
+          <div className="text-xs font-medium text-text-primary">System</div>
+        </div>
+      )}
 
       {/* Content */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="flex flex-col gap-2 p-3">
+        <div className={cn('flex flex-col gap-2', isFullView ? 'p-4' : 'p-3')}>
           {/* Section 1: SubFrame (no section header) */}
           <motion.div
             className="grid gap-2 grid-cols-2"
@@ -400,7 +402,10 @@ function APIServerCard() {
     toast.success('Token regenerated');
   };
 
-  const endpoints = ['/api/selection', '/api/context', '/api/events'];
+  const endpoints = [
+    '/api/health', '/api/terminals', '/api/terminals/:id/selection',
+    '/api/terminals/:id/buffer', '/api/selection', '/api/context', '/api/events',
+  ];
 
   return (
     <motion.div
@@ -536,7 +541,6 @@ function FeatureDetectionCard() {
           detected: !!aiFeatures?.skills,
           hint: aiFeatures?.skills ? 'Custom slash commands available' : 'Add .claude/skills/ for custom commands',
         },
-        { name: 'Channels', detected: false, hint: 'New in Claude Code — multiplexed sessions' },
       ] : []),
     ];
   }, [aiToolConfig, aiFeatures]);

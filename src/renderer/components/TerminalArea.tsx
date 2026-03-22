@@ -744,7 +744,7 @@ export function TerminalArea() {
                   <ShortcutsPanel />
                 )}
                 {fullViewContent === 'system' && (
-                  <SystemPanel />
+                  <SystemPanel isFullView />
                 )}
               </ErrorBoundary>
             </div>

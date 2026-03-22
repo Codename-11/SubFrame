@@ -435,6 +435,38 @@ mainWindow.webContents.openDevTools();
 
 ## Session Notes
 
+### [2026-03-22] Local API Server & System Panel Architecture
+
+**Context:** SubFrame needs to expose terminal state to external tools (Conjure TTS, Stream Deck, scripts) and provide a unified app dashboard for managing SubFrame itself.
+
+**Key architectural decisions:**
+
+- **Localhost HTTP over named pipes/WebSocket** — HTTP is universally consumable (`curl`, Python, Node, Tauri). SSE (Server-Sent Events) for real-time streaming over regular HTTP, no WebSocket upgrade needed.
+- **Auth: file-based token discovery** — random 48-char hex token generated at startup, written to `~/.subframe/api.json` with port + PID. Any local process that can read the file can authenticate. Zero-friction for authorized tools.
+- **Main→renderer request-response bridge** — xterm.js selection/buffer lives in the renderer, but the HTTP server runs in main. Uses correlation-ID pattern: main sends request with UUID via `webContents.send`, renderer responds via `ipcRenderer.send` with same UUID, main resolves Promise. 3s timeout prevents hangs.
+- **Selection sync vs. on-demand** — selections are proactively synced (debounced 50ms) via `onSelectionChange` to a Map in main. The API serves from this cache — zero latency. Buffer content is fetched on-demand since it's larger and less frequently needed.
+- **Stale config recovery** — on startup, checks if existing `api.json` PID is alive. Dead PID = stale file from crash → cleaned up before starting.
+- **System Panel as full-view default** — dashboard panels (Overview, System) open as full-page tabs by default, not the constrained right sidebar. Sidebar remains available as secondary path.
+- **Feature detection reads actual config files** — reads Claude Code's `.claude/settings.json` (both project and `~/` global) via IPC handler, not SubFrame's own settings. Detects hooks, MCP servers, skills directory.
+
+**Files:** `src/main/apiServerManager.ts`, `src/renderer/components/SystemPanel.tsx`, `src/renderer/lib/terminalRegistry.ts` (API bridge)
+
+### [2026-03-22] Terminal Persistence — Two-Phase Restore
+
+**Context:** Tab reorder and grid slot positions were lost on workspace swap and app restart.
+
+**Root cause:** The save/restore effect ran on initial mount when the `terminals` Map was empty (before `TERMINAL_CREATED` IPC events arrive). It marked restoration as "done" but tab order couldn't be applied since no terminal IDs existed yet.
+
+**Fix:** Two-phase restoration: Phase 1 (viewMode, gridLayout, gridSlots) runs immediately on project switch. Phase 2 (tab order, names, active terminal) retries on every `terminals` Map change until ALL session terminals exist, with a 3-second timeout fallback for destroyed terminals.
+
+**Other persistence fixes:**
+- `addTerminal` preserves `createdAt` for existing terminals (prevents reorder loss from duplicate events)
+- `addTerminal` respects `isActive` flag (background terminals don't steal focus)
+- Auto-save after reorder/grid-swap (debounced 300ms)
+- Per-project grid slot save via `gridSlotsByProject` Map
+
+**Files:** `src/renderer/components/TerminalArea.tsx`, `src/renderer/stores/useTerminalStore.ts`
+
 ### [2026-03-14] Pop-Out Terminal Architecture
 
 **Context:** Users working with multi-monitor setups need to detach terminals from the main window to watch agent output on a second screen while working in the main app.

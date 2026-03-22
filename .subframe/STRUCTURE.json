@@ -496,6 +496,7 @@
         "AI_TOOLS"
       ],
       "depends": [
+        "os",
         "settingsManager",
         "electron",
         "child_process",
@@ -611,7 +612,7 @@
           ]
         },
         "getCommand": {
-          "line": 321,
+          "line": 372,
           "params": [
             "action"
           ],
@@ -621,14 +622,14 @@
           ]
         },
         "getCustomCommand": {
-          "line": 329,
+          "line": 380,
           "params": [
             "toolId"
           ],
           "purpose": "Get custom command override from settings for a tool"
         },
         "getStartCommand": {
-          "line": 343,
+          "line": 394,
           "purpose": "Get the start command for active tool",
           "calls": [
             "getActiveTool",
@@ -636,14 +637,15 @@
           ]
         }
       },
-      "loc": 354,
+      "loc": 405,
       "ipc": {
         "listens": [
           "GET_AI_TOOL_CONFIG",
           "SET_AI_TOOL",
           "ADD_CUSTOM_AI_TOOL",
           "REMOVE_CUSTOM_AI_TOOL",
-          "RECHECK_AI_TOOLS"
+          "RECHECK_AI_TOOLS",
+          "DETECT_AI_FEATURES"
         ],
         "emits": [
           "AI_TOOL_CHANGED",
@@ -659,7 +661,9 @@
         "broadcastEvent",
         "init",
         "setupIPC",
-        "shutdown"
+        "shutdown",
+        "startServer",
+        "stopServer"
       ],
       "depends": [
         "../package.json",
@@ -734,41 +738,59 @@
           ],
           "purpose": "── SSE broadcasting ───────────────────────────────────────────────────────"
         },
-        "init": {
+        "startServer": {
           "line": 213,
+          "purpose": "── Server start/stop ─────────────────────────────────────────────────────",
+          "calls": [
+            "handleRequest",
+            "sendError",
+            "writeServiceConfig"
+          ]
+        },
+        "stopServer": {
+          "line": 235,
+          "calls": [
+            "removeServiceConfig"
+          ]
+        },
+        "init": {
+          "line": 254,
           "params": [
             "window"
           ],
           "purpose": "── Lifecycle ──────────────────────────────────────────────────────────────",
           "calls": [
-            "handleRequest",
             "removeServiceConfig",
-            "sendError",
-            "writeServiceConfig"
+            "startServer"
           ]
         },
         "setupIPC": {
-          "line": 261,
+          "line": 282,
           "params": [
             "ipcMain"
           ],
           "calls": [
-            "broadcastEvent"
+            "broadcastEvent",
+            "startServer",
+            "stopServer",
+            "writeServiceConfig"
           ]
         },
         "shutdown": {
-          "line": 284,
+          "line": 332,
           "calls": [
-            "removeServiceConfig"
+            "stopServer"
           ]
         }
       },
-      "loc": 308,
+      "loc": 337,
       "ipc": {
         "listens": [
           "API_SELECTION_SYNC",
           "API_RENDERER_RESPONSE",
-          "API_SERVER_INFO"
+          "API_SERVER_INFO",
+          "API_SERVER_TOGGLE",
+          "API_SERVER_REGEN_TOKEN"
         ],
         "emits": [
           "channel"
@@ -1119,24 +1141,24 @@
           ]
         },
         "fetchUsage": {
-          "line": 419,
+          "line": 420,
           "purpose": "── Legacy compat wrapper (used by sendUsageToRenderer) ─────────────────────",
           "calls": [
             "getUsage"
           ]
         },
         "resetBackoff": {
-          "line": 425,
+          "line": 426,
           "purpose": "── Backoff ─────────────────────────────────────────────────────────────────"
         },
         "computeBackoff": {
-          "line": 429,
+          "line": 430,
           "params": [
             "baseMs"
           ]
         },
         "sendUsageToRenderer": {
-          "line": 436,
+          "line": 437,
           "purpose": "── Renderer communication ──────────────────────────────────────────────────",
           "calls": [
             "fetchUsage",
@@ -1144,7 +1166,7 @@
           ]
         },
         "scheduleNextPoll": {
-          "line": 456,
+          "line": 457,
           "params": [
             "baseMs"
           ],
@@ -1156,7 +1178,7 @@
           ]
         },
         "startPolling": {
-          "line": 475,
+          "line": 476,
           "calls": [
             "getPollingMs",
             "scheduleNextPoll",
@@ -1164,10 +1186,10 @@
           ]
         },
         "stopPolling": {
-          "line": 482
+          "line": 483
         },
         "restartPolling": {
-          "line": 493,
+          "line": 494,
           "calls": [
             "getPollingMs",
             "scheduleNextPoll",
@@ -1176,7 +1198,7 @@
           ]
         },
         "init": {
-          "line": 504,
+          "line": 505,
           "params": [
             "window"
           ],
@@ -1191,7 +1213,7 @@
           ]
         },
         "setupIPC": {
-          "line": 526,
+          "line": 527,
           "params": [
             "ipcMain"
           ],
@@ -1201,13 +1223,13 @@
           ]
         },
         "cleanup": {
-          "line": 541,
+          "line": 542,
           "calls": [
             "stopPolling"
           ]
         }
       },
-      "loc": 547,
+      "loc": 548,
       "ipc": {
         "listens": [
           "LOAD_CLAUDE_USAGE",
@@ -5032,7 +5054,7 @@
           ]
         }
       },
-      "loc": 649,
+      "loc": 650,
       "ipc": {
         "listens": [
           "WORKSPACE_DATA",
@@ -6812,12 +6834,13 @@
     },
     "renderer/components/SystemPanel": {
       "file": "src\\renderer\\components\\SystemPanel.tsx",
-      "description": "SystemPanel — App dashboard for SubFrame itself. Shows version/update status, AI tool, health, integrations, and quick access.",
+      "description": "SystemPanel — App dashboard for SubFrame itself. Shows version/update status, AI tool picker, health, integrations, and quick access.",
       "exports": [
         "SystemPanel"
       ],
       "depends": [
         "../../package.json",
+        "react",
         "framer-motion",
         "ui/scroll-area",
         "ui/button",
@@ -6829,21 +6852,22 @@
         "hooks/usePrompts",
         "hooks/useIpc",
         "stores/useUIStore",
+        "stores/useProjectStore",
         "../shared/ipcChannels"
       ],
       "functions": {
         "SystemPanel": {
-          "line": 39
+          "line": 42
         },
         "VersionCard": {
-          "line": 100,
+          "line": 118,
           "purpose": "─── Card 1: Version & Update ─────────────────────────────────────────────────",
           "calls": [
             "useUpdater"
           ]
         },
         "UpdateStatusLine": {
-          "line": 145,
+          "line": 163,
           "params": [
             "{\n  status",
             "updateVersion",
@@ -6855,41 +6879,50 @@
           ]
         },
         "AIToolCard": {
-          "line": 236,
-          "purpose": "─── Card 2: AI Tool ──────────────────────────────────────────────────────────",
+          "line": 254,
+          "purpose": "─── Card 2: AI Tool Picker ──────────────────────────────────────────────────",
           "calls": [
             "cn",
             "useAIToolConfig"
           ]
         },
         "HealthQuickCard": {
-          "line": 278,
+          "line": 305,
           "purpose": "─── Card 3: Health Quick ─────────────────────────────────────────────────────",
           "calls": [
             "useSubFrameHealth"
           ]
         },
         "APIServerCard": {
-          "line": 334,
+          "line": 361,
           "purpose": "─── Card 4: Local API Server ─────────────────────────────────────────────────",
           "calls": [
             "cn",
+            "useIpcMutation",
+            "useIpcQuery"
+          ]
+        },
+        "FeatureDetectionCard": {
+          "line": 507,
+          "purpose": "─── Card 5: Feature Detection ───────────────────────────────────────────────",
+          "calls": [
+            "useAIToolConfig",
             "useIpcQuery"
           ]
         },
         "ShortcutsCard": {
-          "line": 423,
-          "purpose": "─── Card 5: Keyboard Shortcuts ───────────────────────────────────────────────"
+          "line": 580,
+          "purpose": "─── Card 6: Keyboard Shortcuts ───────────────────────────────────────────────"
         },
         "PromptLibraryCard": {
-          "line": 443,
-          "purpose": "─── Card 6: Prompt Library ───────────────────────────────────────────────────",
+          "line": 600,
+          "purpose": "─── Card 7: Prompt Library ───────────────────────────────────────────────────",
           "calls": [
             "usePrompts"
           ]
         }
       },
-      "loc": 463
+      "loc": 620
     },
     "renderer/components/TaskGraph": {
       "file": "src\\renderer\\components\\TaskGraph.tsx",
@@ -7209,6 +7242,7 @@
         "PipelinePanel",
         "AgentStateView",
         "ShortcutsPanel",
+        "SystemPanel",
         "Editor",
         "ViewTabBar",
         "ErrorBoundary",
@@ -7224,20 +7258,20 @@
       ],
       "functions": {
         "saveSession": {
-          "line": 62,
+          "line": 63,
           "params": [
             "projectPath",
             "store"
           ]
         },
         "loadSession": {
-          "line": 98,
+          "line": 99,
           "params": [
             "projectPath"
           ]
         },
         "TerminalArea": {
-          "line": 108,
+          "line": 109,
           "calls": [
             "createTerminal",
             "getLogoSVG",
@@ -7251,7 +7285,7 @@
           ]
         }
       },
-      "loc": 894,
+      "loc": 898,
       "ipc": {
         "listens": [
           "TERMINAL_POPOUT_STATUS",
@@ -7398,19 +7432,19 @@
       ],
       "functions": {
         "formatTierName": {
-          "line": 88,
+          "line": 93,
           "params": [
             "tier"
           ]
         },
         "formatSubType": {
-          "line": 99,
+          "line": 104,
           "params": [
             "subType"
           ]
         },
         "ViewTabBar": {
-          "line": 104,
+          "line": 109,
           "calls": [
             "formatSubType",
             "formatTierName",
@@ -7420,7 +7454,7 @@
           ]
         },
         "UsageTooltip": {
-          "line": 418,
+          "line": 423,
           "params": [
             "{ data",
             "fetching }"
@@ -7428,7 +7462,7 @@
           "purpose": "── Rich tooltip ────────────────────────────────────────────────────────────"
         },
         "TooltipUsageRow": {
-          "line": 492,
+          "line": 497,
           "params": [
             "{ label",
             "utilization",
@@ -7436,7 +7470,7 @@
           ]
         },
         "UsageItem": {
-          "line": 518,
+          "line": 523,
           "params": [
             "{ label",
             "utilization",
@@ -7445,13 +7479,13 @@
           "purpose": "── Shared sub-components ───────────────────────────────────────────────────"
         },
         "ResetTime": {
-          "line": 541,
+          "line": 546,
           "params": [
             "{ resetsAt }"
           ]
         }
       },
-      "loc": 560,
+      "loc": 565,
       "ipc": {
         "listens": [
           "CLAUDE_USAGE_DATA"
@@ -8920,22 +8954,22 @@
       ],
       "functions": {
         "getTabIdForContent": {
-          "line": 34,
+          "line": 35,
           "params": [
             "content"
           ]
         },
         "loadPersistedTabs": {
-          "line": 40
+          "line": 41
         },
         "persistTabs": {
-          "line": 56,
+          "line": 57,
           "params": [
             "tabs"
           ]
         }
       },
-      "loc": 365
+      "loc": 366
     },
     "shared/activityTypes": {
       "file": "src\\shared\\activityTypes.ts",
@@ -9550,7 +9584,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1387
+      "loc": 1393
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -10648,7 +10682,7 @@
       {
         "module": "renderer/components/SystemPanel",
         "file": "src\\renderer\\components\\SystemPanel.tsx",
-        "description": "SystemPanel — App dashboard for SubFrame itself. Shows version/update status, AI tool, health, integrations, and quick access."
+        "description": "SystemPanel — App dashboard for SubFrame itself. Shows version/update status, AI tool picker, health, integrations, and quick access."
       }
     ],
     "task-graph": [

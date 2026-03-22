@@ -8,19 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **System Panel** — app dashboard (`Ctrl+Shift+U`) with version/update status, AI tool config, health checks, API server toggle, shortcuts reference, and prompt library cards
-- **Local API Server** — localhost HTTP server with token auth for external integrations; endpoints for terminals, selection, buffer, context, and SSE event stream; service discovery via `~/.subframe/api.json`
+- **System Panel** — app dashboard (`Ctrl+Shift+U`) with version/update status, AI tool picker, health, integrations, feature detection, shortcuts, and prompt library cards
+- **AI Tool picker** — switch AI tools directly from System Panel with installed status indicators
+- **API Server controls** — on/off toggle, token regeneration, and config copy from System Panel
+- **Feature detection** — scans Claude Code config for hooks, MCP servers, and skills; shows counts and hints
+- **Local API Server** — localhost HTTP server with token auth for external integrations; 7 endpoints for terminals, selection, buffer, context, and SSE events; service discovery via `~/.subframe/api.json`
+- **Integrations settings** — Settings > Integrations tab with API Server enable/disable toggle
 - **Prompt execution** — Shift+Click or Shift+Enter on prompts inserts and executes (sends Enter) in one action
 - **Per-project panel state** — right sidebar panels remember open/closed state per project
+- **Overview full-view default** — Overview and System buttons open as full-page tabs, not right sidebar
 - **Configurable max terminals** — Settings > Terminal > Behavior slider (1–20, default 9)
-- **Usage monitoring docs** — comprehensive feature docs covering the 4-layer data source hierarchy
 
 ### Fixed
-- **Terminal scroll-to-bottom after workspace switch** — terminals reparented from the off-screen holder now properly restore scroll position via deferred viewport sync
-- **Scroll-to-bottom button** — direct DOM fallback ensures the button works even when xterm's viewport is desynced
-- **Usage tooltip** — hide noisy cache age for local source (renamed "Live"), show `lastUpdated` time when data is stale
-- **Usage tooltip double-render** — cache age and stale time indicators are now mutually exclusive
-- **API server error response** — no longer echoes user-supplied pathname; SSE event names sanitized for newline injection
+- **CodeMirror selection highlight** — word under cursor now highlighted; whole-word matching only; `.cm-selectionMatch` styled across all 3 themes
+- **Terminal scroll-to-bottom after workspace switch** — deferred viewport sync fixes reparenting issues
+- **Scroll-to-bottom button** — direct DOM fallback ensures it works when xterm viewport is desynced
+- **API server stale config** — cleans up `api.json` on startup if PID is dead (crash recovery)
+- **API server error response** — no longer echoes user-supplied pathname; SSE event names sanitized
 
 ## [0.6.0-beta] - 2026-03-22
 

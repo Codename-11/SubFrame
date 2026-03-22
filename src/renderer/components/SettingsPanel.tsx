@@ -10,7 +10,7 @@ import { Button } from './ui/button';
 import {
   FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink,
   Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
-  Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search,
+  Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search, Globe,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
@@ -60,6 +60,7 @@ const NAV_ITEMS = [
   { key: 'terminal', label: 'Terminal', icon: TerminalSquare },
   { key: 'editor', label: 'Editor', icon: Code2 },
   { key: 'ai-tool', label: 'AI Tool', icon: Bot },
+  { key: 'integrations', label: 'Integrations', icon: Globe },
   { key: 'updates', label: 'Updates', icon: Download },
   { key: 'about', label: 'About', icon: Info },
 ] as const;
@@ -91,6 +92,9 @@ const SECTION_LABELS: Record<string, string[]> = {
   'ai-tool': [
     'Active Tool', 'Start Command', 'Custom Tools',
     'Add custom AI tools',
+  ],
+  integrations: [
+    'Local API Server', 'API Server', 'Enable API',
   ],
   updates: [
     'Auto-check for updates', 'Pre-release Channel',
@@ -1462,6 +1466,27 @@ export function SettingsPanel() {
                       </div>
                     </div>
                   </div>
+                )}
+              </>
+            )}
+
+            {/* ===== Integrations ===== */}
+            {activeTab === 'integrations' && (
+              <>
+                {matchesSearch('Local API Server') && (
+                  <SettingGroup label="Local API Server">
+                    <SettingToggle
+                      label="Enable API Server"
+                      description="Expose terminal state via localhost HTTP for external tools (Conjure, scripts, etc.)"
+                      value={(settings?.integrations as Record<string, unknown>)?.apiServer !== false}
+                      onChange={(v) => updateSetting.mutate([{ key: 'integrations.apiServer', value: v }])}
+                    />
+                    <div className="text-[10px] text-text-tertiary mt-1 px-1">
+                      Service discovery: <span className="font-mono">~/.subframe/api.json</span>
+                      <br />
+                      Auth: Bearer token (auto-generated, shown in System panel)
+                    </div>
+                  </SettingGroup>
                 )}
               </>
             )}
