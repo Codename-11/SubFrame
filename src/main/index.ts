@@ -341,6 +341,7 @@ function createWindow(): BrowserWindow {
   // ── Graceful Shutdown State ───────────────────────────────────────────────
   let shutdownInProgress = false;
   let pendingShutdownReason: 'close' | 'update' | 'close-confirm' | null = null;
+  let closeConfirmed = false; // Set after user confirms close — skips re-prompting
 
   /** Detect active work across all subsystems */
   function detectActiveWork() {
@@ -432,10 +433,11 @@ function createWindow(): BrowserWindow {
 
   ipcMain.handle(IPC.GRACEFUL_SHUTDOWN_CONFIRM, async () => {
     if (pendingShutdownReason === 'close-confirm') {
-      // Simple close confirmation — no active work, just destroy
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+      // Simple close confirmation — user said yes, close normally
       shutdownInProgress = false;
       pendingShutdownReason = null;
+      closeConfirmed = true; // Skip re-prompting in the close handler
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
     } else {
       await performGracefulShutdown();
     }
@@ -482,6 +484,9 @@ function createWindow(): BrowserWindow {
 
     // If nothing is active and the setting is off, close immediately
     if (!hasActiveWork && !confirmBeforeClose) return;
+
+    // Already confirmed by the user — let the close proceed
+    if (closeConfirmed) { closeConfirmed = false; return; }
 
     // If nothing is active but user wants confirmation on every close — in-app dialog
     if (!hasActiveWork && confirmBeforeClose) {
