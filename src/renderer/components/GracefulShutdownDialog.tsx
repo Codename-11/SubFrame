@@ -48,7 +48,7 @@ const STATUS_CONFIG: Record<TerminalStatus, { icon: typeof Loader2; color: strin
 
 export function GracefulShutdownDialog() {
   const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState<'close' | 'update'>('close');
+  const [reason, setReason] = useState<'close' | 'update' | 'close-confirm'>('close');
   const [terminals, setTerminals] = useState<GracefulShutdownTerminalInfo[]>([]);
   const [pipelineRunning, setPipelineRunning] = useState(false);
   const [analysisRunning, setAnalysisRunning] = useState(false);
@@ -113,11 +113,14 @@ export function GracefulShutdownDialog() {
   }, [open]);
 
   const isUpdate = reason === 'update';
-  const title = phase === 'complete'
-    ? (isUpdate ? 'Ready to Update' : 'Shutdown Complete')
-    : phase === 'shutting-down'
-      ? 'Closing Sessions...'
-      : (isUpdate ? 'Update — Active Work Detected' : 'Active Work in Progress');
+  const isSimpleConfirm = reason === 'close-confirm';
+  const title = isSimpleConfirm
+    ? 'Close SubFrame'
+    : phase === 'complete'
+      ? (isUpdate ? 'Ready to Update' : 'Shutdown Complete')
+      : phase === 'shutting-down'
+        ? 'Closing Sessions...'
+        : (isUpdate ? 'Update — Active Work Detected' : 'Active Work in Progress');
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && phase === 'confirm') handleCancel(); }}>
@@ -137,8 +140,13 @@ export function GracefulShutdownDialog() {
         </DialogTitle>
 
         <div className="space-y-4 py-2">
-          {/* Confirm phase — show what's running */}
-          {phase === 'confirm' && (
+          {/* Confirm phase — show what's running (or simple confirmation) */}
+          {phase === 'confirm' && isSimpleConfirm && (
+            <p className="text-sm text-secondary">
+              Are you sure you want to close SubFrame?
+            </p>
+          )}
+          {phase === 'confirm' && !isSimpleConfirm && (
             <>
               <p className="text-sm text-secondary">
                 {isUpdate
@@ -248,7 +256,27 @@ export function GracefulShutdownDialog() {
         </div>
 
         <DialogFooter className="gap-2">
-          {phase === 'confirm' && (
+          {phase === 'confirm' && isSimpleConfirm && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancel}
+                className="text-muted hover:text-primary"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConfirm}
+                className="bg-accent/20 text-accent hover:bg-accent/30"
+              >
+                <Power className="h-3.5 w-3.5 mr-1" />
+                Close
+              </Button>
+            </>
+          )}
+          {phase === 'confirm' && !isSimpleConfirm && (
             <>
               <Button
                 variant="ghost"

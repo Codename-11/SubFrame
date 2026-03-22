@@ -891,7 +891,7 @@ export interface GracefulShutdownTerminalInfo {
 
 /** Sent from main → renderer to open the graceful shutdown dialog */
 export interface GracefulShutdownRequest {
-  reason: 'close' | 'update';
+  reason: 'close' | 'update' | 'close-confirm';
   terminals: GracefulShutdownTerminalInfo[];
   pipelineRunning: boolean;
   analysisRunning: boolean;

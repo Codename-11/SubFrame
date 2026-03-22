@@ -340,7 +340,7 @@ function createWindow(): BrowserWindow {
 
   // ── Graceful Shutdown State ───────────────────────────────────────────────
   let shutdownInProgress = false;
-  let pendingShutdownReason: 'close' | 'update' | null = null;
+  let pendingShutdownReason: 'close' | 'update' | 'close-confirm' | null = null;
 
   /** Detect active work across all subsystems */
   function detectActiveWork() {
@@ -363,7 +363,7 @@ function createWindow(): BrowserWindow {
   }
 
   /** Send graceful shutdown request to renderer */
-  function requestGracefulShutdown(reason: 'close' | 'update'): void {
+  function requestGracefulShutdown(reason: 'close' | 'update' | 'close-confirm'): void {
     if (shutdownInProgress || !mainWindow || mainWindow.isDestroyed()) return;
     shutdownInProgress = true;
     pendingShutdownReason = reason;
@@ -431,7 +431,14 @@ function createWindow(): BrowserWindow {
   // ── Graceful Shutdown IPC Handlers ────────────────────────────────────────
 
   ipcMain.handle(IPC.GRACEFUL_SHUTDOWN_CONFIRM, async () => {
-    await performGracefulShutdown();
+    if (pendingShutdownReason === 'close-confirm') {
+      // Simple close confirmation — no active work, just destroy
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+      shutdownInProgress = false;
+      pendingShutdownReason = null;
+    } else {
+      await performGracefulShutdown();
+    }
   });
 
   ipcMain.handle(IPC.GRACEFUL_SHUTDOWN_CANCEL, () => {
@@ -476,20 +483,10 @@ function createWindow(): BrowserWindow {
     // If nothing is active and the setting is off, close immediately
     if (!hasActiveWork && !confirmBeforeClose) return;
 
-    // If nothing is active but user wants confirmation on every close — native dialog
+    // If nothing is active but user wants confirmation on every close — in-app dialog
     if (!hasActiveWork && confirmBeforeClose) {
       event.preventDefault();
-      const result = dialog.showMessageBoxSync(mainWindow!, {
-        type: 'question',
-        buttons: ['Cancel', 'Close'],
-        defaultId: 0,
-        cancelId: 0,
-        title: 'Close SubFrame',
-        message: 'Are you sure you want to close SubFrame?',
-      });
-      if (result === 1) {
-        mainWindow!.destroy();
-      }
+      requestGracefulShutdown('close-confirm');
       return;
     }
 
