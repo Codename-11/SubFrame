@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **System Panel** — app dashboard (`Ctrl+Shift+U`) with version/update status, AI tool config, health checks, API server toggle, shortcuts reference, and prompt library cards
+- **Local API Server** — localhost HTTP server with token auth for external integrations; endpoints for terminals, selection, buffer, context, and SSE event stream; service discovery via `~/.subframe/api.json`
+- **Prompt execution** — Shift+Click or Shift+Enter on prompts inserts and executes (sends Enter) in one action
+- **Per-project panel state** — right sidebar panels remember open/closed state per project
+- **Configurable max terminals** — Settings > Terminal > Behavior slider (1–20, default 9)
+- **Usage monitoring docs** — comprehensive feature docs covering the 4-layer data source hierarchy
+
+### Fixed
+- **Terminal scroll-to-bottom after workspace switch** — terminals reparented from the off-screen holder now properly restore scroll position via deferred viewport sync
+- **Scroll-to-bottom button** — direct DOM fallback ensures the button works even when xterm's viewport is desynced
+- **Usage tooltip** — hide noisy cache age for local source (renamed "Live"), show `lastUpdated` time when data is stale
+- **Usage tooltip double-render** — cache age and stale time indicators are now mutually exclusive
+- **API server error response** — no longer echoes user-supplied pathname; SSE event names sanitized for newline injection
+
 ## [0.6.0-beta] - 2026-03-22
 
 ### Added

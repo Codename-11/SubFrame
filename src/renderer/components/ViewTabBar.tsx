@@ -440,7 +440,7 @@ function UsageTooltip({ data, fetching }: { data: ClaudeUsageData | null; fetchi
         <span className="flex items-center gap-1 text-text-muted">
           <span className={`h-1.5 w-1.5 rounded-full ${sourceMeta.color} inline-block`} />
           {sourceMeta.label}
-          {source !== 'local-cache' && data.cacheAgeSeconds !== null && data.cacheAgeSeconds !== undefined && (
+          {source !== 'local-cache' && !data.error && data.cacheAgeSeconds != null && (
             <span className="font-mono">({data.cacheAgeSeconds}s ago)</span>
           )}
           {data.error && data.lastUpdated && (

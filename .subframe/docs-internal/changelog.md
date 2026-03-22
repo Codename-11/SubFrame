@@ -6,6 +6,30 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Terminal Scroll Fix & Max Terminals (2026-03-22)
+
+- **Scroll-to-bottom after workspace switch** — when terminals reparent from the off-screen 1px holder, xterm's viewport DOM retains stale scroll dimensions. Added deferred re-scroll (80ms setTimeout after double-rAF) that runs after browser layout pass, plus direct `viewport.scrollTop = viewport.scrollHeight` DOM fallback on the scroll button.
+- **Configurable max terminals** — replaced hardcoded `MAX_TERMINALS = 9` in ptyManager with `getMaxTerminals()` that reads `terminal.maxTerminals` from settings (1–20). Added slider to Settings > Terminal > Behavior.
+
+### System Panel & Local API Server (2026-03-22)
+
+- **System Panel** (`SystemPanel.tsx`) — new app dashboard at `Ctrl+Shift+U` with cards for version/update status, AI tool configuration, health checks, API server integration, keyboard shortcuts, and prompt library.
+- **Local API Server** (`apiServerManager.ts`) — localhost HTTP server with 48-byte random token auth. Endpoints: `/api/health` (no auth), `/api/terminals`, `/api/selection`, `/api/buffer/:id`, `/api/context`, `/api/events` (SSE). Service discovery via `~/.subframe/api.json`. Renderer bridge in `terminalRegistry.ts` handles main→renderer IPC for terminal data access.
+- **Prompt execution** — Shift+Click/Enter inserts prompt text and appends `\r` to execute in terminal.
+- **Per-project panel state** — right sidebar panel open/closed state persists per project path in useUIStore.
+
+### Usage Tooltip Cleanup (2026-03-22)
+
+- Renamed local-cache source label from "Local" → "Live" (it's the primary fast path, not a degraded cache)
+- Hidden cache age `(Xs ago)` for `local-cache` source — always fresh (<120s), just noise
+- Added `lastUpdated` time display (HH:MM) when data is stale (error fallback)
+- Made cache age and stale-time indicators mutually exclusive (was rendering both when source had cache age + error)
+
+### API Server Hardening (2026-03-22)
+
+- Removed pathname echo from 404 error responses (info disclosure)
+- Added newline sanitization on SSE event names (spec compliance)
+
 ### Usage Stats — Hybrid 4-Layer Approach (2026-03-21)
 
 #### Main Process (`claudeUsageManager.ts` — full rewrite)

@@ -190,7 +190,7 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       return; // Keep connection open
     }
 
-    sendError(res, 404, `Unknown endpoint: ${pathname}`);
+    sendError(res, 404, 'Unknown endpoint');
   } catch (err) {
     sendError(res, 500, (err as Error).message);
   }
@@ -201,7 +201,8 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
 /** Broadcast an event to all connected SSE clients */
 export function broadcastEvent(eventType: string, data: unknown): void {
   if (sseClients.size === 0) return;
-  const payload = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+  const safeName = eventType.replace(/[\r\n]/g, '');
+  const payload = `event: ${safeName}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of sseClients) {
     try { client.write(payload); } catch { sseClients.delete(client); }
   }
