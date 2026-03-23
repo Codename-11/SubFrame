@@ -30,6 +30,18 @@ let requestCount = 0;
 /** Per-terminal selection text, synced from renderer on selection change */
 const terminalSelections = new Map<string, string>();
 
+/** TTS message queue — most recent messages for GET /api/tts/latest and history */
+interface TTSMessage {
+  text: string;
+  voice: 'summary' | 'error' | 'status' | 'insight' | 'general';
+  priority: 'high' | 'normal' | 'low';
+  source: string;
+  timestamp: string;
+  id: string;
+}
+const ttsHistory: TTSMessage[] = [];
+const TTS_HISTORY_MAX = 50;
+
 /** SSE clients — kept alive for event broadcasting */
 const sseClients = new Set<http.ServerResponse>();
 
@@ -71,7 +83,7 @@ function writeServiceConfig(): void {
         pid: process.pid,
         protocolVersion: '1.0',
         appVersion,
-        capabilities: ['selection', 'context', 'buffer', 'events'],
+        capabilities: ['selection', 'context', 'buffer', 'events', 'tts'],
       }, null, 2), 'utf8');
     } catch (err) {
       console.warn('[API Server] DTSP registration failed:', err);
@@ -139,8 +151,8 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Authorization',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     });
     res.end();
     return;
@@ -199,6 +211,49 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
     if (pathname === '/api/context') {
       const data = await requestFromRenderer(IPC.API_GET_CONTEXT);
       sendJSON(res, 200, data);
+      return;
+    }
+
+    // ── POST /api/tts — accept TTS text from hooks/scripts ──
+    if (pathname === '/api/tts' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body) as { text?: string; voice?: string; priority?: string; source?: string };
+          if (!payload.text || typeof payload.text !== 'string' || payload.text.trim().length === 0) {
+            sendError(res, 400, 'Missing or empty "text" field');
+            return;
+          }
+          const msg: TTSMessage = {
+            id: crypto.randomUUID(),
+            text: payload.text.trim(),
+            voice: (['summary', 'error', 'status', 'insight', 'general'].includes(payload.voice ?? '') ? payload.voice : 'general') as TTSMessage['voice'],
+            priority: (['high', 'normal', 'low'].includes(payload.priority ?? '') ? payload.priority : 'normal') as TTSMessage['priority'],
+            source: payload.source || 'hook',
+            timestamp: new Date().toISOString(),
+          };
+          ttsHistory.unshift(msg);
+          if (ttsHistory.length > TTS_HISTORY_MAX) ttsHistory.length = TTS_HISTORY_MAX;
+          broadcastEvent('tts-speak', msg);
+          sendJSON(res, 200, { ok: true, id: msg.id });
+        } catch {
+          sendError(res, 400, 'Invalid JSON body');
+        }
+      });
+      return;
+    }
+
+    // ── GET /api/tts/latest — most recent TTS message ──
+    if (pathname === '/api/tts/latest') {
+      sendJSON(res, 200, { message: ttsHistory[0] ?? null });
+      return;
+    }
+
+    // ── GET /api/tts/history — recent TTS messages ──
+    if (pathname === '/api/tts/history') {
+      const limit = parseInt(url.searchParams.get('limit') ?? '10', 10);
+      sendJSON(res, 200, { messages: ttsHistory.slice(0, Math.min(limit, TTS_HISTORY_MAX)) });
       return;
     }
 

@@ -6,6 +6,21 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### TTS Endpoint for Agent-Initiated Speech (2026-03-22)
+
+- **POST /api/tts** — accepts `{ text, voice, priority, source }` from Claude Code hooks. Voice profiles: `summary`, `error`, `status`, `insight`, `general`. Stores in circular history buffer (50 max). Broadcasts `tts-speak` SSE event to all connected consumers.
+- **GET /api/tts/latest** — returns most recent TTS message.
+- **GET /api/tts/history** — returns recent messages (configurable `?limit=N`).
+- **DTSP capabilities** updated to include `tts` — consumers like Conjure can detect TTS support via the `capabilities` array in `~/.dtsp/sources/subframe.json`.
+- **CORS** updated: `POST` method and `Content-Type` header added to preflight.
+
+### GitHub Workflows & Shortcut Fixes (2026-03-22)
+
+- **GitHub Workflows tab** — new panel showing all repo workflows with recent run statuses (success/failure/in-progress), branch, title, click-to-open. Uses `gh workflow list` + `gh run list` via CLI.
+- **Claude Code shortcuts unblocked** — Ctrl+T (task toggle), Ctrl+I, Ctrl+H, Ctrl+E no longer intercepted by SubFrame's terminal key handler.
+- **Usage tooltip "(soon)"** — stale reset countdowns now hidden instead of showing "(soon)" indefinitely.
+- **GitHub icon** — proper GitHub icon in ViewTabBar.
+
 ### Terminal Scroll Fix & Max Terminals (2026-03-22)
 
 - **Scroll-to-bottom after workspace switch** — when terminals reparent from the off-screen 1px holder, xterm's viewport DOM retains stale scroll dimensions. Added deferred re-scroll (80ms setTimeout after double-rAF) that runs after browser layout pass, plus direct `viewport.scrollTop = viewport.scrollHeight` DOM fallback on the scroll button.

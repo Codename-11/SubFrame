@@ -452,7 +452,8 @@ function APIServerCard() {
 
   const endpoints = [
     '/api/health', '/api/terminals', '/api/terminals/:id/selection',
-    '/api/terminals/:id/buffer', '/api/selection', '/api/context', '/api/events',
+    '/api/terminals/:id/buffer', '/api/selection', '/api/context',
+    '/api/tts', '/api/tts/latest', '/api/tts/history', '/api/events',
   ];
 
   return (
@@ -596,7 +597,9 @@ function APIServerCard() {
                   ['/api/context', 'Terminal name, project, agent status'],
                   ['/api/terminals', 'List all terminals'],
                   ['/api/buffer', 'Visible terminal buffer'],
-                  ['/api/events', 'SSE event stream'],
+                  ['POST /api/tts', 'Submit TTS text from hooks'],
+                  ['/api/tts/latest', 'Most recent TTS message'],
+                  ['/api/events', 'SSE stream (incl. tts-speak)'],
                 ].map(([ep, desc]) => (
                   <div key={ep}>
                     <span className="font-mono text-accent text-[10px]">{ep}</span>
@@ -709,7 +712,7 @@ function DTSPCard() {
             <div>
               <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1">Capabilities declared</div>
               <div className="flex flex-wrap gap-1.5 mt-0.5">
-                {['selection', 'context', 'buffer', 'events'].map((cap) => (
+                {['selection', 'context', 'buffer', 'events', 'tts'].map((cap) => (
                   <span key={cap} className="inline-flex items-center gap-1 rounded bg-bg-tertiary px-1.5 py-0.5 text-[10px] font-mono text-text-secondary">
                     {cap}
                   </span>

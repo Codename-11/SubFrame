@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-22",
+    "lastUpdated": "2026-03-23",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-22T22:00:08.070Z",
+  "lastUpdated": "2026-03-23T01:37:27.102Z",
   "tasks": {
     "pending": [
       {
@@ -1059,6 +1059,42 @@
         "completedAt": "2026-03-21T22:10:44.805Z",
         "description": "Workspaces should be enhanced for UI/UX.",
         "steps": []
+      },
+      {
+        "id": "task-1774215076925-mma0wepgh",
+        "title": "Add GitHub Actions workflow run status to GitHub panel",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-22T21:31:16.926Z",
+        "updatedAt": "2026-03-22T22:00:08.067Z",
+        "completedAt": "2026-03-22T22:00:08.067Z",
+        "description": "Add a new 'Workflows' tab to the existing GitHub panel that displays GitHub Actions workflows and their recent run statuses using the gh CLI. Users can see at a glance which workflows are passing, failing, or in progress, and click through to view runs on GitHub.",
+        "acceptanceCriteria": "- New 'Workflows' tab appears in the GitHub panel alongside Issues, PRs, Branches, Worktrees, and Changes\n- Lists all repository workflows with their name and current state\n- Shows recent runs for each workflow with status badges (success/failure/in_progress/cancelled)\n- Displays run metadata: branch, commit message summary, trigger event, duration, and timestamp\n- Clicking a workflow run opens it on GitHub via shell.openExternal\n- Loading and error states match existing GitHub panel tab patterns\n- Refresh button fetches latest workflow data\n- Gracefully handles repos with no workflows or when gh CLI is unavailable",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Define GitHubWorkflow and GitHubWorkflowRun interfaces and IPC channels in ipcChannels.ts"
+          },
+          {
+            "completed": false,
+            "label": "Add loadWorkflows and loadWorkflowRuns methods to githubManager.ts using gh CLI"
+          },
+          {
+            "completed": false,
+            "label": "Create useGithubWorkflows and useGithubWorkflowRuns hooks in useGithub.ts"
+          },
+          {
+            "completed": false,
+            "label": "Build GithubWorkflowsPanel component with status badges and run list"
+          },
+          {
+            "completed": true,
+            "label": "Wire Workflows tab into GithubPanel tab bar and routing"
+          }
+        ]
       },
       {
         "id": "task-c1",
@@ -2190,38 +2226,40 @@
         "steps": []
       },
       {
-        "id": "task-1774215076925-mma0wepgh",
-        "title": "Add GitHub Actions workflow run status to GitHub panel",
+        "id": "task-mn2iib4r-f6qx",
+        "title": "TTS endpoint for agent-initiated speech via DTSP",
         "status": "completed",
         "priority": "medium",
         "category": "feature",
+        "context": "Session 2026-03-23",
         "blockedBy": [],
         "blocks": [],
-        "createdAt": "2026-03-22T21:31:16.926Z",
-        "updatedAt": "2026-03-22T22:00:08.067Z",
-        "completedAt": "2026-03-22T22:00:08.067Z",
-        "description": "Add a new 'Workflows' tab to the existing GitHub panel that displays GitHub Actions workflows and their recent run statuses using the gh CLI. Users can see at a glance which workflows are passing, failing, or in progress, and click through to view runs on GitHub.",
-        "acceptanceCriteria": "- New 'Workflows' tab appears in the GitHub panel alongside Issues, PRs, Branches, Worktrees, and Changes\n- Lists all repository workflows with their name and current state\n- Shows recent runs for each workflow with status badges (success/failure/in_progress/cancelled)\n- Displays run metadata: branch, commit message summary, trigger event, duration, and timestamp\n- Clicking a workflow run opens it on GitHub via shell.openExternal\n- Loading and error states match existing GitHub panel tab patterns\n- Refresh button fetches latest workflow data\n- Gracefully handles repos with no workflows or when gh CLI is unavailable",
+        "createdAt": "2026-03-23T01:33:43.514Z",
+        "updatedAt": "2026-03-23T01:37:27.098Z",
+        "completedAt": "2026-03-23T01:37:27.098Z",
+        "description": "Add POST /api/tts endpoint to the Local API Server that accepts TTS-optimized text from Claude Code hooks. Broadcasts tts-speak SSE events for Conjure to auto-speak. Voice profiles (summary, error, status, insight) let consumers adjust tone. Includes hook template for Claude to generate TTS text.",
+        "userRequest": "Add a TTS endpoint to DTSP so Claude can generate speech-formatted text via hooks, and Conjure can consume it for auto-speak",
+        "acceptanceCriteria": "POST /api/tts accepts text+voice+priority, broadcasts tts-speak SSE event, GET /api/tts/latest returns most recent, hook template included, DTSP capabilities updated",
         "steps": [
           {
             "completed": false,
-            "label": "Define GitHubWorkflow and GitHubWorkflowRun interfaces and IPC channels in ipcChannels.ts"
+            "label": "Add POST /api/tts and GET /api/tts/latest endpoints"
           },
           {
             "completed": false,
-            "label": "Add loadWorkflows and loadWorkflowRuns methods to githubManager.ts using gh CLI"
+            "label": "Broadcast tts-speak SSE events"
           },
           {
             "completed": false,
-            "label": "Create useGithubWorkflows and useGithubWorkflowRuns hooks in useGithub.ts"
+            "label": "Update DTSP capabilities to include tts"
           },
           {
             "completed": false,
-            "label": "Build GithubWorkflowsPanel component with status badges and run list"
+            "label": "Add hook template for TTS text generation"
           },
           {
             "completed": true,
-            "label": "Wire Workflows tab into GithubPanel tab bar and routing"
+            "label": "Update docs and generate Conjure handoff spec"
           }
         ]
       }
