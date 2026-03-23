@@ -32,6 +32,30 @@ The terminal is the heart of SubFrame. You can run multiple terminal sessions si
 - `Ctrl+1` through `Ctrl+9` — Jump to terminal by position
 :::
 
+## Workspaces
+
+Workspaces let you organize projects into groups and switch between them instantly. Each workspace has its own set of projects, terminal sessions, and layout state.
+
+**Workspace Tab Bar** — All active workspaces appear as persistent tabs at the top of the sidebar. Each tab shows the workspace name, project count, and a live agent status indicator (green pulsing dot when an AI agent is running). Click to switch, right-click for options (Rename, Deactivate, Move, Delete). Switch with `Ctrl+Alt+1` through `Ctrl+Alt+9`.
+
+**Quick Switcher** — Press `Ctrl+Alt+W` to open the Command Palette pre-filtered to workspaces. Type to fuzzy-search across all workspaces.
+
+**Terminal Pinning** — Pin any terminal to keep it visible when switching workspaces. Right-click a terminal tab and select "Pin Terminal". Pinned terminals from other projects show a project name badge and accent border. Pin state persists across restarts.
+
+**Inactive Workspaces** — Deactivate workspaces you're not currently using. They move to a separate section in the overflow menu and don't appear in the tab bar or keyboard shortcuts.
+
+## Terminal Session Persistence
+
+SubFrame saves and restores your terminal sessions across app restarts.
+
+**What's Restored** — Terminal count, names, working directory, shell type, grid layout, and tab order are all saved per-project and restored on next launch.
+
+**Scrollback Persistence** — Optionally save terminal scrollback content to disk. Enable via Settings > Terminal > Restore Scrollback. Restored content appears dimmed to distinguish it from new output.
+
+**Agent Session Resume** — When a terminal had an active Claude session, SubFrame offers to resume it on restart. Configure the behavior in Settings > Terminal > Auto Resume Agent (`auto`, `prompt`, or `never`).
+
+**Agent Exit Detection** — SubFrame detects when AI agents exit via shell prompt detection and session state monitoring. The agent status indicator updates within seconds of the agent exiting.
+
 ## Sub-Task System
 
 Track project work with markdown-based tasks featuring YAML frontmatter, step checklists, and dependency graphs. View tasks in table, kanban, or graph mode from the Sub-Tasks panel (`Ctrl+Shift+S`). Toggle full-view mode with `Ctrl+Shift+K` for a larger workspace.

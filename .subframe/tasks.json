@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-23T02:25:47.587Z",
+  "lastUpdated": "2026-03-23T23:20:32.402Z",
   "tasks": {
     "pending": [
       {
@@ -809,6 +809,52 @@
             "label": "Handle missing preferences gracefully (first switch to a workspace)"
           }
         ]
+      },
+      {
+        "id": "task-mn3eogep-5e7p",
+        "title": "Global notifications system",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-23",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-23T16:34:18.000Z",
+        "updatedAt": "2026-03-23T16:34:18.000Z",
+        "completedAt": null,
+        "description": "Research and design a unified notifications system for SubFrame. Currently GitHub notifications exist as a panel, but SubFrame could benefit from a global notification system that aggregates: GitHub notifications, sub-task status changes, workflow run completions/failures, agent session events, update availability, and other system events. Consider: notification center UI (bell icon in sidebar/titlebar with badge count), notification persistence (localStorage or file-based), notification preferences/filtering, toast vs persistent notifications, desktop OS notifications via Electron Notification API, and how this integrates with the existing per-panel notification sources.",
+        "userRequest": "Consider/research global notifications system",
+        "steps": []
+      },
+      {
+        "id": "task-mn3t6lif-8ogg",
+        "title": "Settings UI for terminal persistence",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-23",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-23T23:20:19.046Z",
+        "updatedAt": "2026-03-23T23:20:19.046Z",
+        "completedAt": null,
+        "description": "Add UI controls in SettingsPanel for the new terminal persistence settings: restoreOnStartup toggle, restoreScrollback toggle, autoResumeAgent dropdown (auto/prompt/never), agentExitTimeout slider, maxScrollbackExport input. These settings exist in settingsManager but have no UI yet.",
+        "steps": []
+      },
+      {
+        "id": "task-mn3t6vrx-kgmb",
+        "title": "Workspace-specific panel state save/restore",
+        "status": "pending",
+        "priority": "low",
+        "category": "feature",
+        "context": "Session 2026-03-23",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-23T23:20:32.348Z",
+        "updatedAt": "2026-03-23T23:20:32.348Z",
+        "completedAt": null,
+        "description": "Save which right panel is open per workspace/project. When switching workspaces, restore the panel state (e.g. SubFrame had Tasks panel open, Conjure had GitHub Issues). Currently panel state is global — switching workspace doesn't change which panel is shown.",
+        "steps": []
       }
     ],
     "inProgress": [],
@@ -1095,6 +1141,20 @@
             "label": "Wire Workflows tab into GithubPanel tab bar and routing"
           }
         ]
+      },
+      {
+        "id": "task-1774232366453-146i5qq5c",
+        "title": "Allow Workspaces to be 'Active'/'Inactive'",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-23T02:19:26.453Z",
+        "updatedAt": "2026-03-23T02:25:47.583Z",
+        "completedAt": "2026-03-23T02:25:47.583Z",
+        "description": "Allow Workspaces to be 'Active' or 'Inactive' which would show in workspaces displays with a seperator - sorting would prefer Active workspaces and keyboard shortcuts would only cycle through active workspaces. Right click context for enable/disable activation.",
+        "steps": []
       },
       {
         "id": "task-c1",
@@ -2261,20 +2321,6 @@
         "completedAt": "2026-03-08T02:31:08.401Z",
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
-        "steps": []
-      },
-      {
-        "id": "task-1774232366453-146i5qq5c",
-        "title": "Allow Workspaces to be 'Active'/'Inactive'",
-        "status": "completed",
-        "priority": "medium",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-23T02:19:26.453Z",
-        "updatedAt": "2026-03-23T02:25:47.583Z",
-        "completedAt": "2026-03-23T02:25:47.583Z",
-        "description": "Allow Workspaces to be 'Active' or 'Inactive' which would show in workspaces displays with a seperator - sorting would prefer Active workspaces and keyboard shortcuts would only cycle through active workspaces. Right click context for enable/disable activation.",
         "steps": []
       }
     ]

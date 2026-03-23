@@ -90,7 +90,7 @@ export function StatusBar() {
       {/* ── Left sections ──────────────────────────────────────────────── */}
 
       {/* Git */}
-      <Section onClick={() => setActivePanel('gitChanges')} title="Git status">
+      <Section onClick={() => setActivePanel('gitChanges')} title="Git status — click to open Changes panel">
         <GitBranch size={11} className="text-text-muted shrink-0" />
         <span className="font-mono">
           {branch || 'no branch'}
@@ -113,7 +113,7 @@ export function StatusBar() {
       <Divider />
 
       {/* Agent */}
-      <Section onClick={() => setActivePanel('agentState')} title="Agent activity">
+      <Section onClick={() => setActivePanel('agentState')} title="Agent status — click to open Activity panel">
         <Bot size={11} className={cn('shrink-0', activeAgents > 0 ? 'text-success' : 'text-text-muted')} />
         {activeAgents > 0 ? (
           <span className="text-success">{activeAgents} active</span>
@@ -125,7 +125,7 @@ export function StatusBar() {
       <Divider />
 
       {/* Sub-Tasks */}
-      <Section onClick={() => setActivePanel('tasks')} title="Sub-Tasks">
+      <Section onClick={() => setActivePanel('tasks')} title="Sub-Tasks — click to open Tasks panel">
         <ListTodo size={11} className="text-text-muted shrink-0" />
         {inProgressCount > 0 || pendingCount > 0 ? (
           <span>
@@ -147,7 +147,7 @@ export function StatusBar() {
       <Divider />
 
       {/* GitHub Workflows */}
-      <Section onClick={() => setActivePanel('githubWorkflows')} title="GitHub workflows">
+      <Section onClick={() => setActivePanel('githubWorkflows')} title="CI status — click to open Workflows panel">
         <span className="relative shrink-0">
           <GitPullRequestArrow size={11} className="text-text-muted" />
           {hasFailedWorkflow && (
@@ -168,7 +168,7 @@ export function StatusBar() {
       {/* Output Channels */}
       <Section
         onClick={() => window.dispatchEvent(new Event('toggle-activity-bar'))}
-        title="Toggle activity output"
+        title="Toggle output channels"
       >
         <Terminal size={11} className="text-text-muted shrink-0" />
         <span className="text-text-muted">Output</span>

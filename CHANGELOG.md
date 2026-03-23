@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Per-project panel state** — right sidebar panels remember open/closed state per project
 - **Overview full-view default** — Overview and System buttons open as full-page tabs, not right sidebar
 - **Configurable max terminals** — Settings > Terminal > Behavior slider (1–20, default 9)
+- **Workspace tab bar** — persistent horizontal tabs replacing dropdown; each tab shows name, project count, and live agent status indicator (green pulsing dot when agent is active)
+- **Workspace quick switcher** — `Ctrl+Alt+W` opens Command Palette pre-filtered to workspaces; `Ctrl+Alt+1`–`9` for direct switch
+- **Cross-project terminal pinning** — pin terminals to keep them visible when switching workspaces; pinned tabs show project name badge and accent border
+- **Persistent status bar** — thin bar at the bottom showing git branch/status, agent count, sub-task counts, CI workflow status, and output channel toggle
+- **Output channels** — VS Code-style named log channels (onboarding, pipeline, etc.) with viewer in Activity Bar
+- **GitHub panel enhancements** — Send to Agent, expandable detail view, create issue, PR review, workflow re-run/dispatch, notifications
+- **Terminal session persistence** — save/restore terminal count, names, cwd, shell type, grid layout, and tab order across app restarts
+- **Scrollback persistence** — optionally save and restore terminal scrollback content (Settings > Terminal > Restore Scrollback)
+- **Agent session resume** — offer to resume Claude sessions on restart (`auto`, `prompt`, or `never` modes)
+- **Agent exit detection** — shell-prompt-return detection (❯ pattern), reduced timeout, agent-state staleness polling
+- **Claude GitHub workflows** — triage/fix/chat modes with collaborator-only access
+- **GitHub integration docs page** — full reference for GitHub panel features and workflows
 
 ### Fixed
 - **CodeMirror selection highlight** — word under cursor now highlighted; whole-word matching only; `.cm-selectionMatch` styled across all 3 themes
@@ -27,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API server error response** — no longer echoes user-supplied pathname; SSE event names sanitized
 - **Usage tooltip source mismatch** — in-memory fallback no longer inherits stale `source: 'api'`; new `'cached'` source type with amber indicator and `lastUpdated` time
 - **Usage tooltip double-render** — cache age and stale-time indicators now mutually exclusive
+- **Workspace deactivation** — deactivating the active workspace now correctly switches to another workspace first instead of always failing
+- **Default terminal grid layout** — now 1x1 (single full view) instead of 1x2
+- **Shell injection in GitHub** — user input in issue creation and workflow dispatch is now sanitized
+- **`restoreScrollback` setting ignored** — setting was not being read; scrollback now respects the toggle
+- **Stale agent status** — ❯ prompt pattern conflict resolved; agent status updates within seconds of exit
 
 ### Improved
 - **System Panel UI** — animated atom logo hero with gradient version number, shimmer gradient section dividers, spring-based card hover micro-interactions, pulsing status dot on running API server

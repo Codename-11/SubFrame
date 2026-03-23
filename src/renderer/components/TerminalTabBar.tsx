@@ -19,6 +19,8 @@ import {
   FileText,
   Pin,
   PinOff,
+  Pause,
+  Play,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -92,6 +94,8 @@ export function TerminalTabBar({
   const pinnedTerminals = useTerminalStore((s) => s.pinnedTerminals);
   const pinTerminal = useTerminalStore((s) => s.pinTerminal);
   const unpinTerminal = useTerminalStore((s) => s.unpinTerminal);
+  const frozenTerminals = useTerminalStore((s) => s.frozenTerminals);
+  const toggleFreezeTerminal = useTerminalStore((s) => s.toggleFreezeTerminal);
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -198,6 +202,19 @@ export function TerminalTabBar({
     [reorderTerminals]
   );
 
+  /** Toggle freeze on the active terminal (syncs registry + store) */
+  const handleToggleFreeze = useCallback(() => {
+    if (!activeTerminalId) return;
+    if (terminalRegistry.isFrozen(activeTerminalId)) {
+      terminalRegistry.unfreeze(activeTerminalId);
+    } else {
+      terminalRegistry.freeze(activeTerminalId);
+    }
+    toggleFreezeTerminal(activeTerminalId);
+  }, [activeTerminalId, toggleFreezeTerminal]);
+
+  const isActiveFrozen = activeTerminalId ? frozenTerminals.has(activeTerminalId) : false;
+
   return (
     <div className="flex items-center h-9 bg-bg-secondary border-b border-border-subtle px-1 gap-0.5 flex-shrink-0">
       {/* Tabs */}
@@ -297,7 +314,13 @@ export function TerminalTabBar({
                       )}
                       {/* Pin indicator for native terminals that are pinned */}
                       {pinnedTerminals.has(t.id) && !crossProjectIds.has(t.id) && (
-                        <Pin className="h-2.5 w-2.5 text-accent/60 flex-shrink-0" />
+                        <span title="Pinned — visible across workspaces" className="flex-shrink-0 flex items-center">
+                          <Pin className="h-2.5 w-2.5 text-accent/60" />
+                        </span>
+                      )}
+                      {/* Frozen indicator */}
+                      {frozenTerminals.has(t.id) && (
+                        <Pause className="h-2.5 w-2.5 text-info flex-shrink-0" title="Output frozen" />
                       )}
                       {/* Agent active indicator */}
                       {t.claudeActive && (
@@ -543,6 +566,29 @@ export function TerminalTabBar({
             </TooltipTrigger>
             <TooltipContent side="bottom">
               <p>{viewMode === 'tabs' ? 'Grid View' : 'Tab View'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Freeze/resume output toggle */}
+        <TooltipProvider delayDuration={400}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleToggleFreeze}
+                className={`flex items-center h-7 px-1.5 rounded-md transition-colors cursor-pointer
+                           ${
+                             isActiveFrozen
+                               ? 'text-info bg-info/10'
+                               : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+                           }`}
+                aria-label={isActiveFrozen ? 'Resume output' : 'Freeze output'}
+              >
+                {isActiveFrozen ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{isActiveFrozen ? 'Resume — flush buffered output (Ctrl+Shift+F)' : 'Freeze — pause output scrolling (Ctrl+Shift+F)'}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

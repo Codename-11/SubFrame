@@ -62,6 +62,15 @@ Double-click any terminal tab to rename it. Press <kbd>Enter</kbd> to confirm or
 <kbd>Ctrl+Shift+G</kbd> is mapped to both the grid view toggle and the GitHub panel. The grid view toggle takes priority when a terminal is active.
 :::
 
+## Workspaces
+
+| Shortcut | macOS | Action |
+|----------|-------|--------|
+| <kbd>Ctrl+Alt+W</kbd> | <kbd>⌘+Alt+W</kbd> | Quick switch workspace |
+| <kbd>Ctrl+Alt+1</kbd> through <kbd>Ctrl+Alt+9</kbd> | <kbd>⌘+Alt+1</kbd> through <kbd>⌘+Alt+9</kbd> | Switch to workspace by position |
+| <kbd>Ctrl+Alt+[</kbd> | <kbd>⌘+Alt+[</kbd> | Previous workspace |
+| <kbd>Ctrl+Alt+]</kbd> | <kbd>⌘+Alt+]</kbd> | Next workspace |
+
 ## Navigation
 
 | Shortcut | macOS | Action |

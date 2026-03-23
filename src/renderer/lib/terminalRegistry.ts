@@ -144,6 +144,54 @@ interface RegistryEntry extends TerminalInstance {
 
 const registry = new Map<string, RegistryEntry>();
 
+// ---------------------------------------------------------------------------
+// Freeze/unfreeze — buffer output while frozen, flush on unfreeze
+// ---------------------------------------------------------------------------
+
+const frozenBuffers = new Map<string, string[]>();
+
+/** Start buffering output for a terminal (freeze display). */
+export function freeze(id: string): void {
+  if (!frozenBuffers.has(id)) {
+    frozenBuffers.set(id, []);
+  }
+}
+
+/** Stop buffering and flush all buffered output to the terminal. */
+export function unfreeze(id: string): void {
+  const entry = registry.get(id);
+  const buffer = frozenBuffers.get(id);
+  if (entry && buffer && buffer.length > 0) {
+    for (const chunk of buffer) {
+      entry.terminal.write(chunk);
+    }
+  }
+  frozenBuffers.delete(id);
+}
+
+/** Check if a terminal is currently frozen. */
+export function isFrozen(id: string): boolean {
+  return frozenBuffers.has(id);
+}
+
+/** Get number of buffered chunks for a frozen terminal. */
+export function getFrozenBufferSize(id: string): number {
+  return frozenBuffers.get(id)?.length ?? 0;
+}
+
+/**
+ * Write data to a terminal, or buffer it if the terminal is frozen.
+ * Use this instead of direct terminal.write() for PTY output.
+ */
+export function writeOrBuffer(id: string, data: string): void {
+  if (frozenBuffers.has(id)) {
+    frozenBuffers.get(id)!.push(data);
+  } else {
+    const entry = registry.get(id);
+    if (entry) entry.terminal.write(data);
+  }
+}
+
 // Off-screen holder for detached terminals — stays in the DOM so xterm buffers work
 let holderRoot: HTMLDivElement | null = null;
 function getHolderRoot(): HTMLDivElement {
@@ -253,9 +301,11 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
   }
 
   // Persistent IPC output listener — keeps scrollback alive even when not visible
+  // Uses writeOrBuffer to support freeze/unfreeze — when frozen, output is buffered
+  // and flushed on unfreeze instead of being written directly to the terminal.
   const handler = (_event: unknown, payload: { terminalId: string; data: string }) => {
     if (payload.terminalId === id) {
-      terminal.write(payload.data);
+      writeOrBuffer(id, payload.data);
     }
   };
   ipcRenderer.on(IPC.TERMINAL_OUTPUT_ID, handler);
@@ -317,6 +367,9 @@ export function dispose(id: string): void {
   }
   entry.userMessageMarkers = [];
   markerChangeListeners.delete(id);
+
+  // Clean up frozen buffer
+  frozenBuffers.delete(id);
 
   entry.ipcCleanup();
   try {

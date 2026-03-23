@@ -3,7 +3,7 @@
  * Opens via useUIStore.settingsOpen.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -11,10 +11,13 @@ import {
   FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink,
   Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
   Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search, Globe,
+  Zap, ChevronDown, ChevronRight, Pencil, Copy, Wand2, Play, Shield, FileCode, Bell,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
+import { useProjectStore } from '../stores/useProjectStore';
+import { useTerminalStore } from '../stores/useTerminalStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
-import { typedInvoke } from '../lib/ipc';
+import { typedInvoke, typedSend } from '../lib/ipc';
 import { IPC, type ShellInfo } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 import { EDITOR_THEMES } from '../lib/codemirror-theme';
@@ -60,6 +63,7 @@ const NAV_ITEMS = [
   { key: 'terminal', label: 'Terminal', icon: TerminalSquare },
   { key: 'editor', label: 'Editor', icon: Code2 },
   { key: 'ai-tool', label: 'AI Tool', icon: Bot },
+  { key: 'hooks', label: 'Hooks', icon: Zap },
   { key: 'integrations', label: 'Integrations', icon: Globe },
   { key: 'updates', label: 'Updates', icon: Download },
   { key: 'about', label: 'About', icon: Info },
@@ -93,6 +97,12 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Active Tool', 'Start Command', 'Custom Tools',
     'Add custom AI tools',
   ],
+  hooks: [
+    'Hooks', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop',
+    'UserPromptSubmit', 'SessionStart', 'Add Hook', 'Templates',
+    'AI Generate', 'Block .env writes', 'Log all commands',
+    'Auto-approve reads', 'Notify on completion',
+  ],
   integrations: [
     'Local API Server', 'API Server', 'Enable API', 'DTSP', 'Desktop Text Source Protocol',
   ],
@@ -105,6 +115,77 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Changelog', 'Links', 'About',
   ],
 };
+
+/* ---------- Hooks types & constants ---------- */
+
+/** A single hook command entry in Claude Code's settings.json */
+interface HookCommand {
+  type: 'command';
+  command: string;
+}
+
+/** A hook entry (matcher + list of commands) */
+interface HookEntry {
+  matcher: string;
+  hooks: HookCommand[];
+}
+
+/** The hooks object from .claude/settings.json */
+interface HooksConfig {
+  [eventType: string]: HookEntry[];
+}
+
+/** All supported hook event types */
+const HOOK_EVENT_TYPES = [
+  { key: 'PreToolUse', label: 'Pre Tool Use', description: 'Runs before a tool is executed', icon: Shield },
+  { key: 'PostToolUse', label: 'Post Tool Use', description: 'Runs after a tool completes', icon: Check },
+  { key: 'Notification', label: 'Notification', description: 'Runs on notifications', icon: Bell },
+  { key: 'Stop', label: 'Stop', description: 'Runs when Claude stops responding', icon: Play },
+  { key: 'UserPromptSubmit', label: 'Prompt Submit', description: 'Runs when user submits a prompt', icon: FileText },
+  { key: 'SessionStart', label: 'Session Start', description: 'Runs at session start', icon: Zap },
+] as const;
+
+/** Common matcher suggestions per event type */
+const MATCHER_SUGGESTIONS: Record<string, string[]> = {
+  PreToolUse: ['Bash', 'Write', 'Read', 'Edit', 'Glob', 'Grep', '*'],
+  PostToolUse: ['Bash', 'Write', 'Read', 'Edit', '*'],
+  Notification: [''],
+  Stop: [''],
+  UserPromptSubmit: [''],
+  SessionStart: [''],
+};
+
+/** Quick hook templates */
+const HOOK_TEMPLATES = [
+  {
+    name: 'Block .env writes',
+    description: 'Prevent writing to .env files',
+    eventType: 'PreToolUse',
+    matcher: 'Write',
+    scriptDescription: 'Block any writes to files matching .env* patterns. If the tool_input.file_path contains ".env", output a JSON object with { "decision": "block", "reason": "Writing to .env files is not allowed" }.',
+  },
+  {
+    name: 'Log all commands',
+    description: 'Log tool usage to a file',
+    eventType: 'PostToolUse',
+    matcher: '*',
+    scriptDescription: 'Log the tool name, timestamp, and a summary of the tool input to a file at .claude/hooks/tool-log.txt. Append each entry as a new line.',
+  },
+  {
+    name: 'Auto-approve reads',
+    description: 'Auto-approve read-only tools',
+    eventType: 'PreToolUse',
+    matcher: 'Read',
+    scriptDescription: 'Auto-approve all Read tool invocations by outputting a JSON object with { "decision": "approve" }.',
+  },
+  {
+    name: 'Notify on completion',
+    description: 'Desktop notification when agent stops',
+    eventType: 'Stop',
+    matcher: '',
+    scriptDescription: 'Send a desktop notification (using node-notifier or native OS commands) saying "Claude has finished responding" when the agent stops.',
+  },
+];
 
 /* ---------- Reusable setting components (file-local) ---------- */
 
@@ -295,6 +376,21 @@ export function SettingsPanel() {
   const [newToolCommand, setNewToolCommand] = useState('');
   const [newToolDescription, setNewToolDescription] = useState('');
 
+  // Hooks state
+  const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
+  const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
+  const [hooksConfig, setHooksConfig] = useState<HooksConfig>({});
+  const [hooksLoading, setHooksLoading] = useState(false);
+  const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set(['PreToolUse', 'PostToolUse']));
+  const [showAddHookDialog, setShowAddHookDialog] = useState(false);
+  const [editingHook, setEditingHook] = useState<{ eventType: string; entryIndex: number } | null>(null);
+  const [hookFormEvent, setHookFormEvent] = useState('PreToolUse');
+  const [hookFormMatcher, setHookFormMatcher] = useState('');
+  const [hookFormCommand, setHookFormCommand] = useState('');
+  const [showAIGenerate, setShowAIGenerate] = useState(false);
+  const [aiGeneratePrompt, setAiGeneratePrompt] = useState('');
+  const [disabledHooks, setDisabledHooks] = useState<Set<string>>(new Set());
+
   // Sync form state from loaded data
   useEffect(() => {
     if (!settings) return;
@@ -402,6 +498,207 @@ export function SettingsPanel() {
     updateSetting.mutate([{ key: 'updater.checkIntervalHours', value: checkIntervalHours }]);
     toast.success('Update settings saved');
   }
+
+  /* ---------- Hooks helpers ---------- */
+
+  const claudeSettingsPath = currentProjectPath
+    ? `${currentProjectPath.replace(/\\/g, '/')}/.claude/settings.json`
+    : null;
+
+  /** Load hooks from .claude/settings.json via IPC send/response */
+  const loadHooks = useCallback(() => {
+    if (!claudeSettingsPath) return;
+    setHooksLoading(true);
+
+    const handler = (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
+      if (result.filePath !== claudeSettingsPath) return;
+      ipcRenderer.removeListener(IPC.FILE_CONTENT, handler);
+      setHooksLoading(false);
+
+      if (result.error || !result.content) {
+        setHooksConfig({});
+        return;
+      }
+      try {
+        const parsed = JSON.parse(result.content);
+        setHooksConfig((parsed.hooks as HooksConfig) || {});
+      } catch {
+        setHooksConfig({});
+      }
+    };
+
+    ipcRenderer.on(IPC.FILE_CONTENT, handler);
+    typedSend(IPC.READ_FILE, claudeSettingsPath);
+  }, [claudeSettingsPath]);
+
+  /** Save hooks back to .claude/settings.json */
+  const saveHooks = useCallback((newHooks: HooksConfig) => {
+    if (!claudeSettingsPath) return;
+
+    // First read the full file to preserve other keys, then merge hooks
+    const handler = (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
+      if (result.filePath !== claudeSettingsPath) return;
+      ipcRenderer.removeListener(IPC.FILE_CONTENT, handler);
+
+      let existing: Record<string, unknown> = {};
+      if (!result.error && result.content) {
+        try { existing = JSON.parse(result.content); } catch { /* start fresh */ }
+      }
+      existing.hooks = newHooks;
+
+      const saveHandler = (_e: unknown, saveResult: { filePath: string; success?: boolean; error?: string }) => {
+        if (saveResult.filePath !== claudeSettingsPath) return;
+        ipcRenderer.removeListener(IPC.FILE_SAVED, saveHandler);
+        if (saveResult.success) {
+          setHooksConfig(newHooks);
+          toast.success('Hooks saved');
+        } else {
+          toast.error('Failed to save hooks');
+        }
+      };
+      ipcRenderer.on(IPC.FILE_SAVED, saveHandler);
+      typedSend(IPC.WRITE_FILE, { filePath: claudeSettingsPath, content: JSON.stringify(existing, null, 2) + '\n' });
+    };
+
+    ipcRenderer.on(IPC.FILE_CONTENT, handler);
+    typedSend(IPC.READ_FILE, claudeSettingsPath);
+  }, [claudeSettingsPath]);
+
+  /** Load hooks when switching to the hooks tab */
+  useEffect(() => {
+    if (activeTab === 'hooks' && claudeSettingsPath) {
+      loadHooks();
+    }
+  }, [activeTab, claudeSettingsPath, loadHooks]);
+
+  function toggleEventExpanded(eventKey: string) {
+    setExpandedEvents((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventKey)) next.delete(eventKey);
+      else next.add(eventKey);
+      return next;
+    });
+  }
+
+  function addHookEntry(eventType: string, matcher: string, command: string) {
+    const newHooks = { ...hooksConfig };
+    if (!newHooks[eventType]) newHooks[eventType] = [];
+    newHooks[eventType] = [
+      ...newHooks[eventType],
+      { matcher, hooks: [{ type: 'command', command }] },
+    ];
+    saveHooks(newHooks);
+  }
+
+  function updateHookEntry(eventType: string, entryIndex: number, matcher: string, command: string) {
+    const newHooks = { ...hooksConfig };
+    if (!newHooks[eventType] || !newHooks[eventType][entryIndex]) return;
+    newHooks[eventType] = [...newHooks[eventType]];
+    newHooks[eventType][entryIndex] = {
+      matcher,
+      hooks: [{ type: 'command', command }],
+    };
+    saveHooks(newHooks);
+  }
+
+  function deleteHookEntry(eventType: string, entryIndex: number) {
+    const newHooks = { ...hooksConfig };
+    if (!newHooks[eventType]) return;
+    newHooks[eventType] = newHooks[eventType].filter((_, i) => i !== entryIndex);
+    if (newHooks[eventType].length === 0) delete newHooks[eventType];
+    saveHooks(newHooks);
+  }
+
+  function toggleHookDisabled(eventType: string, entryIndex: number) {
+    const key = `${eventType}:${entryIndex}`;
+    setDisabledHooks((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function resetHookForm() {
+    setHookFormEvent('PreToolUse');
+    setHookFormMatcher('');
+    setHookFormCommand('');
+    setShowAIGenerate(false);
+    setAiGeneratePrompt('');
+    setEditingHook(null);
+  }
+
+  function openAddHookDialog() {
+    resetHookForm();
+    setShowAddHookDialog(true);
+  }
+
+  function openEditHookDialog(eventType: string, entryIndex: number) {
+    const entry = hooksConfig[eventType]?.[entryIndex];
+    if (!entry) return;
+    setHookFormEvent(eventType);
+    setHookFormMatcher(entry.matcher);
+    setHookFormCommand(entry.hooks[0]?.command || '');
+    setEditingHook({ eventType, entryIndex });
+    setShowAddHookDialog(true);
+  }
+
+  function handleHookFormSubmit() {
+    if (!hookFormCommand.trim()) {
+      toast.warning('Command is required');
+      return;
+    }
+    if (editingHook) {
+      updateHookEntry(editingHook.eventType, editingHook.entryIndex, hookFormMatcher.trim(), hookFormCommand.trim());
+    } else {
+      addHookEntry(hookFormEvent, hookFormMatcher.trim(), hookFormCommand.trim());
+    }
+    setShowAddHookDialog(false);
+    resetHookForm();
+  }
+
+  function handleAIGenerate() {
+    if (!activeTerminalId) {
+      toast.warning('No active terminal — open a terminal first');
+      return;
+    }
+    if (!aiGeneratePrompt.trim()) {
+      toast.warning('Describe what you want the hook to do');
+      return;
+    }
+    const safeMatcher = hookFormMatcher || '*';
+    const hookDir = '.claude/hooks';
+    const fileName = `${hookFormEvent.toLowerCase()}-${safeMatcher.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.js`;
+    const prompt = [
+      `Generate a Claude Code hook script for the ${hookFormEvent} event with matcher "${safeMatcher}".`,
+      `The hook should: ${aiGeneratePrompt.trim()}`,
+      '',
+      `Write it to ${hookDir}/${fileName} and output ONLY the absolute file path when done.`,
+      `Make sure to create the ${hookDir} directory if it doesn't exist.`,
+      '',
+      'The hook receives JSON on stdin with tool_name, tool_input, etc.',
+      hookFormEvent.startsWith('Pre') ? 'It can output JSON with { "decision": "approve"|"block"|"deny", "reason": "..." } to control the tool.' : '',
+    ].filter(Boolean).join('\n');
+
+    ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
+    toast.info('Sent to agent — check your terminal');
+    setShowAIGenerate(false);
+    setAiGeneratePrompt('');
+  }
+
+  function applyTemplate(template: (typeof HOOK_TEMPLATES)[number]) {
+    setHookFormEvent(template.eventType);
+    setHookFormMatcher(template.matcher);
+    setShowAIGenerate(true);
+    setAiGeneratePrompt(template.scriptDescription);
+    setShowAddHookDialog(true);
+    setEditingHook(null);
+  }
+
+  /** Total hook entries count */
+  const totalHookCount = useMemo(() => {
+    return Object.values(hooksConfig).reduce((sum, entries) => sum + entries.length, 0);
+  }, [hooksConfig]);
 
   /* ---------- Search logic ---------- */
 

@@ -61,8 +61,12 @@ interface TerminalState {
   gridSlots: (string | null)[];
   gridSlotsByProject: Map<string, (string | null)[]>;
   pinnedTerminals: Set<string>;
+  frozenTerminals: Set<string>;
   pinTerminal: (id: string) => void;
   unpinTerminal: (id: string) => void;
+  freezeTerminal: (id: string) => void;
+  unfreezeTerminal: (id: string) => void;
+  toggleFreezeTerminal: (id: string) => void;
   setGridSlots: (slots: (string | null)[], projectPath?: string) => void;
   setActiveTerminal: (id: string) => void;
   addTerminal: (info: TerminalInfo) => void;
@@ -87,6 +91,23 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   gridSlots: [],
   gridSlotsByProject: new Map(),
   pinnedTerminals: loadPinnedTerminals(),
+  frozenTerminals: new Set<string>(),
+  freezeTerminal: (id) => {
+    const frozen = new Set(get().frozenTerminals);
+    frozen.add(id);
+    set({ frozenTerminals: frozen });
+  },
+  unfreezeTerminal: (id) => {
+    const frozen = new Set(get().frozenTerminals);
+    frozen.delete(id);
+    set({ frozenTerminals: frozen });
+  },
+  toggleFreezeTerminal: (id) => {
+    const frozen = new Set(get().frozenTerminals);
+    if (frozen.has(id)) frozen.delete(id);
+    else frozen.add(id);
+    set({ frozenTerminals: frozen });
+  },
   pinTerminal: (id) => {
     const pinned = new Set(get().pinnedTerminals);
     pinned.add(id);
@@ -145,6 +166,10 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     const wasPinned = pinned.delete(id);
     if (wasPinned) savePinnedTerminals(pinned);
 
+    // Clean up frozen state for removed terminal
+    const frozen = new Set(get().frozenTerminals);
+    frozen.delete(id);
+
     // Scope fallback to same project
     const projectPath = currentProjectPath ?? removed?.projectPath ?? '';
     const projectTerminals = Array.from(terminals.values())
@@ -162,7 +187,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       activeByProject.delete(projectPath);
     }
 
-    set({ terminals, activeTerminalId: newActive, activeByProject, pinnedTerminals: pinned });
+    set({ terminals, activeTerminalId: newActive, activeByProject, pinnedTerminals: pinned, frozenTerminals: frozen });
   },
 
   renameTerminal: (id, name, nameSource) => {

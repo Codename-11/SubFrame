@@ -35,6 +35,16 @@ Changes take effect immediately and are persisted to disk.
 | **Max Terminals** | Maximum number of terminal instances allowed (global, across all projects) | `9` | 1 -- 20 |
 | **Auto-rename to session name** | Rename terminal tabs to the detected AI session name | `true` | -- |
 
+### Terminal Persistence
+
+| Setting | Default | Description |
+|---|---|---|
+| `terminal.restoreOnStartup` | `true` | Restore terminals from last session on app launch |
+| `terminal.restoreScrollback` | `false` | Save and restore terminal scrollback content |
+| `terminal.autoResumeAgent` | `"prompt"` | Resume Claude sessions on restore: `"auto"`, `"prompt"`, or `"never"` |
+| `terminal.agentExitTimeout` | `5000` | Milliseconds before marking an inactive agent as exited (1000-30000) |
+| `terminal.maxScrollbackExport` | `5000` | Maximum lines to save per terminal for scrollback persistence |
+
 ## Editor Settings
 
 The **Editor** tab controls the built-in CodeMirror 6 editor:

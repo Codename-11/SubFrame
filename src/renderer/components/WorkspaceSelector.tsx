@@ -338,13 +338,13 @@ export function WorkspaceSelector() {
                     )}
                     {/* Agent status dot */}
                     {agentStatus === 'active' && (
-                      <span className="relative flex-shrink-0 w-1.5 h-1.5">
+                      <span className="relative flex-shrink-0 w-1.5 h-1.5" title="Agent active">
                         <span className="absolute inset-0 rounded-full bg-success animate-ping opacity-40" />
                         <span className="absolute inset-0 rounded-full bg-success" />
                       </span>
                     )}
                     {agentStatus === 'has-terminals' && (
-                      <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-text-muted opacity-40" />
+                      <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-text-muted opacity-40" title="Terminals open" />
                     )}
                   </button>
                 </ContextMenuTrigger>
