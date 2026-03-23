@@ -561,11 +561,27 @@ function APIServerCard() {
             </div>
           )}
 
-          {/* Usage stats */}
+          {/* Usage stats + TTS activity */}
           {isRunning && (
             <div className="flex items-center gap-3 mt-1.5 text-[10px] text-text-tertiary">
               <span>{serverInfo?.connectedClients ?? 0} {(serverInfo?.connectedClients ?? 0) === 1 ? 'client' : 'clients'}</span>
               <span>{serverInfo?.totalRequests ?? 0} requests</span>
+              {(serverInfo?.ttsMessageCount ?? 0) > 0 && (
+                <span className="text-accent">{serverInfo?.ttsMessageCount} TTS</span>
+              )}
+            </div>
+          )}
+          {isRunning && serverInfo?.lastTtsMessage && (
+            <div className="flex items-center gap-1.5 mt-1 text-[10px] text-text-muted">
+              <span className="text-accent">Last TTS:</span>
+              <span className="truncate flex-1">{serverInfo.lastTtsMessage.text}</span>
+              <span className="shrink-0 text-text-tertiary">
+                {(() => {
+                  const diff = Date.now() - new Date(serverInfo.lastTtsMessage.timestamp).getTime();
+                  const mins = Math.floor(diff / 60000);
+                  return mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
+                })()}
+              </span>
             </div>
           )}
         </>

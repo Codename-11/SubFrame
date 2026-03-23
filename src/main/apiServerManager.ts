@@ -404,6 +404,7 @@ function setupIPC(ipcMain: IpcMain): void {
 
   // IPC handler to get current server info
   ipcMain.handle(IPC.API_SERVER_INFO, () => {
+    const lastTts = ttsHistory.length > 0 ? ttsHistory[0] : null;
     return {
       enabled,
       dtspEnabled,
@@ -411,6 +412,8 @@ function setupIPC(ipcMain: IpcMain): void {
       token: authToken,
       connectedClients: sseClients.size,
       totalRequests: requestCount,
+      ttsMessageCount: ttsHistory.length,
+      lastTtsMessage: lastTts ? { text: lastTts.text, voice: lastTts.voice, timestamp: lastTts.timestamp } : null,
     };
   });
 

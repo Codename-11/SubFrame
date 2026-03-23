@@ -1093,7 +1093,7 @@ export interface IPCHandleMap {
   [IPC.WORKSPACE_REORDER]: { args: [orderedKeys: string[]]; return: boolean };
 
   // API Server
-  [IPC.API_SERVER_INFO]: { args: []; return: { enabled: boolean; dtspEnabled: boolean; port: number; token: string; connectedClients: number; totalRequests: number } };
+  [IPC.API_SERVER_INFO]: { args: []; return: { enabled: boolean; dtspEnabled: boolean; port: number; token: string; connectedClients: number; totalRequests: number; ttsMessageCount: number; lastTtsMessage: { text: string; voice: string; timestamp: string } | null } };
   [IPC.API_SERVER_TOGGLE]: { args: [enabled: boolean]; return: { enabled: boolean; port: number; token: string } };
   [IPC.API_SERVER_REGEN_TOKEN]: { args: []; return: { token: string } };
   [IPC.DETECT_AI_FEATURES]: { args: [projectPath: string]; return: { hooks: boolean; mcpServers: boolean; skills: boolean; hookCount: number; mcpServerCount: number } };
