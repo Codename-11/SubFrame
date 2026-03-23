@@ -36,6 +36,7 @@ import * as onboardingManager from './onboardingManager';
 import * as updaterManager from './updaterManager';
 import * as pipelineManager from './pipelineManager';
 import * as activityManager from './activityManager';
+import * as outputChannelManager from './outputChannelManager';
 import * as popoutManager from './popoutManager';
 import * as apiServerManager from './apiServerManager';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
@@ -542,6 +543,7 @@ function setupAllIPC(): void {
   onboardingManager.setupIPC(ipcMain);
   pipelineManager.setupIPC(ipcMain);
   activityManager.setupIPC(ipcMain);
+  outputChannelManager.setupIPC(ipcMain);
   popoutManager.setupIPC(ipcMain);
   apiServerManager.setupIPC(ipcMain);
   // Note: updaterManager.setupIPC() is called inside updaterManager.init()
@@ -701,6 +703,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   claudeSessionsManager.init(window);
   aiFilesManager.init(window);
   activityManager.init(window); // must be first — other managers create activity streams on init
+  outputChannelManager.init(window);
   agentStateManager.init(window);
   onboardingManager.init(window);
   pipelineManager.init(window);

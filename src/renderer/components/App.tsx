@@ -15,6 +15,7 @@ import { Editor } from './Editor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ThemeProvider } from './ThemeProvider';
 import { ActivityBar } from './ActivityBar';
+import { StatusBar } from './StatusBar';
 import { TasksPalette } from './TasksPalette';
 import { AIToolPalette } from './AIToolPalette';
 import { useUIStore } from '../stores/useUIStore';
@@ -530,6 +531,7 @@ export function App() {
             <ErrorBoundary name="Terminal"><TerminalArea /></ErrorBoundary>
           </div>
           <ActivityBar />
+          <StatusBar />
         </div>
 
         {/* Right panel — conditionally visible */}

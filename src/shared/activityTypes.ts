@@ -52,6 +52,32 @@ export interface ActivityListPayload {
   streams: ActivityStream[];
 }
 
+// ─── Output Channels ─────────────────────────────────────────────────────────
+
+export type OutputChannelCategory = 'system' | 'git' | 'github' | 'pipeline' | 'agent' | 'extension' | 'api';
+
+export interface OutputChannel {
+  id: string;
+  name: string;
+  category: OutputChannelCategory;
+  lineCount: number;
+  updatedAt: string;
+}
+
+export interface OutputChannelEvent {
+  channelId: string;
+  lines: string[];
+}
+
+export interface OutputChannelListPayload {
+  channels: OutputChannel[];
+}
+
+export interface OutputChannelLogPayload {
+  channelId: string;
+  lines: string[];
+}
+
 // ─── Executor Options (main process) ────────────────────────────────────────
 
 export interface CreateStreamOptions {

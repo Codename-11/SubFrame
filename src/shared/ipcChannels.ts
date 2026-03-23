@@ -4,7 +4,7 @@
  */
 
 import type { AgentStatePayload } from './agentStateTypes';
-import type { ActivityOutputEvent, ActivityStatusEvent, ActivityListPayload } from './activityTypes';
+import type { ActivityOutputEvent, ActivityStatusEvent, ActivityListPayload, OutputChannelEvent, OutputChannel, OutputChannelListPayload, OutputChannelLogPayload } from './activityTypes';
 
 // ─── Channel Constants ───────────────────────────────────────────────────────
 
@@ -248,6 +248,13 @@ export const IPC = {
   ACTIVITY_CLEAR: 'activity-clear',
   ACTIVITY_OUTPUT: 'activity-output',
   ACTIVITY_STATUS: 'activity-status',
+
+  // Output Channels
+  OUTPUT_CHANNEL_LIST: 'output-channel-list',
+  OUTPUT_CHANNEL_LOG: 'output-channel-log',
+  OUTPUT_CHANNEL_CLEAR: 'output-channel-clear',
+  OUTPUT_CHANNEL_OUTPUT: 'output-channel-output',
+  OUTPUT_CHANNEL_UPDATED: 'output-channel-updated',
 
   // Pop-Out Terminal
   TERMINAL_POPOUT: 'terminal-popout',
@@ -1214,6 +1221,11 @@ export interface IPCHandleMap {
     return: { success: boolean };
   };
 
+  // Output Channels
+  [IPC.OUTPUT_CHANNEL_LIST]: { args: []; return: OutputChannelListPayload };
+  [IPC.OUTPUT_CHANNEL_LOG]: { args: [channelId: string]; return: OutputChannelLogPayload };
+  [IPC.OUTPUT_CHANNEL_CLEAR]: { args: [channelId: string]; return: { success: boolean } };
+
   // Graceful Shutdown
   [IPC.GRACEFUL_SHUTDOWN_CONFIRM]: { args: []; return: void };
   [IPC.GRACEFUL_SHUTDOWN_CANCEL]: { args: []; return: void };
@@ -1395,6 +1407,10 @@ export interface IPCEventMap {
   // Activity Streams
   [IPC.ACTIVITY_OUTPUT]: ActivityOutputEvent;
   [IPC.ACTIVITY_STATUS]: ActivityStatusEvent;
+
+  // Output Channels
+  [IPC.OUTPUT_CHANNEL_OUTPUT]: OutputChannelEvent;
+  [IPC.OUTPUT_CHANNEL_UPDATED]: OutputChannel;
 
   // Pop-Out Terminal
   [IPC.TERMINAL_POPOUT_STATUS]: { terminalId: string; poppedOut: boolean };

@@ -1,10 +1,13 @@
 /**
- * ActivityBar — Thin bottom bar for centralized activity streams output.
+ * ActivityBar — Thin bottom bar for centralized activity streams output
+ * and output channel viewer.
  * Collapsed: single row showing active stream status + latest log line.
- * Expanded: tabbed log viewer with per-stream output and cancel controls.
+ * Expanded: tabbed view with two modes:
+ *   - "Activity" — per-stream output logs with cancel controls
+ *   - "Output"   — VS Code-style output channels viewer
  */
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
@@ -13,12 +16,19 @@ import {
   X,
   Check,
   Square,
+  Trash2,
+  ScrollText,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { useActivity } from '../hooks/useActivity';
+import { useOutputChannels, useOutputChannelLog, useClearOutputChannel } from '../hooks/useOutputChannels';
 import type { ActivityStatus } from '../../shared/activityTypes';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+type BarMode = 'activity' | 'output';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -85,13 +95,179 @@ function StatusDot({ status }: { status: ActivityStatus }) {
   return <span className="size-2.5 rounded-full border border-border-default" />;
 }
 
+// ─── Output Channel Viewer ──────────────────────────────────────────────────
+
+function OutputChannelViewer() {
+  const { channels, isLoading } = useOutputChannels();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const clearChannel = useClearOutputChannel();
+  const logEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-select the first channel when channels load or selection is stale
+  useEffect(() => {
+    if (channels.length > 0 && (!selectedId || !channels.find((c) => c.id === selectedId))) {
+      setSelectedId(channels[0].id);
+    }
+  }, [channels, selectedId]);
+
+  const { lines, revision } = useOutputChannelLog(selectedId);
+
+  // Auto-scroll on new lines
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision, lines.length]);
+
+  const handleClear = useCallback(() => {
+    if (selectedId) {
+      clearChannel.mutate([selectedId]);
+    }
+  }, [selectedId, clearChannel]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <span className="text-[11px] text-text-muted">Loading channels...</span>
+      </div>
+    );
+  }
+
+  if (channels.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <span className="text-[11px] text-text-muted">No output channels</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Channel toolbar */}
+      <div className="flex items-center gap-2 px-2 h-7 shrink-0 bg-bg-secondary border-b border-border-subtle">
+        <select
+          value={selectedId ?? ''}
+          onChange={(e) => setSelectedId(e.target.value || null)}
+          className="bg-bg-deep border border-border-subtle text-xs text-text-secondary rounded px-1.5 py-0.5 outline-none focus:border-accent max-w-[240px] truncate"
+        >
+          {channels.map((ch) => (
+            <option key={ch.id} value={ch.id}>
+              {ch.name} ({ch.lineCount})
+            </option>
+          ))}
+        </select>
+
+        <div className="ml-auto flex items-center">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-text-muted hover:text-text-primary"
+            onClick={handleClear}
+            disabled={!selectedId}
+            title="Clear channel"
+          >
+            <Trash2 size={11} />
+          </Button>
+        </div>
+      </div>
+
+      {/* Log area */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-2 bg-bg-deep">
+          {lines.length === 0 ? (
+            <div className="flex items-center justify-center h-full py-8">
+              <span className="text-[11px] text-text-muted">No output</span>
+            </div>
+          ) : (
+            lines.map((line, i) => (
+              <div
+                key={i}
+                className="text-[11px] font-mono text-text-secondary leading-[1.6] break-all"
+              >
+                {line || '\u00A0'}
+              </div>
+            ))
+          )}
+          <div ref={logEndRef} />
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+// ─── Mode Toggle Pills ─────────────────────────────────────────────────────
+
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: BarMode;
+  onChange: (mode: BarMode) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 mr-2">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onChange('activity'); }}
+        className={cn(
+          'px-2 py-0.5 rounded text-[10px] transition-colors',
+          mode === 'activity'
+            ? 'bg-accent/20 text-accent'
+            : 'text-text-muted hover:text-text-secondary'
+        )}
+      >
+        Activity
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onChange('output'); }}
+        className={cn(
+          'px-2 py-0.5 rounded text-[10px] transition-colors',
+          mode === 'output'
+            ? 'bg-accent/20 text-accent'
+            : 'text-text-muted hover:text-text-secondary'
+        )}
+      >
+        Output
+      </button>
+    </div>
+  );
+}
+
 // ─── ActivityBar ─────────────────────────────────────────────────────────────
 
 export function ActivityBar() {
   const { streams, activeStream, outputLogs, cancelStream, clearStream, clearAllFinished, revision } = useActivity();
   const [expanded, setExpanded] = useState(false);
   const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
+  const [mode, setMode] = useState<BarMode>('activity');
+  const [showOutputPanel, setShowOutputPanel] = useState(false);
   const logEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Listen for external toggle from StatusBar
+  useEffect(() => {
+    const handler = () => {
+      setShowOutputPanel((prev) => {
+        const next = !prev;
+        if (next) {
+          // Opening: show the bar expanded with output mode if no streams
+          setExpanded(true);
+          if (streams.length === 0) {
+            setMode('output');
+          }
+        } else {
+          // Closing: collapse if no streams to keep visible
+          if (streams.length === 0) {
+            setExpanded(false);
+          }
+        }
+        return next;
+      });
+    };
+    window.addEventListener('toggle-activity-bar', handler);
+    return () => window.removeEventListener('toggle-activity-bar', handler);
+  }, [streams.length]);
 
   // Auto-select the active stream when it changes
   useEffect(() => {
@@ -100,10 +276,11 @@ export function ActivityBar() {
     }
   }, [activeStream, selectedStreamId]);
 
-  // When a new running stream appears, switch to it
+  // When a new running stream appears, switch to it and activate Activity mode
   useEffect(() => {
     if (activeStream?.status === 'running') {
       setSelectedStreamId(activeStream.id);
+      setMode('activity');
     }
   }, [activeStream?.id, activeStream?.status]);
 
@@ -131,10 +308,10 @@ export function ActivityBar() {
 
   // Auto-scroll to bottom when new log lines arrive
   useEffect(() => {
-    if (expanded && logEndRef.current) {
+    if (expanded && mode === 'activity' && logEndRef.current) {
       logEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [logLines.length, expanded]);
+  }, [logLines.length, expanded, mode]);
 
   // Elapsed time for the active stream
   const elapsed = useElapsedTime(
@@ -156,12 +333,13 @@ export function ActivityBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStream?.id, outputLogs, revision]);
 
-  // Don't render if there are no streams
-  if (streams.length === 0) {
+  // Don't render if there are no streams and output panel is not requested
+  if (streams.length === 0 && !showOutputPanel) {
     return null;
   }
 
   const runningCount = streams.filter((s) => s.status === 'running').length;
+  const hasStreams = streams.length > 0;
 
   return (
     <div className="flex flex-col border-t border-border-subtle bg-bg-primary shrink-0">
@@ -171,9 +349,18 @@ export function ActivityBar() {
         onClick={() => setExpanded((v) => !v)}
         className="flex items-center gap-2 h-6 px-2 hover:bg-bg-hover transition-colors cursor-pointer select-none w-full text-left"
       >
-        {/* Left: icon + stream name + status */}
-        <Activity size={12} className="text-text-tertiary shrink-0" />
-        {activeStream && (
+        {/* Left: icon + mode toggle (when expanded) + stream name + status */}
+        {mode === 'output' && !hasStreams ? (
+          <ScrollText size={12} className="text-text-tertiary shrink-0" />
+        ) : (
+          <Activity size={12} className="text-text-tertiary shrink-0" />
+        )}
+
+        {expanded && (
+          <ModeToggle mode={mode} onChange={setMode} />
+        )}
+
+        {mode === 'activity' && activeStream && (
           <>
             <StatusDot status={activeStream.status} />
             <span className="text-[11px] text-text-secondary truncate max-w-[160px]">
@@ -182,27 +369,33 @@ export function ActivityBar() {
           </>
         )}
 
-        {/* Center: latest log line */}
-        {latestLine && (
+        {mode === 'output' && !activeStream && (
+          <span className="text-[11px] text-text-secondary truncate">
+            Output Channels
+          </span>
+        )}
+
+        {/* Center: latest log line (activity mode only) */}
+        {mode === 'activity' && latestLine && (
           <span className="flex-1 min-w-0 text-[10px] font-mono text-text-muted truncate mx-2">
             {latestLine}
           </span>
         )}
-        {!latestLine && <span className="flex-1" />}
+        {(mode === 'output' || !latestLine) && <span className="flex-1" />}
 
         {/* Right: elapsed + stream count + toggle */}
         <span className="flex items-center gap-1.5 shrink-0">
-          {elapsed && (
+          {mode === 'activity' && elapsed && (
             <span className="text-[10px] text-accent tabular-nums">
               {elapsed}
             </span>
           )}
-          {streams.length > 1 && (
+          {mode === 'activity' && streams.length > 1 && (
             <span className="text-[9px] bg-bg-tertiary text-text-tertiary rounded-full px-1.5 py-px">
               {runningCount > 0 ? `${runningCount} running` : `${streams.length}`}
             </span>
           )}
-          {runningCount === 0 && (
+          {mode === 'activity' && runningCount === 0 && hasStreams && (
             <span
               role="button"
               onClick={(e) => { e.stopPropagation(); clearAllFinished(); }}
@@ -230,95 +423,111 @@ export function ActivityBar() {
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden border-t border-border-subtle"
           >
-            <div className="flex flex-col h-[200px]">
-              {/* Tab row */}
-              <div className="flex items-center gap-px px-1 h-7 shrink-0 bg-bg-secondary overflow-x-auto">
-                {streams.map((stream) => (
-                  <div key={stream.id} className="flex items-center group">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedStreamId(stream.id)}
-                      className={cn(
-                        'flex items-center gap-1.5 px-2 py-1 rounded-sm text-[11px] whitespace-nowrap transition-colors',
-                        displayStream?.id === stream.id
-                          ? 'bg-bg-primary text-accent'
-                          : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
-                      )}
-                    >
-                      <StatusDot status={stream.status} />
-                      <span className="truncate max-w-[120px]">{stream.name}</span>
-                    </button>
-                    {stream.status !== 'running' && stream.status !== 'pending' && (
+            {mode === 'activity' ? (
+              /* ── Activity Streams View ──────────────────────────────────── */
+              <div className="flex flex-col h-[200px]">
+                {/* Tab row */}
+                <div className="flex items-center gap-px px-1 h-7 shrink-0 bg-bg-secondary overflow-x-auto">
+                  {streams.map((stream) => (
+                    <div key={stream.id} className="flex items-center group">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); clearStream(stream.id); }}
-                        className="p-0.5 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-primary transition-opacity"
-                        title="Dismiss"
+                        onClick={() => setSelectedStreamId(stream.id)}
+                        className={cn(
+                          'flex items-center gap-1.5 px-2 py-1 rounded-sm text-[11px] whitespace-nowrap transition-colors',
+                          displayStream?.id === stream.id
+                            ? 'bg-bg-primary text-accent'
+                            : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
+                        )}
+                      >
+                        <StatusDot status={stream.status} />
+                        <span className="truncate max-w-[120px]">{stream.name}</span>
+                      </button>
+                      {stream.status !== 'running' && stream.status !== 'pending' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); clearStream(stream.id); }}
+                          className="p-0.5 opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-primary transition-opacity"
+                          title="Dismiss"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  <div className="ml-auto flex items-center gap-0.5 shrink-0">
+                    {/* Cancel button for running streams */}
+                    {displayStream?.status === 'running' && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-text-muted hover:text-error"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (displayStream) {
+                            cancelStream.mutate(displayStream.id);
+                          }
+                        }}
+                        title="Cancel stream"
+                      >
+                        <Square size={10} />
+                      </Button>
+                    )}
+                    {/* Clear all finished streams */}
+                    {streams.some((s) => s.status !== 'running' && s.status !== 'pending') && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-text-muted hover:text-text-primary"
+                        onClick={clearAllFinished}
+                        title="Clear finished"
                       >
                         <X size={10} />
-                      </button>
+                      </Button>
                     )}
                   </div>
-                ))}
-
-                <div className="ml-auto flex items-center gap-0.5 shrink-0">
-                  {/* Cancel button for running streams */}
-                  {displayStream?.status === 'running' && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="text-text-muted hover:text-error"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (displayStream) {
-                          cancelStream.mutate(displayStream.id);
-                        }
-                      }}
-                      title="Cancel stream"
-                    >
-                      <Square size={10} />
-                    </Button>
-                  )}
-                  {/* Clear all finished streams */}
-                  {streams.some((s) => s.status !== 'running' && s.status !== 'pending') && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="text-text-muted hover:text-text-primary"
-                      onClick={clearAllFinished}
-                      title="Clear finished"
-                    >
-                      <X size={10} />
-                    </Button>
-                  )}
                 </div>
-              </div>
 
-              {/* Log area */}
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="p-2 bg-bg-deep">
-                  {logLines.length === 0 ? (
-                    <div className="flex items-center justify-center h-full py-8">
-                      <span className="text-[11px] text-text-muted">
-                        {displayStream?.status === 'pending'
-                          ? 'Waiting to start...'
-                          : 'No output yet'}
-                      </span>
-                    </div>
-                  ) : (
-                    logLines.map((line, i) => (
-                      <div
-                        key={i}
-                        className="text-[11px] font-mono text-text-secondary leading-[1.6] break-all"
-                      >
-                        {line || '\u00A0'}
+                {/* Log area */}
+                <ScrollArea className="flex-1 min-h-0">
+                  <div className="p-2 bg-bg-deep">
+                    {hasStreams ? (
+                      logLines.length === 0 ? (
+                        <div className="flex items-center justify-center h-full py-8">
+                          <span className="text-[11px] text-text-muted">
+                            {displayStream?.status === 'pending'
+                              ? 'Waiting to start...'
+                              : 'No output yet'}
+                          </span>
+                        </div>
+                      ) : (
+                        logLines.map((line, i) => (
+                          <div
+                            key={i}
+                            className="text-[11px] font-mono text-text-secondary leading-[1.6] break-all"
+                          >
+                            {line || '\u00A0'}
+                          </div>
+                        ))
+                      )
+                    ) : (
+                      <div className="flex items-center justify-center h-full py-8">
+                        <span className="text-[11px] text-text-muted">
+                          No activity streams
+                        </span>
                       </div>
-                    ))
-                  )}
-                  <div ref={logEndRef} />
-                </div>
-              </ScrollArea>
-            </div>
+                    )}
+                    <div ref={logEndRef} />
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              /* ── Output Channels View ──────────────────────────────────── */
+              <div className="h-[200px]">
+                <OutputChannelViewer />
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
