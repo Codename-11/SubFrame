@@ -267,6 +267,56 @@ Access reusable prompts from the Prompts panel (`Ctrl+Shift+L`). Create, edit, a
 
 View past prompt and session history from the History panel (`Ctrl+Shift+H`). Search and replay previous interactions.
 
+## Integrations & System Panel
+
+SubFrame exposes terminal state to external tools via a **Local API Server** and the **DTSP** (Desktop Text Source Protocol) discovery standard.
+
+### System Panel
+
+The System Panel (`Ctrl+Shift+U`) is an app dashboard showing version/update status, AI tool management, integration controls, and feature detection. It opens as a full-page view (like Overview) and includes:
+
+- **Version & Update** — current version, update status with download/restart controls
+- **AI Tool Picker** — switch between AI tools directly, with installed status indicators
+- **API Server** — toggle on/off, port, auth token (copy/regenerate), connected clients, request count, TTS activity
+- **DTSP** — toggle discovery registration on/off, registration status
+- **Feature Detection** — scans Claude Code config for hooks, MCP servers, and skills
+- **Quick Access** — health, shortcuts reference, prompt library
+
+### Local API Server
+
+SubFrame runs a localhost HTTP server (auto-assigned port, token auth) that external tools can query for terminal data:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/health` | Server status (public, no auth) |
+| `GET /api/selection` | Active terminal's selected text |
+| `GET /api/context` | Terminal name, project, agent status |
+| `GET /api/terminals` | List all terminals |
+| `GET /api/buffer` | Visible terminal buffer content |
+| `POST /api/tts` | Submit TTS text from hooks/scripts |
+| `GET /api/tts/latest` | Most recent TTS message |
+| `GET /api/events` | SSE event stream (selection-changed, tts-speak) |
+
+Auth: `Authorization: Bearer <token>` header or `?token=<token>`. Token and port are in `~/.subframe/api.json`.
+
+### DTSP (Desktop Text Source Protocol)
+
+SubFrame registers as a DTSP source by writing `~/.dtsp/sources/subframe.json` on startup. Consumer apps (like [Conjure](https://github.com/user/conjure)) scan this directory to discover available text sources, verify the PID is alive, then query the API endpoints.
+
+DTSP capabilities declared: `selection`, `context`, `buffer`, `events`, `tts`.
+
+### TTS Endpoint
+
+The `POST /api/tts` endpoint accepts speech-formatted text from Claude Code hooks with voice profiles (`summary`, `error`, `status`, `insight`, `general`) and priority levels (`high`, `normal`, `low`). Messages are broadcast as `tts-speak` SSE events for consumers like Conjure to auto-speak.
+
+This enables **agent-initiated speech** — Claude generates a spoken summary via a hook, SubFrame stores and broadcasts it, and the TTS consumer speaks it. The text is pre-formatted for hearing, not reading.
+
+> For the full integration spec, see the [Integrations](/integrations) reference.
+
+### Settings > Integrations
+
+Toggle the API Server and DTSP independently in Settings > Integrations. Both default to enabled.
+
 ## Keyboard Shortcuts
 
 SubFrame has extensive keyboard shortcuts for navigating the interface without leaving the keyboard. Press `Ctrl+?` to open the shortcuts reference overlay at any time.

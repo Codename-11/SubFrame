@@ -84,6 +84,7 @@ export default defineConfig({
             { text: 'Sub-Tasks', link: '/sub-tasks' },
             { text: 'Hooks & Skills', link: '/hooks-skills' },
             { text: 'Pipeline Workflows', link: '/pipelines' },
+            { text: 'Integrations', link: '/integrations' },
             { text: 'Configuration', link: '/configuration' },
             { text: 'Keyboard Shortcuts', link: '/keyboard-shortcuts' },
             { text: 'Troubleshooting', link: '/troubleshooting' },
