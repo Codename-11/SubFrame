@@ -3,7 +3,7 @@
  * Handles GitHub integration using gh CLI
  */
 
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { shell } from 'electron';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC, type GitHubWorkflowRun, type GitHubWorkflow, type GitHubWorkflowsResult, type GitHubIssueDetail, type GitHubPRDetail, type GitHubPRDiff, type GitHubNotification, type CreateGitHubIssuePayload, type CreateGitHubIssueResult } from '../shared/ipcChannels';
@@ -45,6 +45,16 @@ function ghExec<T>(cmd: string, cwd: string): Promise<{ data: T | null; error: s
 function ghExecRaw(cmd: string, cwd: string): Promise<{ stdout: string; error: string | null }> {
   return new Promise((resolve) => {
     exec(cmd, { cwd, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) resolve({ stdout: '', error: stderr || error.message });
+      else resolve({ stdout, error: null });
+    });
+  });
+}
+
+/** Safe execFile wrapper — avoids shell interpolation for user-supplied arguments */
+function ghExecFileSafe(args: string[], cwd: string): Promise<{ stdout: string; error: string | null }> {
+  return new Promise((resolve) => {
+    execFile('gh', args, { cwd, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) resolve({ stdout: '', error: stderr || error.message });
       else resolve({ stdout, error: null });
     });
@@ -112,8 +122,11 @@ async function loadIssues(projectPath: string, state: string = 'open'): Promise<
     return { error: 'Not a GitHub repository', issues: [] };
   }
 
+  // Whitelist valid states to prevent shell injection
+  const safeState = ['open', 'closed', 'all'].includes(state) ? state : 'open';
+
   return new Promise((resolve) => {
-    const cmd = `gh issue list --state ${state} --json number,title,state,author,labels,createdAt,updatedAt,url --limit 50`;
+    const cmd = `gh issue list --state ${safeState} --json number,title,state,author,labels,createdAt,updatedAt,url --limit 50`;
 
     exec(cmd, { cwd: projectPath }, (error, stdout, stderr) => {
       if (error) {
@@ -197,6 +210,7 @@ async function loadWorkflows(projectPath: string): Promise<GitHubWorkflowsResult
  * View full issue detail
  */
 async function viewIssue(projectPath: string, issueNumber: number): Promise<{ error: string | null; issue: GitHubIssueDetail | null }> {
+  if (!Number.isInteger(issueNumber) || issueNumber <= 0) return { error: 'Invalid issue number', issue: null };
   outputChannelManager.log('github', `Viewing issue #${issueNumber}`);
   const result = await ghExec<GitHubIssueDetail>(
     `gh issue view ${issueNumber} --json number,title,state,body,url,assignees,comments,labels,author,createdAt,updatedAt,milestone`,
@@ -214,6 +228,7 @@ async function viewIssue(projectPath: string, issueNumber: number): Promise<{ er
  * View full PR detail
  */
 async function viewPR(projectPath: string, prNumber: number): Promise<{ error: string | null; pr: GitHubPRDetail | null }> {
+  if (!Number.isInteger(prNumber) || prNumber <= 0) return { error: 'Invalid PR number', pr: null };
   outputChannelManager.log('github', `Viewing PR #${prNumber}`);
   const result = await ghExec<GitHubPRDetail>(
     `gh pr view ${prNumber} --json number,title,state,body,url,assignees,comments,labels,author,createdAt,updatedAt,headRefName,baseRefName,mergeable,additions,deletions,changedFiles,reviewDecision`,
@@ -232,22 +247,17 @@ async function viewPR(projectPath: string, prNumber: number): Promise<{ error: s
  */
 async function createIssue(payload: CreateGitHubIssuePayload): Promise<CreateGitHubIssueResult> {
   outputChannelManager.log('github', `Creating issue: ${payload.title}`);
-  const args = [`gh issue create --title "${payload.title.replace(/"/g, '\\"')}"`];
-  if (payload.body) {
-    args[0] += ` --body "${payload.body.replace(/"/g, '\\"')}"`;
+  // Use execFile (no shell) to prevent injection via user-supplied title/body/labels
+  const args = ['issue', 'create', '--title', payload.title];
+  if (payload.body) args.push('--body', payload.body);
+  if (payload.labels?.length) {
+    for (const label of payload.labels) args.push('--label', label);
   }
-  if (payload.labels && payload.labels.length > 0) {
-    for (const label of payload.labels) {
-      args[0] += ` --label "${label.replace(/"/g, '\\"')}"`;
-    }
-  }
-  if (payload.assignees && payload.assignees.length > 0) {
-    for (const assignee of payload.assignees) {
-      args[0] += ` --assignee "${assignee.replace(/"/g, '\\"')}"`;
-    }
+  if (payload.assignees?.length) {
+    for (const assignee of payload.assignees) args.push('--assignee', assignee);
   }
 
-  const result = await ghExecRaw(args[0], payload.projectPath);
+  const result = await ghExecFileSafe(args, payload.projectPath);
   if (result.error) {
     outputChannelManager.log('github', `Error creating issue: ${result.error}`);
     return { error: result.error };
@@ -288,8 +298,9 @@ async function loadPRDiff(projectPath: string, prNumber: number): Promise<{ erro
  * Rerun a GitHub Actions workflow run
  */
 async function rerunWorkflow(projectPath: string, runId: number): Promise<{ error: string | null; success: boolean }> {
+  if (!Number.isInteger(runId) || runId <= 0) return { error: 'Invalid run ID', success: false };
   outputChannelManager.log('github', `Rerunning workflow run ${runId}`);
-  const result = await ghExecRaw(`gh run rerun ${runId}`, projectPath);
+  const result = await ghExecFileSafe(['run', 'rerun', String(runId)], projectPath);
   if (result.error) {
     outputChannelManager.log('github', `Error rerunning workflow ${runId}: ${result.error}`);
     return { error: result.error, success: false };
@@ -303,11 +314,9 @@ async function rerunWorkflow(projectPath: string, runId: number): Promise<{ erro
  */
 async function dispatchWorkflow(projectPath: string, workflowId: string, ref?: string): Promise<{ error: string | null; success: boolean }> {
   outputChannelManager.log('github', `Dispatching workflow ${workflowId}${ref ? ` on ref ${ref}` : ''}`);
-  let cmd = `gh workflow run ${workflowId}`;
-  if (ref) {
-    cmd += ` --ref "${ref.replace(/"/g, '\\"')}"`;
-  }
-  const result = await ghExecRaw(cmd, projectPath);
+  const args = ['workflow', 'run', workflowId];
+  if (ref) args.push('--ref', ref);
+  const result = await ghExecFileSafe(args, projectPath);
   if (result.error) {
     outputChannelManager.log('github', `Error dispatching workflow ${workflowId}: ${result.error}`);
     return { error: result.error, success: false };

@@ -35,6 +35,7 @@ const popoutWebContents = new Map<string, WebContents>();
  */
 function parseOSC7(data: string): string | null {
   // Match OSC 7 with either BEL (\x07) or ST (\x1b\\) terminator
+  // eslint-disable-next-line no-control-regex
   const match = data.match(/\x1b\]7;file:\/\/[^/]*([^\x07\x1b]+)/);
   if (!match) return null;
   try {
@@ -81,6 +82,9 @@ function getAgentExitTimeout(): number {
 /** Tracks the current claude-active state per terminal for shell-prompt exit detection */
 const claudeActiveFlags = new Map<string, boolean>();
 
+/** Handle for periodic stale-session check interval (cancellable) */
+let staleSessionTimer: ReturnType<typeof setInterval> | null = null;
+
 /**
  * Shell prompt patterns — when one of these appears as the last line of output
  * while the agent was active (and no Claude patterns matched), the agent has exited.
@@ -103,8 +107,6 @@ const CLAUDE_PATTERNS: RegExp[] = [
   /\x1b\]0;[^\x07]*claude/i,
   // eslint-disable-next-line no-control-regex
   /\x1b\]2;[^\x07]*claude/i,
-  // Claude's TUI prompt line (bold ">" character used by Claude Code)
-  /❯/,
   // Claude banner / status lines
   /\bclaude[\s-]?code\b/i,
   // Tool-use indicators unique to Claude Code TUI (Braille spinner characters)
@@ -332,7 +334,7 @@ function init(window: BrowserWindow): void {
 
   // Periodic stale-session check: if agent-state.json shows a correlated session
   // as idle/completed, immediately mark the terminal as inactive.
-  setInterval(() => {
+  staleSessionTimer = setInterval(() => {
     for (const [terminalId, sessionId] of terminalSessionMap.entries()) {
       if (!claudeActiveFlags.get(terminalId)) continue;
       const instance = ptyInstances.get(terminalId);
@@ -619,6 +621,7 @@ function destroyAll(): void {
   claudeActiveFlags.clear();
   for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
   CLAUDE_TIMEOUT_HANDLES.clear();
+  if (staleSessionTimer) { clearInterval(staleSessionTimer); staleSessionTimer = null; }
 }
 
 /**

@@ -304,35 +304,36 @@ export function TerminalArea() {
           projectPath: data.projectPath || currentProjectPath || '',
           isActive: !data.background,
         });
-        // Restore scrollback and optionally resume Claude session
+        // Restore scrollback and optionally resume Claude session (gated by settings)
         const tid = data.terminalId;
         const projPath = data.projectPath || currentProjectPath;
         if (projPath) {
           setTimeout(() => {
-            // Restore scrollback
-            typedInvoke(IPC.LOAD_TERMINAL_SCROLLBACK, { projectPath: projPath, terminalId: tid })
-              .then((result: { lines: string[] }) => {
-                if (result.lines.length > 0) {
-                  terminalRegistry.importScrollback(tid, result.lines);
-                }
-              })
-              .catch(() => {});
+            typedInvoke(IPC.LOAD_SETTINGS, ...([] as [])).then((settings: any) => {
+              // Restore scrollback (only if setting enabled)
+              const restoreScrollback = settings?.terminal?.restoreScrollback ?? false;
+              if (restoreScrollback) {
+                typedInvoke(IPC.LOAD_TERMINAL_SCROLLBACK, { projectPath: projPath, terminalId: tid })
+                  .then((result: { lines: string[] }) => {
+                    if (result.lines.length > 0) {
+                      terminalRegistry.importScrollback(tid, result.lines);
+                    }
+                  })
+                  .catch(() => {});
+              }
 
-            // Check for Claude session resume
-            const session = loadSession(projPath);
-            const sessionId = session?.terminalSessionIds?.[tid];
-            if (sessionId) {
-              typedInvoke(IPC.LOAD_SETTINGS, ...([] as [])).then((settings: any) => {
+              // Check for Claude session resume
+              const session = loadSession(projPath);
+              const sessionId = session?.terminalSessionIds?.[tid];
+              if (sessionId) {
                 const resumeMode = settings?.terminal?.autoResumeAgent ?? 'prompt';
                 if (resumeMode === 'never') return;
                 const resumeCmd = `claude --resume ${sessionId}\r`;
                 if (resumeMode === 'auto') {
-                  // Auto-resume: send the command directly after a delay for shell to be ready
                   setTimeout(() => {
                     ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: tid, data: resumeCmd });
                   }, 1000);
                 } else {
-                  // Prompt mode: show toast with action
                   toast.info('Previous Claude session found', {
                     description: `Resume session in this terminal?`,
                     duration: 15000,
@@ -344,8 +345,8 @@ export function TerminalArea() {
                     },
                   });
                 }
-              }).catch(() => {});
-            }
+              }
+            }).catch(() => {});
           }, 500);
         }
       } else if (data.error) {
@@ -595,24 +596,37 @@ export function TerminalArea() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectTerminals, gridSlots, currentProjectPath]);
 
-  // Save session on app close — uses cached terminal state + scrollback export
+  // Save scrollback for all terminals in a project (fire-and-forget)
+  const saveScrollbackForProject = useCallback((projPath: string | null) => {
+    if (!projPath) return;
+    const store = useTerminalStore.getState();
+    for (const [id] of store.terminals) {
+      const lines = terminalRegistry.exportScrollback(id, 5000);
+      if (lines.length > 0) {
+        typedInvoke(IPC.SAVE_TERMINAL_SCROLLBACK, { projectPath: projPath, terminalId: id, lines }).catch(() => {});
+      }
+    }
+  }, []);
+
+  // Periodic scrollback auto-save (every 30s) — primary persistence path
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentProjectPath && restoredForProjectRef.current === normalizedPath) {
+        saveScrollbackForProject(currentProjectPath);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [currentProjectPath, normalizedPath, saveScrollbackForProject]);
+
+  // Save session on app close — localStorage (sync) + scrollback (best-effort async)
   useEffect(() => {
     const handler = () => {
       saveSession(currentProjectPath, useTerminalStore.getState(), cachedTerminalStateRef.current);
-      // Export scrollback for each terminal (best-effort, async fire-and-forget)
-      if (currentProjectPath) {
-        const store = useTerminalStore.getState();
-        for (const [id] of store.terminals) {
-          const lines = terminalRegistry.exportScrollback(id, 5000);
-          if (lines.length > 0) {
-            typedInvoke(IPC.SAVE_TERMINAL_SCROLLBACK, { projectPath: currentProjectPath, terminalId: id, lines }).catch(() => {});
-          }
-        }
-      }
+      saveScrollbackForProject(currentProjectPath);
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [currentProjectPath]);
+  }, [currentProjectPath, saveScrollbackForProject]);
 
   // Auto-create first terminal when project is selected and none exist
   // (skip if terminal restore is in progress — it will create them)
