@@ -143,7 +143,7 @@
     "xterm-addon-unicode11": "^0.6.0",
     "xterm-addon-web-links": "^0.9.0",
     "xterm-addon-webgl": "^0.16.0",
-    "yaml": "^2.8.2",
+    "yaml": "^2.8.3",
     "zustand": "^5.0.12"
   },
   "build": {
