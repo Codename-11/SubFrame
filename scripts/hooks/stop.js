@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.7.1-beta
+// @subframe-version 0.7.2-beta
 // @subframe-managed
 /**
  * SubFrame Stop Hook
