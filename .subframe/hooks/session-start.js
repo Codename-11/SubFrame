@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.7.0-beta
+// @subframe-version 0.7.1-beta
 // @subframe-managed
 /**
  * SubFrame SessionStart Hook
