@@ -328,6 +328,50 @@ export function dispose(id: string): void {
   registry.delete(id);
 }
 
+/**
+ * Export the scrollback buffer as an array of text lines.
+ * Used for scrollback persistence on close.
+ */
+export function exportScrollback(id: string, maxLines: number = 5000): string[] {
+  const entry = registry.get(id);
+  if (!entry) return [];
+
+  const buf = entry.terminal.buffer.active;
+  const totalLines = buf.length;
+  const startLine = Math.max(0, totalLines - maxLines);
+  const lines: string[] = [];
+
+  for (let i = startLine; i < totalLines; i++) {
+    const line = buf.getLine(i);
+    if (line) lines.push(line.translateToString(true));
+  }
+
+  // Trim trailing empty lines
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+
+  return lines;
+}
+
+/**
+ * Write pre-existing content into a terminal (for scrollback restore).
+ * Writes lines as plain text — no escape sequence processing.
+ */
+export function importScrollback(id: string, lines: string[]): void {
+  const entry = registry.get(id);
+  if (!entry || lines.length === 0) return;
+
+  // Write as gray "restored" text so user knows this is historical
+  const dim = '\x1b[2m';
+  const reset = '\x1b[0m';
+  entry.terminal.write(`${dim}── restored scrollback (${lines.length} lines) ──${reset}\r\n`);
+  for (const line of lines) {
+    entry.terminal.write(`${dim}${line}${reset}\r\n`);
+  }
+  entry.terminal.write(`${dim}── end of restored scrollback ──${reset}\r\n\r\n`);
+}
+
 /** Check if a terminal exists in the registry */
 export function has(id: string): boolean {
   return registry.has(id);

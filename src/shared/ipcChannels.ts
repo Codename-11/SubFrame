@@ -84,6 +84,9 @@ export const IPC = {
   CLAUDE_ACTIVE_STATUS: 'claude-active-status',
   IS_TERMINAL_CLAUDE_ACTIVE: 'is-terminal-claude-active',
   GET_TERMINAL_SESSION_NAME: 'get-terminal-session-name',
+  GET_TERMINAL_STATE: 'get-terminal-state',
+  SAVE_TERMINAL_SCROLLBACK: 'save-terminal-scrollback',
+  LOAD_TERMINAL_SCROLLBACK: 'load-terminal-scrollback',
   USER_MESSAGE_SIGNAL: 'user-message-signal',
 
   // Tasks Panel
@@ -1242,6 +1245,11 @@ export interface IPCHandleMap {
 
   // Terminal Session Name
   [IPC.GET_TERMINAL_SESSION_NAME]: { args: [payload: { terminalId: string; sessionId?: string }]; return: { name: string | null } };
+
+  // Terminal State (cwd, shell, session per terminal)
+  [IPC.GET_TERMINAL_STATE]: { args: []; return: { terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null }> } };
+  [IPC.SAVE_TERMINAL_SCROLLBACK]: { args: [payload: { projectPath: string; terminalId: string; lines: string[] }]; return: { success: boolean } };
+  [IPC.LOAD_TERMINAL_SCROLLBACK]: { args: [payload: { projectPath: string; terminalId: string }]; return: { lines: string[] } };
 
   // Skills
   [IPC.LOAD_SKILLS]: { args: [projectPath: string]; return: SkillInfo[] };

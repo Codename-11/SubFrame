@@ -35,6 +35,11 @@ interface DefaultSettings {
     bellSound: boolean;
     copyOnSelect: boolean;
     maxTerminals: number;
+    restoreOnStartup: boolean;
+    restoreScrollback: boolean;
+    autoResumeAgent: 'auto' | 'prompt' | 'never';
+    agentExitTimeout: number;
+    maxScrollbackExport: number;
   };
   editor: {
     minimap: boolean;
@@ -94,6 +99,11 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     bellSound: false,
     copyOnSelect: false,
     maxTerminals: 9,
+    restoreOnStartup: true,
+    restoreScrollback: false,
+    autoResumeAgent: 'prompt',
+    agentExitTimeout: 5000,
+    maxScrollbackExport: 5000,
   },
   editor: {
     minimap: false,

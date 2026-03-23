@@ -58,9 +58,21 @@ interface SessionData {
   gridSlots?: (string | null)[];
   tabOrder?: string[];
   maximizedTerminalId?: string | null;
+  terminalCwds?: Record<string, string>;      // id -> last known cwd
+  terminalShells?: Record<string, string>;     // id -> shell path
+  terminalSessionIds?: Record<string, string>; // id -> claude session id
 }
 
-function saveSession(projectPath: string | null, store: ReturnType<typeof useTerminalStore.getState>) {
+/** Terminal state snapshot from main process (cached during save) */
+interface TerminalStateSnapshot {
+  terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null }>;
+}
+
+function saveSession(
+  projectPath: string | null,
+  store: ReturnType<typeof useTerminalStore.getState>,
+  terminalState?: TerminalStateSnapshot | null,
+) {
   const key = projectPath ?? GLOBAL_PROJECT;
   const normalizedPath = projectPath ?? '';
   const terminals = Array.from(store.terminals.values()).filter(
@@ -70,6 +82,20 @@ function saveSession(projectPath: string | null, store: ReturnType<typeof useTer
   const tabOrder = [...terminals]
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id))
     .map((t) => t.id);
+
+  // Build cwd/shell/session maps from terminal state snapshot (if available)
+  const terminalCwds: Record<string, string> = {};
+  const terminalShells: Record<string, string> = {};
+  const terminalSessionIds: Record<string, string> = {};
+  if (terminalState?.terminals) {
+    const terminalIds = new Set(terminals.map((t) => t.id));
+    for (const ts of terminalState.terminals) {
+      if (!terminalIds.has(ts.id)) continue;
+      if (ts.cwd) terminalCwds[ts.id] = ts.cwd;
+      if (ts.shell) terminalShells[ts.id] = ts.shell;
+      if (ts.sessionId) terminalSessionIds[ts.id] = ts.sessionId;
+    }
+  }
 
   // Save even when terminals.length === 0 so stale session data gets cleared
   const data: SessionData = {
@@ -85,6 +111,9 @@ function saveSession(projectPath: string | null, store: ReturnType<typeof useTer
     gridSlots: store.gridSlotsByProject.get(normalizedPath) ?? store.gridSlots,
     tabOrder,
     maximizedTerminalId: terminals.length > 0 ? store.maximizedTerminalId : null,
+    terminalCwds: Object.keys(terminalCwds).length > 0 ? terminalCwds : undefined,
+    terminalShells: Object.keys(terminalShells).length > 0 ? terminalShells : undefined,
+    terminalSessionIds: Object.keys(terminalSessionIds).length > 0 ? terminalSessionIds : undefined,
   };
 
   try {
@@ -93,6 +122,20 @@ function saveSession(projectPath: string | null, store: ReturnType<typeof useTer
     localStorage.setItem(SESSION_KEY, JSON.stringify(all));
   } catch {
     // ignore
+  }
+}
+
+/** Fetch terminal state from main process and save session with it */
+async function saveSessionWithState(
+  projectPath: string | null,
+  store: ReturnType<typeof useTerminalStore.getState>,
+) {
+  try {
+    const state = await typedInvoke(IPC.GET_TERMINAL_STATE);
+    saveSession(projectPath, store, state);
+  } catch {
+    // Fallback: save without terminal state
+    saveSession(projectPath, store, null);
   }
 }
 
@@ -138,6 +181,10 @@ export function TerminalArea() {
    *  `null` means restoration is pending (terminals not yet available). */
   const restoredForProjectRef = useRef<string | null>(null);
   const terminalCounterRef = useRef(0);
+  /** Tracks whether we've initiated terminal restoration for this project (prevents double-creation) */
+  const restoringTerminalsRef = useRef<string | null>(null);
+  /** Cached terminal state from main process — used for synchronous saves (e.g. beforeunload) */
+  const cachedTerminalStateRef = useRef<TerminalStateSnapshot | null>(null);
 
   // Filter terminals for current project (normalise null → '' for comparison)
   const normalizedPath = currentProjectPath ?? '';
@@ -257,6 +304,50 @@ export function TerminalArea() {
           projectPath: data.projectPath || currentProjectPath || '',
           isActive: !data.background,
         });
+        // Restore scrollback and optionally resume Claude session
+        const tid = data.terminalId;
+        const projPath = data.projectPath || currentProjectPath;
+        if (projPath) {
+          setTimeout(() => {
+            // Restore scrollback
+            typedInvoke(IPC.LOAD_TERMINAL_SCROLLBACK, { projectPath: projPath, terminalId: tid })
+              .then((result: { lines: string[] }) => {
+                if (result.lines.length > 0) {
+                  terminalRegistry.importScrollback(tid, result.lines);
+                }
+              })
+              .catch(() => {});
+
+            // Check for Claude session resume
+            const session = loadSession(projPath);
+            const sessionId = session?.terminalSessionIds?.[tid];
+            if (sessionId) {
+              typedInvoke(IPC.LOAD_SETTINGS, ...([] as [])).then((settings: any) => {
+                const resumeMode = settings?.terminal?.autoResumeAgent ?? 'prompt';
+                if (resumeMode === 'never') return;
+                const resumeCmd = `claude --resume ${sessionId}\r`;
+                if (resumeMode === 'auto') {
+                  // Auto-resume: send the command directly after a delay for shell to be ready
+                  setTimeout(() => {
+                    ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: tid, data: resumeCmd });
+                  }, 1000);
+                } else {
+                  // Prompt mode: show toast with action
+                  toast.info('Previous Claude session found', {
+                    description: `Resume session in this terminal?`,
+                    duration: 15000,
+                    action: {
+                      label: 'Resume',
+                      onClick: () => {
+                        ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: tid, data: resumeCmd });
+                      },
+                    },
+                  });
+                }
+              }).catch(() => {});
+            }
+          }, 500);
+        }
       } else if (data.error) {
         toast.error(`Failed to create terminal: ${data.error}`);
       }
@@ -358,7 +449,7 @@ export function TerminalArea() {
     // ── Phase 1: Save outgoing + restore non-terminal state (only on project switch) ──
     if (isProjectSwitch) {
       if (prevProjectRef.current !== null) {
-        saveSession(prevProjectRef.current, useTerminalStore.getState());
+        saveSession(prevProjectRef.current, useTerminalStore.getState(), cachedTerminalStateRef.current);
       }
       // Cancel any pending auto-save from the previous project
       if (autoSaveTimerRef.current) {
@@ -367,6 +458,7 @@ export function TerminalArea() {
       }
       prevProjectRef.current = currentProjectPath;
       restoredForProjectRef.current = null; // Reset — need to restore for new project
+      restoringTerminalsRef.current = null;
       restoreStartTimeRef.current = Date.now();
 
       const session = loadSession(currentProjectPath);
@@ -377,6 +469,36 @@ export function TerminalArea() {
         }
         if (session.gridSlots && Array.isArray(session.gridSlots)) {
           useTerminalStore.getState().setGridSlots(session.gridSlots, normalizedPath);
+        }
+
+        // ── Terminal Restore: Create terminals with saved cwd/shell ──
+        // When the session has saved terminal state and restoreOnStartup is enabled,
+        // create the terminals now instead of waiting for them to appear.
+        const hasSavedTerminals = session.terminalCwds && Object.keys(session.terminalCwds).length > 0;
+        if (hasSavedTerminals && restoringTerminalsRef.current !== normalizedPath) {
+          restoringTerminalsRef.current = normalizedPath;
+          // Check restoreOnStartup setting asynchronously, then create terminals
+          typedInvoke(IPC.LOAD_SETTINGS, ...([] as [])).then((settingsData: any) => {
+            const restoreEnabled = settingsData?.terminal?.restoreOnStartup ?? true;
+            if (!restoreEnabled) {
+              restoringTerminalsRef.current = null;
+              return;
+            }
+            const terminalIds = session.tabOrder ?? Object.keys(session.terminalCwds!);
+            for (const id of terminalIds) {
+              // Only create if this terminal has saved state and isn't already in the store
+              if (!session.terminalCwds![id]) continue;
+              if (useTerminalStore.getState().terminals.has(id)) continue;
+              const payload: Record<string, string> = {
+                cwd: session.terminalCwds![id],
+              };
+              if (currentProjectPath) payload.projectPath = currentProjectPath;
+              if (session.terminalShells?.[id]) payload.shell = session.terminalShells[id];
+              typedSend(IPC.TERMINAL_CREATE, payload as any);
+            }
+          }).catch(() => {
+            restoringTerminalsRef.current = null;
+          });
         }
       }
     }
@@ -444,6 +566,19 @@ export function TerminalArea() {
     restoredForProjectRef.current = normalizedPath;
   }, [currentProjectPath, terminals, setViewMode, renameTerminal, switchToProject, normalizedPath]);
 
+  // Periodically cache terminal state from main process for synchronous saves.
+  // Also refresh on terminal count changes.
+  useEffect(() => {
+    const refresh = () => {
+      typedInvoke(IPC.GET_TERMINAL_STATE).then((state) => {
+        cachedTerminalStateRef.current = state;
+      }).catch(() => { /* ignore */ });
+    };
+    refresh(); // Immediate fetch
+    const interval = setInterval(refresh, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, [terminals.size]); // Re-trigger on terminal count change
+
   // Auto-save session when tab order or grid slots change (debounced).
   // Ensures reorder and grid-swap state persists immediately — not just on project switch / beforeunload.
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -453,33 +588,60 @@ export function TerminalArea() {
     if (restoredForProjectRef.current !== normalizedPath) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      saveSession(currentProjectPath, useTerminalStore.getState());
+      saveSessionWithState(currentProjectPath, useTerminalStore.getState());
     }, 300);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
     // projectTerminals changes when createdAt changes (reorder), gridSlots changes on grid swap
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectTerminals, gridSlots, currentProjectPath]);
 
-  // Save session on app close so grid slot positions persist across restarts
+  // Save session on app close — uses cached terminal state + scrollback export
   useEffect(() => {
     const handler = () => {
-      saveSession(currentProjectPath, useTerminalStore.getState());
+      saveSession(currentProjectPath, useTerminalStore.getState(), cachedTerminalStateRef.current);
+      // Export scrollback for each terminal (best-effort, async fire-and-forget)
+      if (currentProjectPath) {
+        const store = useTerminalStore.getState();
+        for (const [id] of store.terminals) {
+          const lines = terminalRegistry.exportScrollback(id, 5000);
+          if (lines.length > 0) {
+            typedInvoke(IPC.SAVE_TERMINAL_SCROLLBACK, { projectPath: currentProjectPath, terminalId: id, lines }).catch(() => {});
+          }
+        }
+      }
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [currentProjectPath]);
 
   // Auto-create first terminal when project is selected and none exist
+  // (skip if terminal restore is in progress — it will create them)
   useEffect(() => {
     if (currentProjectPath && projectTerminals.length === 0) {
-      typedInvoke(IPC.LOAD_SETTINGS, ...([] as [])).then((settings: any) => {
-        const autoCreate = settings?.general?.autoCreateTerminal ?? false;
+      // Check if terminal restore is in progress for this project
+      const session = loadSession(currentProjectPath);
+      const hasSavedTerminals = session?.terminalCwds && Object.keys(session.terminalCwds).length > 0;
+      if (hasSavedTerminals && restoringTerminalsRef.current === (currentProjectPath ?? '')) {
+        return; // Skip — terminals will be created by the restore logic
+      }
+
+      typedInvoke(IPC.LOAD_SETTINGS, ...([] as [])).then((loadedSettings: any) => {
+        const autoCreate = loadedSettings?.general?.autoCreateTerminal ?? false;
         if (autoCreate) {
-          createTerminal();
+          // Re-check: terminals may have been created by restore while we awaited settings
+          const currentTerminals = Array.from(useTerminalStore.getState().terminals.values())
+            .filter((t) => (t.projectPath || '') === (currentProjectPath ?? ''));
+          if (currentTerminals.length === 0) {
+            createTerminal();
+          }
         }
       }).catch(() => {
-        // Default: create terminal
-        createTerminal();
+        // Default: create terminal (only if still empty)
+        const currentTerminals = Array.from(useTerminalStore.getState().terminals.values())
+          .filter((t) => (t.projectPath || '') === (currentProjectPath ?? ''));
+        if (currentTerminals.length === 0) {
+          createTerminal();
+        }
       });
     }
     // Only run when project changes, not on every terminal list update

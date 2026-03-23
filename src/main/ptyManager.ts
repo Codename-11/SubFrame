@@ -6,6 +6,7 @@
 import * as pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import * as fs from 'fs';
+import * as path from 'path';
 import { execSync } from 'child_process';
 import type { BrowserWindow, IpcMain, WebContents } from 'electron';
 import { IPC } from '../shared/ipcChannels';
@@ -18,10 +19,30 @@ interface PTYInstance {
   cwd: string;
   projectPath: string | null;
   claudeActive: boolean;
+  shell: string;
 }
 
 // ── Pop-out Window WebContents ────────────────────────────────────────────────
 const popoutWebContents = new Map<string, WebContents>();
+
+// ── OSC 7 Working Directory Detection ────────────────────────────────────────
+
+/**
+ * Parse OSC 7 escape sequence to extract the current working directory.
+ * Many modern shells (bash, zsh, fish, PowerShell w/ starship) emit
+ * `\x1b]7;file://hostname/path\x07` or `\x1b]7;file://hostname/path\x1b\\`
+ * on every directory change.
+ */
+function parseOSC7(data: string): string | null {
+  // Match OSC 7 with either BEL (\x07) or ST (\x1b\\) terminator
+  const match = data.match(/\x1b\]7;file:\/\/[^/]*([^\x07\x1b]+)/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
 
 // ── Claude Code Detection ────────────────────────────────────────────────────
 
@@ -48,7 +69,29 @@ const captureBuffers = new Map<string, string[]>();
 /** Per-terminal output handlers — supports multiple named handlers per terminal */
 const outputHandlers = new Map<string, Map<string, (data: string) => void>>();
 /** How long (ms) after the last Claude pattern match before marking inactive */
-const CLAUDE_INACTIVE_DELAY = 8000;
+const CLAUDE_INACTIVE_DELAY = 4000;
+
+/** Read the user-configurable agent exit timeout, falling back to the constant */
+function getAgentExitTimeout(): number {
+  const val = getSetting('terminal.agentExitTimeout') as number | undefined;
+  if (typeof val === 'number' && val >= 1000 && val <= 30000) return val;
+  return CLAUDE_INACTIVE_DELAY;
+}
+
+/** Tracks the current claude-active state per terminal for shell-prompt exit detection */
+const claudeActiveFlags = new Map<string, boolean>();
+
+/**
+ * Shell prompt patterns — when one of these appears as the last line of output
+ * while the agent was active (and no Claude patterns matched), the agent has exited.
+ */
+const SHELL_PROMPT_PATTERNS: RegExp[] = [
+  /\$\s*$/,                              // bash: "user@host:~$ "
+  /❯\s*$/,                               // zsh with starship/pure
+  />\s*$/,                                // PowerShell: "PS C:\> "
+  /\w+@[\w.-]+[:#~]\S*\s*\$\s*$/,        // full bash prompt: "user@host:~/dir$ "
+  /PS\s+[A-Z]:\\[^>]*>\s*$/,             // PowerShell full: "PS C:\Users\foo> "
+];
 
 /**
  * Patterns that strongly indicate Claude Code TUI is active.
@@ -209,34 +252,56 @@ function detectClaudeOutput(terminalId: string, data: string): void {
 
   // Check patterns against the buffer
   const matched = CLAUDE_PATTERNS.some((re) => re.test(buf));
-  if (!matched) return;
 
-  const instance = ptyInstances.get(terminalId);
-  if (!instance) return;
+  if (matched) {
+    const instance = ptyInstances.get(terminalId);
+    if (!instance) return;
 
-  // Clear any pending inactive timeout
-  const existing = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-  if (existing) clearTimeout(existing);
+    // Clear any pending inactive timeout
+    const existing = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+    if (existing) clearTimeout(existing);
 
-  // Broadcast on transition to active
-  const wasActive = instance.claudeActive;
-  instance.claudeActive = true;
-  if (!wasActive) {
-    broadcastClaudeStatus(terminalId, true);
+    // Broadcast on transition to active
+    const wasActive = instance.claudeActive;
+    instance.claudeActive = true;
+    claudeActiveFlags.set(terminalId, true);
+    if (!wasActive) {
+      broadcastClaudeStatus(terminalId, true);
+    }
+
+    // Schedule inactive transition (use configurable timeout)
+    const timeout = getAgentExitTimeout();
+    CLAUDE_TIMEOUT_HANDLES.set(
+      terminalId,
+      setTimeout(() => {
+        const inst = ptyInstances.get(terminalId);
+        if (inst && inst.claudeActive) {
+          inst.claudeActive = false;
+          claudeActiveFlags.set(terminalId, false);
+          broadcastClaudeStatus(terminalId, false);
+        }
+        CLAUDE_TIMEOUT_HANDLES.delete(terminalId);
+      }, timeout)
+    );
+    return;
   }
 
-  // Schedule inactive transition
-  CLAUDE_TIMEOUT_HANDLES.set(
-    terminalId,
-    setTimeout(() => {
-      const inst = ptyInstances.get(terminalId);
-      if (inst && inst.claudeActive) {
-        inst.claudeActive = false;
-        broadcastClaudeStatus(terminalId, false);
-      }
+  // If agent is active and we see a shell prompt, agent likely exited
+  if (claudeActiveFlags.get(terminalId) && !matched) {
+    const lastLine = data.split('\n').pop()?.trim() ?? '';
+    if (SHELL_PROMPT_PATTERNS.some((p) => p.test(lastLine))) {
+      // Shell prompt appeared without any Claude patterns — agent exited
+      const pendingTimeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+      if (pendingTimeout) clearTimeout(pendingTimeout);
       CLAUDE_TIMEOUT_HANDLES.delete(terminalId);
-    }, CLAUDE_INACTIVE_DELAY)
-  );
+      const instance = ptyInstances.get(terminalId);
+      if (instance) {
+        instance.claudeActive = false;
+      }
+      claudeActiveFlags.set(terminalId, false);
+      broadcastClaudeStatus(terminalId, false);
+    }
+  }
 }
 
 interface ShellInfo {
@@ -264,6 +329,28 @@ function getMaxTerminals(): number {
  */
 function init(window: BrowserWindow): void {
   mainWindow = window;
+
+  // Periodic stale-session check: if agent-state.json shows a correlated session
+  // as idle/completed, immediately mark the terminal as inactive.
+  setInterval(() => {
+    for (const [terminalId, sessionId] of terminalSessionMap.entries()) {
+      if (!claudeActiveFlags.get(terminalId)) continue;
+      const instance = ptyInstances.get(terminalId);
+      if (!instance?.projectPath) continue;
+      try {
+        const state = agentStateManager.loadAgentState(instance.projectPath);
+        const session = state.sessions.find((s) => s.sessionId === sessionId);
+        if (session && (session.status === 'idle' || session.status === 'completed')) {
+          instance.claudeActive = false;
+          claudeActiveFlags.set(terminalId, false);
+          // Clear any pending inactivity timeout since we know the agent exited
+          const pending = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+          if (pending) { clearTimeout(pending); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
+          broadcastClaudeStatus(terminalId, false);
+        }
+      } catch { /* ignore read errors */ }
+    }
+  }, 3000);
 }
 
 /**
@@ -402,12 +489,18 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     } as Record<string, string>
   });
 
-  // Handle PTY output - send with terminal ID + detect Claude activity
+  // Handle PTY output - send with terminal ID + detect Claude activity + track cwd via OSC 7
   ptyProcess.onData((data: string) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
     }
     detectClaudeOutput(terminalId, data);
+    // Track working directory changes via OSC 7 escape sequences
+    const osc7Path = parseOSC7(data);
+    if (osc7Path) {
+      const inst = ptyInstances.get(terminalId);
+      if (inst) inst.cwd = osc7Path;
+    }
     // Accumulate output if this terminal is being captured
     const captureBuf = captureBuffers.get(terminalId);
     if (captureBuf) captureBuf.push(data);
@@ -425,6 +518,7 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     captureBuffers.delete(terminalId);
     outputHandlers.delete(terminalId);
     terminalSessionMap.delete(terminalId);
+    claudeActiveFlags.delete(terminalId);
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
     if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -438,8 +532,8 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     popoutWebContents.delete(terminalId);
   });
 
-  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false });
-  console.log(`Created terminal ${terminalId} in ${cwd} (project: ${projectPath || 'global'})`);
+  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false, shell });
+  console.log(`Created terminal ${terminalId} in ${cwd} (shell: ${shell}, project: ${projectPath || 'global'})`);
 
   return terminalId;
 }
@@ -460,10 +554,10 @@ function getTerminalsByProject(projectPath: string | null): string[] {
 /**
  * Get terminal info
  */
-function getTerminalInfo(terminalId: string): { cwd: string; projectPath: string | null } | null {
+function getTerminalInfo(terminalId: string): { cwd: string; projectPath: string | null; shell: string } | null {
   const instance = ptyInstances.get(terminalId);
   if (instance) {
-    return { cwd: instance.cwd, projectPath: instance.projectPath };
+    return { cwd: instance.cwd, projectPath: instance.projectPath, shell: instance.shell };
   }
   return null;
 }
@@ -501,6 +595,7 @@ function destroyTerminal(terminalId: string): void {
     captureBuffers.delete(terminalId);
     outputHandlers.delete(terminalId);
     terminalSessionMap.delete(terminalId);
+    claudeActiveFlags.delete(terminalId);
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
     if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     console.log(`Destroyed terminal ${terminalId}`);
@@ -521,6 +616,7 @@ function destroyAll(): void {
   captureBuffers.clear();
   outputHandlers.clear();
   terminalSessionMap.clear();
+  claudeActiveFlags.clear();
   for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
   CLAUDE_TIMEOUT_HANDLES.clear();
 }
@@ -634,6 +730,45 @@ function setupIPC(ipcMain: IpcMain): void {
   // Resize specific terminal
   ipcMain.on(IPC.TERMINAL_RESIZE_ID, (_event, { terminalId, cols, rows }: { terminalId: string; cols: number; rows: number }) => {
     resizeTerminal(terminalId, cols, rows);
+  });
+
+  // Get terminal state (cwd, shell, session) for save/restore
+  ipcMain.handle(IPC.GET_TERMINAL_STATE, () => {
+    const terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null }> = [];
+    for (const [id, instance] of ptyInstances) {
+      terminals.push({
+        id,
+        cwd: instance.cwd,
+        shell: instance.shell,
+        claudeActive: instance.claudeActive,
+        sessionId: terminalSessionMap.get(id) ?? null,
+      });
+    }
+    return { terminals };
+  });
+
+  // Save scrollback to .subframe/scrollback/<terminalId>.txt
+  ipcMain.handle(IPC.SAVE_TERMINAL_SCROLLBACK, (_event, { projectPath, terminalId, lines }: { projectPath: string; terminalId: string; lines: string[] }) => {
+    try {
+      const dir = path.join(projectPath, '.subframe', 'scrollback');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${terminalId}.txt`), lines.join('\n'), 'utf-8');
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  });
+
+  // Load scrollback from .subframe/scrollback/<terminalId>.txt
+  ipcMain.handle(IPC.LOAD_TERMINAL_SCROLLBACK, (_event, { projectPath, terminalId }: { projectPath: string; terminalId: string }) => {
+    try {
+      const filePath = path.join(projectPath, '.subframe', 'scrollback', `${terminalId}.txt`);
+      if (!fs.existsSync(filePath)) return { lines: [] };
+      const content = fs.readFileSync(filePath, 'utf-8');
+      return { lines: content.split('\n') };
+    } catch {
+      return { lines: [] };
+    }
   });
 }
 
