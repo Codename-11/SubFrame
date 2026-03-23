@@ -6,45 +6,162 @@ on:
   pull_request_review_comment:
     types: [created]
   issues:
-    types: [opened, assigned]
+    types: [opened, assigned, labeled]
   pull_request_review:
     types: [submitted]
 
 jobs:
-  claude:
+  # ── Gate: verify sender is a repo collaborator ──────────────────────────
+  auth:
+    runs-on: ubuntu-latest
+    outputs:
+      authorized: ${{ steps.check.outputs.authorized }}
+    steps:
+      - name: Check collaborator status
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Auto-triage (new issue opened) is always authorized
+            if (context.eventName === 'issues' && ['opened', 'labeled'].includes(context.payload.action)) {
+              core.setOutput('authorized', 'true');
+              return;
+            }
+
+            const sender = context.payload.sender?.login;
+            if (!sender) {
+              core.setOutput('authorized', 'false');
+              return;
+            }
+
+            try {
+              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: sender,
+              });
+              const allowed = ['admin', 'write', 'maintain'].includes(data.permission);
+              core.setOutput('authorized', allowed ? 'true' : 'false');
+              if (!allowed) {
+                core.info(`Sender ${sender} has '${data.permission}' permission — skipping.`);
+              }
+            } catch (err) {
+              core.info(`Permission check failed for ${sender}: ${err.message}`);
+              core.setOutput('authorized', 'false');
+            }
+
+  # ── Triage: analyze new issues, suggest labels/priority ─────────────────
+  triage:
+    needs: auth
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      needs.auth.outputs.authorized == 'true' && (
+        (github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'claude') ||
+        (github.event_name == 'issues' && github.event.action == 'opened')
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read
-      issues: read
+      issues: write
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code
-        id: claude
+      - name: Claude Triage
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Triage this GitHub issue. You are in analysis-only mode — do NOT write code or create PRs.
 
-          # This is an optional setting that allows Claude to read CI results on PRs
+            1. **Classify** — Is this a bug, feature request, question, or documentation issue?
+            2. **Priority** — Estimate priority (critical, high, medium, low) based on impact and scope.
+            3. **Affected area** — Which SubFrame module(s) are likely involved? Check CLAUDE.md for the architecture.
+            4. **Reproduction** — For bugs, is there enough info to reproduce? If not, ask clarifying questions.
+            5. **Suggested approach** — Briefly outline how this could be addressed (which files, what strategy).
+            6. **Labels** — Suggest appropriate GitHub labels (bug, enhancement, documentation, good-first-issue, etc).
+
+            Keep your response concise and actionable. Format as a checklist.
+          claude_args: "--max-turns 5"
+
+  # ── Fix: implement changes and create a PR ──────────────────────────────
+  fix:
+    needs: auth
+    if: |
+      needs.auth.outputs.authorized == 'true' &&
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'claude-fix'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Claude Fix
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Implement a fix for this GitHub issue. Read CLAUDE.md and AGENTS.md for project conventions.
+
+            1. Understand the issue fully — read relevant source files.
+            2. Implement the minimal fix that addresses the issue.
+            3. Follow SubFrame conventions: TypeScript strict, Conventional Commits, existing patterns.
+            4. Run `npm run check` (typecheck + lint + test + build) and fix any errors.
+            5. Create a PR with your changes using Conventional Commits format for the title.
+
+            Do NOT over-engineer. Only change what is needed to fix the issue.
+          claude_args: "--max-turns 25"
+
+  # ── Chat: respond to @claude mentions (analysis by default) ─────────────
+  chat:
+    needs: auth
+    if: |
+      needs.auth.outputs.authorized == 'true' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && github.event.action == 'assigned' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Claude Chat
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are responding to a collaborator's comment on a GitHub issue or PR.
+            Read CLAUDE.md for project context.
+
+            **Default mode is analysis** — investigate, explain, and suggest. Do NOT write code
+            or create PRs unless the user explicitly asks you to (e.g. "fix this", "implement",
+            "write the code", "create a PR").
+
+            If asked to fix: follow SubFrame conventions (TypeScript strict, Conventional Commits),
+            run `npm run check`, and create a PR.
           additional_permissions: |
             actions: read
-
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
-
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
-
+          claude_args: "--max-turns 15"
