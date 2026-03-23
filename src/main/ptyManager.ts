@@ -478,15 +478,21 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     }
   }
 
+  const isWindows = process.platform === 'win32';
   const ptyProcess = pty.spawn(shell, shellArgs, {
     name: 'xterm-256color',
     cols: 80,
     rows: 24,
     cwd: cwd,
+    // ConPTY settings for Windows — required for oh-my-posh, starship, and other
+    // modern prompts that use cursor repositioning and shell integration sequences
+    ...(isWindows ? { useConpty: true, conptyInheritCursor: true } : {}),
     env: {
       ...process.env,
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor',
+      TERM_PROGRAM: 'SubFrame',
+      TERM_PROGRAM_VERSION: require('../../package.json').version,
       SUBFRAME_TERMINAL_ID: terminalId,
     } as Record<string, string>
   });

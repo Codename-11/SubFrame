@@ -41,7 +41,7 @@ try {
   /* not available */
 }
 
-const { ipcRenderer, shell } = require('electron');
+import { getTransport } from './transportProvider';
 
 /** Static ANSI palette — these rarely change across themes */
 const ANSI_COLORS = {
@@ -308,8 +308,7 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
       writeOrBuffer(id, payload.data);
     }
   };
-  ipcRenderer.on(IPC.TERMINAL_OUTPUT_ID, handler);
-  const ipcCleanup = () => ipcRenderer.removeListener(IPC.TERMINAL_OUTPUT_ID, handler);
+  const ipcCleanup = getTransport().on(IPC.TERMINAL_OUTPUT_ID, handler);
 
   const entry: RegistryEntry = { terminal, fitAddon, searchAddon, holderDiv, ipcCleanup, userMessageMarkers: [], lastActiveTimestamp: 0 };
   registry.set(id, entry);
@@ -591,28 +590,29 @@ export function registerWebLinkProvider(terminal: Terminal): IDisposable {
             end: { x: endX, y: bufferLineNumber },
           },
           text: cleaned,
-          decorations: { underline: false, pointerCursor: false },
+          // Always show underline so URLs are discoverable; cursor changes on Ctrl hover
+          decorations: { underline: true, pointerCursor: false },
 
-          activate(event: MouseEvent, text: string): void {
-            if (!event.ctrlKey && !event.metaKey) return;
+          activate(_event: MouseEvent, text: string): void {
+            // Open on any click — Ctrl requirement removed for better UX
+            // (xterm only fires activate when the link is being tracked via hover)
             try {
               const { protocol } = new URL(text);
               if (protocol === 'https:' || protocol === 'http:') {
-                shell.openExternal(text);
+                getTransport().platform.openExternal(text);
               }
             } catch { /* malformed URL */ }
           },
 
           hover(event: MouseEvent, text: string): void {
-            if (event.ctrlKey || event.metaKey) {
-              this.decorations = { underline: true, pointerCursor: true };
-              const display = text.length > 60 ? text.slice(0, 57) + '...' : text;
-              showLinkTooltip(event, `Follow ${display} (${ctrlLabel}+Click)`);
-            }
+            this.decorations = { underline: true, pointerCursor: true };
+            const display = text.length > 60 ? text.slice(0, 57) + '...' : text;
+            const hint = event.ctrlKey || event.metaKey ? 'Click to open' : `${ctrlLabel}+Click to open`;
+            showLinkTooltip(event, `${display} — ${hint}`);
           },
 
           leave(): void {
-            this.decorations = { underline: false, pointerCursor: false };
+            this.decorations = { underline: true, pointerCursor: false };
             hideLinkTooltip();
           },
         });
@@ -749,8 +749,10 @@ let apiBridgeInitialized = false;
 export function initAPIBridge(): void {
   if (apiBridgeInitialized) return;
   apiBridgeInitialized = true;
+  const transport = getTransport();
+
   // Main → renderer: get terminal list
-  ipcRenderer.on(IPC.API_GET_TERMINALS, (_event: unknown, data: { requestId: string }) => {
+  transport.on(IPC.API_GET_TERMINALS, (_event: unknown, data: { requestId: string }) => {
     const { useTerminalStore } = require('../stores/useTerminalStore');
     const storeTerminals = useTerminalStore.getState().terminals;
     const terminals = Array.from(registry.keys()).map((id) => {
@@ -762,14 +764,14 @@ export function initAPIBridge(): void {
         claudeActive: info?.claudeActive ?? false,
       };
     });
-    ipcRenderer.send(IPC.API_RENDERER_RESPONSE, { requestId: data.requestId, payload: terminals });
+    transport.send(IPC.API_RENDERER_RESPONSE, { requestId: data.requestId, payload: terminals });
   });
 
   // Main → renderer: get visible buffer for a terminal
-  ipcRenderer.on(IPC.API_GET_BUFFER, (_event: unknown, data: { requestId: string; terminalId: string }) => {
+  transport.on(IPC.API_GET_BUFFER, (_event: unknown, data: { requestId: string; terminalId: string }) => {
     const entry = registry.get(data.terminalId);
     if (!entry) {
-      ipcRenderer.send(IPC.API_RENDERER_RESPONSE, {
+      transport.send(IPC.API_RENDERER_RESPONSE, {
         requestId: data.requestId,
         payload: { terminalId: data.terminalId, lines: [], rows: 0, cols: 0 },
       });
@@ -783,33 +785,33 @@ export function initAPIBridge(): void {
       const line = buffer.getLine(start + i);
       lines.push(line ? line.translateToString(true) : '');
     }
-    ipcRenderer.send(IPC.API_RENDERER_RESPONSE, {
+    transport.send(IPC.API_RENDERER_RESPONSE, {
       requestId: data.requestId,
       payload: { terminalId: data.terminalId, lines, rows: term.rows, cols: term.cols },
     });
   });
 
   // Main → renderer: get active terminal selection
-  ipcRenderer.on(IPC.API_GET_ACTIVE_SELECTION, (_event: unknown, data: { requestId: string }) => {
+  transport.on(IPC.API_GET_ACTIVE_SELECTION, (_event: unknown, data: { requestId: string }) => {
     const { useTerminalStore } = require('../stores/useTerminalStore');
     const activeId = useTerminalStore.getState().activeTerminalId;
     const entry = activeId ? registry.get(activeId) : null;
     const text = entry ? entry.terminal.getSelection() : '';
-    ipcRenderer.send(IPC.API_RENDERER_RESPONSE, {
+    transport.send(IPC.API_RENDERER_RESPONSE, {
       requestId: data.requestId,
       payload: { terminalId: activeId ?? null, text },
     });
   });
 
   // Main → renderer: get active terminal context
-  ipcRenderer.on(IPC.API_GET_CONTEXT, (_event: unknown, data: { requestId: string }) => {
+  transport.on(IPC.API_GET_CONTEXT, (_event: unknown, data: { requestId: string }) => {
     const { useTerminalStore } = require('../stores/useTerminalStore');
     const { useProjectStore } = require('../stores/useProjectStore');
     const store = useTerminalStore.getState();
     const activeId = store.activeTerminalId;
     const info = activeId ? store.terminals.get(activeId) : null;
     const projectPath = useProjectStore.getState().currentProjectPath;
-    ipcRenderer.send(IPC.API_RENDERER_RESPONSE, {
+    transport.send(IPC.API_RENDERER_RESPONSE, {
       requestId: data.requestId,
       payload: {
         terminalId: activeId ?? null,
@@ -831,7 +833,7 @@ export function registerSelectionSync(terminalId: string): IDisposable {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       const text = entry.terminal.getSelection();
-      ipcRenderer.send(IPC.API_SELECTION_SYNC, { terminalId, text });
+      getTransport().send(IPC.API_SELECTION_SYNC, { terminalId, text });
     }, 50);
   });
   return { dispose: () => { handler.dispose(); if (debounceTimer) clearTimeout(debounceTimer); } };
