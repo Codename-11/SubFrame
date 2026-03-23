@@ -142,9 +142,17 @@ const CACHE_TTL_MS = 60_000; // 1 minute
 
 /**
  * Check if a command is available on PATH.
- * Uses `where.exe` on Windows, `which` on Unix.
+ * Uses `where.exe` on Windows, a login shell + `which` on Unix.
  * Results are cached for 1 minute.
- * Uses async execFile (no shell) to avoid blocking the main thread.
+ *
+ * On macOS/Linux, Electron's process inherits a minimal GUI PATH and does not
+ * source the user's shell profile (~/.zshrc, ~/.bashrc, etc.). To match the
+ * PATH that SubFrame's terminal sees, we spawn the user's configured login
+ * shell (with the -l flag) so that profile-defined paths (e.g. ~/.local/bin)
+ * are included in the check.
+ *
+ * If the command is an absolute path we skip the shell entirely and just check
+ * whether the file exists and is executable.
  */
 async function isCommandInstalledAsync(command: string): Promise<boolean> {
   // Relative paths (e.g. ./.subframe/bin/codex) — check the fallback command instead
@@ -158,14 +166,46 @@ async function isCommandInstalledAsync(command: string): Promise<boolean> {
 
   let installed = false;
   try {
-    const whichCmd = process.platform === 'win32' ? 'where.exe' : 'which';
-    await new Promise<void>((resolve, reject) => {
-      execFile(whichCmd, [checkCmd], { timeout: 3000 }, (error) => {
-        if (error) reject(error);
-        else resolve();
+    if (path.isAbsolute(checkCmd)) {
+      // Absolute path provided — just check existence and executability.
+      await fs.promises.access(checkCmd, fs.constants.X_OK);
+      installed = true;
+    } else if (process.platform === 'win32') {
+      await new Promise<void>((resolve, reject) => {
+        execFile('where.exe', [checkCmd], { timeout: 3000 }, (error) => {
+          if (error) reject(error);
+          else resolve();
+        });
       });
-    });
-    installed = true;
+      installed = true;
+    } else {
+      // On macOS/Linux, spawn a login shell so the user's profile is sourced.
+      // This ensures paths added in ~/.zshrc / ~/.bashrc are visible.
+      const { getSetting } = require('./settingsManager') as { getSetting: (key: string) => unknown };
+      const configuredShell =
+        (getSetting('terminal.defaultShell') as string | undefined) ||
+        process.env.SHELL ||
+        '/bin/zsh';
+      // Sanitise: only allow simple command names (no shell metacharacters).
+      // Absolute paths are handled above; relative paths are skipped above.
+      const safeCmd = /^[\w.@-]+$/.test(checkCmd) ? checkCmd : null;
+      if (!safeCmd) {
+        installed = false;
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          execFile(
+            configuredShell,
+            ['-l', '-c', `which ${safeCmd}`],
+            { timeout: 5000 },
+            (error) => {
+              if (error) reject(error);
+              else resolve();
+            }
+          );
+        });
+        installed = true;
+      }
+    }
   } catch {
     installed = false;
   }
