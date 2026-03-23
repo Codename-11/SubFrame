@@ -4,6 +4,28 @@ type ViewMode = 'tabs' | 'grid';
 type GridLayout = '1x1' | '1x2' | '1x3' | '1x4' | '2x1' | '2x2' | '3x1' | '3x2' | '3x3' | '2L1R' | '1L2R' | '2T1B' | '1T2B';
 
 const GRID_LAYOUT_KEY = 'terminal-grid-layout';
+const PINNED_TERMINALS_KEY = 'subframe-pinned-terminals';
+
+function loadPinnedTerminals(): Set<string> {
+  try {
+    const stored = localStorage.getItem(PINNED_TERMINALS_KEY);
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr)) return new Set(arr.filter((v: unknown) => typeof v === 'string'));
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function savePinnedTerminals(pinned: Set<string>): void {
+  try {
+    localStorage.setItem(PINNED_TERMINALS_KEY, JSON.stringify([...pinned]));
+  } catch {
+    // ignore
+  }
+}
 
 function loadGridLayout(): GridLayout {
   try {
@@ -38,6 +60,9 @@ interface TerminalState {
   maximizedTerminalId: string | null;
   gridSlots: (string | null)[];
   gridSlotsByProject: Map<string, (string | null)[]>;
+  pinnedTerminals: Set<string>;
+  pinTerminal: (id: string) => void;
+  unpinTerminal: (id: string) => void;
   setGridSlots: (slots: (string | null)[], projectPath?: string) => void;
   setActiveTerminal: (id: string) => void;
   addTerminal: (info: TerminalInfo) => void;
@@ -61,6 +86,19 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   maximizedTerminalId: null,
   gridSlots: [],
   gridSlotsByProject: new Map(),
+  pinnedTerminals: loadPinnedTerminals(),
+  pinTerminal: (id) => {
+    const pinned = new Set(get().pinnedTerminals);
+    pinned.add(id);
+    set({ pinnedTerminals: pinned });
+    savePinnedTerminals(pinned);
+  },
+  unpinTerminal: (id) => {
+    const pinned = new Set(get().pinnedTerminals);
+    pinned.delete(id);
+    set({ pinnedTerminals: pinned });
+    savePinnedTerminals(pinned);
+  },
   setGridSlots: (slots, projectPath) => {
     if (projectPath !== undefined) {
       const byProject = new Map(get().gridSlotsByProject);
@@ -102,6 +140,11 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     const removed = terminals.get(id);
     terminals.delete(id);
 
+    // Clean up pinned state for removed terminal
+    const pinned = new Set(get().pinnedTerminals);
+    const wasPinned = pinned.delete(id);
+    if (wasPinned) savePinnedTerminals(pinned);
+
     // Scope fallback to same project
     const projectPath = currentProjectPath ?? removed?.projectPath ?? '';
     const projectTerminals = Array.from(terminals.values())
@@ -119,7 +162,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       activeByProject.delete(projectPath);
     }
 
-    set({ terminals, activeTerminalId: newActive, activeByProject });
+    set({ terminals, activeTerminalId: newActive, activeByProject, pinnedTerminals: pinned });
   },
 
   renameTerminal: (id, name, nameSource) => {

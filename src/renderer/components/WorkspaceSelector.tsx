@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Plus, FolderOpen, MoreVertical, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Plus, FolderOpen, MoreVertical, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,6 +7,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,20 +33,25 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useTerminalStore } from '../stores/useTerminalStore';
 import { useIpcQuery } from '../hooks/useIpc';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
-import { Kbd } from './ui/kbd';
 import type { WorkspaceListEntry, WorkspaceListResult } from '../../shared/ipcChannels';
 
 /**
- * Workspace selector dropdown.
- * Shows current workspace name, allows switching, creating, renaming, and deleting workspaces.
+ * Workspace selector with persistent horizontal tab bar and overflow menu.
+ * Shows all active workspaces as tabs with live agent status indicators.
+ * Right-click any tab for context menu (rename, deactivate, move, delete).
+ * Overflow "..." button provides: New Workspace, inactive workspaces, and Add Project actions.
  */
 export function WorkspaceSelector() {
   const workspaceName = useProjectStore((s) => s.workspaceName);
   const setWorkspaceName = useProjectStore((s) => s.setWorkspaceName);
+  const projects = useProjectStore((s) => s.projects);
+  const terminals = useTerminalStore((s) => s.terminals);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch workspace list
   const { data: workspaceList, refetch } = useIpcQuery(IPC.WORKSPACE_LIST, [], {
@@ -65,7 +77,6 @@ export function WorkspaceSelector() {
 
   // Find active workspace and its 1-based index within the active group
   const activeWs = workspaces.find((ws) => ws.active);
-  const activeIndex = activeWorkspaces.findIndex((ws) => ws.active) + 1;
 
   // Sync workspace name to store
   useEffect(() => {
@@ -74,7 +85,41 @@ export function WorkspaceSelector() {
     }
   }, [activeWs, workspaceName, setWorkspaceName]);
 
+  // Auto-scroll to active tab when workspace changes
+  useEffect(() => {
+    if (!activeWs || !scrollRef.current) return;
+    const activeTab = scrollRef.current.querySelector('[data-active-tab="true"]');
+    if (activeTab) {
+      activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+  }, [activeWs?.key]);
+
   const [loading, setLoading] = useState(false);
+
+  // Determine agent activity per workspace.
+  // For current workspace: check if any terminal with a project path in this workspace has claudeActive.
+  // For other workspaces: check all terminals (they persist across workspace switches).
+  const allTerminals = useMemo(() => Array.from(terminals.values()), [terminals]);
+  const currentProjectPaths = useMemo(
+    () => new Set(projects.map(p => p.path)),
+    [projects]
+  );
+
+  const getAgentStatus = useCallback((wsKey: string, isCurrentWs: boolean): 'active' | 'has-terminals' | 'idle' => {
+    if (isCurrentWs) {
+      // For current workspace, check terminals matching current project paths
+      const hasActive = allTerminals.some(
+        t => currentProjectPaths.has(t.projectPath) && t.claudeActive
+      );
+      if (hasActive) return 'active';
+      const hasTerminals = allTerminals.some(t => currentProjectPaths.has(t.projectPath));
+      if (hasTerminals) return 'has-terminals';
+      return 'idle';
+    }
+    // For other workspaces, we don't have their project paths.
+    // Show 'idle' — we can't determine status without loading each workspace's data.
+    return 'idle';
+  }, [allTerminals, currentProjectPaths]);
 
   const handleSwitch = useCallback(
     async (key: string) => {
@@ -181,9 +226,9 @@ export function WorkspaceSelector() {
     setDeleteTarget(null);
   }, [deleteTarget, refetch, loading]);
 
-  const handleMoveUp = useCallback(async () => {
-    if (!activeWs || loading) return;
-    const idx = workspaces.findIndex(ws => ws.key === activeWs.key);
+  const handleMoveLeft = useCallback(async (key: string) => {
+    if (loading) return;
+    const idx = workspaces.findIndex(ws => ws.key === key);
     if (idx <= 0) return; // Already first
     setLoading(true);
     try {
@@ -197,11 +242,11 @@ export function WorkspaceSelector() {
     } finally {
       setLoading(false);
     }
-  }, [activeWs, workspaces, loading, refetch]);
+  }, [workspaces, loading, refetch]);
 
-  const handleMoveDown = useCallback(async () => {
-    if (!activeWs || loading) return;
-    const idx = workspaces.findIndex(ws => ws.key === activeWs.key);
+  const handleMoveRight = useCallback(async (key: string) => {
+    if (loading) return;
+    const idx = workspaces.findIndex(ws => ws.key === key);
     if (idx < 0 || idx >= workspaces.length - 1) return; // Already last
     setLoading(true);
     try {
@@ -215,7 +260,7 @@ export function WorkspaceSelector() {
     } finally {
       setLoading(false);
     }
-  }, [activeWs, workspaces, loading, refetch]);
+  }, [workspaces, loading, refetch]);
 
   const handleToggleActive = useCallback(async (key: string) => {
     const ws = workspaces.find(w => w.key === key);
@@ -256,118 +301,145 @@ export function WorkspaceSelector() {
   }, [workspaces, activeWorkspaces, loading, refetch]);
 
   return (
-    <div className="flex items-center gap-1 px-3 py-2 border-b border-border-subtle">
-      {/* Workspace dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors min-w-0 cursor-pointer">
-            {activeIndex > 0 && (
-              <span className="font-mono font-semibold text-accent opacity-70">#{activeIndex}</span>
-            )}
-            <span className="truncate">{activeWs?.name || 'Default Workspace'}</span>
-            <ChevronDown className="w-3 h-3 flex-shrink-0 opacity-50" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="min-w-[220px]">
+    <div className="border-b border-border-subtle">
+      <div className="flex items-center h-7">
+        {/* Tab bar — scrollable horizontal */}
+        <div
+          ref={scrollRef}
+          className="flex-1 flex items-stretch min-w-0 overflow-x-auto scrollbar-none"
+        >
           {activeWorkspaces.map((ws, i) => {
             const idx = i + 1;
+            const isActive = ws.active;
+            const agentStatus = getAgentStatus(ws.key, isActive);
+
             return (
-              <DropdownMenuItem
-                key={ws.key}
-                onClick={() => handleSwitch(ws.key)}
-                disabled={loading}
-                className={ws.active ? 'bg-accent-subtle' : ''}
-              >
-                <span className="font-mono font-semibold text-accent opacity-70 mr-1.5">#{idx}</span>
-                <span className="truncate">{ws.name}</span>
-                {ws.projectCount > 0 && (
-                  <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
-                )}
-                {idx <= 9 && (
-                  <span className="ml-auto pl-3">
-                    <Kbd compact>{`Ctrl+Alt+${idx}`}</Kbd>
-                  </span>
-                )}
-              </DropdownMenuItem>
+              <ContextMenu key={ws.key}>
+                <ContextMenuTrigger asChild>
+                  <button
+                    data-active-tab={isActive ? 'true' : undefined}
+                    onClick={() => handleSwitch(ws.key)}
+                    disabled={loading}
+                    title={`${ws.name}${idx <= 9 ? ` (Ctrl+Alt+${idx})` : ''}`}
+                    className={`
+                      flex items-center gap-1 px-2.5 h-7 text-[11px] font-medium whitespace-nowrap
+                      transition-colors cursor-pointer flex-shrink-0 border-b-2
+                      ${isActive
+                        ? 'bg-accent/15 text-accent border-accent'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/50 border-transparent'
+                      }
+                      disabled:opacity-50
+                    `}
+                  >
+                    <span className="font-mono text-[10px] opacity-70">#{idx}</span>
+                    <span className="truncate max-w-[80px]">{ws.name}</span>
+                    {ws.projectCount > 0 && (
+                      <span className="text-text-muted text-[9px]">({ws.projectCount})</span>
+                    )}
+                    {/* Agent status dot */}
+                    {agentStatus === 'active' && (
+                      <span className="relative flex-shrink-0 w-1.5 h-1.5">
+                        <span className="absolute inset-0 rounded-full bg-success animate-ping opacity-40" />
+                        <span className="absolute inset-0 rounded-full bg-success" />
+                      </span>
+                    )}
+                    {agentStatus === 'has-terminals' && (
+                      <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-text-muted opacity-40" />
+                    )}
+                  </button>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="min-w-[160px]">
+                  <ContextMenuItem
+                    onClick={() => handleRename(ws.key)}
+                    className="text-xs cursor-default"
+                  >
+                    Rename
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => handleToggleActive(ws.key)}
+                    className="text-xs cursor-default"
+                  >
+                    Deactivate
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    onClick={() => handleMoveLeft(ws.key)}
+                    disabled={i === 0}
+                    className="text-xs cursor-default"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 mr-1.5" />
+                    Move Left
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => handleMoveRight(ws.key)}
+                    disabled={i === activeWorkspaces.length - 1}
+                    className="text-xs cursor-default"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 mr-1.5" />
+                    Move Right
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    onClick={() => handleDelete(ws.key)}
+                    className="text-xs text-error cursor-default"
+                  >
+                    Delete
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             );
           })}
-          {inactiveWorkspaces.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-0.5 text-[9px] font-semibold text-text-muted uppercase tracking-wider">
-                Inactive
-              </div>
-              {inactiveWorkspaces.map((ws) => (
-                <DropdownMenuItem
-                  key={ws.key}
-                  onClick={() => handleSwitch(ws.key)}
-                  disabled={loading}
-                  className="opacity-50"
-                >
-                  <span className="truncate">{ws.name}</span>
-                  {ws.projectCount > 0 && (
-                    <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </>
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleCreate} disabled={loading}>
-            <Plus className="w-3.5 h-3.5 mr-2" />
-            New Workspace
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </div>
 
-      {/* More options (rename/delete/reorder) */}
-      {activeWs && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="ml-auto p-0.5 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
-              title="Workspace options"
-            >
-              <MoreVertical className="w-3.5 h-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={handleMoveUp}
-              disabled={activeIndex <= 1}
-            >
-              <ChevronUp className="w-3.5 h-3.5 mr-2" />
-              Move Up
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={handleMoveDown}
-              disabled={activeIndex >= activeWorkspaces.length}
-            >
-              <ChevronDown className="w-3.5 h-3.5 mr-2" />
-              Move Down
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => handleToggleActive(activeWs.key)}
-            >
-              Deactivate
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleRename(activeWs.key)}>
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => handleDelete(activeWs.key)}
-              className="text-error"
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+        {/* Overflow / management menu */}
+        <div className="flex items-center flex-shrink-0 border-l border-border-subtle">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center justify-center w-7 h-7 text-text-tertiary hover:text-text-primary hover:bg-bg-hover/50 transition-colors cursor-pointer"
+                title="Workspace options"
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[200px]">
+              <DropdownMenuItem onClick={handleCreate} disabled={loading}>
+                <Plus className="w-3.5 h-3.5 mr-2" />
+                New Workspace
+              </DropdownMenuItem>
+              {inactiveWorkspaces.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-0.5 text-[9px] font-semibold text-text-muted uppercase tracking-wider">
+                    Inactive
+                  </div>
+                  {inactiveWorkspaces.map((ws) => (
+                    <DropdownMenuItem
+                      key={ws.key}
+                      disabled={loading}
+                      className="opacity-50"
+                    >
+                      <button
+                        className="flex items-center gap-2 w-full text-left"
+                        onClick={() => handleToggleActive(ws.key)}
+                      >
+                        <span className="truncate">{ws.name}</span>
+                        {ws.projectCount > 0 && (
+                          <span className="text-text-muted text-[10px]">({ws.projectCount})</span>
+                        )}
+                        <span className="ml-auto text-[9px] text-text-muted">Activate</span>
+                      </button>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-      {/* Add project button */}
-      <AddProjectButton />
+          {/* Add project button */}
+          <AddProjectButton />
+        </div>
+      </div>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
@@ -507,7 +579,7 @@ function AddProjectButton() {
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
-          className="p-0.5 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+          className="flex items-center justify-center w-7 h-7 text-text-tertiary hover:text-text-primary hover:bg-bg-hover/50 transition-colors cursor-pointer"
           title="Add project"
         >
           <Plus className="w-3.5 h-3.5" />

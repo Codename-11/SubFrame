@@ -50,6 +50,7 @@ export type ShortcutId =
   | 'PANEL_PROMPT_LIBRARY'
   | 'PANEL_SYSTEM'
   // Workspaces
+  | 'SWITCH_WORKSPACE'
   | 'WORKSPACE_PREV'
   | 'WORKSPACE_NEXT'
   | 'WORKSPACE_1'
@@ -108,6 +109,7 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutEntry> = {
   PANEL_SYSTEM:        { keys: 'Ctrl+Shift+U',  description: 'System',               category: 'Panels' },
 
   // ── Workspaces ────────────────────────────────────
+  SWITCH_WORKSPACE:    { keys: 'Ctrl+Alt+W',    description: 'Switch workspace',     category: 'Workspaces' },
   WORKSPACE_PREV:      { keys: 'Ctrl+Alt+[',    description: 'Previous workspace',   category: 'Workspaces' },
   WORKSPACE_NEXT:      { keys: 'Ctrl+Alt+]',    description: 'Next workspace',       category: 'Workspaces' },
   WORKSPACE_1:         { keys: 'Ctrl+Alt+1',    description: 'Workspace #1',         category: 'Workspaces' },

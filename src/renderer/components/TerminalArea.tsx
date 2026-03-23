@@ -188,9 +188,18 @@ export function TerminalArea() {
 
   // Filter terminals for current project (normalise null → '' for comparison)
   const normalizedPath = currentProjectPath ?? '';
-  const projectTerminals = Array.from(terminals.values())
+  const pinnedTerminals = useTerminalStore((s) => s.pinnedTerminals);
+  const nativeProjectTerminals = Array.from(terminals.values())
     .filter((t) => (t.projectPath || '') === normalizedPath)
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
+
+  // Include pinned terminals from other projects
+  const pinnedFromOtherProjects = Array.from(terminals.values())
+    .filter((t) => pinnedTerminals.has(t.id) && (t.projectPath || '') !== normalizedPath)
+    .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
+
+  // Combined: native project terminals first, then pinned from other projects
+  const projectTerminals = [...nativeProjectTerminals, ...pinnedFromOtherProjects];
 
   // Grid overflow detection — when active terminal exceeds grid capacity,
   // temporarily show it in single view instead of the grid
@@ -630,8 +639,9 @@ export function TerminalArea() {
 
   // Auto-create first terminal when project is selected and none exist
   // (skip if terminal restore is in progress — it will create them)
+  // Use nativeProjectTerminals (not projectTerminals) so pinned cross-project terminals don't prevent auto-create
   useEffect(() => {
-    if (currentProjectPath && projectTerminals.length === 0) {
+    if (currentProjectPath && nativeProjectTerminals.length === 0) {
       // Check if terminal restore is in progress for this project
       const session = loadSession(currentProjectPath);
       const hasSavedTerminals = session?.terminalCwds && Object.keys(session.terminalCwds).length > 0;
@@ -851,6 +861,7 @@ export function TerminalArea() {
           onCloseTerminal={closeTerminal}
           onPopOutTerminal={popOutTerminal}
           projectTerminals={projectTerminals}
+          currentProjectPath={normalizedPath}
           gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
             ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
             : undefined}

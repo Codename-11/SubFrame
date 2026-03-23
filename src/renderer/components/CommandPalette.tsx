@@ -32,6 +32,7 @@ import {
   BookOpen,
   Workflow,
   Cpu,
+  Check,
 } from 'lucide-react';
 import {
   CommandDialog,
@@ -51,6 +52,7 @@ import { typedInvoke, typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import type { WorkspaceListResult } from '../../shared/ipcChannels';
 import { SHORTCUTS } from '../lib/shortcuts';
+import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 
 export function CommandPalette() {
@@ -96,10 +98,20 @@ export function CommandPalette() {
 
   // Workspace list for switching
   const { data: workspaceData } = useIpcQuery(IPC.WORKSPACE_LIST, [], { staleTime: 10000 });
-  const workspaces = useMemo(() => {
-    const parsed = workspaceData as WorkspaceListResult | undefined;
-    return parsed?.workspaces ?? [];
-  }, [workspaceData]);
+  const parsedWorkspaceData = workspaceData as WorkspaceListResult | undefined;
+  const activeWorkspaceKey = parsedWorkspaceData?.active ?? '';
+
+  // Filter to active (non-inactive) workspaces, current workspace first
+  const activeWorkspaces = useMemo(() => {
+    const all = parsedWorkspaceData?.workspaces ?? [];
+    const nonInactive = all.filter((ws) => !ws.inactive);
+    // Sort: current workspace first, rest in original order
+    return nonInactive.sort((a, b) => {
+      if (a.key === activeWorkspaceKey) return -1;
+      if (b.key === activeWorkspaceKey) return 1;
+      return 0;
+    });
+  }, [parsedWorkspaceData, activeWorkspaceKey]);
 
   const switchWorkspace = useCallback(
     async (key: string) => {
@@ -110,6 +122,30 @@ export function CommandPalette() {
     },
     []
   );
+
+  // Ctrl+Alt+W — open palette pre-filtered to workspaces
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        setOpen(true);
+        // Pre-fill search to filter to workspace items
+        requestAnimationFrame(() => {
+          const input = document.querySelector<HTMLInputElement>('[cmdk-input]');
+          if (input) {
+            // Use native setter to trigger cmdk's internal state update
+            const nativeSetter = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype, 'value'
+            )?.set;
+            nativeSetter?.call(input, 'workspace');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   return (
     <CommandDialog
@@ -216,20 +252,37 @@ export function CommandPalette() {
         <CommandSeparator />
 
         {/* Workspaces */}
-        {workspaces.length > 1 && (
+        {activeWorkspaces.length > 1 && (
           <>
             <CommandGroup heading="Workspaces">
-              {workspaces.map((ws, i) => (
-                <CommandItem
-                  key={ws.key}
-                  onSelect={() => runAction(() => switchWorkspace(ws.key))}
-                >
-                  <Layers className="text-text-tertiary" />
-                  <span className="font-mono text-accent opacity-70 text-[10px]">#{i + 1}</span>
-                  <span>{ws.name}</span>
-                  {i < 9 && <CommandShortcut>Ctrl+Alt+{i + 1}</CommandShortcut>}
-                </CommandItem>
-              ))}
+              {activeWorkspaces.map((ws) => {
+                const isCurrent = ws.key === activeWorkspaceKey;
+                // Find 1-based index in the full active list (for shortcut display)
+                const originalIndex = (parsedWorkspaceData?.workspaces ?? [])
+                  .filter((w) => !w.inactive)
+                  .findIndex((w) => w.key === ws.key);
+                return (
+                  <CommandItem
+                    key={ws.key}
+                    onSelect={() => runAction(() => switchWorkspace(ws.key))}
+                    keywords={['workspace', 'switch']}
+                  >
+                    {isCurrent
+                      ? <Check className="text-accent" size={16} />
+                      : <Layers className="text-text-tertiary" />
+                    }
+                    <span className={cn(isCurrent && 'text-accent')}>{ws.name}</span>
+                    {ws.projectCount > 0 && (
+                      <span className="text-text-muted text-[11px]">
+                        ({ws.projectCount} {ws.projectCount === 1 ? 'project' : 'projects'})
+                      </span>
+                    )}
+                    {originalIndex >= 0 && originalIndex < 9 && (
+                      <CommandShortcut>Ctrl+Alt+{originalIndex + 1}</CommandShortcut>
+                    )}
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
             <CommandSeparator />
           </>

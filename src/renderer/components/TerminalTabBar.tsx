@@ -17,6 +17,8 @@ import {
   Bot,
   ExternalLink,
   FileText,
+  Pin,
+  PinOff,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -53,6 +55,8 @@ interface TerminalTabBarProps {
   onCloseTerminal: (id: string) => void;
   onPopOutTerminal?: (id: string) => void;
   projectTerminals: TerminalInfo[];
+  /** Current project path (used to detect cross-project pinned terminals) */
+  currentProjectPath?: string;
   /** Terminal IDs that overflow the grid (not visible in grid view) */
   gridOverflowIds?: Set<string>;
   /** Called when any terminal tab is clicked (in addition to store setActiveTerminal) */
@@ -69,6 +73,7 @@ export function TerminalTabBar({
   onCloseTerminal,
   onPopOutTerminal,
   projectTerminals,
+  currentProjectPath,
   gridOverflowIds,
   onTerminalTabClick,
   editorFiles,
@@ -84,6 +89,9 @@ export function TerminalTabBar({
   const reorderTerminals = useTerminalStore((s) => s.reorderTerminals);
   const gridLayout = useTerminalStore((s) => s.gridLayout);
   const setGridLayout = useTerminalStore((s) => s.setGridLayout);
+  const pinnedTerminals = useTerminalStore((s) => s.pinnedTerminals);
+  const pinTerminal = useTerminalStore((s) => s.pinTerminal);
+  const unpinTerminal = useTerminalStore((s) => s.unpinTerminal);
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -133,8 +141,16 @@ export function TerminalTabBar({
     return () => el.removeEventListener('scroll', updateScrollState);
   }, [updateScrollState]);
 
-  // Use projectTerminals prop directly (already sorted by parent)
+  // Use projectTerminals prop directly (already sorted by parent — includes pinned cross-project terminals)
   const terminalList = projectTerminals;
+
+  // Identify cross-project pinned terminals (pinned terminals whose projectPath differs from current)
+  const normalizedCurrentPath = currentProjectPath ?? '';
+  const crossProjectIds = new Set(
+    projectTerminals
+      .filter((t) => pinnedTerminals.has(t.id) && (t.projectPath || '') !== normalizedCurrentPath)
+      .map((t) => t.id)
+  );
 
   const startRename = useCallback((id: string, currentName: string) => {
     setRenamingId(id);
@@ -240,10 +256,13 @@ export function TerminalTabBar({
                   <button
                     className={`group relative flex items-center gap-1.5 px-3 h-7 rounded-md text-xs
                                whitespace-nowrap transition-colors cursor-pointer select-none
+                               ${crossProjectIds.has(t.id) ? 'border-l-2 border-accent/40' : ''}
                                ${
                                  t.id === activeTerminalId && !activeEditorFile
                                    ? 'text-accent'
-                                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+                                   : crossProjectIds.has(t.id)
+                                     ? 'text-text-secondary hover:text-text-primary hover:bg-bg-hover bg-bg-tertiary/50'
+                                     : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
                                }`}
                     onClick={() => {
                       setActiveTerminal(t.id);
@@ -266,6 +285,20 @@ export function TerminalTabBar({
                     )}
 
                     <span className="relative z-10 flex items-center gap-1.5">
+                      {/* Cross-project pinned badge */}
+                      {crossProjectIds.has(t.id) && (
+                        <span
+                          className="flex items-center gap-0.5 px-1 py-px rounded text-[9px] font-medium bg-accent/15 text-accent/80 flex-shrink-0"
+                          title={`Pinned from ${t.projectPath || 'unknown'}`}
+                        >
+                          <Pin className="h-2.5 w-2.5" />
+                          {(t.projectPath || '').split(/[/\\]/).pop() || '?'}
+                        </span>
+                      )}
+                      {/* Pin indicator for native terminals that are pinned */}
+                      {pinnedTerminals.has(t.id) && !crossProjectIds.has(t.id) && (
+                        <Pin className="h-2.5 w-2.5 text-accent/60 flex-shrink-0" />
+                      )}
                       {/* Agent active indicator */}
                       {t.claudeActive && (
                         <Bot className="h-3 w-3 text-success flex-shrink-0 animate-pulse" />
@@ -364,6 +397,18 @@ export function TerminalTabBar({
                     <ContextMenuItem onClick={() => onPopOutTerminal?.(t.id)}>
                       <ExternalLink className="mr-2 h-3.5 w-3.5" />
                       Pop Out
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuSeparator />
+                  {pinnedTerminals.has(t.id) ? (
+                    <ContextMenuItem onClick={() => unpinTerminal(t.id)}>
+                      <PinOff className="mr-2 h-3.5 w-3.5" />
+                      Unpin Terminal
+                    </ContextMenuItem>
+                  ) : (
+                    <ContextMenuItem onClick={() => pinTerminal(t.id)}>
+                      <Pin className="mr-2 h-3.5 w-3.5" />
+                      Pin Terminal
                     </ContextMenuItem>
                   )}
                   <ContextMenuSeparator />
