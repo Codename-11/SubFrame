@@ -723,6 +723,21 @@ export function TerminalArea() {
         return;
       }
 
+      // Ctrl+Shift+F — Freeze/resume terminal output
+      if (modKey && e.shiftKey && key === 'f') {
+        e.preventDefault();
+        if (activeTerminalId) {
+          const { frozenTerminals, toggleFreezeTerminal } = useTerminalStore.getState();
+          if (frozenTerminals.has(activeTerminalId)) {
+            terminalRegistry.unfreeze(activeTerminalId);
+          } else {
+            terminalRegistry.freeze(activeTerminalId);
+          }
+          toggleFreezeTerminal(activeTerminalId);
+        }
+        return;
+      }
+
       // Ctrl+Tab / Ctrl+Shift+Tab — Next/Prev terminal
       if (modKey && e.key === 'Tab') {
         e.preventDefault();

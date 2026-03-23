@@ -6,7 +6,7 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowDown, ArrowDownToLine, ArrowUp, Copy, ClipboardPaste, MousePointerClick, Trash2, Search, X, MessageSquare } from 'lucide-react';
+import { ArrowDown, ArrowDownToLine, ArrowUp, Copy, ClipboardPaste, MousePointerClick, Trash2, Search, X, MessageSquare, Pause } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -81,6 +81,8 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const highlightUserMessages = generalSettings.highlightUserMessages !== false;
   const userMessageColor = (generalSettings.userMessageColor as string) || '#ff6eb4';
   const claudeActive = useTerminalStore((s) => s.terminals.get(terminalId)?.claudeActive ?? false);
+  const isFrozen = useTerminalStore((s) => s.frozenTerminals.has(terminalId));
+  const unfreezeTerminal = useTerminalStore((s) => s.unfreezeTerminal);
   const [userMessageCount, setUserMessageCount] = useState(0);
   const [hasMessageAbove, setHasMessageAbove] = useState(false);
   const [hasMessageBelow, setHasMessageBelow] = useState(false);
@@ -674,6 +676,32 @@ export function Terminal({ terminalId, className }: TerminalProps) {
                   className="text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
                 >
                   <X className="h-3 w-3" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Frozen overlay indicator */}
+          <AnimatePresence>
+            {isFrozen && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
+                className={`absolute ${showSearch ? 'top-12' : 'top-2'} right-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-md
+                           bg-info/15 border border-info/30 text-info text-[10px] font-medium backdrop-blur-sm`}
+              >
+                <Pause className="h-3 w-3" />
+                Output paused
+                <button
+                  onClick={() => {
+                    terminalRegistry.unfreeze(terminalId);
+                    unfreezeTerminal(terminalId);
+                  }}
+                  className="ml-1 px-1.5 py-0.5 rounded bg-info/20 hover:bg-info/30 transition-colors cursor-pointer"
+                >
+                  Resume
                 </button>
               </motion.div>
             )}

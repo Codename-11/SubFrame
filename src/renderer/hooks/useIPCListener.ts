@@ -5,8 +5,7 @@
 
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /**
  * Listen for an IPC event from the main process.
@@ -34,10 +33,7 @@ export function useIPCListener(
       });
     };
 
-    ipcRenderer.on(channel, handler);
-    return () => {
-      ipcRenderer.removeListener(channel, handler);
-    };
+    return getTransport().on(channel, handler);
   }, [channel, queryClient, queryKeysToInvalidate]);
 }
 
@@ -57,9 +53,6 @@ export function useIPCEvent<T = unknown>(
       handler(data);
     };
 
-    ipcRenderer.on(channel, wrappedHandler);
-    return () => {
-      ipcRenderer.removeListener(channel, wrappedHandler);
-    };
+    return getTransport().on(channel, wrappedHandler);
   }, [channel, handler]);
 }

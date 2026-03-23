@@ -4,7 +4,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { App } from './components/App';
+import { setTransport } from './lib/transportProvider';
+import { ElectronTransport } from './lib/electronTransport';
 import './styles/globals.css';
+
+// Initialize transport before any React rendering — all IPC flows through this
+setTransport(new ElectronTransport());
 
 // Global error handlers — surface errors that React can't catch
 window.onerror = (message, source, lineno, colno, error) => {

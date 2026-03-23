@@ -320,7 +320,9 @@ export function TerminalTabBar({
                       )}
                       {/* Frozen indicator */}
                       {frozenTerminals.has(t.id) && (
-                        <Pause className="h-2.5 w-2.5 text-info flex-shrink-0" title="Output frozen" />
+                        <span className="flex-shrink-0 flex items-center" title="Output frozen">
+                          <Pause className="h-2.5 w-2.5 text-info" />
+                        </span>
                       )}
                       {/* Agent active indicator */}
                       {t.claudeActive && (
@@ -432,6 +434,24 @@ export function TerminalTabBar({
                     <ContextMenuItem onClick={() => pinTerminal(t.id)}>
                       <Pin className="mr-2 h-3.5 w-3.5" />
                       Pin Terminal
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuSeparator />
+                  {frozenTerminals.has(t.id) ? (
+                    <ContextMenuItem onClick={() => {
+                      terminalRegistry.unfreeze(t.id);
+                      toggleFreezeTerminal(t.id);
+                    }}>
+                      <Play className="mr-2 h-3.5 w-3.5" />
+                      Resume Output
+                    </ContextMenuItem>
+                  ) : (
+                    <ContextMenuItem onClick={() => {
+                      terminalRegistry.freeze(t.id);
+                      toggleFreezeTerminal(t.id);
+                    }}>
+                      <Pause className="mr-2 h-3.5 w-3.5" />
+                      Freeze Output
                     </ContextMenuItem>
                   )}
                   <ContextMenuSeparator />
