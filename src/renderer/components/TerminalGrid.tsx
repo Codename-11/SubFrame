@@ -26,6 +26,7 @@ interface GridLayoutConfig {
 
 const GRID_LAYOUTS: Record<string, GridLayoutConfig> = {
   // Uniform layouts (slots auto-generated from rows×cols)
+  '1x1': { rows: 1, cols: 1, slots: [] },
   '1x2': { rows: 1, cols: 2, slots: [] },
   '1x3': { rows: 1, cols: 3, slots: [] },
   '1x4': { rows: 1, cols: 4, slots: [] },
@@ -87,7 +88,7 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
   const gridSlots = useTerminalStore((s) => s.gridSlots);
   const setGridSlots = useTerminalStore((s) => s.setGridSlots);
 
-  const config = GRID_LAYOUTS[gridLayout] ?? GRID_LAYOUTS['2x2'];
+  const config = GRID_LAYOUTS[gridLayout] ?? GRID_LAYOUTS['1x1'];
   const maxCells = config.slots.length > 0 ? config.slots.length : config.rows * config.cols;
 
   // Track which slot index was clicked for "New Terminal" so we can place it there

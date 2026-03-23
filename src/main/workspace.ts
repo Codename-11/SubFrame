@@ -402,6 +402,10 @@ function switchWorkspace(key: string): ProjectsWithScannedResult | null {
   if (!workspace.workspaces[key]) return null;
 
   workspace.activeWorkspace = key;
+  // Auto-reactivate if switching to an inactive workspace
+  if (workspace.workspaces[key].inactive) {
+    workspace.workspaces[key].inactive = false;
+  }
   saveWorkspace(workspace);
   return getProjectsWithScanned();
 }

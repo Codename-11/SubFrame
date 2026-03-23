@@ -517,7 +517,7 @@ export function TerminalTabBar({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-20">
-              {(['1x2', '1x3', '1x4', '2x1', '2x2', '3x1', '3x2', '3x3'] as const).map((layout) => (
+              {(['1x1', '1x2', '1x3', '1x4', '2x1', '2x2', '3x1', '3x2', '3x3'] as const).map((layout) => (
                 <DropdownMenuItem
                   key={layout}
                   onClick={() => setGridLayout(layout)}

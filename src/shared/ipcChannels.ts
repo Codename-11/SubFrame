@@ -120,6 +120,14 @@ export const IPC = {
   GITHUB_ISSUES_DATA: 'github-issues-data',
   TOGGLE_GITHUB_PANEL: 'toggle-github-panel',
   OPEN_GITHUB_ISSUE: 'open-github-issue',
+  VIEW_GITHUB_ISSUE: 'view-github-issue',
+  VIEW_GITHUB_PR: 'view-github-pr',
+  CREATE_GITHUB_ISSUE: 'create-github-issue',
+  LOAD_GITHUB_PR_DIFF: 'load-github-pr-diff',
+  RERUN_GITHUB_WORKFLOW: 'rerun-github-workflow',
+  DISPATCH_GITHUB_WORKFLOW: 'dispatch-github-workflow',
+  LOAD_GITHUB_NOTIFICATIONS: 'load-github-notifications',
+  MARK_GITHUB_NOTIFICATION_READ: 'mark-github-notification-read',
 
   // Claude Usage
   LOAD_CLAUDE_USAGE: 'load-claude-usage',
@@ -552,6 +560,73 @@ export interface GitHubWorkflowsResult {
   error: string | null;
   workflows: GitHubWorkflow[];
   repoName?: string | null;
+}
+
+/** GitHub comment */
+export interface GitHubComment {
+  id: number;
+  author: { login: string } | null;
+  body: string;
+  createdAt: string;
+}
+
+/** Full GitHub issue detail (from gh issue view) */
+export interface GitHubIssueDetail {
+  number: number;
+  title: string;
+  state: string;
+  body: string;
+  url: string;
+  assignees: { login: string }[];
+  comments: GitHubComment[];
+  labels: (string | GitHubLabel)[];
+  author: { login: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  milestone?: { title: string } | null;
+}
+
+/** Full PR detail */
+export interface GitHubPRDetail extends GitHubIssueDetail {
+  headRefName: string;
+  baseRefName: string;
+  mergeable: string;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  reviewDecision?: string;
+}
+
+/** PR diff result */
+export interface GitHubPRDiff {
+  diff: string;
+  files: { path: string; additions: number; deletions: number; status: string }[];
+}
+
+/** GitHub notification */
+export interface GitHubNotification {
+  id: string;
+  subject: { title: string; url: string | null; type: string };
+  reason: string;
+  unread: boolean;
+  updated_at: string;
+  repository: { full_name: string; html_url: string };
+}
+
+/** Create issue payload */
+export interface CreateGitHubIssuePayload {
+  projectPath: string;
+  title: string;
+  body?: string;
+  labels?: string[];
+  assignees?: string[];
+}
+
+/** Create issue result */
+export interface CreateGitHubIssueResult {
+  error: string | null;
+  issue?: GitHubIssue;
+  url?: string;
 }
 
 /** Individual AI tool definition */
@@ -1111,6 +1186,14 @@ export interface IPCHandleMap {
   // GitHub
   [IPC.LOAD_GITHUB_ISSUES]: { args: [payload: { projectPath: string; state?: string }]; return: GitHubIssuesResult };
   [IPC.LOAD_GITHUB_WORKFLOWS]: { args: [projectPath: string]; return: GitHubWorkflowsResult };
+  [IPC.VIEW_GITHUB_ISSUE]: { args: [payload: { projectPath: string; issueNumber: number }]; return: { error: string | null; issue: GitHubIssueDetail | null } };
+  [IPC.VIEW_GITHUB_PR]: { args: [payload: { projectPath: string; prNumber: number }]; return: { error: string | null; pr: GitHubPRDetail | null } };
+  [IPC.CREATE_GITHUB_ISSUE]: { args: [payload: CreateGitHubIssuePayload]; return: CreateGitHubIssueResult };
+  [IPC.LOAD_GITHUB_PR_DIFF]: { args: [payload: { projectPath: string; prNumber: number }]; return: { error: string | null; diff: GitHubPRDiff | null } };
+  [IPC.RERUN_GITHUB_WORKFLOW]: { args: [payload: { projectPath: string; runId: number }]; return: { error: string | null; success: boolean } };
+  [IPC.DISPATCH_GITHUB_WORKFLOW]: { args: [payload: { projectPath: string; workflowId: string; ref?: string }]; return: { error: string | null; success: boolean } };
+  [IPC.LOAD_GITHUB_NOTIFICATIONS]: { args: []; return: { error: string | null; notifications: GitHubNotification[] } };
+  [IPC.MARK_GITHUB_NOTIFICATION_READ]: { args: [payload: { threadId: string }]; return: { error: string | null; success: boolean } };
 
   // Git Branches
   [IPC.LOAD_GIT_BRANCHES]: { args: [projectPath: string]; return: GitBranchesResult };

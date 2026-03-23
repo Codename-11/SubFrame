@@ -29,6 +29,7 @@ import {
   BookMarked,
   PlayCircle,
   Workflow,
+  Bell,
   X,
   ChevronLeft,
   ChevronRight,
@@ -47,7 +48,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { TasksPanel } from './TasksPanel';
 import { SessionsPanel } from './SessionsPanel';
 import { PluginsPanel } from './PluginsPanel';
-import { GithubIssuesPanel, GithubPRsPanel, GithubBranchesPanel, GithubWorktreesPanel, GithubChangesPanel, GithubWorkflowsPanel } from './GithubPanel';
+import { GithubIssuesPanel, GithubPRsPanel, GithubBranchesPanel, GithubWorktreesPanel, GithubChangesPanel, GithubWorkflowsPanel, GithubNotificationsPanel } from './GithubPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { OverviewPanel } from './OverviewPanel';
 import { AIFilesPanel } from './AIFilesPanel';
@@ -58,7 +59,7 @@ import { PromptsPanel } from './PromptsPanel';
 import { PipelinePanel } from './PipelinePanel';
 import { SystemPanel } from './SystemPanel';
 
-type PanelId = 'tasks' | 'sessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system';
+type PanelId = 'tasks' | 'sessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system';
 
 interface PanelDef {
   id: PanelId;
@@ -78,6 +79,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   githubBranches:  { id: 'githubBranches',  label: 'Branches',   icon: GitBranch },
   githubWorktrees: { id: 'githubWorktrees', label: 'Worktrees',  icon: FolderGit2 },
   githubWorkflows: { id: 'githubWorkflows', label: 'Workflows',  icon: PlayCircle, shortcut: '' },
+  githubNotifications: { id: 'githubNotifications', label: 'Notifications', icon: Bell },
   overview:        { id: 'overview',        label: 'Overview',   icon: LayoutDashboard },
   aiFiles:         { id: 'aiFiles',         label: 'AI Files',   icon: FileText },
   subframeHealth:  { id: 'subframeHealth',  label: 'SubFrame Health', icon: Heart },
@@ -101,7 +103,7 @@ interface PanelGroup {
 
 const PANEL_GROUPS: PanelGroup[] = [
   { panels: ['tasks'],                                                                      label: 'Sub-Tasks' },
-  { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees', 'githubWorkflows'], label: 'GitHub' },
+  { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees', 'githubWorkflows', 'githubNotifications'], label: 'GitHub' },
   { panels: ['agentState', 'sessions', 'history', 'skills', 'plugins'],                     label: 'Agent' },
   { panels: ['prompts'],                                                                    label: 'Prompts' },
   { panels: ['pipeline'],                                                                   label: 'Pipeline' },
@@ -128,6 +130,7 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   githubBranches: GithubBranchesPanel,
   githubWorktrees: GithubWorktreesPanel,
   githubWorkflows: GithubWorkflowsPanel,
+  githubNotifications: GithubNotificationsPanel,
   history: HistoryPanel,
   overview: OverviewPanel,
   aiFiles: AIFilesPanel,

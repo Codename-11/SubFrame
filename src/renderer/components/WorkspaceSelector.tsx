@@ -220,21 +220,40 @@ export function WorkspaceSelector() {
   const handleToggleActive = useCallback(async (key: string) => {
     const ws = workspaces.find(w => w.key === key);
     if (!ws || loading) return;
-    // Don't deactivate the currently active workspace
-    if (ws.active && !ws.inactive) {
-      toast.warning('Cannot deactivate the current workspace');
+
+    const wantDeactivate = !ws.inactive;
+
+    // If deactivating the currently active workspace, switch to another first
+    if (wantDeactivate && ws.active) {
+      const otherActive = activeWorkspaces.find(w => w.key !== key);
+      if (!otherActive) {
+        toast.warning('Cannot deactivate — no other active workspace to switch to');
+        return;
+      }
+      setLoading(true);
+      try {
+        await typedInvoke(IPC.WORKSPACE_SWITCH, otherActive.key);
+        await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: true });
+        refetch();
+        typedSend(IPC.LOAD_WORKSPACE);
+      } catch {
+        toast.error('Failed to deactivate workspace');
+      } finally {
+        setLoading(false);
+      }
       return;
     }
+
     setLoading(true);
     try {
-      await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: !ws.inactive });
+      await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: wantDeactivate });
       refetch();
     } catch {
       toast.error('Failed to update workspace');
     } finally {
       setLoading(false);
     }
-  }, [workspaces, loading, refetch]);
+  }, [workspaces, activeWorkspaces, loading, refetch]);
 
   return (
     <div className="flex items-center gap-1 px-3 py-2 border-b border-border-subtle">

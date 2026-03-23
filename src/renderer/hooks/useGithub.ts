@@ -135,3 +135,54 @@ export function useGitWorktrees() {
     removeWorktree,
   };
 }
+
+export function useGithubIssueDetail(issueNumber: number | null) {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+  const query = useIpcQuery(
+    IPC.VIEW_GITHUB_ISSUE,
+    [{ projectPath: projectPath ?? '', issueNumber: issueNumber ?? 0 }],
+    { enabled: !!projectPath && issueNumber !== null }
+  );
+  return { issue: query.data?.issue ?? null, error: query.data?.error ?? null, isLoading: query.isLoading, refetch: query.refetch };
+}
+
+export function useGithubPRDetail(prNumber: number | null) {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+  const query = useIpcQuery(
+    IPC.VIEW_GITHUB_PR,
+    [{ projectPath: projectPath ?? '', prNumber: prNumber ?? 0 }],
+    { enabled: !!projectPath && prNumber !== null }
+  );
+  return { pr: query.data?.pr ?? null, error: query.data?.error ?? null, isLoading: query.isLoading, refetch: query.refetch };
+}
+
+export function useGithubPRDiff(prNumber: number | null) {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+  const query = useIpcQuery(
+    IPC.LOAD_GITHUB_PR_DIFF,
+    [{ projectPath: projectPath ?? '', prNumber: prNumber ?? 0 }],
+    { enabled: !!projectPath && prNumber !== null }
+  );
+  return { diff: query.data?.diff ?? null, error: query.data?.error ?? null, isLoading: query.isLoading, refetch: query.refetch };
+}
+
+export function useCreateGithubIssue() {
+  return useIpcMutation(IPC.CREATE_GITHUB_ISSUE);
+}
+
+export function useRerunWorkflow() {
+  return useIpcMutation(IPC.RERUN_GITHUB_WORKFLOW);
+}
+
+export function useDispatchWorkflow() {
+  return useIpcMutation(IPC.DISPATCH_GITHUB_WORKFLOW);
+}
+
+export function useGithubNotifications() {
+  const query = useIpcQuery(IPC.LOAD_GITHUB_NOTIFICATIONS, [], { refetchInterval: 60000 });
+  return { notifications: query.data?.notifications ?? [], error: query.data?.error ?? null, isLoading: query.isLoading, refetch: query.refetch };
+}
+
+export function useMarkNotificationRead() {
+  return useIpcMutation(IPC.MARK_GITHUB_NOTIFICATION_READ);
+}
