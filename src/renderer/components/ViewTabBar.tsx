@@ -505,7 +505,7 @@ function TooltipUsageRow({ label, utilization, resetsAt }: { label: string; util
         <span className="text-text-secondary">{label}</span>
         <span className="flex items-center gap-1.5">
           <span className="font-mono font-semibold text-text-primary">{pct}%</span>
-          {resetsAt && <ResetTime resetsAt={resetsAt} />}
+          {resetsAt && <ResetTime resetsAt={resetsAt} showAbsolute />}
         </span>
       </div>
       <div className="w-full h-[4px] rounded-full bg-bg-deep overflow-hidden">
@@ -543,24 +543,38 @@ function UsageItem({ label, utilization, resetsAt }: { label: string; utilizatio
   );
 }
 
-/** Formats reset time as relative countdown: "42m", "3h 15m", "2d 5h" */
-function ResetTime({ resetsAt }: { resetsAt: string }) {
-  const diff = new Date(resetsAt).getTime() - Date.now();
-  // If reset time is in the past, hide it — the data is stale and the countdown is meaningless
-  if (diff <= 0) return null;
+/** Formats reset time as relative countdown + absolute time */
+function ResetTime({ resetsAt, showAbsolute = false }: { resetsAt: string; showAbsolute?: boolean }) {
+  const resetDate = new Date(resetsAt);
+  const diff = resetDate.getTime() - Date.now();
+
+  // Format absolute time: "2:59 PM" or "Mar 27, 4:59 PM"
+  const isToday = resetDate.toDateString() === new Date().toDateString();
+  const absoluteTime = isToday
+    ? resetDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : resetDate.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + resetDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  // If reset time is in the past, show "resetting..." instead of hiding
+  if (diff <= 0) {
+    return <span className="text-[9px] text-text-muted font-mono" title={`Was ${absoluteTime}`}>(resetting)</span>;
+  }
 
   const mins = Math.floor(diff / 60000);
-  let label: string;
+  let relative: string;
   if (mins < 60) {
-    label = `${mins}m`;
+    relative = `${mins}m`;
   } else {
     const hours = Math.floor(mins / 60);
     if (hours < 24) {
-      label = `${hours}h ${mins % 60}m`;
+      relative = `${hours}h ${mins % 60}m`;
     } else {
       const days = Math.floor(hours / 24);
-      label = `${days}d ${hours % 24}h`;
+      relative = `${days}d ${hours % 24}h`;
     }
   }
-  return <span className="text-[9px] text-text-muted font-mono">({label})</span>;
+
+  if (showAbsolute) {
+    return <span className="text-[9px] text-text-muted font-mono">{relative} · {absoluteTime}</span>;
+  }
+  return <span className="text-[9px] text-text-muted font-mono" title={`Resets ${absoluteTime}`}>({relative})</span>;
 }
