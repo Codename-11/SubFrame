@@ -31,7 +31,7 @@ import {
   getThemeById,
 } from '../../shared/themeTypes';
 
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 const APP_VERSION = require('../../../package.json').version;
 
 const BUILTIN_TOOL_IDS = new Set(['claude', 'codex', 'gemini']);
@@ -439,9 +439,9 @@ export function SettingsPanel() {
     const handler = (_event: unknown, data: { shells: ShellInfo[]; success: boolean }) => {
       if (data.success) setAvailableShells(data.shells);
     };
-    ipcRenderer.on(IPC.AVAILABLE_SHELLS_DATA, handler);
-    ipcRenderer.send(IPC.GET_AVAILABLE_SHELLS);
-    return () => { ipcRenderer.removeListener(IPC.AVAILABLE_SHELLS_DATA, handler); };
+    const unsub = getTransport().on(IPC.AVAILABLE_SHELLS_DATA, handler);
+    getTransport().send(IPC.GET_AVAILABLE_SHELLS);
+    return unsub;
   }, []);
 
   const general = (settings.general as Record<string, unknown>) || {};
@@ -510,9 +510,10 @@ export function SettingsPanel() {
     if (!claudeSettingsPath) return;
     setHooksLoading(true);
 
-    const handler = (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
+    let unsub: (() => void) | null = null;
+    unsub = getTransport().on(IPC.FILE_CONTENT, (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
       if (result.filePath !== claudeSettingsPath) return;
-      ipcRenderer.removeListener(IPC.FILE_CONTENT, handler);
+      unsub?.();
       setHooksLoading(false);
 
       if (result.error || !result.content) {
@@ -525,9 +526,8 @@ export function SettingsPanel() {
       } catch {
         setHooksConfig({});
       }
-    };
+    });
 
-    ipcRenderer.on(IPC.FILE_CONTENT, handler);
     typedSend(IPC.READ_FILE, claudeSettingsPath);
   }, [claudeSettingsPath]);
 
@@ -536,9 +536,10 @@ export function SettingsPanel() {
     if (!claudeSettingsPath) return;
 
     // First read the full file to preserve other keys, then merge hooks
-    const handler = (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
+    let unsubRead: (() => void) | null = null;
+    unsubRead = getTransport().on(IPC.FILE_CONTENT, (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
       if (result.filePath !== claudeSettingsPath) return;
-      ipcRenderer.removeListener(IPC.FILE_CONTENT, handler);
+      unsubRead?.();
 
       let existing: Record<string, unknown> = {};
       if (!result.error && result.content) {
@@ -546,21 +547,20 @@ export function SettingsPanel() {
       }
       existing.hooks = newHooks;
 
-      const saveHandler = (_e: unknown, saveResult: { filePath: string; success?: boolean; error?: string }) => {
+      let unsubSave: (() => void) | null = null;
+      unsubSave = getTransport().on(IPC.FILE_SAVED, (_e: unknown, saveResult: { filePath: string; success?: boolean; error?: string }) => {
         if (saveResult.filePath !== claudeSettingsPath) return;
-        ipcRenderer.removeListener(IPC.FILE_SAVED, saveHandler);
+        unsubSave?.();
         if (saveResult.success) {
           setHooksConfig(newHooks);
           toast.success('Hooks saved');
         } else {
           toast.error('Failed to save hooks');
         }
-      };
-      ipcRenderer.on(IPC.FILE_SAVED, saveHandler);
+      });
       typedSend(IPC.WRITE_FILE, { filePath: claudeSettingsPath, content: JSON.stringify(existing, null, 2) + '\n' });
-    };
+    });
 
-    ipcRenderer.on(IPC.FILE_CONTENT, handler);
     typedSend(IPC.READ_FILE, claudeSettingsPath);
   }, [claudeSettingsPath]);
 
@@ -671,7 +671,7 @@ export function SettingsPanel() {
     const fileName = `${hookFormEvent.toLowerCase()}-${safeMatcher.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.js`;
     const prompt = [
       `Generate a Claude Code hook script for the ${hookFormEvent} event with matcher "${safeMatcher}".`,
-      `The hook should: ${aiGeneratePrompt.trim()}`,
+      `The hook should: ${aiGeneratePrompt.trim().replace(/[\r\n]+/g, ' ')}`,
       '',
       `Write it to ${hookDir}/${fileName} and output ONLY the absolute file path when done.`,
       `Make sure to create the ${hookDir} directory if it doesn't exist.`,
@@ -680,7 +680,7 @@ export function SettingsPanel() {
       hookFormEvent.startsWith('Pre') ? 'It can output JSON with { "decision": "approve"|"block"|"deny", "reason": "..." } to control the tool.' : '',
     ].filter(Boolean).join('\n');
 
-    ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
+    getTransport().send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
     toast.info('Sent to agent — check your terminal');
     setShowAIGenerate(false);
     setAiGeneratePrompt('');
@@ -1605,7 +1605,7 @@ export function SettingsPanel() {
                               <> — <a
                                 href="#"
                                 className="underline hover:text-accent"
-                                onClick={(e) => { e.preventDefault(); require('electron').shell.openExternal(aiToolConfig.activeTool.installUrl!); }}
+                                onClick={(e) => { e.preventDefault(); getTransport().platform.openExternal(aiToolConfig.activeTool.installUrl!); }}
                               >view install guide</a></>
                             )}
                           </span>
@@ -1867,17 +1867,6 @@ export function SettingsPanel() {
 
                                         {/* Actions */}
                                         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          {/* Toggle */}
-                                          <button
-                                            onClick={() => toggleHookDisabled(eventKey, entryIndex)}
-                                            className={cn(
-                                              'p-1 rounded hover:bg-bg-hover transition-colors cursor-pointer',
-                                              isDisabled ? 'text-warning' : 'text-text-muted hover:text-success',
-                                            )}
-                                            title={isDisabled ? 'Enable hook' : 'Disable hook (visual only)'}
-                                          >
-                                            <Play className="w-3 h-3" />
-                                          </button>
                                           {/* Edit */}
                                           <button
                                             onClick={() => openEditHookDialog(eventKey, entryIndex)}
@@ -2230,7 +2219,7 @@ export function SettingsPanel() {
                 <SettingGroup label="Links">
                   <button
                     className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame')}
+                    onClick={() => getTransport().platform.openExternal('https://github.com/Codename-11/SubFrame')}
                   >
                     <Github className="w-4 h-4 text-text-tertiary shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -2242,7 +2231,7 @@ export function SettingsPanel() {
 
                   <button
                     className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/issues')}
+                    onClick={() => getTransport().platform.openExternal('https://github.com/Codename-11/SubFrame/issues')}
                   >
                     <Info className="w-4 h-4 text-text-tertiary shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -2271,7 +2260,7 @@ export function SettingsPanel() {
                 <SettingGroup label="Changelog">
                   <button
                     className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/blob/main/CHANGELOG.md')}
+                    onClick={() => getTransport().platform.openExternal('https://github.com/Codename-11/SubFrame/blob/main/CHANGELOG.md')}
                   >
                     <FileText className="w-4 h-4 text-text-tertiary shrink-0" />
                     <div className="flex-1 min-w-0">

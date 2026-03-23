@@ -35,8 +35,7 @@ import { toast } from 'sonner';
 import { IPC } from '../../shared/ipcChannels';
 import type { ClaudeUsageData, UsageWindow, UsageSource } from '../../shared/ipcChannels';
 import { SHORTCUTS } from '../lib/shortcuts';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   terminal: TerminalSquare,
@@ -156,13 +155,11 @@ export function ViewTabBar() {
         setUsageData(data);
       }
     };
-    ipcRenderer.on(IPC.CLAUDE_USAGE_DATA, handler);
+    const unsub = getTransport().on(IPC.CLAUDE_USAGE_DATA, handler);
     setUsageFetching(true);
-    ipcRenderer.send(IPC.LOAD_CLAUDE_USAGE);
+    getTransport().send(IPC.LOAD_CLAUDE_USAGE);
 
-    return () => {
-      ipcRenderer.removeListener(IPC.CLAUDE_USAGE_DATA, handler);
-    };
+    return unsub;
   }, []);
 
   // Show toast on persistent usage polling failures with option to disable
@@ -310,7 +307,7 @@ export function ViewTabBar() {
                   onClick={() => {
                     if (!usageFetching) {
                       setUsageFetching(true);
-                      ipcRenderer.send(IPC.REFRESH_CLAUDE_USAGE);
+                      getTransport().send(IPC.REFRESH_CLAUDE_USAGE);
                     }
                   }}
                 >
@@ -545,6 +542,13 @@ function UsageItem({ label, utilization, resetsAt }: { label: string; utilizatio
 
 /** Formats reset time as relative countdown + absolute time */
 function ResetTime({ resetsAt, showAbsolute = false }: { resetsAt: string; showAbsolute?: boolean }) {
+  // Live countdown — re-render every 60s so the displayed time ticks down
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const resetDate = new Date(resetsAt);
   const diff = resetDate.getTime() - Date.now();
 

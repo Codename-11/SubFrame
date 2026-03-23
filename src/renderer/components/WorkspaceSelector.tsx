@@ -228,39 +228,40 @@ export function WorkspaceSelector() {
 
   const handleMoveLeft = useCallback(async (key: string) => {
     if (loading) return;
-    const idx = workspaces.findIndex(ws => ws.key === key);
-    if (idx <= 0) return; // Already first
+    const idx = activeWorkspaces.findIndex(ws => ws.key === key);
+    if (idx <= 0) return;
     setLoading(true);
     try {
-      const keys = workspaces.map(ws => ws.key);
-      // Swap with previous
+      const keys = activeWorkspaces.map(ws => ws.key);
       [keys[idx - 1], keys[idx]] = [keys[idx], keys[idx - 1]];
-      await typedInvoke(IPC.WORKSPACE_REORDER, keys);
+      // Append inactive keys unchanged
+      const inactiveKeys = inactiveWorkspaces.map(ws => ws.key);
+      await typedInvoke(IPC.WORKSPACE_REORDER, [...keys, ...inactiveKeys]);
       refetch();
     } catch {
       toast.error('Failed to reorder workspace');
     } finally {
       setLoading(false);
     }
-  }, [workspaces, loading, refetch]);
+  }, [activeWorkspaces, inactiveWorkspaces, loading, refetch]);
 
   const handleMoveRight = useCallback(async (key: string) => {
     if (loading) return;
-    const idx = workspaces.findIndex(ws => ws.key === key);
-    if (idx < 0 || idx >= workspaces.length - 1) return; // Already last
+    const idx = activeWorkspaces.findIndex(ws => ws.key === key);
+    if (idx < 0 || idx >= activeWorkspaces.length - 1) return;
     setLoading(true);
     try {
-      const keys = workspaces.map(ws => ws.key);
-      // Swap with next
+      const keys = activeWorkspaces.map(ws => ws.key);
       [keys[idx], keys[idx + 1]] = [keys[idx + 1], keys[idx]];
-      await typedInvoke(IPC.WORKSPACE_REORDER, keys);
+      const inactiveKeys = inactiveWorkspaces.map(ws => ws.key);
+      await typedInvoke(IPC.WORKSPACE_REORDER, [...keys, ...inactiveKeys]);
       refetch();
     } catch {
       toast.error('Failed to reorder workspace');
     } finally {
       setLoading(false);
     }
-  }, [workspaces, loading, refetch]);
+  }, [activeWorkspaces, inactiveWorkspaces, loading, refetch]);
 
   const handleToggleActive = useCallback(async (key: string) => {
     const ws = workspaces.find(w => w.key === key);
@@ -418,17 +419,13 @@ export function WorkspaceSelector() {
                       key={ws.key}
                       disabled={loading}
                       className="opacity-50"
+                      onClick={() => handleToggleActive(ws.key)}
                     >
-                      <button
-                        className="flex items-center gap-2 w-full text-left"
-                        onClick={() => handleToggleActive(ws.key)}
-                      >
-                        <span className="truncate">{ws.name}</span>
-                        {ws.projectCount > 0 && (
-                          <span className="text-text-muted text-[10px]">({ws.projectCount})</span>
-                        )}
-                        <span className="ml-auto text-[9px] text-text-muted">Activate</span>
-                      </button>
+                      <span className="truncate">{ws.name}</span>
+                      {ws.projectCount > 0 && (
+                        <span className="text-text-muted text-[10px]">({ws.projectCount})</span>
+                      )}
+                      <span className="ml-auto text-[9px] text-text-muted">Activate</span>
                     </DropdownMenuItem>
                   ))}
                 </>
