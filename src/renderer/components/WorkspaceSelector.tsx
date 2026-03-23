@@ -48,19 +48,24 @@ export function WorkspaceSelector() {
 
   // Parse the workspace list response — handler returns { active: string, workspaces: [...] }
   const parsed = workspaceList as WorkspaceListResult | undefined;
-  const workspaces = useMemo<(WorkspaceListEntry & { projectCount: number })[]>(() =>
+  const workspaces = useMemo<(WorkspaceListEntry & { projectCount: number; inactive: boolean })[]>(() =>
     parsed?.workspaces?.map((ws) => ({
       key: ws.key,
       name: ws.name,
       active: ws.key === parsed.active,
       projectCount: ws.projectCount ?? 0,
+      inactive: ws.inactive ?? false,
     })) ?? [],
     [parsed]
   );
 
-  // Find active workspace and its 1-based index
+  // Split workspaces into active and inactive groups
+  const activeWorkspaces = workspaces.filter(ws => !ws.inactive);
+  const inactiveWorkspaces = workspaces.filter(ws => ws.inactive);
+
+  // Find active workspace and its 1-based index within the active group
   const activeWs = workspaces.find((ws) => ws.active);
-  const activeIndex = workspaces.findIndex((ws) => ws.active) + 1;
+  const activeIndex = activeWorkspaces.findIndex((ws) => ws.active) + 1;
 
   // Sync workspace name to store
   useEffect(() => {
@@ -212,6 +217,25 @@ export function WorkspaceSelector() {
     }
   }, [activeWs, workspaces, loading, refetch]);
 
+  const handleToggleActive = useCallback(async (key: string) => {
+    const ws = workspaces.find(w => w.key === key);
+    if (!ws || loading) return;
+    // Don't deactivate the currently active workspace
+    if (ws.active && !ws.inactive) {
+      toast.warning('Cannot deactivate the current workspace');
+      return;
+    }
+    setLoading(true);
+    try {
+      await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: !ws.inactive });
+      refetch();
+    } catch {
+      toast.error('Failed to update workspace');
+    } finally {
+      setLoading(false);
+    }
+  }, [workspaces, loading, refetch]);
+
   return (
     <div className="flex items-center gap-1 px-3 py-2 border-b border-border-subtle">
       {/* Workspace dropdown */}
@@ -226,7 +250,7 @@ export function WorkspaceSelector() {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-[220px]">
-          {workspaces.map((ws, i) => {
+          {activeWorkspaces.map((ws, i) => {
             const idx = i + 1;
             return (
               <DropdownMenuItem
@@ -248,6 +272,27 @@ export function WorkspaceSelector() {
               </DropdownMenuItem>
             );
           })}
+          {inactiveWorkspaces.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-0.5 text-[9px] font-semibold text-text-muted uppercase tracking-wider">
+                Inactive
+              </div>
+              {inactiveWorkspaces.map((ws) => (
+                <DropdownMenuItem
+                  key={ws.key}
+                  onClick={() => handleSwitch(ws.key)}
+                  disabled={loading}
+                  className="opacity-50"
+                >
+                  <span className="truncate">{ws.name}</span>
+                  {ws.projectCount > 0 && (
+                    <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleCreate} disabled={loading}>
             <Plus className="w-3.5 h-3.5 mr-2" />
@@ -277,12 +322,17 @@ export function WorkspaceSelector() {
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleMoveDown}
-              disabled={activeIndex >= workspaces.length}
+              disabled={activeIndex >= activeWorkspaces.length}
             >
               <ChevronDown className="w-3.5 h-3.5 mr-2" />
               Move Down
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => handleToggleActive(activeWs.key)}
+            >
+              Deactivate
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleRename(activeWs.key)}>
               Rename
             </DropdownMenuItem>

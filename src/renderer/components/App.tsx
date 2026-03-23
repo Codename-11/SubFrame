@@ -67,13 +67,13 @@ export function App() {
 
   // Workspace list for Ctrl+Alt+N switching — refs avoid stale closure in handleKeyDown
   const { data: workspaceData, refetch: refetchWorkspaceList } = useIpcQuery(IPC.WORKSPACE_LIST, [], { staleTime: 10000 });
-  const workspaceListRef = useRef<{ key: string; name: string }[]>([]);
+  const workspaceListRef = useRef<{ key: string; name: string; inactive?: boolean }[]>([]);
   const activeWorkspaceKeyRef = useRef<string | null>(null);
   const refetchWorkspaceListRef = useRef(refetchWorkspaceList);
   refetchWorkspaceListRef.current = refetchWorkspaceList;
   useEffect(() => {
     const parsed = workspaceData as WorkspaceListResult | undefined;
-    workspaceListRef.current = parsed?.workspaces?.map((ws) => ({ key: ws.key, name: ws.name })) ?? [];
+    workspaceListRef.current = parsed?.workspaces?.map((ws) => ({ key: ws.key, name: ws.name, inactive: ws.inactive ?? false })) ?? [];
     activeWorkspaceKeyRef.current = parsed?.active ?? null;
   }, [workspaceData]);
 
@@ -294,10 +294,10 @@ export function App() {
         window.dispatchEvent(new Event('start-ai-tool'));
       }
 
-      // ── Workspace switching: Ctrl+Alt+1-9 ──
+      // ── Workspace switching: Ctrl+Alt+1-9 (active workspaces only) ──
       if (modKey && e.altKey && !e.shiftKey && key >= '1' && key <= '9') {
         const idx = parseInt(key, 10) - 1;
-        const wsList = workspaceListRef.current;
+        const wsList = workspaceListRef.current.filter(ws => !ws.inactive);
         if (idx < wsList.length) {
           e.preventDefault();
           typedInvoke(IPC.WORKSPACE_SWITCH, wsList[idx].key)
@@ -309,9 +309,9 @@ export function App() {
         }
       }
 
-      // Ctrl+Alt+[ — Previous workspace
+      // Ctrl+Alt+[ — Previous workspace (active only)
       if (modKey && e.altKey && e.key === '[') {
-        const wsList = workspaceListRef.current;
+        const wsList = workspaceListRef.current.filter(ws => !ws.inactive);
         const activeKey = activeWorkspaceKeyRef.current;
         if (wsList.length > 1 && activeKey) {
           e.preventDefault();
@@ -327,9 +327,9 @@ export function App() {
         }
       }
 
-      // Ctrl+Alt+] — Next workspace
+      // Ctrl+Alt+] — Next workspace (active only)
       if (modKey && e.altKey && e.key === ']') {
-        const wsList = workspaceListRef.current;
+        const wsList = workspaceListRef.current.filter(ws => !ws.inactive);
         const activeKey = activeWorkspaceKeyRef.current;
         if (wsList.length > 1 && activeKey) {
           e.preventDefault();

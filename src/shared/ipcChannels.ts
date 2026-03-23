@@ -48,6 +48,7 @@ export const IPC = {
   WORKSPACE_RENAME: 'workspace-rename',
   WORKSPACE_DELETE: 'workspace-delete',
   WORKSPACE_REORDER: 'workspace-reorder',
+  WORKSPACE_SET_INACTIVE: 'workspace-set-inactive',
 
   // Default Project Directory
   SCAN_PROJECT_DIR: 'scan-project-dir',
@@ -319,7 +320,7 @@ export interface WorkspaceListEntry {
 /** Response from WORKSPACE_LIST handler */
 export interface WorkspaceListResult {
   active: string;
-  workspaces: Array<{ key: string; name: string; projectCount: number }>;
+  workspaces: Array<{ key: string; name: string; projectCount: number; inactive?: boolean }>;
 }
 
 /** File tree node */
@@ -1091,6 +1092,7 @@ export interface IPCHandleMap {
   [IPC.WORKSPACE_RENAME]: { args: [payload: { key: string; newName: string }]; return: unknown };
   [IPC.WORKSPACE_DELETE]: { args: [key: string]; return: unknown };
   [IPC.WORKSPACE_REORDER]: { args: [orderedKeys: string[]]; return: boolean };
+  [IPC.WORKSPACE_SET_INACTIVE]: { args: [payload: { key: string; inactive: boolean }]; return: boolean };
 
   // API Server
   [IPC.API_SERVER_INFO]: { args: []; return: { enabled: boolean; dtspEnabled: boolean; port: number; token: string; connectedClients: number; totalRequests: number; ttsMessageCount: number; lastTtsMessage: { text: string; voice: string; timestamp: string } | null } };

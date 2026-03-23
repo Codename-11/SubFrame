@@ -25,6 +25,7 @@ interface WorkspaceEntry {
   name: string;
   createdAt: string;
   projects: WorkspaceProject[];
+  inactive?: boolean; // Defaults to false (active) for backward compat
 }
 
 interface WorkspaceData {
@@ -38,6 +39,7 @@ interface WorkspaceListItem {
   key: string;
   name: string;
   projectCount: number;
+  inactive?: boolean;
 }
 
 interface WorkspaceListResult {
@@ -387,6 +389,7 @@ function getWorkspaceList(): WorkspaceListResult {
         key,
         name: workspace.workspaces[key].name,
         projectCount: workspace.workspaces[key].projects ? workspace.workspaces[key].projects.length : 0,
+        inactive: workspace.workspaces[key].inactive ?? false,
       })),
   };
 }
@@ -507,6 +510,27 @@ function reorderWorkspaces(orderedKeys: string[]): boolean {
 }
 
 /**
+ * Set a workspace as inactive or active.
+ * The currently active workspace cannot be set to inactive.
+ */
+function setWorkspaceInactive(key: string, inactive: boolean): boolean {
+  try {
+    const workspace = loadWorkspace();
+    if (!workspace.workspaces[key]) return false;
+
+    // Guard: cannot deactivate the currently active workspace
+    if (inactive && workspace.activeWorkspace === key) return false;
+
+    workspace.workspaces[key].inactive = inactive;
+    saveWorkspace(workspace);
+    return true;
+  } catch (err) {
+    console.error('[Workspace] Failed to set inactive:', err);
+    return false;
+  }
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIPC(ipcMain: IpcMain): void {
@@ -552,6 +576,9 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.WORKSPACE_REORDER, (_event, orderedKeys: string[]) => {
     return reorderWorkspaces(orderedKeys);
   });
+  ipcMain.handle(IPC.WORKSPACE_SET_INACTIVE, (_event, payload: { key: string; inactive: boolean }) => {
+    return setWorkspaceInactive(payload.key, payload.inactive);
+  });
 }
 
 export {
@@ -559,5 +586,5 @@ export {
   addProject, removeProject, renameProject, updateProjectLastOpened,
   updateProjectFrameStatus, getWorkspaceList, switchWorkspace,
   createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspaces,
-  setProjectAITool, getProjectAITool, setupIPC
+  setWorkspaceInactive, setProjectAITool, getProjectAITool, setupIPC
 };
