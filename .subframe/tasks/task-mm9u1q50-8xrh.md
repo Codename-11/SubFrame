@@ -1,13 +1,13 @@
 ---
 id: task-mm9u1q50-8xrh
 title: Transport abstraction layer (IPC → pluggable)
-status: pending
+status: in_progress
 priority: medium
 category: refactor
 blockedBy: []
 blocks: []
 createdAt: '2026-03-02T23:51:26.099Z'
-updatedAt: '2026-03-02T23:51:26.099Z'
+updatedAt: '2026-03-23T23:26:25.185Z'
 completedAt: null
 context: Session 2026-03-02
 ---

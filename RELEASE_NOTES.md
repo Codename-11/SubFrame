@@ -1,39 +1,54 @@
-# v0.7.3-beta
+# v0.8.0-beta
 
-## GitHub Panel Enhancements
+Major feature release — workspace UX overhaul, terminal persistence, output channels, and GitHub panel enhancements.
 
-- **Send to Agent** — Right-click any issue or PR to send it to your active terminal as a formatted prompt. Bulk select multiple issues and send them all at once with a customizable wrapper prompt.
-- **Expandable Detail View** — Click any issue or PR to expand inline and see the full body (rendered markdown), comments, assignees, and milestone. PRs also show branch info, diff file summary, and review decision.
-- **Create Issue** — Create new GitHub issues directly from the panel with title, description, labels, and assignees.
-- **PR Review Integration** — Send a PR's metadata and diff to your agent for a thorough code review.
-- **Workflow Re-run & Dispatch** — Re-run completed workflow runs or dispatch workflows manually with a branch ref.
-- **Notifications Panel** — New tab in the GitHub group showing your notification feed grouped by repository, with unread indicators and mark-as-read support.
-- **Create Sub-Task from Issue** — Right-click an issue to create a SubFrame sub-task pre-filled with issue details.
+## Workspace UX
+
+- **Workspace Tab Bar** — Persistent horizontal tabs replace the dropdown. Each tab shows workspace name, project count, and live agent status dot (green pulse = agent active). Right-click for Rename, Deactivate, Move, Delete.
+- **Quick Switcher** — `Ctrl+Alt+W` opens the Command Palette pre-filtered to workspaces with fuzzy search.
+- **Cross-Project Terminal Pinning** — Pin terminals to keep them visible across workspace switches. Pinned terminals show a project name badge and accent left border. State persists in localStorage.
+
+## Terminal Enhancements
+
+- **Session Persistence** — Terminals restore on startup with correct shell, working directory, and names. Configurable via `terminal.restoreOnStartup`.
+- **Scrollback Persistence** — Optionally save and restore terminal scrollback content. Enable via `terminal.restoreScrollback`.
+- **Agent Session Resume** — When a terminal had an active Claude session, SubFrame offers to resume it. Modes: `auto`, `prompt` (default), `never`.
+- **Freeze/Resume** — Pause terminal output with `Ctrl+Shift+F`. Output buffers in the background and flushes instantly on resume. Overlay indicator + tab bar button.
+- **Agent Exit Detection** — Shell-prompt-return detection for instant recognition when Claude exits. Configurable timeout, agent-state staleness polling.
+- **Default 1×1 Grid** — New terminals start in single full view instead of 1×2 split.
 
 ## Persistent Status Bar
 
-Always-visible status bar at the bottom of the app showing at-a-glance information:
-- Git branch, ahead/behind, dirty indicator
-- Active agent count
-- In-progress and pending sub-task counts
-- CI workflow status
-- Output channel toggle
+Always-visible bar at the bottom showing git branch, agent count, sub-task progress, CI status, and output channel toggle. Click any section to open the corresponding panel.
 
 ## Output Channels
 
-VS Code-style named log channels for system and integration output:
-- 7 default channels: System, Git, GitHub, Agent, API Server, Pipeline, Extensions
-- Toggle between Activity Streams and Output view in the bottom panel
-- GitHub operations now log to the GitHub output channel
+VS Code-style named log channels (System, Git, GitHub, Agent, API Server, Pipeline, Extensions). Toggle between Activity Streams and Output view in the bottom panel. GitHub operations now log to the GitHub channel.
+
+## GitHub Panel
+
+- **Send to Agent** — Right-click issues/PRs to send to terminal. Bulk select and send multiple.
+- **Expandable Detail** — Click to see full body, comments, assignees, and PR diff summary.
+- **Create Issue** — New issue dialog with title, body, labels, assignees.
+- **PR Review** — Send PR metadata + diff to agent for code review.
+- **Workflow Re-run/Dispatch** — Re-run completed runs, dispatch workflows with branch ref.
+- **Notifications Panel** — Grouped notification feed with mark-read and auto-refresh.
 
 ## Claude GitHub Workflows
 
-- Enhanced `claude.yml` with 4 distinct jobs: auth gate, triage, fix, and chat
-- Collaborator-only access — non-collaborators are silently ignored
-- `claude` label triggers triage, `claude-fix` label triggers implementation
+- Triage/Fix/Chat modes with collaborator-only access
+- `claude` label triggers analysis, `claude-fix` triggers implementation + PR
 - Auto-triage on new issues, PR review gated to collaborators
+
+## Hooks Manager
+
+- New "Hooks" section in Settings to view, add, and delete Claude Code hooks
+- Quick templates for common patterns (block .env writes, log commands, auto-approve reads)
+- AI Generate helper to describe what you want and have Claude write the hook
 
 ## Fixes
 
-- **Workspace Deactivation** — Fixed broken deactivation that always showed "cannot deactivate". Now auto-switches to another workspace before deactivating.
-- **Terminal Default** — Default grid layout changed from 1x2 split to 1x1 single full view.
+- Workspace deactivation auto-switch before deactivating
+- Shell injection prevention in GitHub CLI calls (switched to execFile)
+- `restoreScrollback` setting now properly gated
+- Stale agent status after Claude exits (❯ pattern conflict resolved)
