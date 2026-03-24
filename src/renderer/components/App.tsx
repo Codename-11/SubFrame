@@ -33,6 +33,7 @@ import { typedInvoke, typedSend } from '../lib/ipc';
 import type { UninstallResult, WorkspaceListResult, WorkspaceData, WorkspaceProject } from '../../shared/ipcChannels';
 import { getTransport } from '../lib/transportProvider';
 import { MobileApp } from './mobile/MobileApp';
+import { TabletApp } from './mobile/TabletApp';
 
 /**
  * Root application layout.
@@ -460,7 +461,7 @@ export function App() {
   }, [onboarding.analysisResult, onboardingDialogOpen]);
 
   // Responsive viewport — web mobile gets a different layout
-  const { isMobile, isWeb } = useViewport();
+  const { isMobile, isTablet, isWeb } = useViewport();
 
   // Compute sidebar pixel width for CSS
   const resolvedSidebarWidth =
@@ -471,8 +472,19 @@ export function App() {
     return (
       <>
         <MobileApp />
-        {/* Modals/overlays that must be available in mobile mode */}
         <SettingsPanel />
+        <ThemeProvider />
+      </>
+    );
+  }
+
+  // Tablet web layout — collapsed sidebar + overlay panels
+  if (isTablet && isWeb) {
+    return (
+      <>
+        <TabletApp />
+        <SettingsPanel />
+        <CommandPalette />
         <ThemeProvider />
       </>
     );

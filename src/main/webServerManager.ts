@@ -57,6 +57,12 @@ const terminalBatches = new Map<string, string[]>();
 let batchTimer: ReturnType<typeof setTimeout> | null = null;
 let batchIntervalMs = 16; // ~60fps default
 
+// Per-connection rate limiting
+const MAX_MESSAGE_SIZE = 1_000_000; // 1MB
+const MAX_MESSAGES_PER_SECOND = 100;
+const rateLimitCounters = new WeakMap<WebSocket, number>();
+let rateLimitResetTimer: ReturnType<typeof setInterval> | null = null;
+
 // ── Service Discovery ──────────────────────────────────────────────────────
 
 const CONFIG_DIR = path.join(os.homedir(), '.subframe');
@@ -176,6 +182,18 @@ function handleHTTP(req: http.IncomingMessage, res: http.ServerResponse): void {
     return;
   }
 
+  // WS health endpoint (public)
+  if (pathname === '/api/ws-health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ok',
+      wsConnections: wss?.clients.size ?? 0,
+      activeSession: activeSession ? { userAgent: activeSession.userAgent, connectedAt: activeSession.connectedAt } : null,
+      uptime: process.uptime(),
+    }));
+    return;
+  }
+
   // Pairing endpoint
   if (pathname === '/api/pair' && req.method === 'POST') {
     handlePairing(req, res);
@@ -236,10 +254,37 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
   const userAgent = req.headers['user-agent'] || 'unknown';
   let session: WebSession | null = null;
 
+  // Auth timeout — close if no successful auth within 5 seconds
+  const authTimer = setTimeout(() => {
+    if (!session) {
+      ws.close(4000, 'Auth timeout');
+    }
+  }, 5000);
+
+  // Initialize rate limit counter for this connection
+  rateLimitCounters.set(ws, 0);
+
   ws.on('message', async (raw) => {
+    // Message size check
+    const rawStr = raw.toString();
+    if (rawStr.length > MAX_MESSAGE_SIZE) {
+      wsSend(ws, { type: 'error', id: '', code: WS_ERRORS.INVALID_MESSAGE, message: 'Message too large' });
+      ws.close(4004, 'Message too large');
+      return;
+    }
+
+    // Rate limiting — track messages per second
+    const count = (rateLimitCounters.get(ws) ?? 0) + 1;
+    rateLimitCounters.set(ws, count);
+    if (count > MAX_MESSAGES_PER_SECOND) {
+      wsSend(ws, { type: 'error', id: '', code: WS_ERRORS.INVALID_MESSAGE, message: 'Rate limit exceeded' });
+      ws.close(4005, 'Rate limit exceeded');
+      return;
+    }
+
     let msg: ClientMessage;
     try {
-      msg = JSON.parse(raw.toString()) as ClientMessage;
+      msg = JSON.parse(rawStr) as ClientMessage;
     } catch {
       wsSend(ws, { type: 'error', id: '', code: WS_ERRORS.INVALID_MESSAGE, message: 'Invalid JSON' });
       return;
@@ -251,6 +296,11 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
         wsSend(ws, { type: 'auth-fail', message: 'Invalid token' });
         ws.close(4001, 'Invalid token');
         return;
+      }
+
+      // Stale session cleanup — if existing session's WS is not open, clear it
+      if (activeSession && activeSession.ws.readyState !== WebSocket.OPEN) {
+        activeSession = null;
       }
 
       // Check for existing session
@@ -266,6 +316,7 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
       }
 
       // No active session — accept
+      clearTimeout(authTimer);
       session = createSession(ws, userAgent);
       activeSession = session;
       wsSend(ws, { type: 'auth-ok', sessionId: session.id });
@@ -282,6 +333,7 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
           activeSession.ws.close(4002, 'Session taken over');
         }
         // Accept new session
+        clearTimeout(authTimer);
         session = createSession(ws, userAgent);
         activeSession = session;
         pendingTakeoverWs = null;
@@ -345,6 +397,7 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
   });
 
   ws.on('close', () => {
+    clearTimeout(authTimer);
     if (activeSession && activeSession.ws === ws) {
       activeSession = null;
       broadcastIPC(IPC.WEB_CLIENT_DISCONNECTED, undefined);
@@ -376,6 +429,13 @@ function wsSend(ws: WebSocket, msg: ServerMessage): void {
 
 function onBridgeEvent(channel: string, data: unknown): void {
   if (!activeSession || activeSession.ws.readyState !== WebSocket.OPEN) return;
+
+  // Notification-worthy events — sent regardless of channel subscription
+  const notification = buildNotification(channel, data);
+  if (notification) {
+    wsSend(activeSession.ws, notification);
+  }
+
   if (!activeSession.subscribedChannels.has(channel)) return;
 
   // Terminal output batching — merge rapid chunks into ~16ms frames
@@ -386,6 +446,26 @@ function onBridgeEvent(channel: string, data: unknown): void {
   }
 
   wsSend(activeSession.ws, { type: 'event', channel, payload: data });
+}
+
+/** Build a push notification for notable events, or null if not notification-worthy. */
+function buildNotification(channel: string, data: unknown): ServerMessage | null {
+  if (!data || typeof data !== 'object') return null;
+
+  if (channel === IPC.PIPELINE_RUN_UPDATED) {
+    const run = data as { status?: string; workflowId?: string };
+    if (run.status === 'completed') return { type: 'notification', title: 'Pipeline Complete', body: `Workflow ${run.workflowId || 'run'} finished successfully.` };
+    if (run.status === 'failed') return { type: 'notification', title: 'Pipeline Failed', body: `Workflow ${run.workflowId || 'run'} failed.`, tag: 'pipeline-error' };
+    if (run.status === 'paused') return { type: 'notification', title: 'Approval Needed', body: `Workflow ${run.workflowId || 'run'} is waiting for approval.`, tag: 'pipeline-approval' };
+  }
+
+  if (channel === IPC.ACTIVITY_STATUS) {
+    const event = data as { stream?: { status?: string; name?: string } };
+    if (event.stream?.status === 'completed') return { type: 'notification', title: 'Task Complete', body: `${event.stream.name || 'Activity'} finished.` };
+    if (event.stream?.status === 'failed') return { type: 'notification', title: 'Task Failed', body: `${event.stream.name || 'Activity'} failed.`, tag: 'activity-error' };
+  }
+
+  return null;
 }
 
 function batchTerminalOutput(terminalId: string, chunk: string): void {
@@ -438,7 +518,20 @@ function startServer(): void {
     }
   });
 
-  wss = new WebSocketServer({ server: httpServer });
+  // WS upgrade path filtering — only accept connections on /ws
+  wss = new WebSocketServer({ noServer: true });
+
+  httpServer.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url || '/', `http://localhost`).pathname;
+    if (pathname === '/ws') {
+      wss!.handleUpgrade(request, socket, head, (ws) => {
+        wss!.emit('connection', ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  });
+
   wss.on('connection', handleWsConnection);
 
   httpServer.listen(0, '127.0.0.1', () => {
@@ -452,6 +545,15 @@ function startServer(): void {
     console.error('[Web Server] Server error:', err);
   });
 
+  // Rate limit counter reset — clear counters every second
+  rateLimitResetTimer = setInterval(() => {
+    if (wss) {
+      for (const client of wss.clients) {
+        rateLimitCounters.set(client, 0);
+      }
+    }
+  }, 1000);
+
   // Subscribe to event bridge for WS forwarding
   removeBridgeListener = addBridgeListener(onBridgeEvent);
 }
@@ -461,9 +563,16 @@ function stopServer(): void {
   if (batchTimer) { clearTimeout(batchTimer); batchTimer = null; }
   terminalBatches.clear();
 
-  // Close active session
-  if (activeSession?.ws.readyState === WebSocket.OPEN) {
-    activeSession.ws.close(1001, 'Server shutting down');
+  // Stop rate limit reset timer
+  if (rateLimitResetTimer) { clearInterval(rateLimitResetTimer); rateLimitResetTimer = null; }
+
+  // Graceful shutdown — send close frames to all connected WS clients
+  if (wss) {
+    for (const client of wss.clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.close(1001, 'Server shutting down');
+      }
+    }
   }
   activeSession = null;
   pendingTakeoverWs = null;

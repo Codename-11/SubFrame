@@ -3463,25 +3463,26 @@
         "path",
         "os",
         "child_process",
-        "shared/ipcChannels"
+        "shared/ipcChannels",
+        "eventBridge"
       ],
       "functions": {
         "init": {
-          "line": 53,
+          "line": 54,
           "params": [
             "window"
           ],
           "purpose": "Initialize plugins manager"
         },
         "readJsonFile": {
-          "line": 60,
+          "line": 61,
           "params": [
             "filePath"
           ],
           "purpose": "Read JSON file safely"
         },
         "writeJsonFile": {
-          "line": 74,
+          "line": 75,
           "params": [
             "filePath",
             "data",
@@ -3490,21 +3491,21 @@
           "purpose": "Write JSON file safely"
         },
         "getEnabledPlugins": {
-          "line": 87,
+          "line": 88,
           "purpose": "Get enabled plugins from settings",
           "calls": [
             "readJsonFile"
           ]
         },
         "getInstalledPlugins": {
-          "line": 95,
+          "line": 96,
           "purpose": "Get installed plugins",
           "calls": [
             "readJsonFile"
           ]
         },
         "getMarketplacePlugins": {
-          "line": 103,
+          "line": 104,
           "purpose": "Get all available plugins from marketplace",
           "calls": [
             "ensureOfficialMarketplace",
@@ -3512,7 +3513,7 @@
           ]
         },
         "getAllPlugins": {
-          "line": 147,
+          "line": 148,
           "purpose": "Get all plugins with their status",
           "calls": [
             "getEnabledPlugins",
@@ -3521,7 +3522,7 @@
           ]
         },
         "togglePlugin": {
-          "line": 169,
+          "line": 170,
           "params": [
             "pluginId"
           ],
@@ -3532,39 +3533,38 @@
           ]
         },
         "ensureOfficialMarketplace": {
-          "line": 193,
+          "line": 194,
           "purpose": "Ensure official marketplace exists"
         },
         "refreshMarketplace": {
-          "line": 222,
+          "line": 223,
           "purpose": "Refresh marketplace plugins (git pull or clone)",
           "calls": [
             "ensureOfficialMarketplace"
           ]
         },
         "setupIPC": {
-          "line": 250,
+          "line": 251,
           "params": [
             "ipcMain"
           ],
           "purpose": "Setup IPC handlers",
           "calls": [
+            "broadcast",
             "getAllPlugins",
             "refreshMarketplace",
             "togglePlugin"
           ]
         }
       },
-      "loc": 279,
+      "loc": 278,
       "ipc": {
         "listens": [
           "LOAD_PLUGINS",
           "TOGGLE_PLUGIN",
           "REFRESH_PLUGINS"
         ],
-        "emits": [
-          "PLUGIN_TOGGLED"
-        ]
+        "emits": []
       }
     },
     "main/popoutManager": {
@@ -4899,22 +4899,22 @@
       ],
       "functions": {
         "writeServiceConfig": {
-          "line": 65
+          "line": 71
         },
         "removeServiceConfig": {
-          "line": 76
+          "line": 82
         },
         "getDistDir": {
-          "line": 96
+          "line": 102
         },
         "getWebIndexPath": {
-          "line": 104,
+          "line": 110,
           "calls": [
             "getDistDir"
           ]
         },
         "serveStatic": {
-          "line": 113,
+          "line": 119,
           "params": [
             "res",
             "urlPath"
@@ -4925,7 +4925,7 @@
           ]
         },
         "handleHTTP": {
-          "line": 167,
+          "line": 173,
           "params": [
             "req",
             "res"
@@ -4938,7 +4938,7 @@
           ]
         },
         "handlePairing": {
-          "line": 205,
+          "line": 223,
           "params": [
             "req",
             "res"
@@ -4946,7 +4946,7 @@
           "purpose": "── Pairing ────────────────────────────────────────────────────────────────"
         },
         "handleWsConnection": {
-          "line": 235,
+          "line": 253,
           "params": [
             "ws",
             "req"
@@ -4962,21 +4962,21 @@
           ]
         },
         "createSession": {
-          "line": 358,
+          "line": 411,
           "params": [
             "ws",
             "userAgent"
           ]
         },
         "wsSend": {
-          "line": 369,
+          "line": 422,
           "params": [
             "ws",
             "msg"
           ]
         },
         "onBridgeEvent": {
-          "line": 377,
+          "line": 430,
           "params": [
             "channel",
             "data"
@@ -4984,24 +4984,32 @@
           "purpose": "── Event Bridge → WebSocket ───────────────────────────────────────────────",
           "calls": [
             "batchTerminalOutput",
+            "buildNotification",
             "wsSend"
           ]
         },
+        "buildNotification": {
+          "line": 452,
+          "params": [
+            "channel",
+            "data"
+          ]
+        },
         "batchTerminalOutput": {
-          "line": 391,
+          "line": 471,
           "params": [
             "terminalId",
             "chunk"
           ]
         },
         "flushTerminalBatches": {
-          "line": 401,
+          "line": 481,
           "calls": [
             "wsSend"
           ]
         },
         "broadcastIPC": {
-          "line": 419,
+          "line": 499,
           "params": [
             "channel",
             "data"
@@ -5012,7 +5020,7 @@
           ]
         },
         "startServer": {
-          "line": 428,
+          "line": 508,
           "purpose": "── Server Start/Stop ──────────────────────────────────────────────────────",
           "calls": [
             "addBridgeListener",
@@ -5021,20 +5029,20 @@
           ]
         },
         "stopServer": {
-          "line": 459,
+          "line": 561,
           "calls": [
             "removeServiceConfig"
           ]
         },
         "init": {
-          "line": 487,
+          "line": 596,
           "purpose": "── Manager Lifecycle ──────────────────────────────────────────────────────",
           "calls": [
             "startServer"
           ]
         },
         "setupIPC": {
-          "line": 505,
+          "line": 614,
           "params": [
             "router"
           ],
@@ -5046,13 +5054,13 @@
           ]
         },
         "shutdown": {
-          "line": 586,
+          "line": 695,
           "calls": [
             "stopServer"
           ]
         }
       },
-      "loc": 591
+      "loc": 700
     },
     "main/workspace": {
       "file": "src\\main\\workspace.ts",
@@ -5647,11 +5655,12 @@
         "../shared/ipcChannels",
         "lib/ipc",
         "lib/transportProvider",
-        "mobile/MobileApp"
+        "mobile/MobileApp",
+        "mobile/TabletApp"
       ],
       "functions": {
         "App": {
-          "line": 42,
+          "line": 43,
           "purpose": "Keyboard shortcuts are wired here to match the original app.",
           "calls": [
             "TerminalArea",
@@ -5666,7 +5675,7 @@
           ]
         }
       },
-      "loc": 662,
+      "loc": 674,
       "ipc": {
         "listens": [
           "WORKSPACE_DATA",
@@ -6298,6 +6307,30 @@
         }
       },
       "loc": 40
+    },
+    "renderer/components/mobile/TabletApp": {
+      "file": "src\\renderer\\components\\mobile\\TabletApp.tsx",
+      "description": "Tablet layout shell (768-1023px, web mode only). - Collapsed icon sidebar on left (54px) — tap icons to expand as overlay - Terminal area fills center - Right panel slides in as overlay from right Reuses existing Sidebar, TerminalArea, RightPanel, ActivityBar, StatusBar.",
+      "exports": [
+        "TabletApp"
+      ],
+      "depends": [
+        "react",
+        "framer-motion",
+        "Sidebar",
+        "TerminalArea",
+        "RightPanel",
+        "ActivityBar",
+        "StatusBar",
+        "ErrorBoundary",
+        "../stores/useUIStore"
+      ],
+      "functions": {
+        "TabletApp": {
+          "line": 19
+        }
+      },
+      "loc": 133
     },
     "renderer/components/OnboardingDialog": {
       "file": "src\\renderer\\components\\OnboardingDialog.tsx",
@@ -8264,14 +8297,33 @@
         "hooks/useUpdater"
       ],
       "functions": {
+        "isSnoozed": {
+          "line": 22
+        },
+        "snooze": {
+          "line": 32,
+          "params": [
+            "durationMs"
+          ]
+        },
+        "clearSnooze": {
+          "line": 38
+        },
+        "formatSnoozeRemaining": {
+          "line": 44
+        },
         "UpdateNotification": {
-          "line": 14,
+          "line": 57,
           "calls": [
+            "clearSnooze",
+            "formatSnoozeRemaining",
+            "isSnoozed",
+            "snooze",
             "useUpdater"
           ]
         }
       },
-      "loc": 105
+      "loc": 161
     },
     "renderer/components/ViewTabBar": {
       "file": "src\\renderer\\components\\ViewTabBar.tsx",
@@ -8280,41 +8332,40 @@
         "ViewTabBar"
       ],
       "depends": [
+        "electron",
         "react",
         "stores/useUIStore",
         "stores/useProjectStore",
         "hooks/useSettings",
         "sonner",
         "../shared/ipcChannels",
-        "lib/shortcuts",
-        "lib/transportProvider"
+        "lib/shortcuts"
       ],
       "functions": {
         "formatTierName": {
-          "line": 93,
+          "line": 94,
           "params": [
             "tier"
           ]
         },
         "formatSubType": {
-          "line": 104,
+          "line": 105,
           "params": [
             "subType"
           ]
         },
         "ViewTabBar": {
-          "line": 109,
+          "line": 110,
           "calls": [
             "formatSubType",
             "formatTierName",
             "getTabIdForContent",
-            "getTransport",
             "useAIToolConfig",
             "useSettings"
           ]
         },
         "UsageTooltip": {
-          "line": 421,
+          "line": 424,
           "params": [
             "{ data",
             "fetching }"
@@ -8322,7 +8373,7 @@
           "purpose": "── Rich tooltip ────────────────────────────────────────────────────────────"
         },
         "TooltipUsageRow": {
-          "line": 495,
+          "line": 498,
           "params": [
             "{ label",
             "utilization",
@@ -8330,7 +8381,7 @@
           ]
         },
         "UsageItem": {
-          "line": 521,
+          "line": 524,
           "params": [
             "{ label",
             "utilization",
@@ -8339,14 +8390,13 @@
           "purpose": "── Shared sub-components ───────────────────────────────────────────────────"
         },
         "ResetTime": {
-          "line": 544,
+          "line": 547,
           "params": [
-            "{ resetsAt",
-            "showAbsolute"
+            "{ resetsAt }"
           ]
         }
       },
-      "loc": 585,
+      "loc": 567,
       "ipc": {
         "listens": [
           "CLAUDE_USAGE_DATA"
@@ -8547,14 +8597,14 @@
           ]
         },
         "AddProjectButton": {
-          "line": 545,
+          "line": 548,
           "calls": [
             "typedInvoke",
             "typedSend"
           ]
         }
       },
-      "loc": 622
+      "loc": 625
     },
     "renderer/global.d": {
       "file": "src\\renderer\\global.d.ts",
@@ -9585,7 +9635,7 @@
           "line": 39,
           "params": [
             "channel",
-            "// eslint-disable-next-line @typescript-eslint/no-explicit-any\n  handler",
+            "// eslint-disable-next-line @typescript-eslint/no-explicit-any\r\n  handler",
             "...args"
           ],
           "purpose": "Returns an unsubscribe function.",
@@ -10050,7 +10100,7 @@
       "exports": [],
       "depends": [],
       "functions": {},
-      "loc": 294
+      "loc": 303
     },
     "renderer/stores/useProjectStore": {
       "file": "src\\renderer\\stores\\useProjectStore.ts",
@@ -10136,7 +10186,7 @@
       "exports": [],
       "depends": [],
       "functions": {},
-      "loc": 32
+      "loc": 43
     },
     "renderer/web-entry": {
       "file": "src\\renderer\\web-entry.tsx",
@@ -10165,14 +10215,14 @@
           "params": [
             "{ currentDevice",
             "connectedAt",
-            "onTakeover }: {\n  currentDevice: string;\n  connectedAt: string;\n  onTakeover"
+            "onTakeover }: {\r\n  currentDevice: string;\r\n  connectedAt: string;\r\n  onTakeover"
           ]
         },
         "DisconnectedScreen": {
           "line": 82
         }
       },
-      "loc": 181
+      "loc": 201
     },
     "shared/activityTypes": {
       "file": "src\\shared\\activityTypes.ts",
@@ -10973,7 +11023,7 @@
       ],
       "depends": [],
       "functions": {},
-      "loc": 124
+      "loc": 132
     }
   },
   "ipcChannels": {
@@ -11967,6 +12017,13 @@
         "module": "renderer/components/SystemPanel",
         "file": "src\\renderer\\components\\SystemPanel.tsx",
         "description": "SystemPanel — App dashboard for SubFrame itself. Shows version/update status, AI tool picker, health, integrations, and quick access."
+      }
+    ],
+    "tablet-app": [
+      {
+        "module": "renderer/components/mobile/TabletApp",
+        "file": "src\\renderer\\components\\mobile\\TabletApp.tsx",
+        "description": "Tablet layout shell (768-1023px, web mode only). - Collapsed icon sidebar on left (54px) — tap icons to expand as overlay - Terminal area fills center - Right panel slides in as overlay from right Reuses existing Sidebar, TerminalArea, RightPanel, ActivityBar, StatusBar."
       }
     ],
     "task-graph": [

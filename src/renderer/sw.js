@@ -22,6 +22,17 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'show-notification') {
+    self.registration.showNotification(event.data.title, {
+      body: event.data.body,
+      icon: '/assets/icon-192.png',
+      badge: '/assets/icon-192.png',
+      tag: event.data.tag || 'subframe',
+    });
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   // Network-first for API/WS, cache-first for shell assets
   if (event.request.url.includes('/ws') || event.request.url.includes('/api/')) return;

@@ -66,6 +66,7 @@ export type ServerMessage =
   | AuthFailMessage
   | SessionInUseMessage
   | SessionTakeoverMessage
+  | NotificationMessage
   | PongMessage;
 
 export interface ResponseMessage {
@@ -106,6 +107,13 @@ export interface SessionInUseMessage {
 export interface SessionTakeoverMessage {
   type: 'session-takeover';
   message: string;
+}
+
+export interface NotificationMessage {
+  type: 'notification';
+  title: string;
+  body: string;
+  tag?: string;
 }
 
 export interface PongMessage {

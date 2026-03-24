@@ -34,6 +34,7 @@ export class WebSocketTransport implements Transport {
   private onSessionInUse?: (currentDevice: string, connectedAt: string) => void;
   private onDisconnect?: () => void;
   private onReconnect?: () => void;
+  private onNotification?: (title: string, body: string, tag?: string) => void;
 
   constructor(options: {
     url: string;
@@ -42,6 +43,7 @@ export class WebSocketTransport implements Transport {
     onSessionInUse?: (currentDevice: string, connectedAt: string) => void;
     onDisconnect?: () => void;
     onReconnect?: () => void;
+    onNotification?: (title: string, body: string, tag?: string) => void;
   }) {
     this.url = options.url;
     this.token = options.token;
@@ -49,6 +51,7 @@ export class WebSocketTransport implements Transport {
     this.onSessionInUse = options.onSessionInUse;
     this.onDisconnect = options.onDisconnect;
     this.onReconnect = options.onReconnect;
+    this.onNotification = options.onNotification;
   }
 
   /** Connect and authenticate. Resolves when auth succeeds. */
@@ -94,10 +97,12 @@ export class WebSocketTransport implements Transport {
         this.handleMessage(msg);
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event) => {
         this.authenticated = false;
         this.stopHeartbeat();
         this.onDisconnect?.();
+        // Don't reconnect for intentional closes
+        if (event.code === 4001 || event.code === 4002 || event.code === 4003) return;
         this.scheduleReconnect();
       };
 
@@ -232,6 +237,10 @@ export class WebSocketTransport implements Transport {
 
       case 'session-in-use':
         this.onSessionInUse?.(msg.currentDevice, msg.connectedAt);
+        break;
+
+      case 'notification':
+        this.onNotification?.(msg.title, msg.body, msg.tag);
         break;
 
       case 'pong':

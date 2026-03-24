@@ -111,9 +111,29 @@ if (rootEl) {
   let disconnected = false;
   let appRendered = false;
 
+  // Request notification permission on first user interaction
+  let notificationPermissionRequested = false;
+  function requestNotificationPermission() {
+    if (notificationPermissionRequested) return;
+    notificationPermissionRequested = true;
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }
+  window.addEventListener('click', requestNotificationPermission, { once: true });
+  window.addEventListener('keypress', requestNotificationPermission, { once: true });
+
   const transport = new WebSocketTransport({
     url: wsUrl,
     token,
+    onNotification: (title, body, tag) => {
+      if (!document.hidden) return;
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const sw = navigator.serviceWorker?.controller;
+      if (sw) {
+        sw.postMessage({ type: 'show-notification', title, body, tag });
+      }
+    },
     onSessionTakeover: (message) => {
       root.render(
         <div style={{
