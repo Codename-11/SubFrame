@@ -40,6 +40,7 @@ import * as outputChannelManager from './outputChannelManager';
 import * as popoutManager from './popoutManager';
 import * as apiServerManager from './apiServerManager';
 import * as webServerManager from './webServerManager';
+import { initEventBridge, broadcast } from './eventBridge';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
 // ── Global error handlers — surface errors to terminal on crash/exit ──
@@ -126,7 +127,7 @@ function sendCLIOpenProject(dirPath: string): void {
   workspace.addProject(dirPath);
   if (mainWindow && !mainWindow.isDestroyed()) {
     const result = workspace.getProjectsWithScanned();
-    mainWindow.webContents.send(IPC.WORKSPACE_UPDATED, result);
+    broadcast(IPC.WORKSPACE_UPDATED, result);
     // Don't send CLI_OPEN_PROJECT — that would switch the active project
     // Just focus the window so the user sees it was added
     mainWindow.focus();
@@ -265,6 +266,9 @@ function createWindow(): BrowserWindow {
     }
   });
 
+  // Initialize event bridge BEFORE any modules so broadcast() works from the start
+  initEventBridge(mainWindow);
+
   // Initialize modules with window reference BEFORE loadFile()
   // so IPC handlers are registered before the renderer can invoke them
   pty.init(mainWindow);
@@ -276,7 +280,7 @@ function createWindow(): BrowserWindow {
     pty.setProjectPath(projectPath);
     workspace.addProject(projectPath);
     const result = workspace.getProjectsWithScanned();
-    mainWindow!.webContents.send(IPC.WORKSPACE_UPDATED, result);
+    broadcast(IPC.WORKSPACE_UPDATED, result);
   });
   initModulesWithWindow(mainWindow);
 
@@ -371,7 +375,7 @@ function createWindow(): BrowserWindow {
     shutdownInProgress = true;
     pendingShutdownReason = reason;
     const { activeAgentTerminals, pipelineRunning, analysisRunning, activeStreams } = detectActiveWork();
-    mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_REQUEST, {
+    broadcast(IPC.GRACEFUL_SHUTDOWN_REQUEST, {
       reason,
       terminals: buildTerminalInfoList(activeAgentTerminals),
       pipelineRunning,
@@ -389,7 +393,7 @@ function createWindow(): BrowserWindow {
     for (const terminalId of activeTerminals) {
       ptyManager.writeToTerminal(terminalId, '/exit\n');
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'exiting' });
+        broadcast(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'exiting' });
       }
     }
 
@@ -397,7 +401,7 @@ function createWindow(): BrowserWindow {
     for (const terminalId of activeTerminals) {
       const result = await ptyManager.waitForExit(terminalId, TIMEOUT_MS);
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: result });
+        broadcast(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: result });
       }
     }
 
@@ -406,13 +410,13 @@ function createWindow(): BrowserWindow {
     for (const terminalId of remaining) {
       ptyManager.destroyTerminal(terminalId);
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'killed' });
+        broadcast(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'killed' });
       }
     }
 
     // Notify renderer that shutdown is complete
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_COMPLETE, {
+      broadcast(IPC.GRACEFUL_SHUTDOWN_COMPLETE, {
         reason: pendingShutdownReason,
         success: true,
       });

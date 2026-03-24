@@ -9,6 +9,7 @@ import * as os from 'os';
 import { execSync } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
+import { broadcast } from './eventBridge';
 
 interface PluginConfig {
   name?: string;
@@ -258,9 +259,7 @@ function setupIPC(ipcMain: IpcMain): void {
     const result = togglePlugin(pluginId);
 
     // Notify renderer of the change
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.PLUGIN_TOGGLED, result);
-    }
+    broadcast(IPC.PLUGIN_TOGGLED, result);
 
     return result;
   });

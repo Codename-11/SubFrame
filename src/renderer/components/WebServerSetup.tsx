@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import QRCode from 'qrcode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -60,6 +61,7 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
   const [pairingLoading, setPairingLoading] = useState(false);
   const [sshCommand, setSshCommand] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   // Query server info
   const { data: serverInfo, refetch: refetchServerInfo } = useIpcQuery(
@@ -88,6 +90,20 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
       refetchServerInfo();
     }
   }, [open, refetchServerInfo]);
+
+  // Generate QR code when server info is available
+  useEffect(() => {
+    if (serverInfo?.enabled && serverInfo.port && serverInfo.token) {
+      const url = `http://localhost:${serverInfo.port}/?token=${serverInfo.token}`;
+      QRCode.toDataURL(url, {
+        width: 200,
+        margin: 2,
+        color: { dark: '#e8e6e3', light: '#0f0f10' },
+      }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
+    } else {
+      setQrDataUrl(null);
+    }
+  }, [serverInfo?.enabled, serverInfo?.port, serverInfo?.token]);
 
   // Auto-advance to Done when client connects on step 2
   useEffect(() => {
@@ -262,6 +278,13 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
             </Button>
           </div>
         </div>
+
+        {/* QR Code */}
+        {qrDataUrl && (
+          <div className="flex justify-center my-4">
+            <img src={qrDataUrl} alt="QR Code for connection URL" className="rounded-lg" style={{ width: 200, height: 200 }} />
+          </div>
+        )}
 
         {/* Pairing Code */}
         <div className="bg-bg-deep rounded-lg p-3 space-y-2">

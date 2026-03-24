@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IPC } from '../shared/ipcChannels';
 import { checkForUpdates } from './updaterManager';
+import { broadcast } from './eventBridge';
 
 const REPO_URL = 'https://github.com/Codename-11/SubFrame';
 const DOCS_URL = 'https://codename-11.github.io/SubFrame';
@@ -52,7 +53,7 @@ function init(window: BrowserWindow, app: App, toolManager: AIToolManagerLike): 
  */
 function sendToRenderer(channel: string, ...args: unknown[]): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(channel, ...args);
+    broadcast(channel, args[0]);
   }
 }
 

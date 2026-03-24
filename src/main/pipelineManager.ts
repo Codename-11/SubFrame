@@ -30,6 +30,7 @@ import {
 } from './pipelineStages';
 import * as aiToolManager from './aiToolManager';
 import * as activityManager from './activityManager';
+import { broadcast as bridgeBroadcast } from './eventBridge';
 
 // ─── Module State ────────────────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ function now(): string {
 
 function send(channel: string, data: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(channel, data);
+    bridgeBroadcast(channel, data);
   }
 }
 

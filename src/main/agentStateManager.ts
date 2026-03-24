@@ -9,6 +9,7 @@ import * as path from 'path';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import type { AgentStatePayload } from '../shared/agentStateTypes';
+import { broadcast } from './eventBridge';
 
 const AGENT_STATE_FILE = 'agent-state.json';
 const SUBFRAME_DIR = '.subframe';
@@ -88,13 +89,13 @@ function watchAgentState(projectPath: string): void {
           if (state.lastUpdated && state.lastUpdated === lastUpdatedTimestamp) return;
           lastUpdatedTimestamp = state.lastUpdated;
 
-          mainWindow.webContents.send(IPC.AGENT_STATE_DATA, state);
+          broadcast(IPC.AGENT_STATE_DATA, state);
 
           // Emit dedicated user message signal when a new one is detected
           if (state.lastUserMessage?.timestamp &&
               state.lastUserMessage.timestamp !== lastUserMessageTimestamp) {
             lastUserMessageTimestamp = state.lastUserMessage.timestamp;
-            mainWindow.webContents.send(IPC.USER_MESSAGE_SIGNAL, {
+            broadcast(IPC.USER_MESSAGE_SIGNAL, {
               terminalId: state.lastUserMessage.terminalId,
               timestamp: state.lastUserMessage.timestamp,
               promptPreview: state.lastUserMessage.promptPreview,
@@ -134,7 +135,7 @@ function setupIPC(ipc: IpcMain): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
       const state = loadAgentState(projectPath);
       lastUpdatedTimestamp = state.lastUpdated; // Keep dedup in sync
-      mainWindow.webContents.send(IPC.AGENT_STATE_DATA, state);
+      broadcast(IPC.AGENT_STATE_DATA, state);
     }
   });
 

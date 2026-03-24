@@ -110,6 +110,7 @@ var require_package = __commonJS({
       devDependencies: {
         "@eslint/js": "^9.39.4",
         "@types/node": "^25.3.3",
+        "@types/qrcode": "^1.5.6",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
         "@types/ws": "^8.18.1",
@@ -167,6 +168,7 @@ var require_package = __commonJS({
         "next-themes": "^0.4.6",
         "node-pty": "^1.0.0",
         postcss: "^8.5.8",
+        qrcode: "^1.5.4",
         "radix-ui": "^1.4.3",
         react: "^19.2.4",
         "react-dom": "^19.2.4",

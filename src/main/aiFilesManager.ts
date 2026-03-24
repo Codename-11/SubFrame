@@ -9,6 +9,7 @@ import * as path from 'path';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import { FRAME_FILES, FRAME_DIR, FRAME_BIN_DIR, FRAME_CONFIG_FILE } from '../shared/frameConstants';
+import { broadcast } from './eventBridge';
 import {
   getNativeFileStatus,
   getClaudeNativeStatus,
@@ -119,7 +120,7 @@ function handleVerifyOnProjectOpen(projectPath: string): void {
 
   try {
     const result = verifyBacklinks(projectPath);
-    mainWindow.webContents.send(IPC.BACKLINK_VERIFICATION_RESULT, { projectPath, result });
+    broadcast(IPC.BACKLINK_VERIFICATION_RESULT, { projectPath, result });
   } catch (err) {
     console.error('Error auto-verifying backlinks:', err);
   }

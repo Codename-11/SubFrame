@@ -7,6 +7,7 @@ import { ipcMain, type App, type BrowserWindow } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC } from '../shared/ipcChannels';
+import { broadcast } from './eventBridge';
 
 let mainWindow: BrowserWindow | null = null;
 let settingsPath: string | null = null;
@@ -206,7 +207,7 @@ function updateSetting(keyPath: string, value: unknown): Record<string, unknown>
 
   // Notify renderer
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.SETTINGS_UPDATED, { key: keyPath, value, settings });
+    broadcast(IPC.SETTINGS_UPDATED, { key: keyPath, value, settings });
   }
 
   // Notify main-process listeners

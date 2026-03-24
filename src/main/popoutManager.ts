@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import { app } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import * as ptyManager from './ptyManager';
+import { broadcast } from './eventBridge';
 
 const popoutWindows = new Map<string, BrowserWindow>();
 let mainWindow: BrowserWindow | null = null;
@@ -110,14 +111,14 @@ function setupPopoutWindow(win: BrowserWindow, terminalId: string): void {
       ptyManager.unregisterPopoutWebContents(terminalId);
       // Notify main window that terminal is docked again
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC.TERMINAL_POPOUT_STATUS, { terminalId, poppedOut: false });
+        broadcast(IPC.TERMINAL_POPOUT_STATUS, { terminalId, poppedOut: false });
       }
     }
   });
 
   // Notify main window that terminal is popped out
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.TERMINAL_POPOUT_STATUS, { terminalId, poppedOut: true });
+    broadcast(IPC.TERMINAL_POPOUT_STATUS, { terminalId, poppedOut: true });
   }
 }
 

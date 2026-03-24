@@ -6,6 +6,7 @@
 import { exec } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
+import { broadcast } from './eventBridge';
 
 interface GitResult {
   stdout: string;
@@ -454,7 +455,7 @@ function setupIPC(ipcMain: IpcMain): void {
   // Toggle panel from menu
   ipcMain.on(IPC.TOGGLE_GIT_BRANCHES_PANEL, () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.TOGGLE_GIT_BRANCHES_PANEL);
+      broadcast(IPC.TOGGLE_GIT_BRANCHES_PANEL);
     }
   });
 }

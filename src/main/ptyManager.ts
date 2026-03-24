@@ -13,6 +13,7 @@ import { IPC } from '../shared/ipcChannels';
 import * as promptLogger from './promptLogger';
 import * as agentStateManager from './agentStateManager';
 import { getSetting } from './settingsManager';
+import { broadcast } from './eventBridge';
 
 interface PTYInstance {
   pty: IPty;
@@ -223,7 +224,7 @@ function broadcastClaudeStatus(terminalId: string, active: boolean): void {
           const retryId = correlateSession(terminalId);
           if (retryId && mainWindow && !mainWindow.isDestroyed()) {
             terminalSessionMap.set(terminalId, retryId);
-            mainWindow.webContents.send(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active: true, sessionId: retryId });
+            broadcast(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active: true, sessionId: retryId });
           }
         }
       }, 5000);
@@ -235,7 +236,7 @@ function broadcastClaudeStatus(terminalId: string, active: boolean): void {
 
   // When inactive, include the existing mapping so the renderer retains the session name
   sessionId = sessionId ?? terminalSessionMap.get(terminalId);
-  mainWindow.webContents.send(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active, sessionId });
+  broadcast(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active, sessionId });
 
   // Also send to pop-out window if one exists for this terminal
   const popoutWC = popoutWebContents.get(terminalId);
@@ -500,7 +501,7 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
   // Handle PTY output - send with terminal ID + detect Claude activity + track cwd via OSC 7
   ptyProcess.onData((data: string) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
+      broadcast(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
     }
     detectClaudeOutput(terminalId, data);
     // Track working directory changes via OSC 7 escape sequences
@@ -530,7 +531,7 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
     if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
+      broadcast(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
     }
     // Also notify pop-out window and clean up
     const popoutWC = popoutWebContents.get(terminalId);

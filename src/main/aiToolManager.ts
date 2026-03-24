@@ -8,6 +8,7 @@ import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC } from '../shared/ipcChannels';
+import { broadcast } from './eventBridge';
 
 interface AIToolCommands {
   [key: string]: string;
@@ -259,7 +260,7 @@ async function setActiveTool(toolId: string): Promise<boolean> {
 
     // Notify renderer about the change
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, await getActiveTool());
+      broadcast(IPC.AI_TOOL_CHANGED, await getActiveTool());
     }
 
     // Notify main-process listeners (e.g. menu rebuild)
@@ -336,7 +337,7 @@ function setupIPC(): void {
   ipcMain.handle(IPC.ADD_CUSTOM_AI_TOOL, async (_event, tool: { id: string; name: string; command: string; description?: string }) => {
     const result = addCustomTool(tool);
     if (result && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, await getActiveTool());
+      broadcast(IPC.AI_TOOL_CHANGED, await getActiveTool());
     }
     return result;
   });
@@ -344,7 +345,7 @@ function setupIPC(): void {
   ipcMain.handle(IPC.REMOVE_CUSTOM_AI_TOOL, async (_event, toolId: string) => {
     const result = removeCustomTool(toolId);
     if (result && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.AI_TOOL_CHANGED, await getActiveTool());
+      broadcast(IPC.AI_TOOL_CHANGED, await getActiveTool());
     }
     return result;
   });

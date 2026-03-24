@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import QRCode from 'qrcode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -12,7 +13,7 @@ import {
   Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
   Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search, Globe,
   Zap, ChevronDown, ChevronRight, Pencil, Wand2, Play, Shield, FileCode, Bell,
-  Monitor, Wifi, Copy,
+  Monitor, Wifi, Copy, QrCode,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -399,6 +400,8 @@ export function SettingsPanel() {
   // Web Server setup dialog
   const [webServerSetupOpen, setWebServerSetupOpen] = useState(false);
   const [webServerPairingCode, setWebServerPairingCode] = useState<string | null>(null);
+  const [webServerQrVisible, setWebServerQrVisible] = useState(false);
+  const [webServerQrDataUrl, setWebServerQrDataUrl] = useState<string | null>(null);
 
   // Web Server info query — only active when integrations tab is shown
   const isIntegrationsTab = activeTab === 'integrations';
@@ -417,6 +420,20 @@ export function SettingsPanel() {
     IPC.WEB_CLIENT_DISCONNECTED,
     useCallback(() => { refetchWebServerInfo(); }, [refetchWebServerInfo])
   );
+
+  // Generate QR code for SubFrame Server when toggled visible
+  useEffect(() => {
+    if (webServerQrVisible && webServerInfo?.enabled && webServerInfo.port && webServerInfo.token) {
+      const url = `http://localhost:${webServerInfo.port}/?token=${webServerInfo.token}`;
+      QRCode.toDataURL(url, {
+        width: 150,
+        margin: 2,
+        color: { dark: '#e8e6e3', light: '#0f0f10' },
+      }).then(setWebServerQrDataUrl).catch(() => setWebServerQrDataUrl(null));
+    } else {
+      setWebServerQrDataUrl(null);
+    }
+  }, [webServerQrVisible, webServerInfo?.enabled, webServerInfo?.port, webServerInfo?.token]);
 
   // Sync form state from loaded data
   useEffect(() => {
@@ -2255,7 +2272,23 @@ export function SettingsPanel() {
                             <Copy className="w-3 h-3 mr-1.5" />
                             {webServerPairingCode ? `Code: ${webServerPairingCode}` : 'Show Pairing Code'}
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-xs"
+                            onClick={() => setWebServerQrVisible((v) => !v)}
+                          >
+                            <QrCode className="w-3 h-3 mr-1.5" />
+                            {webServerQrVisible ? 'Hide QR Code' : 'Show QR Code'}
+                          </Button>
                         </div>
+
+                        {/* Inline QR Code */}
+                        {webServerQrVisible && webServerQrDataUrl && (
+                          <div className="flex justify-center py-2">
+                            <img src={webServerQrDataUrl} alt="QR Code for connection URL" className="rounded-lg" style={{ width: 150, height: 150 }} />
+                          </div>
+                        )}
                       </>
                     )}
 

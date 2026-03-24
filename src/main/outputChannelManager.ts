@@ -7,6 +7,7 @@
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import type { OutputChannel, OutputChannelCategory } from '../shared/activityTypes';
+import { broadcast } from './eventBridge';
 
 // ─── Internal State ──────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ function toPublic(channel: InternalChannel): OutputChannel {
 
 function broadcastUpdate(channel: InternalChannel): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.webContents.send(IPC.OUTPUT_CHANNEL_UPDATED, toPublic(channel));
+  broadcast(IPC.OUTPUT_CHANNEL_UPDATED, toPublic(channel));
 }
 
 function flushPending(): void {
@@ -133,7 +134,7 @@ function flushPending(): void {
 
   for (const [channelId, lines] of pendingBatches) {
     if (lines.length > 0) {
-      mainWindow.webContents.send(IPC.OUTPUT_CHANNEL_OUTPUT, { channelId, lines });
+      broadcast(IPC.OUTPUT_CHANNEL_OUTPUT, { channelId, lines });
     }
     const channel = channels.get(channelId);
     if (channel) broadcastUpdate(channel);
