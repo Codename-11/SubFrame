@@ -12,13 +12,17 @@ import {
   Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
   Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search, Globe,
   Zap, ChevronDown, ChevronRight, Pencil, Wand2, Play, Shield, FileCode, Bell,
+  Monitor, Wifi, Copy,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke, typedSend } from '../lib/ipc';
+import { useIpcQuery } from '../hooks/useIpc';
+import { useIPCEvent } from '../hooks/useIPCListener';
 import { IPC, type ShellInfo } from '../../shared/ipcChannels';
+import { WebServerSetup } from './WebServerSetup';
 import { toast } from 'sonner';
 import { EDITOR_THEMES } from '../lib/codemirror-theme';
 import { motion } from 'framer-motion';
@@ -105,6 +109,7 @@ const SECTION_LABELS: Record<string, string[]> = {
   ],
   integrations: [
     'Local API Server', 'API Server', 'Enable API', 'DTSP', 'Desktop Text Source Protocol',
+    'SubFrame Server', 'Web Server', 'Remote Access', 'SSH Tunnel', 'Pairing',
   ],
   updates: [
     'Auto-check for updates', 'Pre-release Channel',
@@ -390,6 +395,28 @@ export function SettingsPanel() {
   const [showAIGenerate, setShowAIGenerate] = useState(false);
   const [aiGeneratePrompt, setAiGeneratePrompt] = useState('');
   const [disabledHooks, setDisabledHooks] = useState<Set<string>>(new Set());
+
+  // Web Server setup dialog
+  const [webServerSetupOpen, setWebServerSetupOpen] = useState(false);
+  const [webServerPairingCode, setWebServerPairingCode] = useState<string | null>(null);
+
+  // Web Server info query — only active when integrations tab is shown
+  const isIntegrationsTab = activeTab === 'integrations';
+  const { data: webServerInfo, refetch: refetchWebServerInfo } = useIpcQuery(
+    IPC.WEB_SERVER_INFO,
+    [],
+    { enabled: settingsOpen && isIntegrationsTab, refetchInterval: isIntegrationsTab ? 5000 : false }
+  );
+
+  // Listen for web client connect/disconnect to refresh server info
+  useIPCEvent(
+    IPC.WEB_CLIENT_CONNECTED,
+    useCallback(() => { refetchWebServerInfo(); }, [refetchWebServerInfo])
+  );
+  useIPCEvent(
+    IPC.WEB_CLIENT_DISCONNECTED,
+    useCallback(() => { refetchWebServerInfo(); }, [refetchWebServerInfo])
+  );
 
   // Sync form state from loaded data
   useEffect(() => {
@@ -733,6 +760,7 @@ export function SettingsPanel() {
   }
 
   return (
+    <>
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
       <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-[800px] !flex !flex-col h-[80vh] overflow-hidden p-0" aria-describedby={undefined}>
         <DialogHeader className="shrink-0 px-6 pt-6">
@@ -2135,6 +2163,116 @@ export function SettingsPanel() {
                     </div>
                   </SettingGroup>
                 )}
+
+                {matchesSearch('SubFrame Server') && (
+                  <SettingGroup label="SubFrame Server">
+                    <SettingToggle
+                      label="Enable SubFrame Server"
+                      description="Serve the IDE UI as a web app accessible from remote devices via SSH tunnel"
+                      value={(settings?.server as Record<string, unknown>)?.enabled === true}
+                      onChange={(v) => {
+                        updateSetting.mutate([{ key: 'server.enabled', value: v }]);
+                        // Also toggle the server immediately
+                        typedInvoke(IPC.WEB_SERVER_TOGGLE, v)
+                          .then(() => refetchWebServerInfo())
+                          .catch(() => {});
+                      }}
+                    />
+
+                    {/* Server status — shown when enabled */}
+                    {webServerInfo?.enabled && (
+                      <>
+                        <div className="bg-bg-deep rounded-lg p-2.5 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-xs text-text-secondary">Server running</span>
+                            <span className="text-[10px] text-text-muted ml-auto font-mono">
+                              port {webServerInfo.port}
+                            </span>
+                          </div>
+
+                          {/* Connected client indicator */}
+                          {webServerInfo.clientConnected && webServerInfo.clientInfo ? (
+                            <div className="flex items-center gap-2 pt-1 border-t border-border-subtle">
+                              <Monitor className="w-3.5 h-3.5 text-accent shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs text-text-secondary truncate">
+                                  {webServerInfo.clientInfo.userAgent.split(' ').slice(0, 3).join(' ')}
+                                </div>
+                                <div className="text-[10px] text-text-muted">
+                                  Connected {new Date(webServerInfo.clientInfo.connectedAt).toLocaleTimeString()}
+                                </div>
+                              </div>
+                              <Wifi className="w-3 h-3 text-green-500 shrink-0" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 pt-1 border-t border-border-subtle">
+                              <span className="text-[10px] text-text-muted">No client connected</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-xs"
+                            onClick={() => setWebServerSetupOpen(true)}
+                          >
+                            <Globe className="w-3 h-3 mr-1.5" />
+                            Setup Guide
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-xs"
+                            onClick={() => {
+                              typedInvoke(IPC.WEB_SERVER_REGEN_TOKEN)
+                                .then(() => {
+                                  refetchWebServerInfo();
+                                  toast.success('Auth token regenerated');
+                                })
+                                .catch(() => toast.error('Failed to regenerate token'));
+                            }}
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1.5" />
+                            Regenerate Token
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-xs"
+                            onClick={() => {
+                              typedInvoke(IPC.WEB_SERVER_GENERATE_PAIRING)
+                                .then((result) => {
+                                  setWebServerPairingCode(result.code);
+                                  toast.success(`Pairing code: ${result.code}`, { duration: 10000 });
+                                })
+                                .catch(() => toast.error('Failed to generate pairing code'));
+                            }}
+                          >
+                            <Copy className="w-3 h-3 mr-1.5" />
+                            {webServerPairingCode ? `Code: ${webServerPairingCode}` : 'Show Pairing Code'}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Setup guide button when server is not enabled */}
+                    {!webServerInfo?.enabled && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="cursor-pointer text-xs"
+                        onClick={() => setWebServerSetupOpen(true)}
+                      >
+                        <Globe className="w-3 h-3 mr-1.5" />
+                        Setup Guide
+                      </Button>
+                    )}
+                  </SettingGroup>
+                )}
               </>
             )}
 
@@ -2281,5 +2419,9 @@ export function SettingsPanel() {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* SubFrame Server setup wizard */}
+    <WebServerSetup open={webServerSetupOpen} onOpenChange={setWebServerSetupOpen} />
+    </>
   );
 }

@@ -496,8 +496,8 @@
         "AI_TOOLS"
       ],
       "depends": [
-        "os",
         "settingsManager",
+        "os",
         "electron",
         "child_process",
         "fs",
@@ -526,14 +526,17 @@
           "purpose": "Save configuration to file"
         },
         "isCommandInstalledAsync": {
-          "line": 149,
+          "line": 157,
           "params": [
             "command"
           ],
-          "purpose": "Uses async execFile (no shell) to avoid blocking the main thread."
+          "purpose": "whether the file exists and is executable.",
+          "calls": [
+            "getSetting"
+          ]
         },
         "checkToolInstalled": {
-          "line": 180,
+          "line": 220,
           "params": [
             "tool"
           ],
@@ -543,21 +546,21 @@
           ]
         },
         "getAvailableTools": {
-          "line": 189,
+          "line": 229,
           "purpose": "Get all available AI tools (with install status)",
           "calls": [
             "checkToolInstalled"
           ]
         },
         "getActiveTool": {
-          "line": 206,
+          "line": 246,
           "purpose": "Get the currently active tool",
           "calls": [
             "getAvailableTools"
           ]
         },
         "setActiveTool": {
-          "line": 214,
+          "line": 254,
           "params": [
             "toolId"
           ],
@@ -569,14 +572,14 @@
           ]
         },
         "onActiveToolChanged": {
-          "line": 237,
+          "line": 277,
           "params": [
             "callback"
           ],
           "purpose": "Used by index.ts to rebuild the application menu."
         },
         "getConfig": {
-          "line": 244,
+          "line": 284,
           "purpose": "Get full configuration for renderer",
           "calls": [
             "getActiveTool",
@@ -584,14 +587,14 @@
           ]
         },
         "addCustomTool": {
-          "line": 254,
+          "line": 294,
           "params": [
             "tool"
           ],
           "purpose": "Add a custom AI tool"
         },
         "removeCustomTool": {
-          "line": 272,
+          "line": 312,
           "params": [
             "toolId"
           ],
@@ -601,7 +604,7 @@
           ]
         },
         "setupIPC": {
-          "line": 287,
+          "line": 327,
           "purpose": "Setup IPC handlers",
           "calls": [
             "addCustomTool",
@@ -612,7 +615,7 @@
           ]
         },
         "getCommand": {
-          "line": 372,
+          "line": 412,
           "params": [
             "action"
           ],
@@ -622,14 +625,14 @@
           ]
         },
         "getCustomCommand": {
-          "line": 380,
+          "line": 420,
           "params": [
             "toolId"
           ],
           "purpose": "Get custom command override from settings for a tool"
         },
         "getStartCommand": {
-          "line": 394,
+          "line": 434,
           "purpose": "Get the start command for active tool",
           "calls": [
             "getActiveTool",
@@ -637,7 +640,7 @@
           ]
         }
       },
-      "loc": 405,
+      "loc": 445,
       "ipc": {
         "listens": [
           "GET_AI_TOOL_CONFIG",
@@ -4912,7 +4915,7 @@
           ]
         },
         "serveStatic": {
-          "line": 108,
+          "line": 113,
           "params": [
             "res",
             "urlPath"
@@ -4923,7 +4926,7 @@
           ]
         },
         "handleHTTP": {
-          "line": 147,
+          "line": 160,
           "params": [
             "req",
             "res"
@@ -4936,7 +4939,7 @@
           ]
         },
         "handlePairing": {
-          "line": 185,
+          "line": 198,
           "params": [
             "req",
             "res"
@@ -4944,7 +4947,7 @@
           "purpose": "── Pairing ────────────────────────────────────────────────────────────────"
         },
         "handleWsConnection": {
-          "line": 215,
+          "line": 228,
           "params": [
             "ws",
             "req"
@@ -4960,21 +4963,21 @@
           ]
         },
         "createSession": {
-          "line": 338,
+          "line": 351,
           "params": [
             "ws",
             "userAgent"
           ]
         },
         "wsSend": {
-          "line": 349,
+          "line": 362,
           "params": [
             "ws",
             "msg"
           ]
         },
         "onBridgeEvent": {
-          "line": 357,
+          "line": 370,
           "params": [
             "channel",
             "data"
@@ -4986,20 +4989,20 @@
           ]
         },
         "batchTerminalOutput": {
-          "line": 371,
+          "line": 384,
           "params": [
             "terminalId",
             "chunk"
           ]
         },
         "flushTerminalBatches": {
-          "line": 381,
+          "line": 394,
           "calls": [
             "wsSend"
           ]
         },
         "broadcastIPC": {
-          "line": 399,
+          "line": 412,
           "params": [
             "channel",
             "data"
@@ -5010,7 +5013,7 @@
           ]
         },
         "startServer": {
-          "line": 408,
+          "line": 421,
           "purpose": "── Server Start/Stop ──────────────────────────────────────────────────────",
           "calls": [
             "addBridgeListener",
@@ -5019,20 +5022,20 @@
           ]
         },
         "stopServer": {
-          "line": 439,
+          "line": 452,
           "calls": [
             "removeServiceConfig"
           ]
         },
         "init": {
-          "line": 467,
+          "line": 480,
           "purpose": "── Manager Lifecycle ──────────────────────────────────────────────────────",
           "calls": [
             "startServer"
           ]
         },
         "setupIPC": {
-          "line": 485,
+          "line": 498,
           "params": [
             "router"
           ],
@@ -5044,13 +5047,13 @@
           ]
         },
         "shutdown": {
-          "line": 566,
+          "line": 579,
           "calls": [
             "stopServer"
           ]
         }
       },
-      "loc": 571
+      "loc": 584
     },
     "main/workspace": {
       "file": "src\\main\\workspace.ts",
@@ -7060,7 +7063,10 @@
         "stores/useTerminalStore",
         "hooks/useSettings",
         "lib/ipc",
+        "hooks/useIpc",
+        "hooks/useIPCListener",
         "../shared/ipcChannels",
+        "WebServerSetup",
         "sonner",
         "lib/codemirror-theme",
         "framer-motion",
@@ -7069,17 +7075,17 @@
       ],
       "functions": {
         "detectNerdFont": {
-          "line": 50
+          "line": 54
         },
         "SettingGroup": {
-          "line": 192,
+          "line": 197,
           "params": [
             "{ label",
             "children }"
           ]
         },
         "SettingToggle": {
-          "line": 208,
+          "line": 213,
           "params": [
             "{ label",
             "description",
@@ -7089,7 +7095,7 @@
           ]
         },
         "SettingSelect": {
-          "line": 235,
+          "line": 240,
           "params": [
             "{ label",
             "description",
@@ -7099,7 +7105,7 @@
           ]
         },
         "SettingInput": {
-          "line": 266,
+          "line": 271,
           "params": [
             "{ label",
             "description",
@@ -7115,7 +7121,7 @@
           ]
         },
         "SettingSlider": {
-          "line": 299,
+          "line": 304,
           "params": [
             "{ label",
             "description",
@@ -7128,7 +7134,7 @@
           ]
         },
         "SettingsPanel": {
-          "line": 324,
+          "line": 329,
           "calls": [
             "cn",
             "detectNerdFont",
@@ -7137,11 +7143,13 @@
             "typedInvoke",
             "typedSend",
             "useAIToolConfig",
+            "useIPCEvent",
+            "useIpcQuery",
             "useSettings"
           ]
         }
       },
-      "loc": 2286,
+      "loc": 2428,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -8278,6 +8286,35 @@
           "REFRESH_CLAUDE_USAGE"
         ]
       }
+    },
+    "renderer/components/WebServerSetup": {
+      "file": "src\\renderer\\components\\WebServerSetup.tsx",
+      "description": "WebServerSetup — Multi-step setup wizard for SubFrame Server.",
+      "exports": [
+        "WebServerSetup"
+      ],
+      "depends": [
+        "react",
+        "ui/dialog",
+        "ui/button",
+        "lib/utils",
+        "lib/ipc",
+        "hooks/useIpc",
+        "hooks/useIPCListener",
+        "../shared/ipcChannels",
+        "sonner"
+      ],
+      "functions": {
+        "WebServerSetup": {
+          "line": 57,
+          "params": [
+            "{ open",
+            "onOpenChange }"
+          ],
+          "purpose": "── Component ────────────────────────────────────────────────────────────────"
+        }
+      },
+      "loc": 458
     },
     "renderer/components/WhatsNew": {
       "file": "src\\renderer\\components\\WhatsNew.tsx",
@@ -12122,6 +12159,13 @@
         "module": "main/webServerManager",
         "file": "src\\main\\webServerManager.ts",
         "description": "Web Server Manager — serves SubFrame UI as a web app with WebSocket transport."
+      }
+    ],
+    "web-server-setup": [
+      {
+        "module": "renderer/components/WebServerSetup",
+        "file": "src\\renderer\\components\\WebServerSetup.tsx",
+        "description": "WebServerSetup — Multi-step setup wizard for SubFrame Server."
       }
     ],
     "web-socket-transport": [
