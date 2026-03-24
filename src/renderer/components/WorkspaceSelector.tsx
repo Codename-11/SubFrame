@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, FolderOpen, MoreVertical, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, FolderOpen, MoreVertical, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,24 +41,23 @@ import { toast } from 'sonner';
 import type { WorkspaceListEntry, WorkspaceListResult } from '../../shared/ipcChannels';
 
 /**
- * Workspace selector with persistent horizontal tab bar and overflow menu.
- * Shows all active workspaces as tabs with live agent status indicators.
- * Right-click any tab for context menu (rename, deactivate, move, delete).
- * Overflow "..." button provides: New Workspace, inactive workspaces, and Add Project actions.
+ * Compact workspace selector — single-line dropdown showing active workspace.
+ * Primary workspace switching happens via ViewTabBar pills.
+ * This provides: dropdown list, rename, deactivate, delete, reorder, create.
+ * Right-click the workspace name for a context menu.
  */
 export function WorkspaceSelector() {
   const workspaceName = useProjectStore((s) => s.workspaceName);
   const setWorkspaceName = useProjectStore((s) => s.setWorkspaceName);
   const projects = useProjectStore((s) => s.projects);
   const terminals = useTerminalStore((s) => s.terminals);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch workspace list
   const { data: workspaceList, refetch } = useIpcQuery(IPC.WORKSPACE_LIST, [], {
     staleTime: 10000,
   });
 
-  // Parse the workspace list response — handler returns { active: string, workspaces: [...] }
+  // Parse the workspace list response
   const parsed = workspaceList as WorkspaceListResult | undefined;
   const workspaces = useMemo<(WorkspaceListEntry & { projectCount: number; inactive: boolean })[]>(() =>
     parsed?.workspaces?.map((ws) => ({
@@ -77,6 +76,7 @@ export function WorkspaceSelector() {
 
   // Find active workspace and its 1-based index within the active group
   const activeWs = workspaces.find((ws) => ws.active);
+  const activeIndex = activeWs ? activeWorkspaces.findIndex(ws => ws.key === activeWs.key) + 1 : 0;
 
   // Sync workspace name to store
   useEffect(() => {
@@ -85,20 +85,9 @@ export function WorkspaceSelector() {
     }
   }, [activeWs, workspaceName, setWorkspaceName]);
 
-  // Auto-scroll to active tab when workspace changes
-  useEffect(() => {
-    if (!activeWs || !scrollRef.current) return;
-    const activeTab = scrollRef.current.querySelector('[data-active-tab="true"]');
-    if (activeTab) {
-      activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-    }
-  }, [activeWs?.key]);
-
   const [loading, setLoading] = useState(false);
 
-  // Determine agent activity per workspace.
-  // For current workspace: check if any terminal with a project path in this workspace has claudeActive.
-  // For other workspaces: check all terminals (they persist across workspace switches).
+  // Determine agent activity for current workspace
   const allTerminals = useMemo(() => Array.from(terminals.values()), [terminals]);
   const currentProjectPaths = useMemo(
     () => new Set(projects.map(p => p.path)),
@@ -107,7 +96,6 @@ export function WorkspaceSelector() {
 
   const getAgentStatus = useCallback((wsKey: string, isCurrentWs: boolean): 'active' | 'has-terminals' | 'idle' => {
     if (isCurrentWs) {
-      // For current workspace, check terminals matching current project paths
       const hasActive = allTerminals.some(
         t => currentProjectPaths.has(t.projectPath) && t.claudeActive
       );
@@ -116,21 +104,17 @@ export function WorkspaceSelector() {
       if (hasTerminals) return 'has-terminals';
       return 'idle';
     }
-    // For other workspaces, we don't have their project paths.
-    // Show 'idle' — we can't determine status without loading each workspace's data.
     return 'idle';
   }, [allTerminals, currentProjectPaths]);
 
   const handleSwitch = useCallback(
     async (key: string) => {
       if (loading) return;
-      // Skip if already the active workspace
       if (parsed?.active === key) return;
       setLoading(true);
       try {
         await typedInvoke(IPC.WORKSPACE_SWITCH, key);
         refetch();
-        // Re-load the project list for the newly active workspace
         typedSend(IPC.LOAD_WORKSPACE);
       } catch {
         toast.error('Failed to switch workspace');
@@ -149,6 +133,13 @@ export function WorkspaceSelector() {
     setCreateName('');
     setShowCreateDialog(true);
   }, []);
+
+  // Listen for create event from ViewTabBar's + button
+  useEffect(() => {
+    const handler = () => handleCreate();
+    window.addEventListener('open-workspace-create', handler);
+    return () => window.removeEventListener('open-workspace-create', handler);
+  }, [handleCreate]);
 
   const confirmCreate = useCallback(async () => {
     const name = createName.trim();
@@ -215,7 +206,6 @@ export function WorkspaceSelector() {
     try {
       await typedInvoke(IPC.WORKSPACE_DELETE, deleteTarget.key);
       refetch();
-      // Reload project list for the new active workspace
       typedSend(IPC.LOAD_WORKSPACE);
       toast.success('Workspace deleted');
     } catch {
@@ -234,7 +224,6 @@ export function WorkspaceSelector() {
     try {
       const keys = activeWorkspaces.map(ws => ws.key);
       [keys[idx - 1], keys[idx]] = [keys[idx], keys[idx - 1]];
-      // Append inactive keys unchanged
       const inactiveKeys = inactiveWorkspaces.map(ws => ws.key);
       await typedInvoke(IPC.WORKSPACE_REORDER, [...keys, ...inactiveKeys]);
       refetch();
@@ -271,7 +260,6 @@ export function WorkspaceSelector() {
 
     const wantDeactivate = !ws.inactive;
 
-    // If deactivating the currently active workspace, switch to another first
     if (wantDeactivate && ws.active) {
       const otherActive = activeWorkspaces.find(w => w.key !== key);
       if (!otherActive) {
@@ -305,141 +293,169 @@ export function WorkspaceSelector() {
     }
   }, [workspaces, activeWorkspaces, loading, refetch]);
 
+  const currentAgentStatus = activeWs ? getAgentStatus(activeWs.key, true) : 'idle';
+
   return (
     <div className="border-b border-border-subtle">
-      <div className="flex items-center h-7">
-        {/* Tab bar — scrollable horizontal */}
-        <div
-          ref={scrollRef}
-          className="flex-1 flex items-stretch min-w-0 overflow-x-auto scrollbar-none"
-        >
-          {activeWorkspaces.map((ws, i) => {
-            const idx = i + 1;
-            const isActive = ws.active;
-            const agentStatus = getAgentStatus(ws.key, isActive);
-
-            return (
-              <ContextMenu key={ws.key}>
-                <ContextMenuTrigger asChild>
+      <div className="flex items-center h-7 px-1">
+        {/* Active workspace dropdown — shows current workspace, click to list all */}
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div className="flex-1 min-w-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
-                    data-active-tab={isActive ? 'true' : undefined}
-                    onClick={() => handleSwitch(ws.key)}
                     disabled={loading}
-                    title={`${ws.name}${idx <= 9 ? ` (Ctrl+Alt+${idx})` : ''}`}
-                    className={`
-                      flex items-center gap-1 px-2.5 h-7 text-[11px] font-medium whitespace-nowrap
-                      transition-colors cursor-pointer flex-shrink-0 border-b-2
-                      ${isActive
-                        ? 'bg-accent/15 text-accent border-accent'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/50 border-transparent'
-                      }
-                      disabled:opacity-50
-                    `}
+                    className="flex items-center gap-1 px-1.5 h-6 text-[11px] font-medium
+                      hover:bg-bg-hover/50 transition-colors cursor-pointer rounded
+                      text-text-primary disabled:opacity-50 min-w-0 max-w-full"
                   >
-                    <span className="font-mono text-[10px] opacity-70">#{idx}</span>
-                    <span className="truncate max-w-[80px]">{ws.name}</span>
-                    {ws.projectCount > 0 && (
-                      <span className="text-text-muted text-[9px]">({ws.projectCount})</span>
-                    )}
+                    {loading && <Loader2 className="w-3 h-3 animate-spin flex-shrink-0 text-text-muted" />}
+                    <span className="font-mono text-[10px] text-accent flex-shrink-0">#{activeIndex}</span>
+                    <span className="truncate">{activeWs?.name ?? 'Workspace'}</span>
                     {/* Agent status dot */}
-                    {agentStatus === 'active' && (
-                      <span className="relative flex-shrink-0 w-1.5 h-1.5" title="Agent active">
+                    {currentAgentStatus === 'active' && (
+                      <span className="relative flex-shrink-0 w-1.5 h-1.5">
                         <span className="absolute inset-0 rounded-full bg-success animate-ping opacity-40" />
                         <span className="absolute inset-0 rounded-full bg-success" />
                       </span>
                     )}
-                    {agentStatus === 'has-terminals' && (
-                      <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-text-muted opacity-40" title="Terminals open" />
-                    )}
+                    <ChevronDown className="w-3 h-3 text-text-muted flex-shrink-0" />
                   </button>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="min-w-[160px]">
-                  <ContextMenuItem
-                    onClick={() => handleRename(ws.key)}
-                    className="text-xs cursor-default"
-                  >
-                    Rename
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={() => handleToggleActive(ws.key)}
-                    className="text-xs cursor-default"
-                  >
-                    Deactivate
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    onClick={() => handleMoveLeft(ws.key)}
-                    disabled={i === 0}
-                    className="text-xs cursor-default"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5 mr-1.5" />
-                    Move Left
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={() => handleMoveRight(ws.key)}
-                    disabled={i === activeWorkspaces.length - 1}
-                    className="text-xs cursor-default"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5 mr-1.5" />
-                    Move Right
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    onClick={() => handleDelete(ws.key)}
-                    className="text-xs text-error cursor-default"
-                  >
-                    Delete
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            );
-          })}
-        </div>
-
-        {/* Overflow / management menu */}
-        <div className="flex items-center flex-shrink-0 border-l border-border-subtle">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center justify-center w-7 h-7 text-text-tertiary hover:text-text-primary hover:bg-bg-hover/50 transition-colors cursor-pointer"
-                title="Workspace options"
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[200px] max-h-[400px] overflow-y-auto">
+                  {/* Active workspaces */}
+                  {activeWorkspaces.map((ws, i) => {
+                    const idx = i + 1;
+                    const isActive = ws.active;
+                    return (
+                      <DropdownMenuItem
+                        key={ws.key}
+                        disabled={loading}
+                        onClick={() => handleSwitch(ws.key)}
+                        className={`cursor-pointer text-xs py-1 ${isActive ? 'bg-accent/10 text-accent' : ''}`}
+                      >
+                        <span className="font-mono text-[10px] opacity-70 mr-1.5">#{idx}</span>
+                        <span className="truncate">{ws.name}</span>
+                        {ws.projectCount > 0 && (
+                          <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
+                        )}
+                        {isActive && (
+                          <span className="ml-auto text-[9px] text-accent">Active</span>
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  {/* Inactive workspaces */}
+                  {inactiveWorkspaces.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <div className="px-2 py-0.5 text-[9px] font-semibold text-text-muted uppercase tracking-wider">
+                        Inactive
+                      </div>
+                      {inactiveWorkspaces.map((ws) => (
+                        <DropdownMenuItem
+                          key={ws.key}
+                          disabled={loading}
+                          className="opacity-50 cursor-pointer text-xs py-1"
+                          onClick={() => handleToggleActive(ws.key)}
+                        >
+                          <span className="truncate">{ws.name}</span>
+                          {ws.projectCount > 0 && (
+                            <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
+                          )}
+                          <span className="ml-auto text-[9px] text-text-muted">Activate</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </ContextMenuTrigger>
+          {/* Right-click context menu on the active workspace name */}
+          {activeWs && (
+            <ContextMenuContent className="min-w-[160px]">
+              <ContextMenuItem
+                onClick={() => handleRename(activeWs.key)}
+                className="text-xs cursor-default"
               >
-                <MoreVertical className="w-3.5 h-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[200px]">
-              <DropdownMenuItem onClick={handleCreate} disabled={loading}>
-                <Plus className="w-3.5 h-3.5 mr-2" />
-                New Workspace
-              </DropdownMenuItem>
-              {inactiveWorkspaces.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-0.5 text-[9px] font-semibold text-text-muted uppercase tracking-wider">
-                    Inactive
-                  </div>
-                  {inactiveWorkspaces.map((ws) => (
-                    <DropdownMenuItem
-                      key={ws.key}
-                      disabled={loading}
-                      className="opacity-50"
-                      onClick={() => handleToggleActive(ws.key)}
-                    >
-                      <span className="truncate">{ws.name}</span>
-                      {ws.projectCount > 0 && (
-                        <span className="text-text-muted text-[10px]">({ws.projectCount})</span>
-                      )}
-                      <span className="ml-auto text-[9px] text-text-muted">Activate</span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                Rename
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => handleToggleActive(activeWs.key)}
+                className="text-xs cursor-default"
+              >
+                Deactivate
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                onClick={() => handleMoveLeft(activeWs.key)}
+                disabled={activeIndex <= 1}
+                className="text-xs cursor-default"
+              >
+                <ChevronLeft className="w-3.5 h-3.5 mr-1.5" />
+                Move Left
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => handleMoveRight(activeWs.key)}
+                disabled={activeIndex >= activeWorkspaces.length}
+                className="text-xs cursor-default"
+              >
+                <ChevronRight className="w-3.5 h-3.5 mr-1.5" />
+                Move Right
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                onClick={() => handleDelete(activeWs.key)}
+                className="text-xs text-error cursor-default"
+              >
+                Delete
+              </ContextMenuItem>
+            </ContextMenuContent>
+          )}
+        </ContextMenu>
 
-          {/* Add project button */}
-          <AddProjectButton />
-        </div>
+        {/* Management menu (three-dot) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover/50 transition-colors cursor-pointer flex-shrink-0"
+              title="Workspace options"
+            >
+              <MoreVertical className="w-3 h-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[180px]">
+            {activeWs && (
+              <>
+                <DropdownMenuItem onClick={() => handleRename(activeWs.key)} disabled={loading} className="text-xs cursor-pointer">
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleToggleActive(activeWs.key)} disabled={loading} className="text-xs cursor-pointer">
+                  Deactivate
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onClick={handleCreate} disabled={loading} className="text-xs cursor-pointer">
+              <Plus className="w-3.5 h-3.5 mr-2" />
+              New Workspace
+            </DropdownMenuItem>
+            {activeWs && (
+              <DropdownMenuItem
+                onClick={() => handleDelete(activeWs.key)}
+                disabled={loading}
+                className="text-xs text-error cursor-pointer"
+              >
+                Delete
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Add project button */}
+        <AddProjectButton />
       </div>
 
       {/* Delete confirmation dialog */}
@@ -580,10 +596,10 @@ function AddProjectButton() {
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center justify-center w-7 h-7 text-text-tertiary hover:text-text-primary hover:bg-bg-hover/50 transition-colors cursor-pointer"
+          className="flex items-center justify-center w-6 h-6 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover/50 transition-colors cursor-pointer flex-shrink-0"
           title="Add project"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-3 h-3" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[200px] max-h-[400px] overflow-y-auto">
