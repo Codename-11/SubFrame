@@ -48,7 +48,8 @@ export class ElectronTransport implements Transport {
 
   on(
     channel: string,
-    handler: (event: unknown, ...args: unknown[]) => void
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    handler: (event: unknown, ...args: any[]) => void
   ): () => void {
     ipcRenderer.on(channel, handler);
     return () => {
@@ -60,7 +61,9 @@ export class ElectronTransport implements Transport {
     isElectron: true,
     openExternal: (url: string) => shell.openExternal(url),
     openPath: (filePath: string) => shell.openPath(filePath),
+    showItemInFolder: (filePath: string) => shell.showItemInFolder(filePath),
     writeClipboard: (text: string) => clipboard.writeText(text),
     readClipboard: () => Promise.resolve(clipboard.readText()),
+    osPlatform: process.platform,
   };
 }

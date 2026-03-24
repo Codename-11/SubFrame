@@ -49,8 +49,7 @@ import { IPC } from '../../shared/ipcChannels';
 import type { ShellInfo } from '../../shared/ipcChannels';
 import { typedInvoke } from '../lib/ipc';
 import * as terminalRegistry from '../lib/terminalRegistry';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 interface TerminalTabBarProps {
   onCreateTerminal: (shell?: string) => void;
@@ -111,11 +110,9 @@ export function TerminalTabBar({
     const handler = (_event: unknown, data: { shells: ShellInfo[]; success: boolean }) => {
       if (data.success) setShells(data.shells);
     };
-    ipcRenderer.on(IPC.AVAILABLE_SHELLS_DATA, handler);
-    ipcRenderer.send(IPC.GET_AVAILABLE_SHELLS);
-    return () => {
-      ipcRenderer.removeListener(IPC.AVAILABLE_SHELLS_DATA, handler);
-    };
+    const unsub = getTransport().on(IPC.AVAILABLE_SHELLS_DATA, handler);
+    getTransport().send(IPC.GET_AVAILABLE_SHELLS);
+    return unsub;
   }, []);
 
   // Focus rename input when renaming starts

@@ -32,6 +32,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useFileTree } from '../hooks/useFileTree';
 import { useGitStatus } from '../hooks/useGithub';
+import { getTransport } from '../lib/transportProvider';
 import { useProjectStore } from '../stores/useProjectStore';
 import type { FileTreeNode, GitFileStatus } from '../../shared/ipcChannels';
 
@@ -256,9 +257,7 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   }, []);
 
   const handleRevealInExplorer = useCallback((path: string) => {
-    // Use Electron shell to show file in OS file manager
-    const { shell } = require('electron');
-    shell.showItemInFolder(path);
+    getTransport().platform.showItemInFolder(path);
   }, []);
 
   // Keyboard navigation

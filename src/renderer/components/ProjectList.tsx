@@ -28,8 +28,7 @@ import { typedSend } from '../lib/ipc';
 import { useIPCEvent } from '../hooks/useIPCListener';
 import { IPC } from '../../shared/ipcChannels';
 import type { WorkspaceProject, WorkspaceData } from '../../shared/ipcChannels';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /** Extended project type that includes the optional source field from the main process */
 type ProjectWithSource = WorkspaceProject & { source?: 'manual' | 'scanned' };
@@ -117,7 +116,7 @@ export function ProjectList() {
       const project = projects.find((p) => p.path === projectPath);
       setProject(projectPath, project?.isFrameProject ?? false);
       // Notify main process
-      ipcRenderer.send(IPC.CHECK_IS_FRAME_PROJECT, projectPath);
+      getTransport().send(IPC.CHECK_IS_FRAME_PROJECT, projectPath);
     },
     [projects, setProject]
   );
@@ -157,7 +156,7 @@ export function ProjectList() {
     const trimmed = inlineRenameValue.trim();
     const project = projects.find((p) => p.path === inlineRenamePath);
     if (trimmed && project && trimmed !== project.name) {
-      ipcRenderer.send(IPC.RENAME_PROJECT, { projectPath: inlineRenamePath, newName: trimmed });
+      getTransport().send(IPC.RENAME_PROJECT, { projectPath: inlineRenamePath, newName: trimmed });
       toast.success('Project renamed');
     }
     setInlineRenamePath(null);

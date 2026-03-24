@@ -27,7 +27,8 @@ export interface Transport {
   /** Event subscription — returns an unsubscribe function. */
   on(
     channel: string,
-    handler: (event: unknown, ...args: unknown[]) => void
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    handler: (event: unknown, ...args: any[]) => void
   ): () => void;
 
   /** Platform-specific utilities (shell, clipboard, etc.). */
@@ -39,12 +40,16 @@ export interface TransportPlatform {
   openExternal(url: string): void;
   /** Open a file/folder in the OS default handler. */
   openPath(filePath: string): void;
+  /** Show a file in its parent folder (Finder / Explorer). */
+  showItemInFolder(filePath: string): void;
   /** Copy text to clipboard. */
   writeClipboard(text: string): void;
   /** Read text from clipboard. */
   readClipboard(): Promise<string>;
   /** Whether this is running inside Electron. */
   readonly isElectron: boolean;
+  /** OS platform identifier (e.g. 'darwin', 'win32', 'linux'). */
+  readonly osPlatform: string;
 }
 
 export type TransportType = 'electron' | 'websocket';

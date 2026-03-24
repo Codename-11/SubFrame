@@ -1,7 +1,7 @@
 # ADR-006: SubFrame Server — Browser Mode (Planned)
 
 **Date:** 2026-02-16
-**Status:** Accepted (not started)
+**Status:** Accepted (Phase 1 complete — transport abstraction)
 **Category:** Architecture
 
 ## Context
@@ -51,3 +51,9 @@ React UI (same)                 React UI (same)
 - Express/Fastify server needed for HTTP + WebSocket
 - The React refactor (ADR-002) makes this significantly easier
 - Future: optional auth, HTTPS, multi-user support
+
+## Progress
+
+### Phase 1: Transport Abstraction (2026-03-23) ✅
+
+Implemented pluggable `Transport` interface (`src/shared/transport.ts`) with `ElectronTransport` implementation. All 26 renderer files that previously imported `require('electron')` now route through `getTransport()`. Only `electronTransport.ts` imports Electron directly. The `ipc.ts` bridge delegates to the active transport. A future `WebSocketTransport` implements the same interface for browser mode.

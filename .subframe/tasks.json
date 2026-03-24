@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-23T23:26:25.189Z",
+  "lastUpdated": "2026-03-23T23:48:52.779Z",
   "tasks": {
     "pending": [
       {
@@ -842,23 +842,7 @@
         "steps": []
       }
     ],
-    "inProgress": [
-      {
-        "id": "task-mm9u1q50-8xrh",
-        "title": "Transport abstraction layer (IPC → pluggable)",
-        "status": "in_progress",
-        "priority": "medium",
-        "category": "refactor",
-        "context": "Session 2026-03-02",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-02T23:51:26.099Z",
-        "updatedAt": "2026-03-23T23:26:25.185Z",
-        "completedAt": null,
-        "description": "Refactor src/renderer/lib/ipc.ts to use a pluggable Transport interface. Extract ElectronTransport (current window.electron.invoke) and prepare WebSocketTransport stub for future browser mode. useIpcQuery/useIpcMutation stay unchanged — only the underlying transport swaps. This unlocks: CDN-loaded renderer for instant UI updates in Electron, browser mode via subframe-server, and mobile/tablet access. Depends on subframe-server being ready for the WebSocket side.",
-        "steps": []
-      }
-    ],
+    "inProgress": [],
     "completed": [
       {
         "id": "task-1772674776397-kc624grpq",
@@ -2322,6 +2306,21 @@
         "completedAt": "2026-03-08T02:31:08.401Z",
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
+        "steps": []
+      },
+      {
+        "id": "task-mm9u1q50-8xrh",
+        "title": "Transport abstraction layer (IPC → pluggable)",
+        "status": "completed",
+        "priority": "medium",
+        "category": "refactor",
+        "context": "Session 2026-03-02",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-02T23:51:26.099Z",
+        "updatedAt": "2026-03-23T23:48:52.774Z",
+        "completedAt": "2026-03-23T23:48:52.774Z",
+        "description": "Refactor src/renderer/lib/ipc.ts to use a pluggable Transport interface. Extract ElectronTransport (current window.electron.invoke) and prepare WebSocketTransport stub for future browser mode. useIpcQuery/useIpcMutation stay unchanged — only the underlying transport swaps. This unlocks: CDN-loaded renderer for instant UI updates in Electron, browser mode via subframe-server, and mobile/tablet access. Depends on subframe-server being ready for the WebSocket side.",
         "steps": []
       }
     ]

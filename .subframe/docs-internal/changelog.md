@@ -6,6 +6,18 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Transport Abstraction Layer (2026-03-23)
+
+- **`Transport` interface** (`src/shared/transport.ts`) — three methods matching Electron's IPC model: `invoke` (request/response), `send` (fire-and-forget), `on` (event subscription returning unsub fn). Plus `TransportPlatform` for shell/clipboard/platform APIs.
+- **`ElectronTransport`** (`src/renderer/lib/electronTransport.ts`) — wraps `ipcRenderer`, `shell`, `clipboard`, `process.platform`. The ONLY renderer file that imports `electron`.
+- **`transportProvider`** (`src/renderer/lib/transportProvider.ts`) — global singleton `setTransport()`/`getTransport()`, initialized in `index.tsx` before render.
+- **`ipc.ts` rewritten** — `typedInvoke`/`typedSend`/`typedOn` now delegate to `getTransport()` instead of direct `ipcRenderer` calls.
+- **26 renderer files migrated** — all `require('electron')` imports replaced with transport calls. Hooks (7), components (14+), libs (2+).
+- **`IPCSendMap` expanded** — `API_SELECTION_SYNC` and `API_RENDERER_RESPONSE` added (previously untyped raw `ipcRenderer.send` calls, now type-safe).
+- **`process.platform` isolated** — `osPlatform` added to `TransportPlatform`; `terminalRegistry.ts` uses lazy `getCtrlLabel()` instead of module-level constant.
+- **Leaked listener fixes** — safety timeouts added to one-shot `on()` patterns in `Sidebar.tsx` and `SettingsPanel.tsx` that could leak if responses never arrived.
+- Unlocks Phase 2: WebSocketTransport for SubFrame Server browser mode.
+
 ### TTS Endpoint for Agent-Initiated Speech (2026-03-22)
 
 - **POST /api/tts** — accepts `{ text, voice, priority, source }` from Claude Code hooks. Voice profiles: `summary`, `error`, `status`, `insight`, `general`. Stores in circular history buffer (50 max). Broadcasts `tts-speak` SSE event to all connected consumers.

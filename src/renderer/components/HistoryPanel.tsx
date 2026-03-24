@@ -7,8 +7,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { ScrollArea } from './ui/scroll-area';
 import { typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 interface HistoryEntry {
   timestamp: string;
@@ -41,14 +40,12 @@ export function HistoryPanel() {
   }, []);
 
   useEffect(() => {
-    ipcRenderer.on(IPC.PROMPT_HISTORY_DATA, handleData);
+    const unsub = getTransport().on(IPC.PROMPT_HISTORY_DATA, handleData);
     if (!loaded.current) {
       typedSend(IPC.LOAD_PROMPT_HISTORY);
       loaded.current = true;
     }
-    return () => {
-      ipcRenderer.removeListener(IPC.PROMPT_HISTORY_DATA, handleData);
-    };
+    return unsub;
   }, [handleData]);
 
   return (

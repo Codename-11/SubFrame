@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Transport abstraction layer** — pluggable `Transport` interface (`src/shared/transport.ts`) decouples all renderer IPC from Electron. `ElectronTransport` wraps `ipcRenderer`/`shell`/`clipboard`; a future `WebSocketTransport` enables browser/mobile access. All 26 renderer files migrated — only `electronTransport.ts` imports Electron directly. Platform APIs (`openExternal`, `clipboard`, `showItemInFolder`, `osPlatform`) exposed via `TransportPlatform` interface.
 - **System Panel** — app dashboard (`Ctrl+Shift+U`) with version/update status, AI tool picker, health, integrations, feature detection, shortcuts, and prompt library cards
 - **AI Tool picker** — switch AI tools directly from System Panel with installed status indicators
 - **API Server controls** — on/off toggle, token regeneration, and config copy from System Panel

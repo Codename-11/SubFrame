@@ -553,7 +553,10 @@ function hideLinkTooltip(): void {
   if (linkTooltip) linkTooltip.style.display = 'none';
 }
 
-const ctrlLabel = process.platform === 'darwin' ? 'Cmd' : 'Ctrl';
+/** Lazy — deferred until first link hover so transport is guaranteed initialized */
+function getCtrlLabel(): string {
+  return getTransport().platform.osPlatform === 'darwin' ? 'Cmd' : 'Ctrl';
+}
 
 // ---------------------------------------------------------------------------
 // Web link provider — Ctrl+click to open URLs in browser (with tooltip)
@@ -607,7 +610,7 @@ export function registerWebLinkProvider(terminal: Terminal): IDisposable {
           hover(event: MouseEvent, text: string): void {
             this.decorations = { underline: true, pointerCursor: true };
             const display = text.length > 60 ? text.slice(0, 57) + '...' : text;
-            const hint = event.ctrlKey || event.metaKey ? 'Click to open' : `${ctrlLabel}+Click to open`;
+            const hint = event.ctrlKey || event.metaKey ? 'Click to open' : `${getCtrlLabel()}+Click to open`;
             showLinkTooltip(event, `${display} — ${hint}`);
           },
 
@@ -721,7 +724,7 @@ export function registerFilePathLinkProvider(
           hover(event: MouseEvent, text: string): void {
             if (event.ctrlKey || event.metaKey) {
               this.decorations = { underline: true, pointerCursor: true };
-              showLinkTooltip(event, `Open ${text} (${ctrlLabel}+Click)`);
+              showLinkTooltip(event, `Open ${text} (${getCtrlLabel()}+Click)`);
             }
           },
 

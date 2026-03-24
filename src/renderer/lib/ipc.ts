@@ -26,7 +26,10 @@ export function typedSend<K extends keyof IPCSendMap>(
   channel: K,
   ...args: IPCSendMap[K] extends void ? [] : [payload: IPCSendMap[K]]
 ): void {
-  (getTransport().send as (...a: unknown[]) => void)(channel, ...args);
+  // Callers are type-checked by the generic K constraint above; the inner
+  // dispatch escapes the conditional-tuple overload that TS cannot resolve generically.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (getTransport() as any).send(channel, ...args);
 }
 
 /**
@@ -35,7 +38,8 @@ export function typedSend<K extends keyof IPCSendMap>(
  */
 export function typedOn<K extends string>(
   channel: K,
-  handler: (event: unknown, ...args: unknown[]) => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: (event: unknown, ...args: any[]) => void
 ): () => void {
   return getTransport().on(channel, handler);
 }

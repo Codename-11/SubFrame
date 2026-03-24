@@ -42,7 +42,7 @@ var require_package = __commonJS({
     module2.exports = {
       name: "subframe",
       productName: "SubFrame",
-      version: "0.7.2-beta",
+      version: "0.8.0-beta",
       description: "SubFrame - Project Management IDE for Claude Code",
       main: "dist/main/index.js",
       scripts: {
@@ -120,7 +120,7 @@ var require_package = __commonJS({
         "eslint-plugin-react-refresh": "^0.4.26",
         prettier: "^3.8.1",
         typescript: "^5.9.3",
-        "typescript-eslint": "^8.56.1",
+        "typescript-eslint": "^8.57.1",
         vitepress: "^1.6.4",
         vitest: "^3.2.4"
       },
@@ -146,7 +146,7 @@ var require_package = __commonJS({
         "@codemirror/theme-one-dark": "^6.1.3",
         "@replit/codemirror-minimap": "^0.5.2",
         "@tailwindcss/postcss": "^4.2.1",
-        "@tanstack/react-query": "^5.90.21",
+        "@tanstack/react-query": "^5.95.2",
         "@tanstack/react-table": "^8.21.3",
         "@types/dagre": "^0.7.54",
         "@uiw/react-codemirror": "^4.25.8",
@@ -169,7 +169,7 @@ var require_package = __commonJS({
         react: "^19.2.4",
         "react-dom": "^19.2.4",
         "react-markdown": "^10.1.0",
-        "react-resizable-panels": "^4.7.3",
+        "react-resizable-panels": "^4.7.5",
         "react-zoom-pan-pinch": "^3.7.0",
         recharts: "^2.15.4",
         "remark-gfm": "^4.0.1",
@@ -184,7 +184,7 @@ var require_package = __commonJS({
         "xterm-addon-unicode11": "^0.6.0",
         "xterm-addon-web-links": "^0.9.0",
         "xterm-addon-webgl": "^0.16.0",
-        yaml: "^2.8.2",
+        yaml: "^2.8.3",
         zustand: "^5.0.12"
       },
       build: {

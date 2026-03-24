@@ -20,8 +20,7 @@ import remarkGfm from 'remark-gfm';
 import { useIpcQuery } from '../hooks/useIpc';
 import { useSettings } from '../hooks/useSettings';
 import { IPC } from '../../shared/ipcChannels';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 export function WhatsNew() {
   const [open, setOpen] = useState(false);
@@ -41,7 +40,7 @@ export function WhatsNew() {
     // Only auto-show when there IS a previous version recorded but it differs.
     // undefined = first install → silently record current version, don't show.
     if (!lastSeenVersion) {
-      ipcRenderer.invoke(IPC.UPDATE_SETTING, {
+      getTransport().invoke(IPC.UPDATE_SETTING, {
         key: 'lastSeenWhatsNew',
         value: releaseNotes.version,
       });
@@ -58,7 +57,7 @@ export function WhatsNew() {
     (isOpen: boolean) => {
       setOpen(isOpen);
       if (!isOpen && releaseNotes?.version) {
-        ipcRenderer.invoke(IPC.UPDATE_SETTING, {
+        getTransport().invoke(IPC.UPDATE_SETTING, {
           key: 'lastSeenWhatsNew',
           value: releaseNotes.version,
         });

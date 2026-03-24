@@ -2,6 +2,7 @@ import React from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ScrollArea } from '../ui/scroll-area';
+import { getTransport } from '../../lib/transportProvider';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -95,7 +96,7 @@ const components: Record<string, React.ComponentType<any>> = {
       className="text-info hover:underline"
       onClick={(e) => {
         e.preventDefault();
-        if (href) require('electron').shell.openExternal(href);
+        if (href) getTransport().platform.openExternal(href);
       }}
       {...props}
     >

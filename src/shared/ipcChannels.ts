@@ -1433,6 +1433,10 @@ export interface IPCSendMap {
 
   // Activity Streams
   [IPC.ACTIVITY_CLEAR]: string; // streamId
+
+  // API Server bridge (renderer → main responses)
+  [IPC.API_SELECTION_SYNC]: { terminalId: string; text: string };
+  [IPC.API_RENDERER_RESPONSE]: { requestId: string; payload: unknown };
 }
 
 // ─── Event Map (main → renderer via webContents.send) ────────────────────────

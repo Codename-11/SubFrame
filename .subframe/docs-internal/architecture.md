@@ -50,9 +50,19 @@ All IPC channels are defined in `src/shared/ipcChannels.ts` as typed constants. 
 2. **Handle** in main-process manager (`ipcMain.handle(IPC.LOAD_TASKS, ...)`)
 3. **Consume** in renderer via TanStack Query hook (`useIpcQuery([IPC.LOAD_TASKS], ...)`)
 
-Two IPC patterns are used:
-- **`ipcMain.handle` / `ipcRenderer.invoke`** — Request/response (most operations)
-- **`webContents.send` / `ipcRenderer.on`** — Push events (file changes, terminal output)
+Three IPC patterns are used:
+- **`invoke`** — Request/response (most operations)
+- **`send`** — Fire-and-forget (terminal input, file tree requests)
+- **`on`** — Push events from main to renderer (file changes, terminal output)
+
+### Transport Abstraction
+
+The renderer accesses IPC through a pluggable `Transport` interface (`src/shared/transport.ts`), not directly via Electron's `ipcRenderer`. This enables future browser/mobile access via WebSocket.
+
+- **`ElectronTransport`** (`src/renderer/lib/electronTransport.ts`) — wraps `ipcRenderer`, `shell`, `clipboard`. The ONLY renderer file that imports `electron`.
+- **`transportProvider.ts`** — global singleton initialized in `index.tsx` before React renders.
+- **`ipc.ts`** — `typedInvoke`/`typedSend`/`typedOn` delegate to `getTransport()`.
+- **`TransportPlatform`** — platform APIs (openExternal, clipboard, osPlatform) behind a polyfillable interface.
 
 ## Module Pattern
 
@@ -73,12 +83,14 @@ Managers are registered in `src/main/index.ts`:
 User Action (click, keypress)
   → React Component
     → Zustand Store (local state) OR useIpcMutation (IPC call)
-      → ipcRenderer.invoke(channel, args)
-        → ipcMain.handle(channel, handler)
-          → Manager module (business logic, file I/O, PTY)
-            → Return result
-              → TanStack Query cache (automatic)
-                → React re-render (subscribers only)
+      → typedInvoke(channel, args)
+        → getTransport().invoke(channel, args)
+          → [ElectronTransport: ipcRenderer.invoke] OR [WebSocketTransport: ws message]
+            → ipcMain.handle(channel, handler)
+              → Manager module (business logic, file I/O, PTY)
+                → Return result
+                  → TanStack Query cache (automatic)
+                    → React re-render (subscribers only)
 ```
 
 ## File Layout

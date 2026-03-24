@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-22",
+  "lastUpdated": "2026-03-23",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -677,20 +677,20 @@
       ],
       "functions": {
         "writeServiceConfig": {
-          "line": 51
+          "line": 63
         },
         "removeServiceConfig": {
-          "line": 85
+          "line": 97
         },
         "authenticate": {
-          "line": 92,
+          "line": 104,
           "params": [
             "req"
           ],
           "purpose": "── Auth ───────────────────────────────────────────────────────────────────"
         },
         "requestFromRenderer": {
-          "line": 105,
+          "line": 117,
           "params": [
             "channel",
             "data"
@@ -698,7 +698,7 @@
           "purpose": "── Renderer bridge (main→renderer request-response) ───────────────────────"
         },
         "sendJSON": {
-          "line": 124,
+          "line": 136,
           "params": [
             "res",
             "status",
@@ -707,7 +707,7 @@
           "purpose": "── Route handling ─────────────────────────────────────────────────────────"
         },
         "sendError": {
-          "line": 133,
+          "line": 145,
           "params": [
             "res",
             "status",
@@ -718,20 +718,21 @@
           ]
         },
         "handleRequest": {
-          "line": 137,
+          "line": 149,
           "params": [
             "req",
             "res"
           ],
           "calls": [
             "authenticate",
+            "broadcastEvent",
             "requestFromRenderer",
             "sendError",
             "sendJSON"
           ]
         },
         "broadcastEvent": {
-          "line": 228,
+          "line": 283,
           "params": [
             "eventType",
             "data"
@@ -739,7 +740,7 @@
           "purpose": "── SSE broadcasting ───────────────────────────────────────────────────────"
         },
         "startServer": {
-          "line": 239,
+          "line": 294,
           "purpose": "── Server start/stop ─────────────────────────────────────────────────────",
           "calls": [
             "handleRequest",
@@ -748,13 +749,13 @@
           ]
         },
         "stopServer": {
-          "line": 261,
+          "line": 316,
           "calls": [
             "removeServiceConfig"
           ]
         },
         "init": {
-          "line": 280,
+          "line": 335,
           "params": [
             "window"
           ],
@@ -764,7 +765,7 @@
           ]
         },
         "setupIPC": {
-          "line": 316,
+          "line": 371,
           "params": [
             "ipcMain"
           ],
@@ -777,13 +778,13 @@
           ]
         },
         "shutdown": {
-          "line": 390,
+          "line": 448,
           "calls": [
             "stopServer"
           ]
         }
       },
-      "loc": 395,
+      "loc": 453,
       "ipc": {
         "listens": [
           "API_SELECTION_SYNC",
@@ -1799,41 +1800,73 @@
         "setProjectPath",
         "setupIPC",
         "loadIssues",
-        "openIssue"
+        "loadWorkflows",
+        "openIssue",
+        "viewIssue",
+        "viewPR",
+        "createIssue",
+        "loadPRDiff",
+        "rerunWorkflow",
+        "dispatchWorkflow",
+        "loadNotifications",
+        "markNotificationRead"
       ],
       "depends": [
         "child_process",
         "electron",
-        "shared/ipcChannels"
+        "shared/ipcChannels",
+        "outputChannelManager"
       ],
       "functions": {
-        "init": {
+        "ghExec": {
           "line": 33,
+          "params": [
+            "cmd",
+            "cwd"
+          ],
+          "purpose": "─── Helper utilities ─────────────────────────────────────────────────────────"
+        },
+        "ghExecRaw": {
+          "line": 45,
+          "params": [
+            "cmd",
+            "cwd"
+          ]
+        },
+        "ghExecFileSafe": {
+          "line": 55,
+          "params": [
+            "args",
+            "cwd"
+          ]
+        },
+        "init": {
+          "line": 69,
           "params": [
             "_window"
           ],
           "purpose": "Initialize GitHub manager"
         },
         "setProjectPath": {
-          "line": 40,
+          "line": 76,
           "params": [
             "projectPath"
           ],
           "purpose": "Set current project path"
         },
         "checkGhCli": {
-          "line": 47,
+          "line": 83,
           "purpose": "Check if gh CLI is available"
         },
         "checkGitHubRepo": {
-          "line": 58,
+          "line": 94,
           "params": [
             "projectPath"
           ],
           "purpose": "Check if current directory is a git repo with GitHub remote"
         },
         "loadIssues": {
-          "line": 78,
+          "line": 114,
           "params": [
             "projectPath",
             "state"
@@ -1844,30 +1877,130 @@
             "checkGitHubRepo"
           ]
         },
+        "loadWorkflowRuns": {
+          "line": 149,
+          "params": [
+            "projectPath",
+            "workflowId"
+          ],
+          "purpose": "Load workflow runs for a specific workflow"
+        },
+        "loadWorkflows": {
+          "line": 172,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Load GitHub Actions workflows and their recent runs",
+          "calls": [
+            "checkGhCli",
+            "checkGitHubRepo",
+            "loadWorkflowRuns"
+          ]
+        },
+        "viewIssue": {
+          "line": 212,
+          "params": [
+            "projectPath",
+            "issueNumber"
+          ],
+          "purpose": "View full issue detail"
+        },
+        "viewPR": {
+          "line": 230,
+          "params": [
+            "projectPath",
+            "prNumber"
+          ],
+          "purpose": "View full PR detail"
+        },
+        "createIssue": {
+          "line": 248,
+          "params": [
+            "payload"
+          ],
+          "purpose": "Create a new GitHub issue",
+          "calls": [
+            "ghExecFileSafe"
+          ]
+        },
+        "loadPRDiff": {
+          "line": 275,
+          "params": [
+            "projectPath",
+            "prNumber"
+          ],
+          "purpose": "Load PR diff"
+        },
+        "rerunWorkflow": {
+          "line": 300,
+          "params": [
+            "projectPath",
+            "runId"
+          ],
+          "purpose": "Rerun a GitHub Actions workflow run"
+        },
+        "dispatchWorkflow": {
+          "line": 315,
+          "params": [
+            "projectPath",
+            "workflowId",
+            "ref"
+          ],
+          "purpose": "Dispatch (manually trigger) a GitHub Actions workflow"
+        },
+        "loadNotifications": {
+          "line": 331,
+          "purpose": "Load GitHub notifications (not project-specific)"
+        },
+        "markNotificationRead": {
+          "line": 346,
+          "params": [
+            "threadId"
+          ],
+          "purpose": "Mark a GitHub notification thread as read"
+        },
         "openIssue": {
-          "line": 110,
+          "line": 360,
           "params": [
             "url"
           ],
           "purpose": "Open issue in browser"
         },
         "setupIPC": {
-          "line": 119,
+          "line": 369,
           "params": [
             "ipcMain"
           ],
           "purpose": "Setup IPC handlers",
           "calls": [
+            "createIssue",
+            "dispatchWorkflow",
             "loadIssues",
-            "openIssue"
+            "loadNotifications",
+            "loadPRDiff",
+            "loadWorkflows",
+            "markNotificationRead",
+            "openIssue",
+            "rerunWorkflow",
+            "viewIssue",
+            "viewPR"
           ]
         }
       },
-      "loc": 136,
+      "loc": 459,
       "ipc": {
         "listens": [
           "LOAD_GITHUB_ISSUES",
-          "OPEN_GITHUB_ISSUE"
+          "OPEN_GITHUB_ISSUE",
+          "LOAD_GITHUB_WORKFLOWS",
+          "VIEW_GITHUB_ISSUE",
+          "VIEW_GITHUB_PR",
+          "CREATE_GITHUB_ISSUE",
+          "LOAD_GITHUB_PR_DIFF",
+          "RERUN_GITHUB_WORKFLOW",
+          "DISPATCH_GITHUB_WORKFLOW",
+          "LOAD_GITHUB_NOTIFICATIONS",
+          "MARK_GITHUB_NOTIFICATION_READ"
         ],
         "emits": []
       }
@@ -1912,13 +2045,14 @@
         "updaterManager",
         "pipelineManager",
         "activityManager",
+        "outputChannelManager",
         "popoutManager",
         "apiServerManager",
         "shared/logoSVG"
       ],
       "functions": {
         "handleCLIArgs": {
-          "line": 69,
+          "line": 70,
           "params": [
             "argv"
           ],
@@ -1929,37 +2063,37 @@
           ]
         },
         "sendCLIOpenFile": {
-          "line": 105,
+          "line": 106,
           "params": [
             "filePath"
           ]
         },
         "sendCLIOpenProject": {
-          "line": 122,
+          "line": 123,
           "params": [
             "dirPath"
           ]
         },
         "getWindowStatePath": {
-          "line": 137,
+          "line": 138,
           "purpose": "Get path for persisted window state"
         },
         "loadWindowState": {
-          "line": 144,
+          "line": 145,
           "purpose": "Load saved window state (bounds + maximized)",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "saveWindowState": {
-          "line": 156,
+          "line": 157,
           "purpose": "Save current window state",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "createSplash": {
-          "line": 169,
+          "line": 170,
           "params": [
             "bounds",
             "isMaximized"
@@ -1970,7 +2104,7 @@
           ]
         },
         "createWindow": {
-          "line": 219,
+          "line": 220,
           "purpose": "Create main application window",
           "calls": [
             "createSplash",
@@ -1980,25 +2114,25 @@
           ]
         },
         "setupAllIPC": {
-          "line": 521,
+          "line": 522,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 680,
+          "line": 682,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 691,
+          "line": 693,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 784,
+      "loc": 787,
       "ipc": {
         "listens": [
           "GRACEFUL_SHUTDOWN_CONFIRM",
@@ -2303,6 +2437,131 @@
           "ONBOARDING_PROGRESS",
           "ONBOARDING_PROGRESS",
           "ONBOARDING_PROGRESS"
+        ]
+      }
+    },
+    "main/outputChannelManager": {
+      "file": "src\\main\\outputChannelManager.ts",
+      "description": "Output Channel Manager — Named log channels for system/integration output. Like VS Code's Output panel — persistent named channels that collect logs from different subsystems (System, GitHub, Git, Pipeline, Agent, etc.).",
+      "exports": [
+        "init",
+        "setupIPC",
+        "cleanup",
+        "append",
+        "log",
+        "clear",
+        "getOrCreateChannel",
+        "listChannels",
+        "getLog"
+      ],
+      "depends": [
+        "shared/ipcChannels"
+      ],
+      "functions": {
+        "init": {
+          "line": 32,
+          "params": [
+            "window"
+          ],
+          "purpose": "─── Public API ──────────────────────────────────────────────────────────────",
+          "calls": [
+            "append",
+            "getOrCreateChannel"
+          ]
+        },
+        "getOrCreateChannel": {
+          "line": 51,
+          "params": [
+            "id",
+            "name",
+            "category",
+            "maxLines"
+          ]
+        },
+        "append": {
+          "line": 69,
+          "params": [
+            "channelId",
+            "...lines"
+          ]
+        },
+        "log": {
+          "line": 90,
+          "params": [
+            "channelId",
+            "message"
+          ],
+          "calls": [
+            "append"
+          ]
+        },
+        "clear": {
+          "line": 95,
+          "params": [
+            "channelId"
+          ],
+          "calls": [
+            "broadcastUpdate"
+          ]
+        },
+        "listChannels": {
+          "line": 105
+        },
+        "getLog": {
+          "line": 110,
+          "params": [
+            "channelId"
+          ]
+        },
+        "toPublic": {
+          "line": 116,
+          "params": [
+            "channel"
+          ],
+          "purpose": "─── Internal ────────────────────────────────────────────────────────────────"
+        },
+        "broadcastUpdate": {
+          "line": 126,
+          "params": [
+            "channel"
+          ],
+          "calls": [
+            "toPublic"
+          ]
+        },
+        "flushPending": {
+          "line": 131,
+          "calls": [
+            "broadcastUpdate"
+          ]
+        },
+        "setupIPC": {
+          "line": 146,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "─── IPC ─────────────────────────────────────────────────────────────────────",
+          "calls": [
+            "clear",
+            "getLog",
+            "listChannels"
+          ]
+        },
+        "cleanup": {
+          "line": 162,
+          "purpose": "─── Cleanup ─────────────────────────────────────────────────────────────────"
+        }
+      },
+      "loc": 170,
+      "ipc": {
+        "listens": [
+          "OUTPUT_CHANNEL_LIST",
+          "OUTPUT_CHANNEL_LOG",
+          "OUTPUT_CHANNEL_CLEAR"
+        ],
+        "emits": [
+          "OUTPUT_CHANNEL_UPDATED",
+          "OUTPUT_CHANNEL_OUTPUT"
         ]
       }
     },
@@ -3701,8 +3960,10 @@
         "unregisterPopoutWebContents"
       ],
       "depends": [
+        "../package.json",
         "node-pty",
         "fs",
+        "path",
         "child_process",
         "shared/ipcChannels",
         "promptLogger",
@@ -3710,14 +3971,27 @@
         "settingsManager"
       ],
       "functions": {
+        "parseOSC7": {
+          "line": 36,
+          "params": [
+            "data"
+          ],
+          "purpose": "on every directory change."
+        },
+        "getAgentExitTimeout": {
+          "line": 76,
+          "calls": [
+            "getSetting"
+          ]
+        },
         "isSessionFresh": {
-          "line": 88,
+          "line": 133,
           "params": [
             "lastActivityAt"
           ]
         },
         "correlateSession": {
-          "line": 100,
+          "line": 145,
           "params": [
             "terminalId"
           ],
@@ -3727,7 +4001,7 @@
           ]
         },
         "broadcastClaudeStatus": {
-          "line": 141,
+          "line": 186,
           "params": [
             "terminalId",
             "active"
@@ -3738,41 +4012,45 @@
           ]
         },
         "detectClaudeOutput": {
-          "line": 202,
+          "line": 247,
           "params": [
             "terminalId",
             "data"
           ],
           "calls": [
-            "broadcastClaudeStatus"
+            "broadcastClaudeStatus",
+            "getAgentExitTimeout"
           ]
         },
         "getMaxTerminals": {
-          "line": 256,
+          "line": 323,
           "calls": [
             "getSetting"
           ]
         },
         "init": {
-          "line": 265,
+          "line": 332,
           "params": [
             "window"
           ],
-          "purpose": "Initialize PTY manager with window reference"
+          "purpose": "Initialize PTY manager with window reference",
+          "calls": [
+            "broadcastClaudeStatus"
+          ]
         },
         "getDefaultShell": {
-          "line": 272,
+          "line": 361,
           "purpose": "Get default shell based on platform"
         },
         "getAvailableShells": {
-          "line": 288,
+          "line": 377,
           "purpose": "Get available shells on the system",
           "calls": [
             "getDefaultShell"
           ]
         },
         "createTerminal": {
-          "line": 368,
+          "line": 457,
           "params": [
             "workingDir",
             "projectPath",
@@ -3783,25 +4061,26 @@
             "detectClaudeOutput",
             "getDefaultShell",
             "getMaxTerminals",
-            "getSetting"
+            "getSetting",
+            "parseOSC7"
           ]
         },
         "getTerminalsByProject": {
-          "line": 450,
+          "line": 552,
           "params": [
             "projectPath"
           ],
           "purpose": "Get terminals for a specific project"
         },
         "getTerminalInfo": {
-          "line": 463,
+          "line": 565,
           "params": [
             "terminalId"
           ],
           "purpose": "Get terminal info"
         },
         "writeToTerminal": {
-          "line": 474,
+          "line": 576,
           "params": [
             "terminalId",
             "data"
@@ -3809,7 +4088,7 @@
           "purpose": "Write data to specific terminal"
         },
         "resizeTerminal": {
-          "line": 484,
+          "line": 586,
           "params": [
             "terminalId",
             "cols",
@@ -3818,40 +4097,40 @@
           "purpose": "Resize specific terminal"
         },
         "destroyTerminal": {
-          "line": 494,
+          "line": 596,
           "params": [
             "terminalId"
           ],
           "purpose": "Destroy specific terminal"
         },
         "destroyAll": {
-          "line": 513,
+          "line": 616,
           "purpose": "Destroy all terminals"
         },
         "getTerminalCount": {
-          "line": 531,
+          "line": 636,
           "purpose": "Get terminal count"
         },
         "getTerminalIds": {
-          "line": 538,
+          "line": 643,
           "purpose": "Get all terminal IDs"
         },
         "hasTerminal": {
-          "line": 545,
+          "line": 650,
           "params": [
             "terminalId"
           ],
           "purpose": "Check if terminal exists"
         },
         "isClaudeActive": {
-          "line": 552,
+          "line": 657,
           "params": [
             "terminalId"
           ],
           "purpose": "Check if Claude Code is currently active in a terminal"
         },
         "waitForExit": {
-          "line": 561,
+          "line": 666,
           "params": [
             "terminalId",
             "timeoutMs"
@@ -3859,7 +4138,7 @@
           "purpose": "Returns 'exited' if the terminal process ends, or 'timeout' if the deadline passes."
         },
         "setupIPC": {
-          "line": 583,
+          "line": 688,
           "params": [
             "ipcMain"
           ],
@@ -3874,47 +4153,47 @@
           ]
         },
         "startCapturing": {
-          "line": 643,
+          "line": 787,
           "params": [
             "terminalId"
           ],
           "purpose": "─── Output Capture API ──────────────────────────────────────────────────────"
         },
         "stopCapturing": {
-          "line": 648,
+          "line": 792,
           "params": [
             "terminalId"
           ]
         },
         "registerPopoutWebContents": {
-          "line": 655,
+          "line": 799,
           "params": [
             "terminalId",
             "wc"
           ]
         },
         "unregisterPopoutWebContents": {
-          "line": 660,
+          "line": 804,
           "params": [
             "terminalId"
           ]
         },
         "addOutputHandler": {
-          "line": 665,
+          "line": 809,
           "params": [
             "terminalId",
             "handler"
           ]
         },
         "removeOutputHandler": {
-          "line": 675,
+          "line": 819,
           "params": [
             "terminalId",
             "handlerId"
           ]
         }
       },
-      "loc": 696,
+      "loc": 840,
       "ipc": {
         "listens": [
           "GET_AVAILABLE_SHELLS",
@@ -3922,7 +4201,10 @@
           "TERMINAL_DESTROY",
           "IS_TERMINAL_CLAUDE_ACTIVE",
           "TERMINAL_INPUT_ID",
-          "TERMINAL_RESIZE_ID"
+          "TERMINAL_RESIZE_ID",
+          "GET_TERMINAL_STATE",
+          "SAVE_TERMINAL_SCROLLBACK",
+          "LOAD_TERMINAL_SCROLLBACK"
         ],
         "emits": [
           "CLAUDE_ACTIVE_STATUS",
@@ -3951,7 +4233,7 @@
       ],
       "functions": {
         "init": {
-          "line": 131,
+          "line": 141,
           "params": [
             "window",
             "app"
@@ -3963,18 +4245,18 @@
           ]
         },
         "loadSettings": {
-          "line": 141,
+          "line": 151,
           "purpose": "Load settings from file",
           "calls": [
             "deepMerge"
           ]
         },
         "saveSettings": {
-          "line": 160,
+          "line": 170,
           "purpose": "Save settings to file"
         },
         "updateSetting": {
-          "line": 173,
+          "line": 183,
           "params": [
             "keyPath",
             "value"
@@ -3985,21 +4267,21 @@
           ]
         },
         "onSettingChange": {
-          "line": 203,
+          "line": 213,
           "params": [
             "listener"
           ],
           "purpose": "Register a listener for setting changes (main-process only)"
         },
         "getSetting": {
-          "line": 214,
+          "line": 224,
           "params": [
             "keyPath"
           ],
           "purpose": "Get a setting by key path"
         },
         "deepMerge": {
-          "line": 229,
+          "line": 239,
           "params": [
             "target",
             "unknown>",
@@ -4009,14 +4291,14 @@
           "purpose": "Deep merge two objects"
         },
         "setupIPC": {
-          "line": 250,
+          "line": 260,
           "purpose": "Setup IPC handlers",
           "calls": [
             "updateSetting"
           ]
         }
       },
-      "loc": 261,
+      "loc": 271,
       "ipc": {
         "listens": [
           "LOAD_SETTINGS",
@@ -4502,6 +4784,7 @@
         "renameWorkspace",
         "deleteWorkspace",
         "reorderWorkspaces",
+        "setWorkspaceInactive",
         "setProjectAITool",
         "getProjectAITool",
         "setupIPC"
@@ -4515,7 +4798,7 @@
       ],
       "functions": {
         "init": {
-          "line": 64,
+          "line": 66,
           "params": [
             "app",
             "_window",
@@ -4527,7 +4810,7 @@
           ]
         },
         "ensureWorkspaceDir": {
-          "line": 74,
+          "line": 76,
           "purpose": "Ensure workspace directory and file exist",
           "calls": [
             "createDefaultWorkspace",
@@ -4535,11 +4818,11 @@
           ]
         },
         "createDefaultWorkspace": {
-          "line": 88,
+          "line": 90,
           "purpose": "Create default workspace structure"
         },
         "loadWorkspace": {
-          "line": 105,
+          "line": 107,
           "purpose": "Load workspace from file",
           "calls": [
             "createDefaultWorkspace",
@@ -4547,21 +4830,21 @@
           ]
         },
         "saveWorkspace": {
-          "line": 135,
+          "line": 137,
           "params": [
             "data"
           ],
           "purpose": "Save workspace to file"
         },
         "getProjects": {
-          "line": 148,
+          "line": 150,
           "purpose": "Get projects from active workspace",
           "calls": [
             "loadWorkspace"
           ]
         },
         "addProject": {
-          "line": 157,
+          "line": 159,
           "params": [
             "projectPath",
             "name",
@@ -4574,7 +4857,7 @@
           ]
         },
         "removeProject": {
-          "line": 182,
+          "line": 184,
           "params": [
             "projectPath"
           ],
@@ -4585,7 +4868,7 @@
           ]
         },
         "updateProjectLastOpened": {
-          "line": 195,
+          "line": 197,
           "params": [
             "projectPath"
           ],
@@ -4596,7 +4879,7 @@
           ]
         },
         "renameProject": {
-          "line": 211,
+          "line": 213,
           "params": [
             "projectPath",
             "newName"
@@ -4608,21 +4891,21 @@
           ]
         },
         "scanProjectDir": {
-          "line": 231,
+          "line": 233,
           "params": [
             "dirPath"
           ],
           "purpose": "Scan a directory for projects"
         },
         "recheckFrameStatus": {
-          "line": 263,
+          "line": 265,
           "params": [
             "project"
           ],
           "purpose": "Re-check isFrameProject by looking for .subframe/config.json on disk."
         },
         "getProjectsWithScanned": {
-          "line": 276,
+          "line": 278,
           "purpose": "Get projects merged with scanned results from default project dir",
           "calls": [
             "getProjects",
@@ -4632,7 +4915,7 @@
           ]
         },
         "updateProjectFrameStatus": {
-          "line": 304,
+          "line": 306,
           "params": [
             "projectPath",
             "isFrame"
@@ -4644,7 +4927,7 @@
           ]
         },
         "setProjectAITool": {
-          "line": 320,
+          "line": 322,
           "params": [
             "projectPath",
             "aiTool"
@@ -4656,7 +4939,7 @@
           ]
         },
         "getProjectAITool": {
-          "line": 341,
+          "line": 343,
           "params": [
             "projectPath"
           ],
@@ -4666,20 +4949,20 @@
           ]
         },
         "getOrderedKeys": {
-          "line": 352,
+          "line": 354,
           "params": [
             "data"
           ]
         },
         "slugify": {
-          "line": 366,
+          "line": 368,
           "params": [
             "name"
           ],
           "purpose": "Convert workspace name to slug key"
         },
         "getWorkspaceList": {
-          "line": 379,
+          "line": 381,
           "purpose": "Get workspace list for the renderer selector",
           "calls": [
             "getOrderedKeys",
@@ -4687,7 +4970,7 @@
           ]
         },
         "switchWorkspace": {
-          "line": 397,
+          "line": 400,
           "params": [
             "key"
           ],
@@ -4699,7 +4982,7 @@
           ]
         },
         "createWorkspace": {
-          "line": 409,
+          "line": 416,
           "params": [
             "name"
           ],
@@ -4712,7 +4995,7 @@
           ]
         },
         "renameWorkspace": {
-          "line": 443,
+          "line": 450,
           "params": [
             "key",
             "newName"
@@ -4724,14 +5007,14 @@
           ]
         },
         "deleteWorkspace": {
-          "line": 457,
+          "line": 464,
           "params": [
             "key"
           ],
           "purpose": "Delete a workspace"
         },
         "reorderWorkspaces": {
-          "line": 492,
+          "line": 499,
           "params": [
             "orderedKeys"
           ],
@@ -4741,8 +5024,20 @@
             "saveWorkspace"
           ]
         },
+        "setWorkspaceInactive": {
+          "line": 520,
+          "params": [
+            "key",
+            "inactive"
+          ],
+          "purpose": "The currently active workspace cannot be set to inactive.",
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
+        },
         "setupIPC": {
-          "line": 512,
+          "line": 540,
           "params": [
             "ipcMain"
           ],
@@ -4759,11 +5054,12 @@
             "reorderWorkspaces",
             "scanProjectDir",
             "setProjectAITool",
+            "setWorkspaceInactive",
             "switchWorkspace"
           ]
         }
       },
-      "loc": 564,
+      "loc": 595,
       "ipc": {
         "listens": [
           "LOAD_WORKSPACE",
@@ -4777,7 +5073,8 @@
           "WORKSPACE_CREATE",
           "WORKSPACE_RENAME",
           "WORKSPACE_DELETE",
-          "WORKSPACE_REORDER"
+          "WORKSPACE_REORDER",
+          "WORKSPACE_SET_INACTIVE"
         ],
         "emits": [
           "WORKSPACE_DATA",
@@ -4787,7 +5084,7 @@
     },
     "renderer/components/ActivityBar": {
       "file": "src\\renderer\\components\\ActivityBar.tsx",
-      "description": "ActivityBar — Thin bottom bar for centralized activity streams output. Collapsed: single row showing active stream status + latest log line. Expanded: tabbed log viewer with per-stream output and cancel controls.",
+      "description": "ActivityBar — Thin bottom bar for centralized activity streams output and output channel viewer. Collapsed: single row showing active stream status + latest log line. Expanded: tabbed view with two modes: - \"Activity\" — per-stream output logs with cancel controls - \"Output\"   — VS Code-style output channels viewer",
       "exports": [
         "ActivityBar"
       ],
@@ -4797,18 +5094,19 @@
         "lib/utils",
         "ui/button",
         "ui/scroll-area",
-        "hooks/useActivity"
+        "hooks/useActivity",
+        "hooks/useOutputChannels"
       ],
       "functions": {
         "formatElapsed": {
-          "line": 26,
+          "line": 36,
           "params": [
             "ms"
           ],
           "purpose": "─── Helpers ─────────────────────────────────────────────────────────────────"
         },
         "useElapsedTime": {
-          "line": 36,
+          "line": 46,
           "params": [
             "startedAt",
             "isRunning"
@@ -4818,14 +5116,32 @@
           ]
         },
         "StatusDot": {
-          "line": 58,
+          "line": 68,
           "params": [
             "{ status }"
           ],
           "purpose": "─── Status Indicator ────────────────────────────────────────────────────────"
         },
+        "OutputChannelViewer": {
+          "line": 100,
+          "purpose": "─── Output Channel Viewer ──────────────────────────────────────────────────",
+          "calls": [
+            "useClearOutputChannel",
+            "useOutputChannelLog",
+            "useOutputChannels"
+          ]
+        },
+        "ModeToggle": {
+          "line": 201,
+          "params": [
+            "{\n  mode",
+            "onChange",
+            "}: {\n  mode: BarMode;\n  onChange"
+          ],
+          "purpose": "─── Mode Toggle Pills ─────────────────────────────────────────────────────"
+        },
         "ActivityBar": {
-          "line": 90,
+          "line": 240,
           "purpose": "─── ActivityBar ─────────────────────────────────────────────────────────────",
           "calls": [
             "clearStream",
@@ -4835,7 +5151,7 @@
           ]
         }
       },
-      "loc": 328
+      "loc": 537
     },
     "renderer/components/AgentStateView": {
       "file": "src\\renderer\\components\\AgentStateView.tsx",
@@ -4981,26 +5297,27 @@
         "AIToolPalette"
       ],
       "depends": [
-        "electron",
         "react",
         "hooks/useSettings",
         "stores/useProjectStore",
         "lib/ipc",
         "../shared/ipcChannels",
         "lib/shortcuts",
-        "sonner"
+        "sonner",
+        "lib/transportProvider"
       ],
       "functions": {
         "AIToolPalette": {
-          "line": 37,
+          "line": 36,
           "calls": [
+            "getTransport",
             "typedInvoke",
             "typedSend",
             "useAIToolConfig"
           ]
         }
       },
-      "loc": 288
+      "loc": 287
     },
     "renderer/components/App": {
       "file": "src\\renderer\\components\\App.tsx",
@@ -5009,7 +5326,6 @@
         "App"
       ],
       "depends": [
-        "electron",
         "react",
         "framer-motion",
         "Sidebar",
@@ -5026,6 +5342,7 @@
         "ErrorBoundary",
         "ThemeProvider",
         "ActivityBar",
+        "StatusBar",
         "TasksPalette",
         "AIToolPalette",
         "stores/useUIStore",
@@ -5037,7 +5354,8 @@
         "hooks/useSettings",
         "hooks/useIpc",
         "../shared/ipcChannels",
-        "lib/ipc"
+        "lib/ipc",
+        "lib/transportProvider"
       ],
       "functions": {
         "App": {
@@ -5046,6 +5364,7 @@
           "calls": [
             "TerminalArea",
             "cn",
+            "getTransport",
             "typedInvoke",
             "typedSend",
             "useAIToolConfig",
@@ -5054,7 +5373,7 @@
           ]
         }
       },
-      "loc": 650,
+      "loc": 645,
       "ipc": {
         "listens": [
           "WORKSPACE_DATA",
@@ -5089,12 +5408,14 @@
         "lib/ipc",
         "../shared/ipcChannels",
         "lib/shortcuts",
+        "lib/utils",
         "sonner"
       ],
       "functions": {
         "CommandPalette": {
-          "line": 56,
+          "line": 58,
           "calls": [
+            "cn",
             "switchWorkspace",
             "typedInvoke",
             "typedSend",
@@ -5102,7 +5423,7 @@
           ]
         }
       },
-      "loc": 349
+      "loc": 402
     },
     "renderer/components/CritiqueView": {
       "file": "src\\renderer\\components\\CritiqueView.tsx",
@@ -5160,7 +5481,6 @@
         "Editor"
       ],
       "depends": [
-        "electron",
         "react",
         "previews/MarkdownPreview",
         "previews/HtmlPreview",
@@ -5172,18 +5492,19 @@
         "stores/useProjectStore",
         "@uiw/react-codemirror",
         "@codemirror/view",
-        "@codemirror/state"
+        "@codemirror/state",
+        "lib/transportProvider"
       ],
       "functions": {
         "getRelativePath": {
-          "line": 114,
+          "line": 113,
           "params": [
             "filePath",
             "projectPath"
           ]
         },
         "Editor": {
-          "line": 126,
+          "line": 125,
           "params": [
             "{ filePath",
             "onClose",
@@ -5191,7 +5512,7 @@
           ]
         }
       },
-      "loc": 788,
+      "loc": 785,
       "ipc": {
         "listens": [
           "FILE_CONTENT",
@@ -5218,41 +5539,41 @@
         "FileTree"
       ],
       "depends": [
-        "electron",
         "react",
         "@/components/ui/scroll-area",
         "sonner",
         "hooks/useFileTree",
         "hooks/useGithub",
+        "lib/transportProvider",
         "stores/useProjectStore"
       ],
       "functions": {
         "getFileIcon": {
-          "line": 43,
+          "line": 44,
           "params": [
             "name"
           ]
         },
         "sortNodes": {
-          "line": 66,
+          "line": 67,
           "params": [
             "nodes"
           ]
         },
         "getGitIndicator": {
-          "line": 75,
+          "line": 76,
           "params": [
             "file"
           ]
         },
         "buildGitStatusMap": {
-          "line": 98,
+          "line": 99,
           "params": [
             "files"
           ]
         },
         "dirHasChanges": {
-          "line": 105,
+          "line": 106,
           "params": [
             "dirPath",
             "projectPath",
@@ -5261,33 +5582,33 @@
           ]
         },
         "flattenTree": {
-          "line": 117,
+          "line": 118,
           "params": [
             "nodes",
             "projectPath"
           ]
         },
         "filterTree": {
-          "line": 134,
+          "line": 135,
           "params": [
             "nodes",
             "query"
           ]
         },
         "collectDirPaths": {
-          "line": 153,
+          "line": 154,
           "params": [
             "nodes"
           ]
         },
         "FileTree": {
-          "line": 167,
+          "line": 168,
           "params": [
             "{ onFileOpen }"
           ]
         },
         "TreeNode": {
-          "line": 472,
+          "line": 471,
           "params": [
             "{\r\n  node",
             "depth",
@@ -5305,7 +5626,7 @@
           ]
         },
         "FlatFileRow": {
-          "line": 610,
+          "line": 609,
           "params": [
             "{\r\n  node",
             "relativePath",
@@ -5321,89 +5642,133 @@
           ]
         }
       },
-      "loc": 683
+      "loc": 682
     },
     "renderer/components/GithubPanel": {
       "file": "src\\renderer\\components\\GithubPanel.tsx",
-      "description": "GithubPanel — GitHub issues, PRs, branches, and worktrees.",
+      "description": "GithubPanel — GitHub issues, PRs, branches, worktrees, workflows, and notifications.",
       "exports": [
         "GithubPanel",
         "GithubIssuesPanel",
         "GithubPRsPanel",
         "GithubBranchesPanel",
         "GithubWorktreesPanel",
-        "GithubChangesPanel"
+        "GithubChangesPanel",
+        "GithubWorkflowsPanel",
+        "GithubNotificationsPanel"
       ],
       "depends": [
-        "electron",
         "react",
-        "lucide-react",
         "ui/badge",
         "ui/button",
         "ui/input",
         "ui/scroll-area",
         "ui/dialog",
         "lib/utils",
-        "hooks/useGithub",
         "stores/useProjectStore",
         "stores/useUIStore",
-        "sonner"
+        "stores/useTerminalStore",
+        "../shared/ipcChannels",
+        "sonner",
+        "previews/MarkdownPreview",
+        "lib/transportProvider"
       ],
       "functions": {
         "getContrastColor": {
-          "line": 27,
+          "line": 41,
           "params": [
             "hex"
           ]
         },
         "buildFileTree": {
-          "line": 48,
+          "line": 55,
           "params": [
             "files",
             "statusField"
           ]
         },
         "countFiles": {
-          "line": 94,
+          "line": 79,
           "params": [
             "nodes"
           ]
         },
         "formatRelativeTime": {
-          "line": 106,
+          "line": 85,
           "params": [
             "dateString"
           ]
         },
+        "formatIssuePrompt": {
+          "line": 94,
+          "params": [
+            "issue",
+            "body"
+          ]
+        },
         "GithubPanel": {
-          "line": 125
+          "line": 102
         },
         "NoProject": {
-          "line": 129
+          "line": 104
         },
         "GitSyncStatus": {
-          "line": 138,
+          "line": 106,
           "calls": [
             "useGitStatus"
           ]
         },
         "GithubIssuesPanel": {
-          "line": 159
+          "line": 121
         },
         "GithubPRsPanel": {
-          "line": 170
+          "line": 122
         },
         "GithubBranchesPanel": {
-          "line": 181
+          "line": 123
         },
         "GithubWorktreesPanel": {
-          "line": 192
+          "line": 124
         },
         "GithubChangesPanel": {
-          "line": 203
+          "line": 125
+        },
+        "IssueDetailView": {
+          "line": 129,
+          "params": [
+            "{ issueNumber",
+            "isPR }"
+          ],
+          "purpose": "─── Issue Detail View ───────────────────────────────────────────────────────"
+        },
+        "CreateIssueDialog": {
+          "line": 172,
+          "params": [
+            "{ open",
+            "onOpenChange",
+            "onCreated }"
+          ],
+          "purpose": "─── Create Issue Dialog ─────────────────────────────────────────────────────"
+        },
+        "BulkSendDialog": {
+          "line": 205,
+          "params": [
+            "{ open",
+            "onOpenChange",
+            "issues }"
+          ],
+          "purpose": "─── Bulk Send Dialog ────────────────────────────────────────────────────────"
+        },
+        "IssuesTab": {
+          "line": 231,
+          "params": [
+            "{ state",
+            "isPR"
+          ],
+          "purpose": "─── Issues Tab ──────────────────────────────────────────────────────────────"
         },
         "FileTreeNodeView": {
-          "line": 214,
+          "line": 308,
           "params": [
             "{ node",
             "depth",
@@ -5411,11 +5776,12 @@
             "statusField",
             "expanded",
             "onToggleDir",
-            "projectPath }: {\r\n  node: TreeNode;\r\n  depth: number;\r\n  color: string;\r\n  statusField: 'index' | 'working';\r\n  expanded: Set<string>;\r\n  onToggleDir"
-          ]
+            "projectPath }"
+          ],
+          "purpose": "─── File Tree Components ────────────────────────────────────────────────────"
         },
         "FileGroup": {
-          "line": 290,
+          "line": 324,
           "params": [
             "{ label",
             "count",
@@ -5426,43 +5792,81 @@
             "open",
             "onToggle",
             "viewMode",
-            "projectPath }: {\r\n  label: string;\r\n  count: number;\r\n  color: string;\r\n  dotColor: string;\r\n  files: GitFileStatus[];\r\n  statusField: 'index' | 'working';\r\n  open: boolean;\r\n  onToggle"
+            "projectPath }"
           ]
         },
         "ChangesTab": {
-          "line": 382,
+          "line": 337,
+          "purpose": "─── Changes Tab ─────────────────────────────────────────────────────────────",
           "calls": [
             "cn",
             "useGitStatus"
           ]
         },
-        "IssuesTab": {
-          "line": 485,
-          "params": [
-            "{ state",
-            "isPR"
-          ]
-        },
         "BranchesTab": {
-          "line": 593,
+          "line": 350,
+          "purpose": "─── Branches Tab ────────────────────────────────────────────────────────────",
           "calls": [
             "cn",
             "useGitBranches"
           ]
         },
+        "GithubWorkflowsPanel": {
+          "line": 367,
+          "purpose": "─── Workflows Tab ───────────────────────────────────────────────────────────"
+        },
+        "WorkflowCard": {
+          "line": 369,
+          "params": [
+            "{ workflow }"
+          ]
+        },
+        "WorkflowsTab": {
+          "line": 396,
+          "calls": [
+            "cn",
+            "useGithubWorkflows"
+          ]
+        },
         "WorktreesTab": {
-          "line": 791,
+          "line": 406,
+          "purpose": "─── Worktrees Tab ───────────────────────────────────────────────────────────",
           "calls": [
             "cn",
             "useGitWorktrees"
           ]
+        },
+        "notificationWebUrl": {
+          "line": 417,
+          "params": [
+            "n"
+          ],
+          "purpose": "─── Notifications Panel ─────────────────────────────────────────────────────"
+        },
+        "notificationTypeIcon": {
+          "line": 426,
+          "params": [
+            "type"
+          ]
+        },
+        "GithubNotificationsPanel": {
+          "line": 428,
+          "calls": [
+            "cn",
+            "formatRelativeTime",
+            "getTransport",
+            "notificationTypeIcon",
+            "notificationWebUrl",
+            "useGithubNotifications",
+            "useMarkNotificationRead"
+          ]
         }
       },
-      "loc": 873,
+      "loc": 445,
       "ipc": {
         "listens": [],
         "emits": [
-          "open"
+          "TERMINAL_INPUT_ID"
         ]
       }
     },
@@ -5498,35 +5902,36 @@
         "HistoryPanel"
       ],
       "depends": [
-        "electron",
         "react",
         "ui/scroll-area",
         "lib/ipc",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "lib/transportProvider"
       ],
       "functions": {
         "parseHistory": {
-          "line": 18,
+          "line": 17,
           "params": [
             "raw"
           ]
         },
         "HistoryPanel": {
-          "line": 35,
+          "line": 34,
           "calls": [
             "formatTimestamp",
+            "getTransport",
             "parseHistory",
             "typedSend"
           ]
         },
         "formatTimestamp": {
-          "line": 90,
+          "line": 87,
           "params": [
             "ts"
           ]
         }
       },
-      "loc": 97,
+      "loc": 94,
       "ipc": {
         "listens": [
           "PROMPT_HISTORY_DATA"
@@ -5948,24 +6353,24 @@
         "PopoutTerminal"
       ],
       "depends": [
-        "electron",
         "react",
         "lucide-react",
         "Terminal",
         "ThemeProvider",
         "ErrorBoundary",
         "lib/ipc",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "lib/transportProvider"
       ],
       "functions": {
         "PopoutTerminal": {
-          "line": 26,
+          "line": 25,
           "params": [
             "{ terminalId"
           ]
         }
       },
-      "loc": 113,
+      "loc": 110,
       "ipc": {
         "listens": [
           "POPOUT_ACTIVATE",
@@ -6038,11 +6443,11 @@
         "MarkdownPreview"
       ],
       "depends": [
-        "electron",
         "react",
         "react-markdown",
         "remark-gfm",
         "ui/scroll-area",
+        "../lib/transportProvider",
         "highlight.js/lib/core",
         "highlight.js/lib/languages/javascript",
         "highlight.js/lib/languages/typescript",
@@ -6060,13 +6465,13 @@
       ],
       "functions": {
         "MarkdownPreview": {
-          "line": 166,
+          "line": 167,
           "params": [
             "{ content }"
           ]
         }
       },
-      "loc": 178
+      "loc": 179
     },
     "renderer/components/ProjectList": {
       "file": "src\\renderer\\components\\ProjectList.tsx",
@@ -6075,25 +6480,26 @@
         "ProjectList"
       ],
       "depends": [
-        "electron",
         "react",
         "stores/useProjectStore",
         "sonner",
         "lib/ipc",
         "hooks/useIPCListener",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "lib/transportProvider"
       ],
       "functions": {
         "ProjectList": {
-          "line": 42,
+          "line": 41,
           "purpose": "Supports keyboard navigation (Arrow Up/Down, Enter, F2, Escape) and inline rename.",
           "calls": [
+            "getTransport",
             "sortProjects",
             "typedSend"
           ]
         },
         "ProjectCard": {
-          "line": 289,
+          "line": 288,
           "params": [
             "{\r\n  project",
             "isActive",
@@ -6112,13 +6518,13 @@
           ]
         },
         "sortProjects": {
-          "line": 429,
+          "line": 428,
           "params": [
             "list"
           ]
         }
       },
-      "loc": 439,
+      "loc": 438,
       "ipc": {
         "listens": [],
         "emits": [
@@ -6262,19 +6668,19 @@
       ],
       "functions": {
         "getGroup": {
-          "line": 110,
+          "line": 114,
           "params": [
             "panelId"
           ]
         },
         "getGroupIndex": {
-          "line": 115,
+          "line": 119,
           "params": [
             "panelId"
           ]
         },
         "RightPanel": {
-          "line": 147,
+          "line": 153,
           "calls": [
             "cn",
             "getGroup",
@@ -6282,7 +6688,7 @@
           ]
         }
       },
-      "loc": 429
+      "loc": 435
     },
     "renderer/components/SessionsPanel": {
       "file": "src\\renderer\\components\\SessionsPanel.tsx",
@@ -6356,34 +6762,36 @@
         "SettingsPanel"
       ],
       "depends": [
-        "electron",
         "../../package.json",
         "react",
         "ui/dialog",
         "ui/input",
         "ui/button",
         "stores/useUIStore",
+        "stores/useProjectStore",
+        "stores/useTerminalStore",
         "hooks/useSettings",
         "lib/ipc",
         "../shared/ipcChannels",
         "sonner",
         "lib/codemirror-theme",
         "framer-motion",
-        "lib/utils"
+        "lib/utils",
+        "lib/transportProvider"
       ],
       "functions": {
         "detectNerdFont": {
-          "line": 47
+          "line": 50
         },
         "SettingGroup": {
-          "line": 111,
+          "line": 192,
           "params": [
             "{ label",
             "children }"
           ]
         },
         "SettingToggle": {
-          "line": 127,
+          "line": 208,
           "params": [
             "{ label",
             "description",
@@ -6393,7 +6801,7 @@
           ]
         },
         "SettingSelect": {
-          "line": 154,
+          "line": 235,
           "params": [
             "{ label",
             "description",
@@ -6403,7 +6811,7 @@
           ]
         },
         "SettingInput": {
-          "line": 185,
+          "line": 266,
           "params": [
             "{ label",
             "description",
@@ -6419,7 +6827,7 @@
           ]
         },
         "SettingSlider": {
-          "line": 218,
+          "line": 299,
           "params": [
             "{ label",
             "description",
@@ -6432,24 +6840,29 @@
           ]
         },
         "SettingsPanel": {
-          "line": 243,
+          "line": 324,
           "calls": [
             "cn",
             "detectNerdFont",
             "getThemeById",
+            "getTransport",
             "typedInvoke",
+            "typedSend",
             "useAIToolConfig",
             "useSettings"
           ]
         }
       },
-      "loc": 1645,
+      "loc": 2282,
       "ipc": {
         "listens": [
-          "AVAILABLE_SHELLS_DATA"
+          "AVAILABLE_SHELLS_DATA",
+          "FILE_CONTENT",
+          "FILE_SAVED"
         ],
         "emits": [
-          "GET_AVAILABLE_SHELLS"
+          "GET_AVAILABLE_SHELLS",
+          "TERMINAL_INPUT_ID"
         ]
       }
     },
@@ -6483,7 +6896,6 @@
       ],
       "depends": [
         "../../package.json",
-        "electron",
         "react",
         "ui/tooltip",
         "lib/utils",
@@ -6501,7 +6913,8 @@
         "SidebarAgentStatus",
         "stores/useTerminalStore",
         "hooks/useGithub",
-        "sonner"
+        "sonner",
+        "lib/transportProvider"
       ],
       "functions": {
         "Sidebar": {
@@ -6510,13 +6923,14 @@
           "calls": [
             "cn",
             "getLogoSVG",
+            "getTransport",
             "typedInvoke",
             "useAIToolConfig",
             "useSettings"
           ]
         },
         "CollapsedWorkspaceSwitcher": {
-          "line": 564,
+          "line": 566,
           "calls": [
             "cn",
             "typedInvoke",
@@ -6525,33 +6939,33 @@
           ]
         },
         "GitStatusBar": {
-          "line": 675,
+          "line": 677,
           "calls": [
             "useGitStatus"
           ]
         },
         "CollapsedGitStatus": {
-          "line": 700,
+          "line": 702,
           "calls": [
             "cn",
             "useGitStatus"
           ]
         },
         "GitBranchIcon": {
-          "line": 741,
+          "line": 743,
           "params": [
             "{ className }"
           ]
         }
       },
-      "loc": 749,
+      "loc": 751,
       "ipc": {
         "listens": [
           "IS_FRAME_PROJECT_RESULT",
-          "FRAME_PROJECT_INITIALIZED"
+          "FRAME_PROJECT_INITIALIZED",
+          "TERMINAL_CREATED"
         ],
         "emits": [
-          "TERMINAL_INPUT_ID",
           "TERMINAL_INPUT_ID",
           "TERMINAL_CREATE",
           "INITIALIZE_FRAME_PROJECT"
@@ -6690,6 +7104,48 @@
         }
       },
       "loc": 557
+    },
+    "renderer/components/StatusBar": {
+      "file": "src\\renderer\\components\\StatusBar.tsx",
+      "description": "StatusBar — Persistent thin bar at the very bottom of the app (below ActivityBar). Shows at-a-glance status from multiple subsystems: git, agents, tasks, GitHub, output. Each section is clickable to open its corresponding right panel.",
+      "exports": [
+        "StatusBar"
+      ],
+      "depends": [
+        "../../package.json",
+        "react",
+        "lib/utils",
+        "hooks/useGithub",
+        "hooks/useTasks",
+        "stores/useTerminalStore",
+        "stores/useUIStore"
+      ],
+      "functions": {
+        "Section": {
+          "line": 26,
+          "params": [
+            "{\n  children",
+            "onClick",
+            "title",
+            "}: {\n  children: React.ReactNode;\n  onClick"
+          ],
+          "purpose": "─── Section wrapper ──────────────────────────────────────────────────────────"
+        },
+        "Divider": {
+          "line": 47
+        },
+        "StatusBar": {
+          "line": 53,
+          "purpose": "─── StatusBar ────────────────────────────────────────────────────────────────",
+          "calls": [
+            "cn",
+            "useGitStatus",
+            "useGithubWorkflows",
+            "useTasks"
+          ]
+        }
+      },
+      "loc": 187
     },
     "renderer/components/StructureMap": {
       "file": "src\\renderer\\components\\StructureMap.tsx",
@@ -6915,7 +7371,7 @@
           ]
         },
         "DTSPCard": {
-          "line": 621,
+          "line": 640,
           "purpose": "─── Card 5: DTSP Registration ────────────────────────────────────────────────",
           "calls": [
             "cn",
@@ -6924,7 +7380,7 @@
           ]
         },
         "FeatureDetectionCard": {
-          "line": 738,
+          "line": 757,
           "purpose": "─── Card 6: Feature Detection ───────────────────────────────────────────────",
           "calls": [
             "useAIToolConfig",
@@ -6932,18 +7388,18 @@
           ]
         },
         "ShortcutsCard": {
-          "line": 810,
+          "line": 829,
           "purpose": "─── Card 6: Keyboard Shortcuts ───────────────────────────────────────────────"
         },
         "PromptLibraryCard": {
-          "line": 831,
+          "line": 850,
           "purpose": "─── Card 7: Prompt Library ───────────────────────────────────────────────────",
           "calls": [
             "usePrompts"
           ]
         }
       },
-      "loc": 852
+      "loc": 871
     },
     "renderer/components/TaskGraph": {
       "file": "src\\renderer\\components\\TaskGraph.tsx",
@@ -7093,7 +7549,6 @@
         "TasksPanel"
       ],
       "depends": [
-        "electron",
         "react",
         "lucide-react",
         "TaskTimeline",
@@ -7114,30 +7569,31 @@
         "../shared/ipcChannels",
         "sonner",
         "react-markdown",
-        "remark-gfm"
+        "remark-gfm",
+        "lib/transportProvider"
       ],
       "functions": {
         "markdownToForm": {
-          "line": 122,
+          "line": 121,
           "params": [
             "md"
           ]
         },
         "formatDate": {
-          "line": 191,
+          "line": 190,
           "params": [
             "iso"
           ]
         },
         "SortHeader": {
-          "line": 219,
+          "line": 218,
           "params": [
             "{ column",
             "label }"
           ]
         },
         "TaskActions": {
-          "line": 241,
+          "line": 240,
           "params": [
             "{\r\n  task",
             "onUpdateStatus",
@@ -7150,13 +7606,13 @@
           ]
         },
         "TasksPanel": {
-          "line": 326,
+          "line": 325,
           "params": [
             "{ isFullView"
           ]
         },
         "TaskDetail": {
-          "line": 1665,
+          "line": 1664,
           "params": [
             "{ task",
             "updateTask",
@@ -7166,11 +7622,10 @@
           ]
         }
       },
-      "loc": 1848,
+      "loc": 1847,
       "ipc": {
         "listens": [],
         "emits": [
-          "TERMINAL_INPUT_ID",
           "TERMINAL_INPUT_ID"
         ]
       }
@@ -7205,7 +7660,6 @@
         "Terminal"
       ],
       "depends": [
-        "electron",
         "react",
         "framer-motion",
         "lucide-react",
@@ -7216,24 +7670,25 @@
         "stores/useTerminalStore",
         "stores/useProjectStore",
         "stores/useUIStore",
-        "lib/terminalRegistry"
+        "lib/terminalRegistry",
+        "lib/transportProvider"
       ],
       "functions": {
         "stripAnsi": {
-          "line": 29,
+          "line": 28,
           "params": [
             "str"
           ]
         },
         "Terminal": {
-          "line": 52,
+          "line": 51,
           "params": [
             "{ terminalId",
             "className }"
           ]
         }
       },
-      "loc": 819,
+      "loc": 848,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID",
@@ -7249,7 +7704,6 @@
         "TerminalArea"
       ],
       "depends": [
-        "electron",
         "react",
         "lucide-react",
         "TerminalTabBar",
@@ -7275,30 +7729,45 @@
         "../shared/ipcChannels",
         "lib/terminalRegistry",
         "../shared/logoSVG",
-        "sonner"
+        "sonner",
+        "lib/transportProvider"
       ],
       "functions": {
         "saveSession": {
-          "line": 63,
+          "line": 70,
+          "params": [
+            "projectPath",
+            "store",
+            "terminalState"
+          ]
+        },
+        "saveSessionWithState": {
+          "line": 128,
           "params": [
             "projectPath",
             "store"
+          ],
+          "calls": [
+            "saveSession",
+            "typedInvoke"
           ]
         },
         "loadSession": {
-          "line": 99,
+          "line": 141,
           "params": [
             "projectPath"
           ]
         },
         "TerminalArea": {
-          "line": 109,
+          "line": 151,
           "calls": [
             "createTerminal",
             "getLogoSVG",
             "getTabIdForContent",
+            "getTransport",
             "loadSession",
             "saveSession",
+            "saveSessionWithState",
             "typedInvoke",
             "typedSend",
             "useAIToolConfig",
@@ -7306,7 +7775,7 @@
           ]
         }
       },
-      "loc": 898,
+      "loc": 1090,
       "ipc": {
         "listens": [
           "TERMINAL_POPOUT_STATUS",
@@ -7315,7 +7784,9 @@
           "CLAUDE_ACTIVE_STATUS",
           "RUN_COMMAND"
         ],
-        "emits": []
+        "emits": [
+          "TERMINAL_INPUT_ID"
+        ]
       }
     },
     "renderer/components/TerminalGrid": {
@@ -7334,7 +7805,7 @@
       ],
       "functions": {
         "TerminalGrid": {
-          "line": 81,
+          "line": 82,
           "params": [
             "{ onCloseTerminal",
             "onCreateTerminal",
@@ -7344,7 +7815,7 @@
           ]
         }
       },
-      "loc": 519
+      "loc": 520
     },
     "renderer/components/TerminalTabBar": {
       "file": "src\\renderer\\components\\TerminalTabBar.tsx",
@@ -7353,23 +7824,24 @@
         "TerminalTabBar"
       ],
       "depends": [
-        "electron",
         "react",
         "framer-motion",
         "sonner",
         "stores/useTerminalStore",
         "../shared/ipcChannels",
         "lib/ipc",
-        "lib/terminalRegistry"
+        "lib/terminalRegistry",
+        "lib/transportProvider"
       ],
       "functions": {
         "TerminalTabBar": {
-          "line": 67,
+          "line": 72,
           "params": [
             "{\r\n  onCreateTerminal",
             "onCloseTerminal",
             "onPopOutTerminal",
             "projectTerminals",
+            "currentProjectPath",
             "gridOverflowIds",
             "onTerminalTabClick",
             "editorFiles",
@@ -7380,7 +7852,7 @@
           ]
         }
       },
-      "loc": 553,
+      "loc": 661,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA"
@@ -7442,14 +7914,14 @@
         "ViewTabBar"
       ],
       "depends": [
-        "electron",
         "react",
         "stores/useUIStore",
         "stores/useProjectStore",
         "hooks/useSettings",
         "sonner",
         "../shared/ipcChannels",
-        "lib/shortcuts"
+        "lib/shortcuts",
+        "lib/transportProvider"
       ],
       "functions": {
         "formatTierName": {
@@ -7470,12 +7942,13 @@
             "formatSubType",
             "formatTierName",
             "getTabIdForContent",
+            "getTransport",
             "useAIToolConfig",
             "useSettings"
           ]
         },
         "UsageTooltip": {
-          "line": 423,
+          "line": 421,
           "params": [
             "{ data",
             "fetching }"
@@ -7483,7 +7956,7 @@
           "purpose": "── Rich tooltip ────────────────────────────────────────────────────────────"
         },
         "TooltipUsageRow": {
-          "line": 497,
+          "line": 495,
           "params": [
             "{ label",
             "utilization",
@@ -7491,7 +7964,7 @@
           ]
         },
         "UsageItem": {
-          "line": 523,
+          "line": 521,
           "params": [
             "{ label",
             "utilization",
@@ -7500,13 +7973,14 @@
           "purpose": "── Shared sub-components ───────────────────────────────────────────────────"
         },
         "ResetTime": {
-          "line": 546,
+          "line": 544,
           "params": [
-            "{ resetsAt }"
+            "{ resetsAt",
+            "showAbsolute"
           ]
         }
       },
-      "loc": 565,
+      "loc": 585,
       "ipc": {
         "listens": [
           "CLAUDE_USAGE_DATA"
@@ -7524,7 +7998,6 @@
         "WhatsNew"
       ],
       "depends": [
-        "electron",
         "react",
         "lucide-react",
         "ui/button",
@@ -7532,18 +8005,20 @@
         "remark-gfm",
         "hooks/useIpc",
         "hooks/useSettings",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "lib/transportProvider"
       ],
       "functions": {
         "WhatsNew": {
-          "line": 26,
+          "line": 25,
           "calls": [
+            "getTransport",
             "useIpcQuery",
             "useSettings"
           ]
         }
       },
-      "loc": 113
+      "loc": 112
     },
     "renderer/components/WorkflowEditor": {
       "file": "src\\renderer\\components\\WorkflowEditor.tsx",
@@ -7659,16 +8134,16 @@
         "react",
         "lucide-react",
         "stores/useProjectStore",
+        "stores/useTerminalStore",
         "hooks/useIpc",
         "lib/ipc",
         "../shared/ipcChannels",
-        "sonner",
-        "ui/kbd"
+        "sonner"
       ],
       "functions": {
         "WorkspaceSelector": {
-          "line": 40,
-          "purpose": "Shows current workspace name, allows switching, creating, renaming, and deleting workspaces.",
+          "line": 49,
+          "purpose": "Overflow \"...\" button provides: New Workspace, inactive workspaces, and Add Project actions.",
           "calls": [
             "typedInvoke",
             "typedSend",
@@ -7676,14 +8151,14 @@
           ]
         },
         "AddProjectButton": {
-          "line": 407,
+          "line": 545,
           "calls": [
             "typedInvoke",
             "typedSend"
           ]
         }
       },
-      "loc": 484
+      "loc": 622
     },
     "renderer/global.d": {
       "file": "src\\renderer\\global.d.ts",
@@ -7727,19 +8202,22 @@
         "useAgentState"
       ],
       "depends": [
-        "electron",
         "react",
         "@tanstack/react-query",
         "stores/useProjectStore",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "lib/transportProvider"
       ],
       "functions": {
         "useAgentState": {
-          "line": 22,
-          "purpose": "fresh via IPC events pushed from the main process file watcher."
+          "line": 21,
+          "purpose": "fresh via IPC events pushed from the main process file watcher.",
+          "calls": [
+            "getTransport"
+          ]
         }
       },
-      "loc": 88,
+      "loc": 85,
       "ipc": {
         "listens": [
           "AGENT_STATE_DATA"
@@ -7758,23 +8236,24 @@
         "useAIFiles"
       ],
       "depends": [
-        "electron",
         "@tanstack/react-query",
         "lib/ipc",
         "useIPCListener",
         "stores/useProjectStore",
-        "react"
+        "react",
+        "lib/transportProvider"
       ],
       "functions": {
         "useAIFiles": {
-          "line": 21,
+          "line": 20,
           "calls": [
+            "getTransport",
             "typedSend",
             "useIPCEvent"
           ]
         }
       },
-      "loc": 207,
+      "loc": 201,
       "ipc": {
         "listens": [
           "AI_FILES_STATUS_DATA",
@@ -7793,27 +8272,28 @@
         "useFileTree"
       ],
       "depends": [
-        "electron",
         "react",
         "@tanstack/react-query",
         "useIpc",
         "../shared/ipcChannels",
-        "lib/ipc"
+        "lib/ipc",
+        "lib/transportProvider"
       ],
       "functions": {
         "useFileTree": {
-          "line": 20,
+          "line": 19,
           "params": [
             "projectPath"
           ],
           "purpose": "auto-refreshes when showDotfiles setting changes.",
           "calls": [
+            "getTransport",
             "typedSend",
             "useIpcQuery"
           ]
         }
       },
-      "loc": 77,
+      "loc": 73,
       "ipc": {
         "listens": [
           "FILE_TREE_DATA",
@@ -7829,7 +8309,16 @@
         "useGithubIssues",
         "useGitBranches",
         "useGitStatus",
-        "useGitWorktrees"
+        "useGithubWorkflows",
+        "useGitWorktrees",
+        "useGithubIssueDetail",
+        "useGithubPRDetail",
+        "useGithubPRDiff",
+        "useCreateGithubIssue",
+        "useRerunWorkflow",
+        "useDispatchWorkflow",
+        "useGithubNotifications",
+        "useMarkNotificationRead"
       ],
       "depends": [
         "react",
@@ -7862,15 +8351,78 @@
             "useIpcQuery"
           ]
         },
-        "useGitWorktrees": {
+        "useGithubWorkflows": {
           "line": 97,
+          "calls": [
+            "useIpcQuery"
+          ]
+        },
+        "useGitWorktrees": {
+          "line": 113,
           "calls": [
             "useIpcMutation",
             "useIpcQuery"
           ]
+        },
+        "useGithubIssueDetail": {
+          "line": 139,
+          "params": [
+            "issueNumber"
+          ],
+          "calls": [
+            "useIpcQuery"
+          ]
+        },
+        "useGithubPRDetail": {
+          "line": 149,
+          "params": [
+            "prNumber"
+          ],
+          "calls": [
+            "useIpcQuery"
+          ]
+        },
+        "useGithubPRDiff": {
+          "line": 159,
+          "params": [
+            "prNumber"
+          ],
+          "calls": [
+            "useIpcQuery"
+          ]
+        },
+        "useCreateGithubIssue": {
+          "line": 169,
+          "calls": [
+            "useIpcMutation"
+          ]
+        },
+        "useRerunWorkflow": {
+          "line": 173,
+          "calls": [
+            "useIpcMutation"
+          ]
+        },
+        "useDispatchWorkflow": {
+          "line": 177,
+          "calls": [
+            "useIpcMutation"
+          ]
+        },
+        "useGithubNotifications": {
+          "line": 181,
+          "calls": [
+            "useIpcQuery"
+          ]
+        },
+        "useMarkNotificationRead": {
+          "line": 186,
+          "calls": [
+            "useIpcMutation"
+          ]
         }
       },
-      "loc": 122
+      "loc": 189
     },
     "renderer/hooks/useIpc": {
       "file": "src\\renderer\\hooks\\useIpc.ts",
@@ -7923,36 +8475,35 @@
         "useIPCEvent"
       ],
       "depends": [
-        "electron",
         "react",
-        "@tanstack/react-query"
+        "@tanstack/react-query",
+        "lib/transportProvider"
       ],
       "functions": {
         "useIPCListener": {
-          "line": 24,
+          "line": 23,
           "params": [
             "channel",
             "queryKeysToInvalidate: string[][]"
           ],
-          "purpose": "```"
+          "purpose": "```",
+          "calls": [
+            "getTransport"
+          ]
         },
         "useIPCEvent": {
-          "line": 51,
+          "line": 47,
           "params": [
             "channel",
             "handler"
           ],
-          "purpose": "Does NOT invalidate queries — use this for event-driven updates."
+          "purpose": "Does NOT invalidate queries — use this for event-driven updates.",
+          "calls": [
+            "getTransport"
+          ]
         }
       },
-      "loc": 66,
-      "ipc": {
-        "listens": [
-          "channel",
-          "channel"
-        ],
-        "emits": []
-      }
+      "loc": 59
     },
     "renderer/hooks/useOnboarding": {
       "file": "src\\renderer\\hooks\\useOnboarding.ts",
@@ -7977,6 +8528,46 @@
         }
       },
       "loc": 222
+    },
+    "renderer/hooks/useOutputChannels": {
+      "file": "src\\renderer\\hooks\\useOutputChannels.ts",
+      "description": "TanStack Query hooks for Output Channels.",
+      "exports": [
+        "useOutputChannels",
+        "useOutputChannelLog",
+        "useClearOutputChannel"
+      ],
+      "depends": [
+        "react",
+        "useIpc",
+        "useIPCListener",
+        "../shared/ipcChannels"
+      ],
+      "functions": {
+        "useOutputChannels": {
+          "line": 11,
+          "calls": [
+            "useIPCListener",
+            "useIpcQuery"
+          ]
+        },
+        "useOutputChannelLog": {
+          "line": 24,
+          "params": [
+            "channelId"
+          ],
+          "calls": [
+            "useIpcQuery"
+          ]
+        },
+        "useClearOutputChannel": {
+          "line": 64,
+          "calls": [
+            "useIpcMutation"
+          ]
+        }
+      },
+      "loc": 67
     },
     "renderer/hooks/useOverview": {
       "file": "src\\renderer\\hooks\\useOverview.ts",
@@ -8008,32 +8599,33 @@
         "usePipelineProgress"
       ],
       "depends": [
-        "electron",
         "@tanstack/react-query",
         "lib/ipc",
         "useIPCListener",
         "stores/useProjectStore",
-        "react"
+        "react",
+        "lib/transportProvider"
       ],
       "functions": {
         "usePipeline": {
-          "line": 24,
+          "line": 23,
           "purpose": "Query hook that loads pipeline runs via send/on pattern and keeps cache fresh via IPC events.",
           "calls": [
+            "getTransport",
             "typedInvoke",
             "typedSend",
             "useIPCEvent"
           ]
         },
         "usePipelineWorkflows": {
-          "line": 171,
+          "line": 169,
           "purpose": "Query hook for available workflow definitions.",
           "calls": [
             "typedInvoke"
           ]
         },
         "usePipelineProgress": {
-          "line": 213,
+          "line": 211,
           "params": [
             "runId"
           ],
@@ -8043,7 +8635,7 @@
           ]
         }
       },
-      "loc": 242,
+      "loc": 240,
       "ipc": {
         "listens": [
           "PIPELINE_RUNS_DATA"
@@ -8183,22 +8775,23 @@
         "useSubFrameHealth"
       ],
       "depends": [
-        "electron",
         "@tanstack/react-query",
         "lib/ipc",
         "stores/useProjectStore",
         "react",
-        "sonner"
+        "sonner",
+        "lib/transportProvider"
       ],
       "functions": {
         "useSubFrameHealth": {
-          "line": 24,
+          "line": 23,
           "calls": [
+            "getTransport",
             "typedSend"
           ]
         }
       },
-      "loc": 157,
+      "loc": 153,
       "ipc": {
         "listens": [
           "SUBFRAME_HEALTH_DATA",
@@ -8215,23 +8808,23 @@
         "useTasks"
       ],
       "depends": [
-        "electron",
         "@tanstack/react-query",
         "lib/ipc",
         "useIPCListener",
         "stores/useProjectStore",
         "../shared/ipcChannels",
-        "react"
+        "react",
+        "lib/transportProvider"
       ],
       "functions": {
         "extractGrouped": {
-          "line": 16,
+          "line": 15,
           "params": [
             "payload"
           ]
         },
         "flattenTasks": {
-          "line": 31,
+          "line": 30,
           "params": [
             "payload"
           ],
@@ -8240,17 +8833,18 @@
           ]
         },
         "useTasks": {
-          "line": 39,
+          "line": 38,
           "purpose": "Query hook that loads tasks via send/on pattern and keeps cache fresh via IPC events.",
           "calls": [
             "extractGrouped",
             "flattenTasks",
+            "getTransport",
             "typedSend",
             "useIPCEvent"
           ]
         }
       },
-      "loc": 157,
+      "loc": 155,
       "ipc": {
         "listens": [
           "TASKS_DATA"
@@ -8316,10 +8910,12 @@
         "@tanstack/react-query",
         "@/components/ui/sonner",
         "components/ErrorBoundary",
-        "components/App"
+        "components/App",
+        "lib/transportProvider",
+        "lib/electronTransport"
       ],
       "functions": {},
-      "loc": 79
+      "loc": 84
     },
     "renderer/lib/codemirror-extensions": {
       "file": "src\\renderer\\lib\\codemirror-extensions.ts",
@@ -8508,55 +9104,23 @@
       },
       "loc": 588
     },
-    "renderer/lib/ipc": {
-      "file": "src\\renderer\\lib\\ipc.ts",
-      "description": "Typed IPC helpers for the renderer process. Wraps Electron's ipcRenderer with type-safe invoke/send functions.",
-      "exports": [
-        "typedInvoke",
-        "typedSend",
-        "typedOn"
-      ],
+    "renderer/lib/electronTransport": {
+      "file": "src\\renderer\\lib\\electronTransport.ts",
+      "description": "Electron transport — wraps ipcRenderer, shell, and clipboard.",
+      "exports": [],
       "depends": [
         "electron"
       ],
       "functions": {
-        "typedInvoke": {
-          "line": 13,
-          "params": [
-            "channel",
-            "...args: IPCHandleMap[K]['args']"
-          ],
-          "purpose": "Type-safe ipcRenderer.invoke — maps channel to args and return type."
-        },
         "sanitizeForIPC": {
-          "line": 25,
+          "line": 18,
           "params": [
             "value"
           ],
           "purpose": "Does NOT recurse into class instances, Maps, Sets, etc. to avoid infinite loops."
-        },
-        "typedSend": {
-          "line": 41,
-          "params": [
-            "channel",
-            "...args: IPCSendMap[K] extends void ? [] : [payload: IPCSendMap[K]]"
-          ],
-          "purpose": "Type-safe ipcRenderer.send — maps channel to payload type.",
-          "calls": [
-            "sanitizeForIPC"
-          ]
-        },
-        "typedOn": {
-          "line": 56,
-          "params": [
-            "channel",
-            "handler",
-            "...args"
-          ],
-          "purpose": "Returns an unsubscribe function."
         }
       },
-      "loc": 65,
+      "loc": 69,
       "ipc": {
         "listens": [
           "channel"
@@ -8566,6 +9130,55 @@
           "channel"
         ]
       }
+    },
+    "renderer/lib/ipc": {
+      "file": "src\\renderer\\lib\\ipc.ts",
+      "description": "Typed IPC helpers for the renderer process.",
+      "exports": [
+        "typedInvoke",
+        "typedSend",
+        "typedOn"
+      ],
+      "depends": [
+        "transportProvider"
+      ],
+      "functions": {
+        "typedInvoke": {
+          "line": 15,
+          "params": [
+            "channel",
+            "...args: IPCHandleMap[K]['args']"
+          ],
+          "purpose": "Type-safe invoke — request/response via the active transport.",
+          "calls": [
+            "getTransport"
+          ]
+        },
+        "typedSend": {
+          "line": 25,
+          "params": [
+            "channel",
+            "...args: IPCSendMap[K] extends void ? [] : [payload: IPCSendMap[K]]"
+          ],
+          "purpose": "Type-safe send — fire-and-forget via the active transport.",
+          "calls": [
+            "getTransport"
+          ]
+        },
+        "typedOn": {
+          "line": 36,
+          "params": [
+            "channel",
+            "// eslint-disable-next-line @typescript-eslint/no-explicit-any\n  handler",
+            "...args"
+          ],
+          "purpose": "Returns an unsubscribe function.",
+          "calls": [
+            "getTransport"
+          ]
+        }
+      },
+      "loc": 43
     },
     "renderer/lib/promptUtils": {
       "file": "src\\renderer\\lib\\promptUtils.ts",
@@ -8669,16 +9282,16 @@
       "depends": [],
       "functions": {
         "getShortcutsByCategory": {
-          "line": 172
+          "line": 176
         },
         "getKeys": {
-          "line": 185,
+          "line": 189,
           "params": [
             "id"
           ]
         }
       },
-      "loc": 188
+      "loc": 192
     },
     "renderer/lib/terminalRegistry": {
       "file": "src\\renderer\\lib\\terminalRegistry.ts",
@@ -8686,10 +9299,17 @@
       "exports": [
         "refreshTerminalThemes",
         "onMarkerChange",
+        "freeze",
+        "unfreeze",
+        "isFrozen",
+        "getFrozenBufferSize",
+        "writeOrBuffer",
         "getOrCreate",
         "attach",
         "detach",
         "dispose",
+        "exportScrollback",
+        "importScrollback",
         "has",
         "get",
         "addUserMessageMarker",
@@ -8709,10 +9329,10 @@
         "xterm-addon-webgl",
         "xterm-addon-canvas",
         "xterm-addon-unicode11",
-        "electron",
         "stores/useTerminalStore",
         "stores/useProjectStore",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "transportProvider"
       ],
       "functions": {
         "getTerminalTheme": {
@@ -8737,17 +9357,49 @@
             "id"
           ]
         },
+        "freeze": {
+          "line": 154,
+          "params": [
+            "id"
+          ]
+        },
+        "unfreeze": {
+          "line": 161,
+          "params": [
+            "id"
+          ]
+        },
+        "isFrozen": {
+          "line": 173,
+          "params": [
+            "id"
+          ]
+        },
+        "getFrozenBufferSize": {
+          "line": 178,
+          "params": [
+            "id"
+          ]
+        },
+        "writeOrBuffer": {
+          "line": 186,
+          "params": [
+            "id",
+            "data"
+          ],
+          "purpose": "Use this instead of direct terminal.write() for PTY output."
+        },
         "getHolderRoot": {
-          "line": 149
+          "line": 197
         },
         "loadGpuRenderer": {
-          "line": 160,
+          "line": 208,
           "params": [
             "terminal"
           ]
         },
         "getOrCreate": {
-          "line": 197,
+          "line": 245,
           "params": [
             "id",
             "options"
@@ -8756,12 +9408,14 @@
           "calls": [
             "getHolderRoot",
             "getTerminalTheme",
+            "getTransport",
             "loadGpuRenderer",
-            "registerWebLinkProvider"
+            "registerWebLinkProvider",
+            "writeOrBuffer"
           ]
         },
         "attach": {
-          "line": 274,
+          "line": 323,
           "params": [
             "id",
             "container"
@@ -8769,7 +9423,7 @@
           "purpose": "Returns the instance plus any saved scroll state from the last detach (consumed once)."
         },
         "detach": {
-          "line": 293,
+          "line": 342,
           "params": [
             "id"
           ],
@@ -8779,26 +9433,42 @@
           ]
         },
         "dispose": {
-          "line": 310,
+          "line": 359,
           "params": [
             "id"
           ],
           "purpose": "Only call when the user explicitly closes a terminal."
         },
+        "exportScrollback": {
+          "line": 387,
+          "params": [
+            "id",
+            "maxLines"
+          ],
+          "purpose": "Used for scrollback persistence on close."
+        },
+        "importScrollback": {
+          "line": 413,
+          "params": [
+            "id",
+            "lines"
+          ],
+          "purpose": "Writes lines as plain text — no escape sequence processing."
+        },
         "has": {
-          "line": 332,
+          "line": 428,
           "params": [
             "id"
           ]
         },
         "get": {
-          "line": 337,
+          "line": 433,
           "params": [
             "id"
           ]
         },
         "addUserMessageMarker": {
-          "line": 345,
+          "line": 441,
           "params": [
             "id",
             "showDecoration",
@@ -8810,35 +9480,35 @@
           ]
         },
         "getUserMessageMarkers": {
-          "line": 395,
+          "line": 491,
           "params": [
             "id"
           ]
         },
         "clearUserMessageMarkers": {
-          "line": 400,
+          "line": 496,
           "params": [
             "id"
           ]
         },
         "setLastActive": {
-          "line": 411,
+          "line": 507,
           "params": [
             "id"
           ]
         },
         "wasRecentlyActive": {
-          "line": 417,
+          "line": 513,
           "params": [
             "id",
             "windowMs"
           ]
         },
         "getTooltip": {
-          "line": 429
+          "line": 525
         },
         "showLinkTooltip": {
-          "line": 447,
+          "line": 543,
           "params": [
             "event",
             "text"
@@ -8848,21 +9518,22 @@
           ]
         },
         "hideLinkTooltip": {
-          "line": 456
+          "line": 552
         },
         "registerWebLinkProvider": {
-          "line": 473,
+          "line": 569,
           "params": [
             "terminal"
           ],
           "purpose": "Detects URLs and opens them on Ctrl+Click with hover tooltip.",
           "calls": [
+            "getTransport",
             "hideLinkTooltip",
             "showLinkTooltip"
           ]
         },
         "registerFilePathLinkProvider": {
-          "line": 570,
+          "line": 667,
           "params": [
             "terminal",
             "getProjectPath"
@@ -8874,17 +9545,23 @@
           ]
         },
         "initAPIBridge": {
-          "line": 652
+          "line": 749,
+          "calls": [
+            "getTransport"
+          ]
         },
         "registerSelectionSync": {
-          "line": 729,
+          "line": 828,
           "params": [
             "terminalId"
           ],
-          "purpose": "Debounced to 50ms to avoid IPC spam during drag selections. */"
+          "purpose": "Debounced to 50ms to avoid IPC spam during drag selections. */",
+          "calls": [
+            "getTransport"
+          ]
         }
       },
-      "loc": 742,
+      "loc": 841,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID",
@@ -8895,13 +9572,33 @@
         ],
         "emits": [
           "API_RENDERER_RESPONSE",
-          "API_RENDERER_RESPONSE",
-          "API_RENDERER_RESPONSE",
-          "API_RENDERER_RESPONSE",
-          "API_RENDERER_RESPONSE",
           "API_SELECTION_SYNC"
         ]
       }
+    },
+    "renderer/lib/transportProvider": {
+      "file": "src\\renderer\\lib\\transportProvider.ts",
+      "description": "Transport provider — global singleton for the active transport.",
+      "exports": [
+        "setTransport",
+        "getTransport"
+      ],
+      "depends": [],
+      "functions": {
+        "setTransport": {
+          "line": 14,
+          "params": [
+            "transport"
+          ]
+        },
+        "getTransport": {
+          "line": 19,
+          "calls": [
+            "setTransport"
+          ]
+        }
+      },
+      "loc": 25
     },
     "renderer/lib/utils": {
       "file": "src\\renderer\\lib\\utils.ts",
@@ -8956,11 +9653,20 @@
         "zustand"
       ],
       "functions": {
+        "loadPinnedTerminals": {
+          "line": 9
+        },
+        "savePinnedTerminals": {
+          "line": 22,
+          "params": [
+            "pinned"
+          ]
+        },
         "loadGridLayout": {
-          "line": 8
+          "line": 30
         }
       },
-      "loc": 197
+      "loc": 265
     },
     "renderer/stores/useUIStore": {
       "file": "src\\renderer\\stores\\useUIStore.ts",
@@ -8998,7 +9704,7 @@
       "exports": [],
       "depends": [],
       "functions": {},
-      "loc": 68
+      "loc": 94
     },
     "shared/agentStateTypes": {
       "file": "src\\shared\\agentStateTypes.ts",
@@ -9605,7 +10311,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1393
+      "loc": 1537
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -9774,6 +10480,14 @@
         }
       },
       "loc": 283
+    },
+    "shared/transport": {
+      "file": "src\\shared\\transport.ts",
+      "description": "Transport abstraction — unifies Electron IPC and WebSocket communication.",
+      "exports": [],
+      "depends": [],
+      "functions": {},
+      "loc": 54
     }
   },
   "ipcChannels": {
@@ -10171,7 +10885,7 @@
       {
         "module": "renderer/components/ActivityBar",
         "file": "src\\renderer\\components\\ActivityBar.tsx",
-        "description": "ActivityBar — Thin bottom bar for centralized activity streams output. Collapsed: single row showing active stream status + latest log line. Expanded: tabbed log viewer with per-stream output and cancel controls."
+        "description": "ActivityBar — Thin bottom bar for centralized activity streams output and output channel viewer. Collapsed: single row showing active stream status + latest log line. Expanded: tabbed view with two modes: - \"Activity\" — per-stream output logs with cancel controls - \"Output\"   — VS Code-style output channels viewer"
       }
     ],
     "activity-types": [
@@ -10328,6 +11042,13 @@
         "description": "File Editor component. Opens as a Dialog overlay for viewing and editing files with CodeMirror 6, save (Ctrl+S), dirty tracking, syntax highlighting, minimap toggle, word wrap, font size, theme switching, fullscreen, and a status bar showing cursor position."
       }
     ],
+    "electron-transport": [
+      {
+        "module": "renderer/lib/electronTransport",
+        "file": "src\\renderer\\lib\\electronTransport.ts",
+        "description": "Electron transport — wraps ipcRenderer, shell, and clipboard."
+      }
+    ],
     "error-boundary": [
       {
         "module": "renderer/components/ErrorBoundary",
@@ -10387,7 +11108,7 @@
       {
         "module": "renderer/components/GithubPanel",
         "file": "src\\renderer\\components\\GithubPanel.tsx",
-        "description": "GithubPanel — GitHub issues, PRs, branches, and worktrees."
+        "description": "GithubPanel — GitHub issues, PRs, branches, worktrees, workflows, and notifications."
       }
     ],
     "global.d": [
@@ -10446,7 +11167,7 @@
       {
         "module": "renderer/lib/ipc",
         "file": "src\\renderer\\lib\\ipc.ts",
-        "description": "Typed IPC helpers for the renderer process. Wraps Electron's ipcRenderer with type-safe invoke/send functions."
+        "description": "Typed IPC helpers for the renderer process."
       },
       {
         "module": "shared/ipcChannels",
@@ -10487,6 +11208,13 @@
         "module": "renderer/components/OnboardingDialog",
         "file": "src\\renderer\\components\\OnboardingDialog.tsx",
         "description": "OnboardingDialog — Multi-step dialog for project intelligence onboarding."
+      }
+    ],
+    "output-channel": [
+      {
+        "module": "main/outputChannelManager",
+        "file": "src\\main\\outputChannelManager.ts",
+        "description": "Output Channel Manager — Named log channels for system/integration output. Like VS Code's Output panel — persistent named channels that collect logs from different subsystems (System, GitHub, Git, Pipeline, Agent, etc.)."
       }
     ],
     "overview": [
@@ -10678,6 +11406,13 @@
         "description": ""
       }
     ],
+    "status-bar": [
+      {
+        "module": "renderer/components/StatusBar",
+        "file": "src\\renderer\\components\\StatusBar.tsx",
+        "description": "StatusBar — Persistent thin bar at the very bottom of the app (below ActivityBar). Shows at-a-glance status from multiple subsystems: git, agents, tasks, GitHub, output. Each section is clickable to open its corresponding right panel."
+      }
+    ],
     "structure-map": [
       {
         "module": "renderer/components/StructureMap",
@@ -10808,6 +11543,20 @@
         "description": "SubFrame Theme System — Type definitions and built-in presets."
       }
     ],
+    "transport": [
+      {
+        "module": "shared/transport",
+        "file": "src\\shared\\transport.ts",
+        "description": "Transport abstraction — unifies Electron IPC and WebSocket communication."
+      }
+    ],
+    "transport-provider": [
+      {
+        "module": "renderer/lib/transportProvider",
+        "file": "src\\renderer\\lib\\transportProvider.ts",
+        "description": "Transport provider — global singleton for the active transport."
+      }
+    ],
     "update-notification": [
       {
         "module": "renderer/components/UpdateNotification",
@@ -10876,6 +11625,13 @@
         "module": "renderer/hooks/useOnboarding",
         "file": "src\\renderer\\hooks\\useOnboarding.ts",
         "description": "React hook for onboarding IPC calls. Wraps project intelligence detection, AI analysis, and import using TanStack Query mutations and IPC event listeners."
+      }
+    ],
+    "use-output-channels": [
+      {
+        "module": "renderer/hooks/useOutputChannels",
+        "file": "src\\renderer\\hooks\\useOutputChannels.ts",
+        "description": "TanStack Query hooks for Output Channels."
       }
     ],
     "use-overview": [

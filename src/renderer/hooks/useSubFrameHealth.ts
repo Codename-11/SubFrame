@@ -18,8 +18,7 @@ import {
 } from '../../shared/ipcChannels';
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 export function useSubFrameHealth() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
@@ -66,8 +65,7 @@ export function useSubFrameHealth() {
         }
       }
     };
-    ipcRenderer.on(IPC.SUBFRAME_HEALTH_DATA, handler);
-    return () => { ipcRenderer.removeListener(IPC.SUBFRAME_HEALTH_DATA, handler); };
+    return getTransport().on(IPC.SUBFRAME_HEALTH_DATA, handler);
   }, [projectPath, queryClient]);
 
   // ── Components updated listener ──
@@ -96,8 +94,7 @@ export function useSubFrameHealth() {
       // Refresh health after update
       reload();
     };
-    ipcRenderer.on(IPC.SUBFRAME_COMPONENTS_UPDATED, handler);
-    return () => { ipcRenderer.removeListener(IPC.SUBFRAME_COMPONENTS_UPDATED, handler); };
+    return getTransport().on(IPC.SUBFRAME_COMPONENTS_UPDATED, handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectPath]);
 
@@ -108,8 +105,7 @@ export function useSubFrameHealth() {
         setUninstallResult(data.result);
       }
     };
-    ipcRenderer.on(IPC.SUBFRAME_UNINSTALLED, handler);
-    return () => { ipcRenderer.removeListener(IPC.SUBFRAME_UNINSTALLED, handler); };
+    return getTransport().on(IPC.SUBFRAME_UNINSTALLED, handler);
   }, []);
 
   const reload = useCallback(() => {

@@ -52,8 +52,7 @@ import type { Task, TaskStep } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-zinc-600 text-zinc-200',
@@ -180,7 +179,7 @@ const taskMdComponents: Record<string, React.ComponentType<any>> = {
         try {
           const url = new URL(href);
           if (['https:', 'http:'].includes(url.protocol)) {
-            require('electron').shell.openExternal(href);
+            getTransport().platform.openExternal(href);
           }
         } catch { /* invalid URL — ignore */ }
       }
@@ -504,7 +503,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
         ? `\n\nSteps:\n${task.steps.map((s, i) => `${s.completed ? '- [x]' : '- [ ]'} ${s.label}`).join('\n')}`
         : '';
       const prompt = `Task [${task.id}]: ${task.title}\nPriority: ${task.priority || 'medium'} | Category: ${task.category || 'feature'} | Status: ${task.status}\n\nDescription: ${task.description || 'N/A'}\n\nAcceptance Criteria: ${task.acceptanceCriteria || 'N/A'}${steps}`;
-      ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
+      getTransport().send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
       // Auto-start the task if it's pending
       if (task.status === 'pending') {
         handleUpdateStatus(task.id, 'in_progress');
@@ -1259,7 +1258,7 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                   ? `${wrapper}\n\n${taskBlocks}`
                   : `Here are ${selectedTasks.length} tasks to work on:\n\n${taskBlocks}`;
 
-                ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
+                getTransport().send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
 
                 // Auto-start pending tasks
                 selectedTasks.forEach((task) => {

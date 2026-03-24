@@ -42,8 +42,7 @@ import { IPC } from '../../shared/ipcChannels';
 import * as terminalRegistry from '../lib/terminalRegistry';
 import { getLogoSVG } from '../../shared/logoSVG';
 import { toast } from 'sonner';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /** localStorage key for per-project terminal sessions */
 const SESSION_KEY = 'subframe-terminal-sessions';
@@ -289,8 +288,7 @@ export function TerminalArea() {
         setMaximizedTerminal(null);
       }
     };
-    ipcRenderer.on(IPC.TERMINAL_POPOUT_STATUS, handler);
-    return () => { ipcRenderer.removeListener(IPC.TERMINAL_POPOUT_STATUS, handler); };
+    return getTransport().on(IPC.TERMINAL_POPOUT_STATUS, handler);
   }, [setPoppedOut, setMaximizedTerminal]);
 
   // Listen for TERMINAL_CREATED from main process
@@ -340,7 +338,7 @@ export function TerminalArea() {
                 const resumeCmd = `claude --resume ${sessionId}\r`;
                 if (resumeMode === 'auto') {
                   setTimeout(() => {
-                    ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: tid, data: resumeCmd });
+                    getTransport().send(IPC.TERMINAL_INPUT_ID, { terminalId: tid, data: resumeCmd });
                   }, 1000);
                 } else {
                   toast.info('Previous Claude session found', {
@@ -349,7 +347,7 @@ export function TerminalArea() {
                     action: {
                       label: 'Resume',
                       onClick: () => {
-                        ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: tid, data: resumeCmd });
+                        getTransport().send(IPC.TERMINAL_INPUT_ID, { terminalId: tid, data: resumeCmd });
                       },
                     },
                   });
@@ -362,10 +360,8 @@ export function TerminalArea() {
         toast.error(`Failed to create terminal: ${data.error}`);
       }
     };
-    ipcRenderer.on(IPC.TERMINAL_CREATED, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC.TERMINAL_CREATED, handler);
-    };
+    const unsub = getTransport().on(IPC.TERMINAL_CREATED, handler);
+    return unsub;
   }, [addTerminal, currentProjectPath]);
 
   // Listen for TERMINAL_DESTROYED from main process
@@ -380,10 +376,8 @@ export function TerminalArea() {
       // Clear stale close-confirmation dialog if this terminal was pending
       setPendingCloseId((prev) => (prev === data.terminalId ? null : prev));
     };
-    ipcRenderer.on(IPC.TERMINAL_DESTROYED, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC.TERMINAL_DESTROYED, handler);
-    };
+    const unsub = getTransport().on(IPC.TERMINAL_DESTROYED, handler);
+    return unsub;
   }, [removeTerminal]);
 
   // Track which terminals have a pending auto-rename to prevent duplicate triggers
@@ -422,10 +416,8 @@ export function TerminalArea() {
         }
       }
     };
-    ipcRenderer.on(IPC.CLAUDE_ACTIVE_STATUS, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC.CLAUDE_ACTIVE_STATUS, handler);
-    };
+    const unsub = getTransport().on(IPC.CLAUDE_ACTIVE_STATUS, handler);
+    return unsub;
   }, [setClaudeActive, renameTerminal]);
 
   // Listen for menu-triggered close (dispatched from App.tsx menu handler)
@@ -847,10 +839,8 @@ export function TerminalArea() {
         });
       }
     };
-    ipcRenderer.on(IPC.RUN_COMMAND, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC.RUN_COMMAND, handler);
-    };
+    const unsub = getTransport().on(IPC.RUN_COMMAND, handler);
+    return unsub;
   }, [activeTerminalId]);
 
   /** Full-view title label */

@@ -12,7 +12,7 @@ Terminal-centric IDE for Claude Code. Enhances native AI tools — does not repl
 
 ## Architecture
 
-Electron app with two processes communicating over typed IPC (`src/shared/ipcChannels.ts`).
+Electron app with two processes communicating over typed IPC (`src/shared/ipcChannels.ts`). The renderer uses a pluggable `Transport` interface (`src/shared/transport.ts`) — currently `ElectronTransport`, with `WebSocketTransport` planned for browser/mobile access (ADR-006).
 
 | Layer | Entry Point | Purpose |
 |-------|------------|---------|
@@ -30,14 +30,14 @@ React 19, TypeScript (strict), Zustand (state), TanStack Query (IPC caching), Ta
 `ptyManager` `tasksManager` `pluginsManager` `claudeSessionsManager` `aiToolManager` `aiFilesManager` `settingsManager` `gitBranchesManager` `overviewManager` `agentStateManager` `skillsManager` `promptsManager` `updaterManager` `pipelineManager` `activityManager` `outputChannelManager` `onboardingManager` `popoutManager` `claudeUsageManager` `githubManager` `apiServerManager` `workspace` `frameProject`
 **Main utilities** (no manager pattern): `fileEditor` (IPC file read/write) `dialogs` (native OS dialogs) `menu` (Electron application menu) `promptLogger` (prompt history logging) `pty` (PTY spawn helpers)
 **Shared utilities**: `taskMarkdownParser` (parse/serialize task .md files with YAML frontmatter) `pipelineWorkflowParser` (YAML workflow parsing) `pipelineStages` (built-in stage handlers)
-**Shared types**: `themeTypes` (theme tokens, presets, CSS mapping) `activityTypes` (activity stream types, IPC events) `agentStateTypes` (agent session/step types) `subframeHealth` (health check types)
+**Shared types**: `themeTypes` (theme tokens, presets, CSS mapping) `activityTypes` (activity stream types, IPC events) `agentStateTypes` (agent session/step types) `subframeHealth` (health check types) `transport` (Transport + TransportPlatform interfaces — pluggable IPC abstraction)
 **Shared helpers**: `backlinkUtils` (CLAUDE.md/GEMINI.md backlink injection) `claudeSettingsUtils` (settings.json merge) `projectInit` (workspace init logic) `logoSVG` (inline SVG logo) `frameConstants` (version, paths) `frameTemplates` (file templates for init)
 
 **Renderer** — React components in `src/renderer/components/`:
 `App` `Sidebar` `ProjectList` `WorkspaceSelector` `Terminal` `TerminalArea` `TerminalGrid` `TerminalTabBar` `PopoutTerminal` `FileTree` `Editor` `RightPanel` `ViewTabBar` `TasksPanel` `TaskTimeline` `TaskGraph` `TaskKanban` `TasksPalette` `SessionsPanel` `PluginsPanel` `SettingsPanel` `OverviewPanel` `StatsDetailView` `DecisionsDetailView` `GithubPanel` `AIFilesPanel` `AIToolPalette` `StructureMap` `SubFrameHealthPanel` `SystemPanel` `AgentStateView` `AgentTimeline` `SidebarAgentStatus` `SkillsPanel` `ShortcutsPanel` `HistoryPanel` `CommandPalette` `PromptLibrary` `PromptsPanel` `WhatsNew` `UpdateNotification` `OnboardingDialog` `GracefulShutdownDialog` `ErrorBoundary` `PipelinePanel` `PipelineTimeline` `ActivityBar` `StatusBar` `WorkflowEditor` `CritiqueView` `PatchReview` `ThemeProvider`
 **Previews** (in `src/renderer/components/previews/`): `MarkdownPreview` `HtmlPreview` `ImagePreview`
 
-**Lib** (renderer utilities): `src/renderer/lib/ipc.ts` (IPC bridge) `src/renderer/lib/utils.ts` (cn helper, misc) `src/renderer/lib/shortcuts.ts` (centralized keyboard shortcut registry — single source of truth) `src/renderer/lib/codemirror-theme.ts` (CM6 SubFrame theme) `src/renderer/lib/codemirror-extensions.ts` (CM6 extensions, languages, find/replace, go-to-line, code folding) `src/renderer/lib/promptUtils.ts` (shared prompt utilities — template variables, insert, copy, sort) `src/renderer/lib/terminalRegistry.ts` (terminal instance registry, file-path link provider)
+**Lib** (renderer utilities): `src/renderer/lib/ipc.ts` (typed IPC helpers — delegates to active transport) `src/renderer/lib/electronTransport.ts` (ElectronTransport — only file importing `electron`) `src/renderer/lib/transportProvider.ts` (global transport singleton) `src/renderer/lib/utils.ts` (cn helper, misc) `src/renderer/lib/shortcuts.ts` (centralized keyboard shortcut registry — single source of truth) `src/renderer/lib/codemirror-theme.ts` (CM6 SubFrame theme) `src/renderer/lib/codemirror-extensions.ts` (CM6 extensions, languages, find/replace, go-to-line, code folding) `src/renderer/lib/promptUtils.ts` (shared prompt utilities — template variables, insert, copy, sort) `src/renderer/lib/terminalRegistry.ts` (terminal instance registry, file-path link provider)
 
 **Stores** (Zustand): `useUIStore` `useProjectStore` `useTerminalStore`
 **Hooks** (TanStack Query): `useIpc` (`useIpcQuery` `useIpcMutation`) `useIPCListener` `useTasks` `useSessions` `usePlugins` `useSettings` `useOverview` `useAIFiles` `useGithub` `useFileTree` `useTerminal` `useAgentState` `useSkills` `usePrompts` `useOnboarding` `useSubFrameHealth` `useUpdater` `usePipeline` `usePipelineWorkflows` `usePipelineProgress` `useActivity` `useOutputChannels`

@@ -15,8 +15,7 @@ import {
   type BacklinkConfig,
 } from '../../shared/ipcChannels';
 import { useCallback, useRef, useEffect, useState } from 'react';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 export function useAIFiles() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
@@ -42,8 +41,7 @@ export function useAIFiles() {
         queryClient.setQueryData(['aiFiles', projectPath], data.status);
       }
     };
-    ipcRenderer.on(IPC.AI_FILES_STATUS_DATA, handler);
-    return () => { ipcRenderer.removeListener(IPC.AI_FILES_STATUS_DATA, handler); };
+    return getTransport().on(IPC.AI_FILES_STATUS_DATA, handler);
   }, [projectPath, queryClient]);
 
   // ── Backlink verification result listener ──
@@ -56,8 +54,7 @@ export function useAIFiles() {
         setVerificationResult(data.result);
       }
     };
-    ipcRenderer.on(IPC.BACKLINK_VERIFICATION_RESULT, handler);
-    return () => { ipcRenderer.removeListener(IPC.BACKLINK_VERIFICATION_RESULT, handler); };
+    return getTransport().on(IPC.BACKLINK_VERIFICATION_RESULT, handler);
   }, []);
 
   // ── Backlink config data listener ──
@@ -66,8 +63,7 @@ export function useAIFiles() {
       setBacklinkConfig(data.config);
       setBacklinkConfigLoaded(true);
     };
-    ipcRenderer.on(IPC.BACKLINK_CONFIG_DATA, handler);
-    return () => { ipcRenderer.removeListener(IPC.BACKLINK_CONFIG_DATA, handler); };
+    return getTransport().on(IPC.BACKLINK_CONFIG_DATA, handler);
   }, []);
 
   // ── Backlink config saved listener ──
@@ -75,8 +71,7 @@ export function useAIFiles() {
     const handler = (_event: unknown, _data: { projectPath: string; success: boolean }) => {
       // Config saved — result handled in the mutation onSuccess
     };
-    ipcRenderer.on(IPC.BACKLINK_CONFIG_SAVED, handler);
-    return () => { ipcRenderer.removeListener(IPC.BACKLINK_CONFIG_SAVED, handler); };
+    return getTransport().on(IPC.BACKLINK_CONFIG_SAVED, handler);
   }, []);
 
   // ── All backlinks updated listener ──
@@ -85,8 +80,7 @@ export function useAIFiles() {
       // Update complete — reload status to reflect changes
       reload();
     };
-    ipcRenderer.on(IPC.ALL_BACKLINKS_UPDATED, handler);
-    return () => { ipcRenderer.removeListener(IPC.ALL_BACKLINKS_UPDATED, handler); };
+    return getTransport().on(IPC.ALL_BACKLINKS_UPDATED, handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectPath]);
 

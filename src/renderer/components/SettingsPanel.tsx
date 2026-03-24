@@ -537,9 +537,11 @@ export function SettingsPanel() {
 
     // First read the full file to preserve other keys, then merge hooks
     let unsubRead: (() => void) | null = null;
+    const readTimer = setTimeout(() => { unsubRead?.(); }, 10_000);
     unsubRead = getTransport().on(IPC.FILE_CONTENT, (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
       if (result.filePath !== claudeSettingsPath) return;
       unsubRead?.();
+      clearTimeout(readTimer);
 
       let existing: Record<string, unknown> = {};
       if (!result.error && result.content) {
@@ -548,9 +550,11 @@ export function SettingsPanel() {
       existing.hooks = newHooks;
 
       let unsubSave: (() => void) | null = null;
+      const saveTimer = setTimeout(() => { unsubSave?.(); }, 10_000);
       unsubSave = getTransport().on(IPC.FILE_SAVED, (_e: unknown, saveResult: { filePath: string; success?: boolean; error?: string }) => {
         if (saveResult.filePath !== claudeSettingsPath) return;
         unsubSave?.();
+        clearTimeout(saveTimer);
         if (saveResult.success) {
           setHooksConfig(newHooks);
           toast.success('Hooks saved');

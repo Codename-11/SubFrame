@@ -15,8 +15,7 @@ import {
   type WorkflowDefinition,
 } from '../../shared/ipcChannels';
 import { useCallback, useRef, useEffect, useMemo, useState } from 'react';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /**
  * Query hook that loads pipeline runs via send/on pattern and keeps cache fresh via IPC events.
@@ -48,8 +47,7 @@ export function usePipeline() {
       lastUpdateTs.current = newTs;
       queryClient.setQueryData(['pipeline-runs', projectPath], data);
     };
-    ipcRenderer.on(IPC.PIPELINE_RUNS_DATA, handler);
-    return () => { ipcRenderer.removeListener(IPC.PIPELINE_RUNS_DATA, handler); };
+    return getTransport().on(IPC.PIPELINE_RUNS_DATA, handler);
   }, [projectPath, queryClient]);
 
   // Watch/unwatch pipeline workflows when project changes

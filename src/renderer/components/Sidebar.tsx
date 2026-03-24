@@ -51,7 +51,7 @@ import { toast } from 'sonner';
 /** Read version at module level — avoids importing frameConstants.ts which uses Node's `path` */
 const FRAME_VERSION: string = require('../../../package.json').version;
 
-const { ipcRenderer, shell } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 type SidebarTab = 'projects' | 'files';
 
@@ -115,11 +115,11 @@ export function Sidebar() {
         }
       }
     };
-    ipcRenderer.on(IPC.IS_FRAME_PROJECT_RESULT, handleResult);
-    ipcRenderer.on(IPC.FRAME_PROJECT_INITIALIZED, handleInitialized);
+    const unsubResult = getTransport().on(IPC.IS_FRAME_PROJECT_RESULT, handleResult);
+    const unsubInit = getTransport().on(IPC.FRAME_PROJECT_INITIALIZED, handleInitialized);
     return () => {
-      ipcRenderer.removeListener(IPC.IS_FRAME_PROJECT_RESULT, handleResult);
-      ipcRenderer.removeListener(IPC.FRAME_PROJECT_INITIALIZED, handleInitialized);
+      unsubResult();
+      unsubInit();
     };
   }, [currentProjectPath, setIsFrameProject]);
 
@@ -154,11 +154,11 @@ export function Sidebar() {
       try {
         // If a specific tool was requested, switch to it first
         if (tool && tool.id !== aiToolConfig?.activeTool.id) {
-          await ipcRenderer.invoke(IPC.SET_AI_TOOL, tool.id);
+          await getTransport().invoke(IPC.SET_AI_TOOL, tool.id);
         }
 
         // Get start command — use active tool's command (or custom override from settings)
-        const config = await ipcRenderer.invoke(IPC.GET_AI_TOOL_CONFIG);
+        const config = await getTransport().invoke(IPC.GET_AI_TOOL_CONFIG);
         const activeTool = config?.activeTool as AITool | undefined;
 
         // Warn if tool is not installed
@@ -167,12 +167,12 @@ export function Sidebar() {
             description: activeTool.installUrl ? 'Click to view install instructions' : 'Install it and try again',
             action: activeTool.installUrl ? {
               label: 'Install',
-              onClick: () => shell.openExternal(activeTool.installUrl),
+              onClick: () => getTransport().platform.openExternal(activeTool.installUrl!),
             } : undefined,
           });
           return;
         }
-        const settings = await ipcRenderer.invoke(IPC.LOAD_SETTINGS);
+        const settings = await getTransport().invoke(IPC.LOAD_SETTINGS) as Record<string, any>;
         const aiToolSettings = (settings?.aiTools as Record<string, Record<string, string>>) || {};
         const customCmd = aiToolSettings[activeTool?.id || 'claude']?.customCommand;
         const startCommand = customCmd || activeTool?.command || 'claude';
@@ -188,7 +188,7 @@ export function Sidebar() {
             const isAgentRunning = await typedInvoke(IPC.IS_TERMINAL_CLAUDE_ACTIVE, activeTerminalId);
             if (!isAgentRunning) {
               // Reuse existing idle terminal — just send the command
-              ipcRenderer.send(IPC.TERMINAL_INPUT_ID, {
+              getTransport().send(IPC.TERMINAL_INPUT_ID, {
                 terminalId: activeTerminalId,
                 data: startCommand + '\r',
               });
@@ -197,21 +197,26 @@ export function Sidebar() {
           }
         }
 
-        // No reusable terminal — create a new one
-        const handler = (_event: unknown, data: { terminalId?: string; success: boolean }) => {
+        // No reusable terminal — create a new one (once pattern)
+        // Safety: auto-cleanup after 10s if TERMINAL_CREATED never arrives
+        let unsub: (() => void) | null = null;
+        const safetyTimer = setTimeout(() => { unsub?.(); }, 10_000);
+        unsub = getTransport().on(IPC.TERMINAL_CREATED, (_event: unknown, data: { terminalId?: string; success: boolean }) => {
+          unsub?.();
+          clearTimeout(safetyTimer);
           if (data.success && data.terminalId) {
+            const newTerminalId = data.terminalId;
             setTimeout(() => {
-              ipcRenderer.send(IPC.TERMINAL_INPUT_ID, {
-                terminalId: data.terminalId,
+              getTransport().send(IPC.TERMINAL_INPUT_ID, {
+                terminalId: newTerminalId,
                 data: startCommand + '\r',
               });
             }, 1000);
           } else if (!data.success) {
             toast.error('Failed to start terminal');
           }
-        };
-        ipcRenderer.once(IPC.TERMINAL_CREATED, handler);
-        ipcRenderer.send(IPC.TERMINAL_CREATE, {
+        });
+        getTransport().send(IPC.TERMINAL_CREATE, {
           projectPath: currentProjectPath,
           cwd: currentProjectPath,
         });
@@ -506,7 +511,7 @@ export function Sidebar() {
                           onClick={(e) => {
                             e.preventDefault();
                             setInitLoading(true);
-                            ipcRenderer.send(IPC.INITIALIZE_FRAME_PROJECT, {
+                            getTransport().send(IPC.INITIALIZE_FRAME_PROJECT, {
                               projectPath: currentProjectPath,
                               confirmed: true,
                             });
