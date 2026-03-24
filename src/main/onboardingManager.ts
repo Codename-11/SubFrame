@@ -26,6 +26,7 @@ import { execSync } from 'child_process';
 import * as ptyManager from './ptyManager';
 import * as aiToolManager from './aiToolManager';
 import * as activityManager from './activityManager';
+import { broadcast } from './eventBridge';
 
 // ─── Module State ────────────────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ function sendProgress(
   extra?: { terminalId?: string; timeoutMs?: number; elapsedMs?: number; stalled?: boolean; stallDurationMs?: number },
 ): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
+    broadcast(IPC.ONBOARDING_PROGRESS, {
       projectPath,
       phase,
       message,
@@ -488,7 +489,7 @@ async function runAnalysisInTerminal(
 
   // Notify renderer — background terminal (doesn't steal focus)
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.TERMINAL_CREATED, {
+    broadcast(IPC.TERMINAL_CREATED, {
       terminalId, success: true, projectPath, name: 'AI Analysis', background: true,
     });
   }
@@ -505,7 +506,7 @@ async function runAnalysisInTerminal(
     extra?: { stalled?: boolean; stallDurationMs?: number },
   ) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
+      broadcast(IPC.ONBOARDING_PROGRESS, {
         projectPath, phase, message, progress, terminalId,
         timeoutMs: effectiveTimeoutMs,
         elapsedMs: Date.now() - analysisStartMs,
@@ -1165,7 +1166,7 @@ function setupIPC(ipcMain: IpcMain): void {
         const errTerminalId = (err as any).terminalId || activeAnalyses.get(projectPath)?.terminalId || '';
         // Include terminalId so "View Terminal" button appears in error state
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
+          broadcast(IPC.ONBOARDING_PROGRESS, {
             projectPath,
             phase: 'error',
             message: msg,
@@ -1228,7 +1229,7 @@ function setupIPC(ipcMain: IpcMain): void {
         // Include terminalId so "View Terminal" button appears in error state
         const errorTerminalId = activeAnalyses.get(projectPath)?.terminalId || analysisTerminalId;
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send(IPC.ONBOARDING_PROGRESS, {
+          broadcast(IPC.ONBOARDING_PROGRESS, {
             projectPath,
             phase: 'error',
             message: errorMsg,

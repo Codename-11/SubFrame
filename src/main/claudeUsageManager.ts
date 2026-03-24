@@ -21,6 +21,7 @@ import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import type { ClaudeUsageData, UsageWindow, ExtraUsageInfo, UsageSource } from '../shared/ipcChannels';
 import { getSetting, onSettingChange } from './settingsManager';
+import { broadcast } from './eventBridge';
 
 // ── Raw API / cache response shape ──────────────────────────────────────────
 
@@ -449,7 +450,7 @@ async function sendUsageToRenderer(): Promise<void> {
     resetBackoff();
   }
 
-  mainWindow.webContents.send(IPC.CLAUDE_USAGE_DATA, usage);
+  broadcast(IPC.CLAUDE_USAGE_DATA, usage);
 }
 
 // ── Polling ─────────────────────────────────────────────────────────────────

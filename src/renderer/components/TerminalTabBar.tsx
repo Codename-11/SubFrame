@@ -6,7 +6,6 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { generateTerminalName, getUsedTerminalNames } from '../lib/terminalNames';
 import {
   Plus,
   X,
@@ -50,8 +49,7 @@ import { IPC } from '../../shared/ipcChannels';
 import type { ShellInfo } from '../../shared/ipcChannels';
 import { typedInvoke } from '../lib/ipc';
 import * as terminalRegistry from '../lib/terminalRegistry';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 interface TerminalTabBarProps {
   onCreateTerminal: (shell?: string) => void;
@@ -112,11 +110,9 @@ export function TerminalTabBar({
     const handler = (_event: unknown, data: { shells: ShellInfo[]; success: boolean }) => {
       if (data.success) setShells(data.shells);
     };
-    ipcRenderer.on(IPC.AVAILABLE_SHELLS_DATA, handler);
-    ipcRenderer.send(IPC.GET_AVAILABLE_SHELLS);
-    return () => {
-      ipcRenderer.removeListener(IPC.AVAILABLE_SHELLS_DATA, handler);
-    };
+    const unsub = getTransport().on(IPC.AVAILABLE_SHELLS_DATA, handler);
+    getTransport().send(IPC.GET_AVAILABLE_SHELLS);
+    return unsub;
   }, []);
 
   // Focus rename input when renaming starts
@@ -190,13 +186,11 @@ export function TerminalTabBar({
   }, [renameTerminal]);
 
   const resetTerminalName = useCallback((terminal: TerminalInfo) => {
-    const allTerminals = useTerminalStore.getState().terminals;
-    const usedNames = getUsedTerminalNames(allTerminals);
-    usedNames.delete(terminal.name.toLowerCase()); // Exclude current name so it can be reused
-    const defaultName = generateTerminalName(usedNames);
+    const index = terminalList.indexOf(terminal) + 1;
+    const defaultName = `Terminal ${index}`;
     renameTerminal(terminal.id, defaultName, 'default');
     toast.info(`Tab reset: ${defaultName}`, { duration: 2000 });
-  }, [renameTerminal]);
+  }, [terminalList, renameTerminal]);
 
   const handleReorder = useCallback(
     (newOrder: TerminalInfo[]) => {
@@ -323,7 +317,9 @@ export function TerminalTabBar({
                       )}
                       {/* Frozen indicator */}
                       {frozenTerminals.has(t.id) && (
-                        <span title="Output frozen"><Pause className="h-2.5 w-2.5 text-info flex-shrink-0" /></span>
+                        <span className="flex-shrink-0 flex items-center" title="Output frozen">
+                          <Pause className="h-2.5 w-2.5 text-info" />
+                        </span>
                       )}
                       {/* Agent active indicator */}
                       {t.claudeActive && (
@@ -435,6 +431,24 @@ export function TerminalTabBar({
                     <ContextMenuItem onClick={() => pinTerminal(t.id)}>
                       <Pin className="mr-2 h-3.5 w-3.5" />
                       Pin Terminal
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuSeparator />
+                  {frozenTerminals.has(t.id) ? (
+                    <ContextMenuItem onClick={() => {
+                      terminalRegistry.unfreeze(t.id);
+                      toggleFreezeTerminal(t.id);
+                    }}>
+                      <Play className="mr-2 h-3.5 w-3.5" />
+                      Resume Output
+                    </ContextMenuItem>
+                  ) : (
+                    <ContextMenuItem onClick={() => {
+                      terminalRegistry.freeze(t.id);
+                      toggleFreezeTerminal(t.id);
+                    }}>
+                      <Pause className="mr-2 h-3.5 w-3.5" />
+                      Freeze Output
                     </ContextMenuItem>
                   )}
                   <ContextMenuSeparator />

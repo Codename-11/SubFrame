@@ -22,8 +22,7 @@ import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
 import * as terminalRegistry from '../lib/terminalRegistry';
-
-const { ipcRenderer, clipboard } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /** Strip ANSI escape sequences for overlay display */
 function stripAnsi(str: string): string {
@@ -113,9 +112,9 @@ export function Terminal({ terminalId, className }: TerminalProps) {
         }
       }
     };
-    ipcRenderer.on(IPC.TERMINAL_OUTPUT_ID, handler);
+    const unsub = getTransport().on(IPC.TERMINAL_OUTPUT_ID, handler);
     return () => {
-      ipcRenderer.removeListener(IPC.TERMINAL_OUTPUT_ID, handler);
+      unsub();
       if (outputFlushTimer) clearTimeout(outputFlushTimer);
     };
   }, [terminalId]);
@@ -128,12 +127,10 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     const handleClear = (_event: unknown, data: { terminalId: string }) => {
       if (data.terminalId === terminalId) setStallInfo(null);
     };
-    ipcRenderer.on(IPC.TERMINAL_STALL_DETECTED, handleStall);
-    ipcRenderer.on(IPC.TERMINAL_STALL_CLEARED, handleClear);
-    return () => {
-      ipcRenderer.removeListener(IPC.TERMINAL_STALL_DETECTED, handleStall);
-      ipcRenderer.removeListener(IPC.TERMINAL_STALL_CLEARED, handleClear);
-    };
+    const transport = getTransport();
+    const unsub1 = transport.on(IPC.TERMINAL_STALL_DETECTED, handleStall);
+    const unsub2 = transport.on(IPC.TERMINAL_STALL_CLEARED, handleClear);
+    return () => { unsub1(); unsub2(); };
   }, [terminalId]);
 
   // Persist activity timestamp in registry — survives component remount during workspace switch.
@@ -184,8 +181,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       lastIpcMarkerTime.current = now;
       terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor);
     };
-    ipcRenderer.on(IPC.USER_MESSAGE_SIGNAL, handler);
-    return () => { ipcRenderer.removeListener(IPC.USER_MESSAGE_SIGNAL, handler); };
+    return getTransport().on(IPC.USER_MESSAGE_SIGNAL, handler);
   }, [highlightUserMessages, terminalId, userMessageColor]);
 
   // Fallback: pattern-based detection via xterm onData (for terminals without hooks)
@@ -482,7 +478,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       // Copy: Ctrl+C when there is a selection (otherwise let SIGINT go through)
       if (modKey && key === 'c' && !event.shiftKey && terminal.hasSelection()) {
         event.preventDefault();
-        clipboard.writeText(terminal.getSelection());
+        getTransport().platform.writeClipboard(terminal.getSelection());
         terminal.clearSelection();
         return false;
       }
@@ -490,8 +486,9 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       // Paste: Ctrl+V (manual paste via electron clipboard)
       if (modKey && key === 'v' && !event.shiftKey) {
         event.preventDefault();
-        const text = clipboard.readText();
-        if (text) terminal.paste(text);
+        getTransport().platform.readClipboard().then((text) => {
+          if (text) terminal.paste(text);
+        });
         return false;
       }
 
@@ -627,13 +624,13 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const handleCopy = useCallback(() => {
     const terminal = terminalRef.current;
     if (terminal?.hasSelection()) {
-      clipboard.writeText(terminal.getSelection());
+      getTransport().platform.writeClipboard(terminal.getSelection());
       terminal.clearSelection();
     }
   }, [terminalRef]);
 
-  const handlePaste = useCallback(() => {
-    const text = clipboard.readText();
+  const handlePaste = useCallback(async () => {
+    const text = await getTransport().platform.readClipboard();
     if (text && terminalRef.current) {
       terminalRef.current.paste(text);
     }

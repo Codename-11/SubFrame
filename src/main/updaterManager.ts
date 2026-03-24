@@ -8,6 +8,7 @@ import { ipcMain, type App, type BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import type { UpdaterStatus, UpdaterProgress } from '../shared/ipcChannels';
 import { getSetting } from './settingsManager';
+import { broadcast } from './eventBridge';
 
 let mainWindow: BrowserWindow | null = null;
 let isPackaged = false;
@@ -28,7 +29,7 @@ let beforeInstallHook: (() => boolean) | null = null;
  */
 function sendStatus(status: UpdaterStatus): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.UPDATER_STATUS, status);
+    broadcast(IPC.UPDATER_STATUS, status);
   }
 }
 
@@ -37,7 +38,7 @@ function sendStatus(status: UpdaterStatus): void {
  */
 function sendProgress(progress: UpdaterProgress): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.UPDATER_PROGRESS, progress);
+    broadcast(IPC.UPDATER_PROGRESS, progress);
   }
 }
 

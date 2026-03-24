@@ -12,8 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useProjectStore } from '../stores/useProjectStore';
 import { IPC } from '../../shared/ipcChannels';
 import type { AgentStatePayload, AgentSession } from '../../shared/agentStateTypes';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /**
  * Query hook that loads agent state via send/on pattern and keeps cache
@@ -44,19 +43,17 @@ export function useAgentState() {
         queryClient.setQueryData(['agentState', currentPath], data);
       }
     };
-    ipcRenderer.on(IPC.AGENT_STATE_DATA, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC.AGENT_STATE_DATA, handler);
-    };
+    return getTransport().on(IPC.AGENT_STATE_DATA, handler);
   }, [queryClient]);
 
   // Start/stop file watching + load initial data (depends on projectPath)
   useEffect(() => {
     if (!projectPath) return;
-    ipcRenderer.send(IPC.WATCH_AGENT_STATE, projectPath);
-    ipcRenderer.send(IPC.LOAD_AGENT_STATE, projectPath);
+    const transport = getTransport();
+    transport.send(IPC.WATCH_AGENT_STATE, projectPath);
+    transport.send(IPC.LOAD_AGENT_STATE, projectPath);
     return () => {
-      ipcRenderer.send(IPC.UNWATCH_AGENT_STATE);
+      transport.send(IPC.UNWATCH_AGENT_STATE);
     };
   }, [projectPath]);
 

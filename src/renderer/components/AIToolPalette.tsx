@@ -31,8 +31,7 @@ import { typedSend, typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { SHORTCUTS } from '../lib/shortcuts';
 import { toast } from 'sonner';
-
-const { shell } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 export function AIToolPalette() {
   const [open, setOpen] = useState(false);
@@ -83,7 +82,7 @@ export function AIToolPalette() {
           description: tool?.installUrl ? 'Click to view install instructions' : undefined,
           action: tool?.installUrl ? {
             label: 'Install',
-            onClick: () => shell.openExternal(tool.installUrl!),
+            onClick: () => getTransport().platform.openExternal(tool.installUrl!),
           } : undefined,
         });
         return;
@@ -131,7 +130,7 @@ export function AIToolPalette() {
           description: activeTool.installUrl ? 'Click to view install instructions' : undefined,
           action: activeTool.installUrl ? {
             label: 'Install',
-            onClick: () => shell.openExternal(activeTool.installUrl!),
+            onClick: () => getTransport().platform.openExternal(activeTool.installUrl!),
           } : undefined,
         });
         setOpen(false);
@@ -213,7 +212,7 @@ export function AIToolPalette() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      shell.openExternal(tool.installUrl!);
+                      getTransport().platform.openExternal(tool.installUrl!);
                     }}
                     className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-accent
                                hover:bg-accent/10 rounded transition-colors cursor-pointer"

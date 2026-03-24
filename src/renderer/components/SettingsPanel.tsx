@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import QRCode from 'qrcode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -11,14 +12,18 @@ import {
   FolderSearch, FolderOpen, Plus, Trash2, X as XIcon, RefreshCw, ExternalLink,
   Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
   Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search, Globe,
-  Zap, ChevronDown, ChevronRight, Pencil, Copy, Wand2, Play, Shield, FileCode, Bell,
+  Zap, ChevronDown, ChevronRight, Pencil, Wand2, Play, Shield, FileCode, Bell,
+  Monitor, Wifi, Copy, QrCode,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke, typedSend } from '../lib/ipc';
+import { useIpcQuery } from '../hooks/useIpc';
+import { useIPCEvent } from '../hooks/useIPCListener';
 import { IPC, type ShellInfo } from '../../shared/ipcChannels';
+import { WebServerSetup } from './WebServerSetup';
 import { toast } from 'sonner';
 import { EDITOR_THEMES } from '../lib/codemirror-theme';
 import { motion } from 'framer-motion';
@@ -31,7 +36,7 @@ import {
   getThemeById,
 } from '../../shared/themeTypes';
 
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 const APP_VERSION = require('../../../package.json').version;
 
 const BUILTIN_TOOL_IDS = new Set(['claude', 'codex', 'gemini']);
@@ -105,6 +110,8 @@ const SECTION_LABELS: Record<string, string[]> = {
   ],
   integrations: [
     'Local API Server', 'API Server', 'Enable API', 'DTSP', 'Desktop Text Source Protocol',
+    'SubFrame Server', 'Web Server', 'Remote Access', 'SSH Tunnel', 'Pairing',
+    'Shell Integration', 'CLI Status', 'Context Menu', 'Explorer',
   ],
   updates: [
     'Auto-check for updates', 'Pre-release Channel',
@@ -391,6 +398,65 @@ export function SettingsPanel() {
   const [aiGeneratePrompt, setAiGeneratePrompt] = useState('');
   const [disabledHooks, setDisabledHooks] = useState<Set<string>>(new Set());
 
+  // Web Server setup dialog
+  const [webServerSetupOpen, setWebServerSetupOpen] = useState(false);
+  const [webServerPairingCode, setWebServerPairingCode] = useState<string | null>(null);
+  const [webServerQrVisible, setWebServerQrVisible] = useState(false);
+  const [webServerQrDataUrl, setWebServerQrDataUrl] = useState<string | null>(null);
+
+  // Shell integration status
+  const [cliStatus, setCliStatus] = useState<{ installed: boolean; inPath: boolean; path: string | null } | null>(null);
+  const [contextMenuInstalled, setContextMenuInstalled] = useState(false);
+
+  // Web Server info query — only active when integrations tab is shown
+  const isIntegrationsTab = activeTab === 'integrations';
+  const { data: webServerInfo, refetch: refetchWebServerInfo } = useIpcQuery(
+    IPC.WEB_SERVER_INFO,
+    [],
+    { enabled: settingsOpen && isIntegrationsTab, refetchInterval: isIntegrationsTab ? 5000 : false }
+  );
+
+  // Listen for web client connect/disconnect to refresh server info
+  useIPCEvent(
+    IPC.WEB_CLIENT_CONNECTED,
+    useCallback(() => { refetchWebServerInfo(); }, [refetchWebServerInfo])
+  );
+  useIPCEvent(
+    IPC.WEB_CLIENT_DISCONNECTED,
+    useCallback(() => { refetchWebServerInfo(); }, [refetchWebServerInfo])
+  );
+
+  // Generate QR code for SubFrame Server when toggled visible
+  useEffect(() => {
+    if (webServerQrVisible && webServerInfo?.enabled && webServerInfo.port && webServerInfo.token) {
+      const url = `http://localhost:${webServerInfo.port}/?token=${webServerInfo.token}`;
+      QRCode.toDataURL(url, {
+        width: 150,
+        margin: 2,
+        color: { dark: '#e8e6e3', light: '#0f0f10' },
+      }).then(setWebServerQrDataUrl).catch(() => setWebServerQrDataUrl(null));
+    } else {
+      setWebServerQrDataUrl(null);
+    }
+  }, [webServerQrVisible, webServerInfo?.enabled, webServerInfo?.port, webServerInfo?.token]);
+
+  // Check CLI and context menu status when integrations tab is active
+  useEffect(() => {
+    if (!isIntegrationsTab) return;
+    typedInvoke(IPC.CHECK_CLI_STATUS).then(setCliStatus).catch(() => {});
+    if (process.platform === 'win32') {
+      typedInvoke(IPC.CHECK_CONTEXT_MENU).then((r) => setContextMenuInstalled(r.installed)).catch(() => {});
+    }
+  }, [isIntegrationsTab]);
+
+  const checkContextMenu = useCallback(() => {
+    typedInvoke(IPC.CHECK_CONTEXT_MENU).then((r) => setContextMenuInstalled(r.installed)).catch(() => {});
+  }, []);
+
+  const refreshCliStatus = useCallback(() => {
+    typedInvoke(IPC.CHECK_CLI_STATUS).then(setCliStatus).catch(() => {});
+  }, []);
+
   // Sync form state from loaded data
   useEffect(() => {
     if (!settings) return;
@@ -439,9 +505,9 @@ export function SettingsPanel() {
     const handler = (_event: unknown, data: { shells: ShellInfo[]; success: boolean }) => {
       if (data.success) setAvailableShells(data.shells);
     };
-    ipcRenderer.on(IPC.AVAILABLE_SHELLS_DATA, handler);
-    ipcRenderer.send(IPC.GET_AVAILABLE_SHELLS);
-    return () => { ipcRenderer.removeListener(IPC.AVAILABLE_SHELLS_DATA, handler); };
+    const unsub = getTransport().on(IPC.AVAILABLE_SHELLS_DATA, handler);
+    getTransport().send(IPC.GET_AVAILABLE_SHELLS);
+    return unsub;
   }, []);
 
   const general = (settings.general as Record<string, unknown>) || {};
@@ -510,9 +576,10 @@ export function SettingsPanel() {
     if (!claudeSettingsPath) return;
     setHooksLoading(true);
 
-    const handler = (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
+    let unsub: (() => void) | null = null;
+    unsub = getTransport().on(IPC.FILE_CONTENT, (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
       if (result.filePath !== claudeSettingsPath) return;
-      ipcRenderer.removeListener(IPC.FILE_CONTENT, handler);
+      unsub?.();
       setHooksLoading(false);
 
       if (result.error || !result.content) {
@@ -525,9 +592,8 @@ export function SettingsPanel() {
       } catch {
         setHooksConfig({});
       }
-    };
+    });
 
-    ipcRenderer.on(IPC.FILE_CONTENT, handler);
     typedSend(IPC.READ_FILE, claudeSettingsPath);
   }, [claudeSettingsPath]);
 
@@ -536,9 +602,12 @@ export function SettingsPanel() {
     if (!claudeSettingsPath) return;
 
     // First read the full file to preserve other keys, then merge hooks
-    const handler = (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
+    let unsubRead: (() => void) | null = null;
+    const readTimer = setTimeout(() => { unsubRead?.(); }, 10_000);
+    unsubRead = getTransport().on(IPC.FILE_CONTENT, (_event: unknown, result: { filePath: string; content?: string; error?: string }) => {
       if (result.filePath !== claudeSettingsPath) return;
-      ipcRenderer.removeListener(IPC.FILE_CONTENT, handler);
+      unsubRead?.();
+      clearTimeout(readTimer);
 
       let existing: Record<string, unknown> = {};
       if (!result.error && result.content) {
@@ -546,21 +615,22 @@ export function SettingsPanel() {
       }
       existing.hooks = newHooks;
 
-      const saveHandler = (_e: unknown, saveResult: { filePath: string; success?: boolean; error?: string }) => {
+      let unsubSave: (() => void) | null = null;
+      const saveTimer = setTimeout(() => { unsubSave?.(); }, 10_000);
+      unsubSave = getTransport().on(IPC.FILE_SAVED, (_e: unknown, saveResult: { filePath: string; success?: boolean; error?: string }) => {
         if (saveResult.filePath !== claudeSettingsPath) return;
-        ipcRenderer.removeListener(IPC.FILE_SAVED, saveHandler);
+        unsubSave?.();
+        clearTimeout(saveTimer);
         if (saveResult.success) {
           setHooksConfig(newHooks);
           toast.success('Hooks saved');
         } else {
           toast.error('Failed to save hooks');
         }
-      };
-      ipcRenderer.on(IPC.FILE_SAVED, saveHandler);
+      });
       typedSend(IPC.WRITE_FILE, { filePath: claudeSettingsPath, content: JSON.stringify(existing, null, 2) + '\n' });
-    };
+    });
 
-    ipcRenderer.on(IPC.FILE_CONTENT, handler);
     typedSend(IPC.READ_FILE, claudeSettingsPath);
   }, [claudeSettingsPath]);
 
@@ -671,7 +741,7 @@ export function SettingsPanel() {
     const fileName = `${hookFormEvent.toLowerCase()}-${safeMatcher.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.js`;
     const prompt = [
       `Generate a Claude Code hook script for the ${hookFormEvent} event with matcher "${safeMatcher}".`,
-      `The hook should: ${aiGeneratePrompt.trim()}`,
+      `The hook should: ${aiGeneratePrompt.trim().replace(/[\r\n]+/g, ' ')}`,
       '',
       `Write it to ${hookDir}/${fileName} and output ONLY the absolute file path when done.`,
       `Make sure to create the ${hookDir} directory if it doesn't exist.`,
@@ -680,7 +750,7 @@ export function SettingsPanel() {
       hookFormEvent.startsWith('Pre') ? 'It can output JSON with { "decision": "approve"|"block"|"deny", "reason": "..." } to control the tool.' : '',
     ].filter(Boolean).join('\n');
 
-    ipcRenderer.send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
+    getTransport().send(IPC.TERMINAL_INPUT_ID, { terminalId: activeTerminalId, data: prompt + '\r' });
     toast.info('Sent to agent — check your terminal');
     setShowAIGenerate(false);
     setAiGeneratePrompt('');
@@ -729,6 +799,7 @@ export function SettingsPanel() {
   }
 
   return (
+    <>
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
       <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-[800px] !flex !flex-col h-[80vh] overflow-hidden p-0" aria-describedby={undefined}>
         <DialogHeader className="shrink-0 px-6 pt-6">
@@ -1283,6 +1354,7 @@ export function SettingsPanel() {
                             const result = await typedInvoke(IPC.INSTALL_CLI);
                             if (result.success) {
                               toast.success(result.message);
+                              refreshCliStatus();
                             } else {
                               toast.error(result.message);
                             }
@@ -1307,6 +1379,7 @@ export function SettingsPanel() {
                             const result = await typedInvoke(IPC.UNINSTALL_CLI);
                             if (result.success) {
                               toast.success(result.message);
+                              refreshCliStatus();
                             } else {
                               toast.error(result.message);
                             }
@@ -1610,7 +1683,7 @@ export function SettingsPanel() {
                               <> — <a
                                 href="#"
                                 className="underline hover:text-accent"
-                                onClick={(e) => { e.preventDefault(); require('electron').shell.openExternal(aiToolConfig.activeTool.installUrl!); }}
+                                onClick={(e) => { e.preventDefault(); getTransport().platform.openExternal(aiToolConfig.activeTool.installUrl!); }}
                               >view install guide</a></>
                             )}
                           </span>
@@ -1772,6 +1845,346 @@ export function SettingsPanel() {
               </>
             )}
 
+            {/* ===== Hooks ===== */}
+            {activeTab === 'hooks' && (
+              <>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-1">
+                  <div>
+                    <div className="text-sm text-text-primary font-medium">Claude Code Hooks</div>
+                    <div className="text-xs text-text-tertiary">
+                      Manage hook scripts that run on Claude Code events.
+                      {totalHookCount > 0 && <span className="text-accent ml-1">{totalHookCount} hook{totalHookCount !== 1 ? 's' : ''} configured</span>}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                    onClick={openAddHookDialog}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add Hook
+                  </Button>
+                </div>
+
+                {!currentProjectPath && (
+                  <div className="text-xs text-warning bg-warning/10 border border-warning/20 rounded-md p-3">
+                    Select a project to manage hooks. Hooks are stored in each project's <code className="text-accent">.claude/settings.json</code>.
+                  </div>
+                )}
+
+                {currentProjectPath && hooksLoading && (
+                  <div className="flex items-center gap-2 py-8 justify-center text-text-muted">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Loading hooks...</span>
+                  </div>
+                )}
+
+                {/* Event Type Groups */}
+                {currentProjectPath && !hooksLoading && (
+                  <div className="space-y-2">
+                    {HOOK_EVENT_TYPES.map(({ key: eventKey, label, description, icon: EventIcon }) => {
+                      const entries = hooksConfig[eventKey] || [];
+                      const isExpanded = expandedEvents.has(eventKey);
+
+                      return (
+                        <div key={eventKey} className="rounded-lg border border-border-subtle bg-bg-secondary/50 overflow-hidden">
+                          {/* Event header — collapsible */}
+                          <button
+                            onClick={() => toggleEventExpanded(eventKey)}
+                            className="flex items-center gap-2.5 w-full text-left px-3 py-2 hover:bg-bg-hover/50 transition-colors cursor-pointer"
+                          >
+                            {isExpanded
+                              ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                              : <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                            }
+                            <EventIcon className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+                            <span className="text-sm text-text-primary font-medium flex-1">{label}</span>
+                            <span className="text-[10px] text-text-tertiary">{description}</span>
+                            {entries.length > 0 && (
+                              <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full ml-1">
+                                {entries.length}
+                              </span>
+                            )}
+                          </button>
+
+                          {/* Expanded content */}
+                          {isExpanded && (
+                            <div className="border-t border-border-subtle">
+                              {entries.length === 0 ? (
+                                <div className="px-3 py-3 text-xs text-text-muted text-center">
+                                  No hooks configured for this event
+                                </div>
+                              ) : (
+                                <div className="divide-y divide-border-subtle">
+                                  {entries.map((entry, entryIndex) => {
+                                    const isDisabled = disabledHooks.has(`${eventKey}:${entryIndex}`);
+                                    return (
+                                      <div
+                                        key={entryIndex}
+                                        className={cn(
+                                          'px-3 py-2 flex items-start gap-2.5 group',
+                                          isDisabled && 'opacity-40',
+                                        )}
+                                      >
+                                        {/* Matcher badge */}
+                                        <div className="shrink-0 mt-0.5">
+                                          <span className="inline-flex items-center text-[10px] font-mono bg-bg-deep border border-border-subtle text-text-secondary px-1.5 py-0.5 rounded">
+                                            {entry.matcher || '*'}
+                                          </span>
+                                        </div>
+
+                                        {/* Command(s) */}
+                                        <div className="flex-1 min-w-0">
+                                          {entry.hooks.map((hook, hookIdx) => (
+                                            <div key={hookIdx} className="text-xs text-text-primary font-mono truncate" title={hook.command}>
+                                              {hook.command}
+                                            </div>
+                                          ))}
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          {/* Edit */}
+                                          <button
+                                            onClick={() => openEditHookDialog(eventKey, entryIndex)}
+                                            className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                                            title="Edit hook"
+                                          >
+                                            <Pencil className="w-3 h-3" />
+                                          </button>
+                                          {/* Delete */}
+                                          <button
+                                            onClick={() => {
+                                              if (confirm('Delete this hook entry?')) {
+                                                deleteHookEntry(eventKey, entryIndex);
+                                              }
+                                            }}
+                                            className="p-1 rounded text-text-muted hover:text-red-400 hover:bg-bg-hover transition-colors cursor-pointer"
+                                            title="Delete hook"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Quick add for this event type */}
+                              <div className="px-3 py-1.5 border-t border-border-subtle">
+                                <button
+                                  onClick={() => {
+                                    resetHookForm();
+                                    setHookFormEvent(eventKey);
+                                    setShowAddHookDialog(true);
+                                  }}
+                                  className="text-[11px] text-text-muted hover:text-accent transition-colors cursor-pointer"
+                                >
+                                  + Add hook to {label}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Quick Templates */}
+                {currentProjectPath && !hooksLoading && (matchesSearch('Templates') || matchesSearch('Block .env writes') || matchesSearch('Log all commands') || matchesSearch('Auto-approve reads') || matchesSearch('Notify on completion')) && (
+                  <div className="mt-4">
+                    <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">Quick Templates</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {HOOK_TEMPLATES.map((template) => (
+                        <button
+                          key={template.name}
+                          onClick={() => applyTemplate(template)}
+                          className="text-left rounded-md border border-border-subtle bg-bg-secondary/30 p-3 hover:bg-bg-hover/30 cursor-pointer transition-colors group"
+                        >
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <FileCode className="w-3 h-3 text-text-tertiary group-hover:text-accent transition-colors" />
+                            <span className="text-xs text-text-primary font-medium">{template.name}</span>
+                          </div>
+                          <div className="text-[10px] text-text-tertiary">{template.description}</div>
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[9px] font-mono bg-bg-deep border border-border-subtle px-1 py-0.5 rounded text-text-muted">
+                              {template.eventType}
+                            </span>
+                            {template.matcher && (
+                              <span className="text-[9px] font-mono bg-bg-deep border border-border-subtle px-1 py-0.5 rounded text-text-muted">
+                                {template.matcher}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Reload button */}
+                {currentProjectPath && !hooksLoading && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs cursor-pointer"
+                      onClick={loadHooks}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      Reload from disk
+                    </Button>
+                    <span className="text-[10px] text-text-muted">
+                      {claudeSettingsPath && <>Source: <code className="text-text-tertiary">.claude/settings.json</code></>}
+                    </span>
+                  </div>
+                )}
+
+                {/* ===== Add/Edit Hook Dialog ===== */}
+                {showAddHookDialog && (
+                  <Dialog open={showAddHookDialog} onOpenChange={(open) => { if (!open) { setShowAddHookDialog(false); resetHookForm(); } }}>
+                    <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-[520px] p-0" aria-describedby={undefined}>
+                      <DialogHeader className="px-5 pt-5 pb-0">
+                        <DialogTitle>{editingHook ? 'Edit Hook' : 'Add Hook'}</DialogTitle>
+                      </DialogHeader>
+
+                      <div className="px-5 pb-5 space-y-4 mt-2">
+                        {/* Event Type */}
+                        <div>
+                          <div className="text-sm text-text-primary mb-1">Event Type</div>
+                          <select
+                            value={hookFormEvent}
+                            onChange={(e) => setHookFormEvent(e.target.value)}
+                            disabled={!!editingHook}
+                            className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer disabled:opacity-50"
+                          >
+                            {HOOK_EVENT_TYPES.map(({ key, label: lbl }) => (
+                              <option key={key} value={key}>{lbl} ({key})</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Matcher */}
+                        <div>
+                          <div className="text-sm text-text-primary mb-1">Matcher</div>
+                          <div className="text-xs text-text-tertiary mb-1">
+                            Tool name pattern to match (e.g., "Bash", "Write", "*" for all). Leave empty for events without tools.
+                          </div>
+                          <Input
+                            value={hookFormMatcher}
+                            onChange={(e) => setHookFormMatcher(e.target.value)}
+                            placeholder={hookFormEvent === 'PreToolUse' || hookFormEvent === 'PostToolUse' ? 'e.g., Bash, Write, *' : 'Leave empty'}
+                            className="bg-bg-deep border-border-subtle text-sm"
+                          />
+                          {/* Matcher suggestions */}
+                          {(MATCHER_SUGGESTIONS[hookFormEvent] || []).length > 0 && (
+                            <div className="flex gap-1 mt-1.5 flex-wrap">
+                              {MATCHER_SUGGESTIONS[hookFormEvent].filter(Boolean).map((s) => (
+                                <button
+                                  key={s}
+                                  onClick={() => setHookFormMatcher(s)}
+                                  className={cn(
+                                    'text-[10px] font-mono px-1.5 py-0.5 rounded border cursor-pointer transition-colors',
+                                    hookFormMatcher === s
+                                      ? 'bg-accent/20 border-accent/40 text-accent'
+                                      : 'bg-bg-deep border-border-subtle text-text-muted hover:text-text-secondary hover:border-border-default',
+                                  )}
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Command */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-sm text-text-primary">Command</div>
+                            <button
+                              onClick={() => setShowAIGenerate(!showAIGenerate)}
+                              className="flex items-center gap-1 text-[11px] text-accent hover:text-accent/80 transition-colors cursor-pointer"
+                            >
+                              <Wand2 className="w-3 h-3" />
+                              {showAIGenerate ? 'Manual' : 'Generate with AI'}
+                            </button>
+                          </div>
+
+                          {!showAIGenerate ? (
+                            <>
+                              <Input
+                                value={hookFormCommand}
+                                onChange={(e) => setHookFormCommand(e.target.value)}
+                                placeholder="node .claude/hooks/my-hook.js"
+                                className="bg-bg-deep border-border-subtle text-sm font-mono"
+                              />
+                              <div className="text-[10px] text-text-muted mt-1">
+                                Point to a .js file that will be executed when this event fires.
+                                Hook receives JSON on stdin with tool_name, tool_input, etc.
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <textarea
+                                value={aiGeneratePrompt}
+                                onChange={(e) => setAiGeneratePrompt(e.target.value)}
+                                placeholder="Describe what you want the hook to do..."
+                                rows={3}
+                                className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 resize-none"
+                              />
+                              <div className="text-[10px] text-text-muted mt-1 space-y-0.5">
+                                <div>Examples:</div>
+                                <div className="text-text-tertiary">"Block writes to .env files"</div>
+                                <div className="text-text-tertiary">"Log all Bash commands to a file"</div>
+                                <div className="text-text-tertiary">"Auto-approve read-only tools"</div>
+                              </div>
+                              <Button
+                                size="sm"
+                                className="mt-2 bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                                disabled={!aiGeneratePrompt.trim() || !activeTerminalId}
+                                onClick={handleAIGenerate}
+                              >
+                                <Wand2 className="h-3.5 w-3.5 mr-1" />
+                                Send to Agent
+                              </Button>
+                              {!activeTerminalId && (
+                                <div className="text-[10px] text-warning mt-1">No active terminal. Open a terminal first.</div>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2 pt-2 border-t border-border-subtle">
+                          {!showAIGenerate && (
+                            <Button
+                              size="sm"
+                              className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                              disabled={!hookFormCommand.trim()}
+                              onClick={handleHookFormSubmit}
+                            >
+                              {editingHook ? 'Update Hook' : 'Add Hook'}
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="cursor-pointer"
+                            onClick={() => { setShowAddHookDialog(false); resetHookForm(); }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </>
+            )}
+
             {/* ===== Integrations ===== */}
             {activeTab === 'integrations' && (
               <>
@@ -1794,6 +2207,211 @@ export function SettingsPanel() {
                       {' · '}
                       DTSP: <span className="font-mono">~/.dtsp/sources/subframe.json</span>
                     </div>
+                  </SettingGroup>
+                )}
+
+                {matchesSearch('SubFrame Server') && (
+                  <SettingGroup label="SubFrame Server">
+                    <SettingToggle
+                      label="Enable SubFrame Server"
+                      description="Serve the IDE UI as a web app accessible from remote devices via SSH tunnel"
+                      value={(settings?.server as Record<string, unknown>)?.enabled === true}
+                      onChange={(v) => {
+                        updateSetting.mutate([{ key: 'server.enabled', value: v }]);
+                        // Also toggle the server immediately
+                        typedInvoke(IPC.WEB_SERVER_TOGGLE, v)
+                          .then(() => refetchWebServerInfo())
+                          .catch(() => {});
+                      }}
+                    />
+
+                    {/* Server status — shown when enabled */}
+                    {webServerInfo?.enabled && (
+                      <>
+                        <div className="bg-bg-deep rounded-lg p-2.5 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-xs text-text-secondary">Server running</span>
+                            <span className="text-[10px] text-text-muted ml-auto font-mono">
+                              port {webServerInfo.port}
+                            </span>
+                          </div>
+
+                          {/* Connected client indicator */}
+                          {webServerInfo.clientConnected && webServerInfo.clientInfo ? (
+                            <div className="flex items-center gap-2 pt-1 border-t border-border-subtle">
+                              <Monitor className="w-3.5 h-3.5 text-accent shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs text-text-secondary truncate">
+                                  {webServerInfo.clientInfo.userAgent.split(' ').slice(0, 3).join(' ')}
+                                </div>
+                                <div className="text-[10px] text-text-muted">
+                                  Connected {new Date(webServerInfo.clientInfo.connectedAt).toLocaleTimeString()}
+                                </div>
+                              </div>
+                              <Wifi className="w-3 h-3 text-green-500 shrink-0" />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 pt-1 border-t border-border-subtle">
+                              <span className="text-[10px] text-text-muted">No client connected</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-xs"
+                            onClick={() => setWebServerSetupOpen(true)}
+                          >
+                            <Globe className="w-3 h-3 mr-1.5" />
+                            Setup Guide
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-xs"
+                            onClick={() => {
+                              typedInvoke(IPC.WEB_SERVER_REGEN_TOKEN)
+                                .then(() => {
+                                  refetchWebServerInfo();
+                                  toast.success('Auth token regenerated');
+                                })
+                                .catch(() => toast.error('Failed to regenerate token'));
+                            }}
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1.5" />
+                            Regenerate Token
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-xs"
+                            onClick={() => {
+                              typedInvoke(IPC.WEB_SERVER_GENERATE_PAIRING)
+                                .then((result) => {
+                                  setWebServerPairingCode(result.code);
+                                  toast.success(`Pairing code: ${result.code}`, { duration: 10000 });
+                                })
+                                .catch(() => toast.error('Failed to generate pairing code'));
+                            }}
+                          >
+                            <Copy className="w-3 h-3 mr-1.5" />
+                            {webServerPairingCode ? `Code: ${webServerPairingCode}` : 'Show Pairing Code'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer text-xs"
+                            onClick={() => setWebServerQrVisible((v) => !v)}
+                          >
+                            <QrCode className="w-3 h-3 mr-1.5" />
+                            {webServerQrVisible ? 'Hide QR Code' : 'Show QR Code'}
+                          </Button>
+                        </div>
+
+                        {/* Inline QR Code */}
+                        {webServerQrVisible && webServerQrDataUrl && (
+                          <div className="flex justify-center py-2">
+                            <img src={webServerQrDataUrl} alt="QR Code for connection URL" className="rounded-lg" style={{ width: 150, height: 150 }} />
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Setup guide button when server is not enabled */}
+                    {!webServerInfo?.enabled && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="cursor-pointer text-xs"
+                        onClick={() => setWebServerSetupOpen(true)}
+                      >
+                        <Globe className="w-3 h-3 mr-1.5" />
+                        Setup Guide
+                      </Button>
+                    )}
+                  </SettingGroup>
+                )}
+
+                {/* Shell Integration (Experimental) */}
+                {(matchesSearch('Shell Integration') || matchesSearch('CLI Status') || matchesSearch('Context Menu') || matchesSearch('Explorer')) && (
+                  <SettingGroup label="Shell Integration">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-warning/15 text-warning border border-warning/30">
+                        Experimental
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-tertiary mb-3">
+                      Integrate SubFrame with your operating system for quick access from file explorers and terminal.
+                    </p>
+
+                    {/* CLI Status */}
+                    <div className="p-3 rounded-md border border-border-subtle bg-bg-secondary/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-medium text-text-primary">CLI Tool</span>
+                          <p className="text-[10px] text-text-muted mt-0.5">
+                            {cliStatus?.installed
+                              ? cliStatus.inPath
+                                ? `Installed at ${cliStatus.path}`
+                                : 'Installed but not in PATH'
+                              : 'Not installed'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {cliStatus?.installed && !cliStatus.inPath && (
+                            <span className="text-[9px] text-warning px-1.5 py-0.5 rounded bg-warning/10 border border-warning/20">PATH issue</span>
+                          )}
+                          <div className={`w-2 h-2 rounded-full ${cliStatus?.installed ? (cliStatus.inPath ? 'bg-success' : 'bg-warning') : 'bg-text-muted'}`} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Windows Context Menu */}
+                    {process.platform === 'win32' && (
+                      <div className="flex items-center justify-between p-3 rounded-md border border-border-subtle bg-bg-secondary/30 mt-2">
+                        <div>
+                          <span className="text-xs font-medium text-text-primary">Explorer Context Menu</span>
+                          <p className="text-[10px] text-text-muted mt-0.5">
+                            Add &quot;Open with SubFrame&quot; to right-click menu in Windows Explorer
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {contextMenuInstalled && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                try {
+                                  const r = await typedInvoke(IPC.UNINSTALL_CONTEXT_MENU);
+                                  if (r.success) { toast.success('Context menu removed'); checkContextMenu(); }
+                                  else toast.error(r.message);
+                                } catch { toast.error('Failed to remove context menu'); }
+                              }}
+                              className="h-7 px-2 text-xs text-error hover:text-error cursor-pointer"
+                            >
+                              Remove
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const r = await typedInvoke(IPC.INSTALL_CONTEXT_MENU);
+                                if (r.success) { toast.success('Context menu registered'); checkContextMenu(); }
+                                else toast.error(r.message);
+                              } catch { toast.error('Failed to register context menu'); }
+                            }}
+                            className="h-7 px-3 text-xs bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                          >
+                            {contextMenuInstalled ? 'Reinstall' : 'Install'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </SettingGroup>
                 )}
               </>
@@ -1884,7 +2502,7 @@ export function SettingsPanel() {
                 <SettingGroup label="Links">
                   <button
                     className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame')}
+                    onClick={() => getTransport().platform.openExternal('https://github.com/Codename-11/SubFrame')}
                   >
                     <Github className="w-4 h-4 text-text-tertiary shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -1896,7 +2514,7 @@ export function SettingsPanel() {
 
                   <button
                     className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/issues')}
+                    onClick={() => getTransport().platform.openExternal('https://github.com/Codename-11/SubFrame/issues')}
                   >
                     <Info className="w-4 h-4 text-text-tertiary shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -1925,7 +2543,7 @@ export function SettingsPanel() {
                 <SettingGroup label="Changelog">
                   <button
                     className="flex items-center gap-3 w-full text-left px-2 py-2 rounded-md hover:bg-bg-hover transition-colors cursor-pointer"
-                    onClick={() => require('electron').shell.openExternal('https://github.com/Codename-11/SubFrame/blob/main/CHANGELOG.md')}
+                    onClick={() => getTransport().platform.openExternal('https://github.com/Codename-11/SubFrame/blob/main/CHANGELOG.md')}
                   >
                     <FileText className="w-4 h-4 text-text-tertiary shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -1942,5 +2560,9 @@ export function SettingsPanel() {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* SubFrame Server setup wizard */}
+    <WebServerSetup open={webServerSetupOpen} onOpenChange={setWebServerSetupOpen} />
+    </>
   );
 }

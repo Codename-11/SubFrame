@@ -16,6 +16,7 @@ import { FRAME_FILES, FRAME_TASKS_DIR, FRAME_TASKS_PRIVATE_DIR } from '../shared
 import { parseTaskMarkdown, serializeTaskMarkdown } from './taskMarkdownParser';
 import { getActiveTool, checkToolInstalled } from './aiToolManager';
 import * as activityManager from './activityManager';
+import { broadcast } from './eventBridge';
 
 interface TasksData {
   _frame_metadata?: {
@@ -539,7 +540,7 @@ function watchTasksFile(projectPath: string): void {
         if (fingerprint === lastWatchedHash) return;
         lastWatchedHash = fingerprint;
 
-        mainWindow.webContents.send(IPC.TASKS_DATA, {
+        broadcast(IPC.TASKS_DATA, {
           projectPath,
           tasks,
         });

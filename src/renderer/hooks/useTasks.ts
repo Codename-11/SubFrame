@@ -9,8 +9,7 @@ import { useIPCEvent } from './useIPCListener';
 import { useProjectStore } from '../stores/useProjectStore';
 import { IPC, type Task, type TasksPayload } from '../../shared/ipcChannels';
 import { useCallback, useRef, useEffect, useMemo } from 'react';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /** Extract the grouped { pending, inProgress, completed } from whatever the main process sends */
 function extractGrouped(payload: TasksPayload | null): { pending: Task[]; inProgress: Task[]; completed: Task[] } {
@@ -61,8 +60,7 @@ export function useTasks() {
       lastUpdateTs.current = newTs;
       queryClient.setQueryData(['tasks', projectPath], data);
     };
-    ipcRenderer.on(IPC.TASKS_DATA, handler);
-    return () => { ipcRenderer.removeListener(IPC.TASKS_DATA, handler); };
+    return getTransport().on(IPC.TASKS_DATA, handler);
   }, [projectPath, queryClient]);
 
   // Invalidate on task update events

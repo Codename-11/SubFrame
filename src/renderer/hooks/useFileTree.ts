@@ -9,8 +9,7 @@ import { useIpcQuery } from './useIpc';
 import { IPC } from '../../shared/ipcChannels';
 import type { FileTreeNode } from '../../shared/ipcChannels';
 import { typedSend } from '../lib/ipc';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /**
  * Fetches and caches file tree data for a project.
@@ -41,13 +40,13 @@ export function useFileTree(projectPath: string | null) {
         const handler = (_event: unknown, files: FileTreeNode[]) => {
           // Only accept this response if we're still the current request
           if (mySeq !== requestSeq.current) {
-            ipcRenderer.removeListener(IPC.FILE_TREE_DATA, handler);
+            unsub();
             return; // Stale response — TanStack Query will retry with the latest params
           }
-          ipcRenderer.removeListener(IPC.FILE_TREE_DATA, handler);
+          unsub();
           resolve(files);
         };
-        ipcRenderer.on(IPC.FILE_TREE_DATA, handler);
+        const unsub = getTransport().on(IPC.FILE_TREE_DATA, handler);
         typedSend(IPC.LOAD_FILE_TREE, { path: projectPath, showDotfiles });
       });
     },
@@ -62,10 +61,7 @@ export function useFileTree(projectPath: string | null) {
         queryClient.invalidateQueries({ queryKey: ['fileTree'] });
       }
     };
-    ipcRenderer.on(IPC.SETTINGS_UPDATED, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC.SETTINGS_UPDATED, handler);
-    };
+    return getTransport().on(IPC.SETTINGS_UPDATED, handler);
   }, [queryClient]);
 
   const refresh = useCallback(() => {

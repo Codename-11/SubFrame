@@ -27,11 +27,13 @@ import * as terminalRegistry from '../lib/terminalRegistry';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useAIToolConfig } from '../hooks/useSettings';
 import { useIpcQuery } from '../hooks/useIpc';
+import { useViewport } from '../hooks/useViewport';
 import { IPC } from '../../shared/ipcChannels';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import type { UninstallResult, WorkspaceListResult, WorkspaceData, WorkspaceProject } from '../../shared/ipcChannels';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
+import { MobileApp } from './mobile/MobileApp';
+import { TabletApp } from './mobile/TabletApp';
 
 /**
  * Root application layout.
@@ -179,11 +181,11 @@ export function App() {
       applyWorkspaceProjects(list, data?.workspaceName);
     };
 
-    ipcRenderer.on(IPC.WORKSPACE_DATA, handleData);
-    ipcRenderer.on(IPC.WORKSPACE_UPDATED, handleUpdated);
+    const unsubData = getTransport().on(IPC.WORKSPACE_DATA, handleData);
+    const unsubUpdated = getTransport().on(IPC.WORKSPACE_UPDATED, handleUpdated);
     return () => {
-      ipcRenderer.removeListener(IPC.WORKSPACE_DATA, handleData);
-      ipcRenderer.removeListener(IPC.WORKSPACE_UPDATED, handleUpdated);
+      unsubData();
+      unsubUpdated();
     };
   }, []);
 
@@ -199,8 +201,7 @@ export function App() {
         onboardingResetRef.current();
       }
     };
-    ipcRenderer.on(IPC.SUBFRAME_UNINSTALLED, handler);
-    return () => { ipcRenderer.removeListener(IPC.SUBFRAME_UNINSTALLED, handler); };
+    return getTransport().on(IPC.SUBFRAME_UNINSTALLED, handler);
   }, []);
 
   // Keyboard shortcuts — matching original src/renderer/index.js
@@ -399,21 +400,16 @@ export function App() {
       window.dispatchEvent(new CustomEvent('menu-new-terminal'));
     };
 
-    ipcRenderer.on(IPC.MENU_TOGGLE_SIDEBAR, onToggleSidebar);
-    ipcRenderer.on(IPC.MENU_TOGGLE_RIGHT_PANEL, onToggleRightPanel);
-    ipcRenderer.on(IPC.MENU_RESET_LAYOUT, onResetLayout);
-    ipcRenderer.on(IPC.MENU_CLOSE_TERMINAL, onCloseTerminal);
-    ipcRenderer.on(IPC.MENU_OPEN_SETTINGS, onOpenSettings);
-    ipcRenderer.on(IPC.MENU_NEW_TERMINAL, onNewTerminal);
+    const unsubs = [
+      getTransport().on(IPC.MENU_TOGGLE_SIDEBAR, onToggleSidebar),
+      getTransport().on(IPC.MENU_TOGGLE_RIGHT_PANEL, onToggleRightPanel),
+      getTransport().on(IPC.MENU_RESET_LAYOUT, onResetLayout),
+      getTransport().on(IPC.MENU_CLOSE_TERMINAL, onCloseTerminal),
+      getTransport().on(IPC.MENU_OPEN_SETTINGS, onOpenSettings),
+      getTransport().on(IPC.MENU_NEW_TERMINAL, onNewTerminal),
+    ];
 
-    return () => {
-      ipcRenderer.removeListener(IPC.MENU_TOGGLE_SIDEBAR, onToggleSidebar);
-      ipcRenderer.removeListener(IPC.MENU_TOGGLE_RIGHT_PANEL, onToggleRightPanel);
-      ipcRenderer.removeListener(IPC.MENU_RESET_LAYOUT, onResetLayout);
-      ipcRenderer.removeListener(IPC.MENU_CLOSE_TERMINAL, onCloseTerminal);
-      ipcRenderer.removeListener(IPC.MENU_OPEN_SETTINGS, onOpenSettings);
-      ipcRenderer.removeListener(IPC.MENU_NEW_TERMINAL, onNewTerminal);
-    };
+    return () => { unsubs.forEach(fn => fn()); };
   }, []);
 
   // Listen for CLI integration events (file/project open from command line)
@@ -425,14 +421,14 @@ export function App() {
       // Trigger project selection via the same flow as folder picker
       const store = useProjectStore.getState();
       store.setProject(dirPath, false);
-      ipcRenderer.send(IPC.CHECK_IS_FRAME_PROJECT, dirPath);
+      getTransport().send(IPC.CHECK_IS_FRAME_PROJECT, dirPath);
     };
 
-    ipcRenderer.on(IPC.CLI_OPEN_FILE, onCliOpenFile);
-    ipcRenderer.on(IPC.CLI_OPEN_PROJECT, onCliOpenProject);
+    const unsubFile = getTransport().on(IPC.CLI_OPEN_FILE, onCliOpenFile);
+    const unsubProject = getTransport().on(IPC.CLI_OPEN_PROJECT, onCliOpenProject);
     return () => {
-      ipcRenderer.removeListener(IPC.CLI_OPEN_FILE, onCliOpenFile);
-      ipcRenderer.removeListener(IPC.CLI_OPEN_PROJECT, onCliOpenProject);
+      unsubFile();
+      unsubProject();
     };
   }, []);
 
@@ -464,9 +460,35 @@ export function App() {
     }
   }, [onboarding.analysisResult, onboardingDialogOpen]);
 
+  // Responsive viewport — web mobile gets a different layout
+  const { isMobile, isTablet, isWeb } = useViewport();
+
   // Compute sidebar pixel width for CSS
   const resolvedSidebarWidth =
     sidebarState === 'hidden' ? 0 : sidebarState === 'collapsed' ? 54 : sidebarWidth;
+
+  // Mobile web layout — simplified bottom-tab navigation
+  if (isMobile && isWeb) {
+    return (
+      <>
+        <MobileApp />
+        <SettingsPanel />
+        <ThemeProvider />
+      </>
+    );
+  }
+
+  // Tablet web layout — collapsed sidebar + overlay panels
+  if (isTablet && isWeb) {
+    return (
+      <>
+        <TabletApp />
+        <SettingsPanel />
+        <CommandPalette />
+        <ThemeProvider />
+      </>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg-deep text-text-primary font-sans">

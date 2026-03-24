@@ -39,6 +39,8 @@ import * as activityManager from './activityManager';
 import * as outputChannelManager from './outputChannelManager';
 import * as popoutManager from './popoutManager';
 import * as apiServerManager from './apiServerManager';
+import * as webServerManager from './webServerManager';
+import { initEventBridge, broadcast } from './eventBridge';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
 // ── Global error handlers — surface errors to terminal on crash/exit ──
@@ -125,7 +127,7 @@ function sendCLIOpenProject(dirPath: string): void {
   workspace.addProject(dirPath);
   if (mainWindow && !mainWindow.isDestroyed()) {
     const result = workspace.getProjectsWithScanned();
-    mainWindow.webContents.send(IPC.WORKSPACE_UPDATED, result);
+    broadcast(IPC.WORKSPACE_UPDATED, result);
     // Don't send CLI_OPEN_PROJECT — that would switch the active project
     // Just focus the window so the user sees it was added
     mainWindow.focus();
@@ -264,6 +266,9 @@ function createWindow(): BrowserWindow {
     }
   });
 
+  // Initialize event bridge BEFORE any modules so broadcast() works from the start
+  initEventBridge(mainWindow);
+
   // Initialize modules with window reference BEFORE loadFile()
   // so IPC handlers are registered before the renderer can invoke them
   pty.init(mainWindow);
@@ -275,7 +280,7 @@ function createWindow(): BrowserWindow {
     pty.setProjectPath(projectPath);
     workspace.addProject(projectPath);
     const result = workspace.getProjectsWithScanned();
-    mainWindow!.webContents.send(IPC.WORKSPACE_UPDATED, result);
+    broadcast(IPC.WORKSPACE_UPDATED, result);
   });
   initModulesWithWindow(mainWindow);
 
@@ -370,7 +375,7 @@ function createWindow(): BrowserWindow {
     shutdownInProgress = true;
     pendingShutdownReason = reason;
     const { activeAgentTerminals, pipelineRunning, analysisRunning, activeStreams } = detectActiveWork();
-    mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_REQUEST, {
+    broadcast(IPC.GRACEFUL_SHUTDOWN_REQUEST, {
       reason,
       terminals: buildTerminalInfoList(activeAgentTerminals),
       pipelineRunning,
@@ -388,7 +393,7 @@ function createWindow(): BrowserWindow {
     for (const terminalId of activeTerminals) {
       ptyManager.writeToTerminal(terminalId, '/exit\n');
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'exiting' });
+        broadcast(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'exiting' });
       }
     }
 
@@ -396,7 +401,7 @@ function createWindow(): BrowserWindow {
     for (const terminalId of activeTerminals) {
       const result = await ptyManager.waitForExit(terminalId, TIMEOUT_MS);
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: result });
+        broadcast(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: result });
       }
     }
 
@@ -405,13 +410,13 @@ function createWindow(): BrowserWindow {
     for (const terminalId of remaining) {
       ptyManager.destroyTerminal(terminalId);
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'killed' });
+        broadcast(IPC.GRACEFUL_SHUTDOWN_STATUS, { terminalId, status: 'killed' });
       }
     }
 
     // Notify renderer that shutdown is complete
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.GRACEFUL_SHUTDOWN_COMPLETE, {
+      broadcast(IPC.GRACEFUL_SHUTDOWN_COMPLETE, {
         reason: pendingShutdownReason,
         success: true,
       });
@@ -546,6 +551,7 @@ function setupAllIPC(): void {
   outputChannelManager.setupIPC(ipcMain);
   popoutManager.setupIPC(ipcMain);
   apiServerManager.setupIPC(ipcMain);
+  webServerManager.setupIPC(ipcMain);
   // Note: updaterManager.setupIPC() is called inside updaterManager.init()
   // because it needs app.isPackaged to be set first
 
@@ -669,6 +675,85 @@ function setupAllIPC(): void {
     }
   });
 
+  // ─── CLI Status Check ────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.CHECK_CLI_STATUS, async () => {
+    try {
+      if (process.platform === 'win32') {
+        const binDir = path.join(process.env.LOCALAPPDATA || '', 'SubFrame', 'bin');
+        const cmdPath = path.join(binDir, 'subframe.cmd');
+        const exists = fs.existsSync(cmdPath);
+        // Check if binDir is in the user's persistent PATH
+        const userPath = process.env.PATH || '';
+        const inPath = userPath.split(';').some((p: string) => p.toLowerCase() === binDir.toLowerCase());
+        return { installed: exists, inPath, path: exists ? cmdPath : null };
+      } else {
+        const symlinkPath = '/usr/local/bin/subframe';
+        const exists = fs.existsSync(symlinkPath);
+        return { installed: exists, inPath: exists, path: exists ? symlinkPath : null };
+      }
+    } catch {
+      return { installed: false, inPath: false, path: null };
+    }
+  });
+
+  // ─── Windows Context Menu Integration ────────────────────────────────────────
+
+  ipcMain.handle(IPC.INSTALL_CONTEXT_MENU, async () => {
+    if (process.platform !== 'win32') {
+      return { success: false, message: 'Context menu integration is Windows-only' };
+    }
+    try {
+      const exePath = process.execPath;
+      const { execSync } = require('child_process');
+
+      // Directory background context menu (right-click in empty space)
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\Background\\shell\\SubFrame" /ve /d "Open with SubFrame" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\Background\\shell\\SubFrame" /v Icon /d "${exePath},0" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\Background\\shell\\SubFrame\\command" /ve /d "\\"${exePath}\\" \\"%V\\"" /f`, { stdio: 'pipe' });
+
+      // Directory context menu (right-click on folder)
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame" /ve /d "Open with SubFrame" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame" /v Icon /d "${exePath},0" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame\\command" /ve /d "\\"${exePath}\\" \\"%1\\"" /f`, { stdio: 'pipe' });
+
+      // File context menu (right-click on any file)
+      execSync(`reg add "HKCU\\Software\\Classes\\*\\shell\\SubFrame" /ve /d "Open with SubFrame" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\*\\shell\\SubFrame" /v Icon /d "${exePath},0" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\*\\shell\\SubFrame\\command" /ve /d "\\"${exePath}\\" \\"%1\\"" /f`, { stdio: 'pipe' });
+
+      return { success: true, message: 'Context menu registered' };
+    } catch (err) {
+      return { success: false, message: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.UNINSTALL_CONTEXT_MENU, async () => {
+    if (process.platform !== 'win32') {
+      return { success: false, message: 'Context menu integration is Windows-only' };
+    }
+    try {
+      const { execSync } = require('child_process');
+      execSync('reg delete "HKCU\\Software\\Classes\\Directory\\Background\\shell\\SubFrame" /f', { stdio: 'pipe' });
+      execSync('reg delete "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame" /f', { stdio: 'pipe' });
+      execSync('reg delete "HKCU\\Software\\Classes\\*\\shell\\SubFrame" /f', { stdio: 'pipe' });
+      return { success: true, message: 'Context menu removed' };
+    } catch (err) {
+      return { success: false, message: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.CHECK_CONTEXT_MENU, async () => {
+    if (process.platform !== 'win32') return { installed: false };
+    try {
+      const { execSync } = require('child_process');
+      execSync('reg query "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame" /ve', { stdio: 'pipe' });
+      return { installed: true };
+    } catch {
+      return { installed: false };
+    }
+  });
+
   // Legacy single-terminal input handler
   ipcMain.on(IPC.TERMINAL_INPUT, (_event, data: string) => {
     pty.writeToPTY(data);
@@ -710,6 +795,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   popoutManager.init(window);
   updaterManager.init(window, app);
   apiServerManager.init(window);
+  webServerManager.init();
 }
 
 // ── Single instance lock — ensures only one SubFrame window ─────────────────
@@ -774,6 +860,7 @@ if (!gotTheLock) {
   // fires when windows close but the app stays alive in the dock)
   app.on('before-quit', () => {
     apiServerManager.shutdown();
+    webServerManager.shutdown();
   });
 
   app.on('activate', () => {

@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **SubFrame Server** — serve SubFrame's UI as a web app with real-time WebSocket transport. Enable via Settings > Integrations > SubFrame Server. Includes HTTP static serving, WS channel router, terminal output batching (~60fps), single-session with takeover (Google Messages for Web pattern), token auth, 6-char pairing codes, SSH tunnel guided setup wizard, and service discovery via `~/.subframe/web-server.json`
+- **Mobile responsive layout** — bottom-nav mobile UI (Terminal/Tasks/Activity/Settings tabs) when accessed via phone browser. Desktop layout unchanged in Electron. Viewport-aware routing via `useViewport` hook
+- **PWA support** — installable Progressive Web App with manifest, service worker (shell caching), and offline reconnection overlay. Add to home screen on mobile for standalone experience
+- **Transport abstraction layer** — pluggable `Transport` interface (`src/shared/transport.ts`) decouples all renderer IPC from Electron. `ElectronTransport` wraps `ipcRenderer`/`shell`/`clipboard`; `WebSocketTransport` enables browser/mobile access. All 26 renderer files migrated — only `electronTransport.ts` imports Electron directly
 - **System Panel** — app dashboard (`Ctrl+Shift+U`) with version/update status, AI tool picker, health, integrations, feature detection, shortcuts, and prompt library cards
 - **AI Tool picker** — switch AI tools directly from System Panel with installed status indicators
 - **API Server controls** — on/off toggle, token regeneration, and config copy from System Panel

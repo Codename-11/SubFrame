@@ -91,8 +91,7 @@ import {
   openSearchPanel,
   gotoLine,
 } from '../lib/codemirror-extensions';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 /** File extensions that support a Code/Preview toggle */
 const PREVIEWABLE_EXTENSIONS = new Set([
@@ -225,13 +224,13 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
       }
     };
 
-    ipcRenderer.on(IPC.FILE_CONTENT, contentHandler);
-    ipcRenderer.on(IPC.IMAGE_CONTENT, imageHandler);
+    const unsubContent = getTransport().on(IPC.FILE_CONTENT, contentHandler);
+    const unsubImage = getTransport().on(IPC.IMAGE_CONTENT, imageHandler);
     typedSend(IPC.READ_FILE, filePath);
 
     return () => {
-      ipcRenderer.removeListener(IPC.FILE_CONTENT, contentHandler);
-      ipcRenderer.removeListener(IPC.IMAGE_CONTENT, imageHandler);
+      unsubContent();
+      unsubImage();
     };
   }, [filePath]);
 
@@ -249,10 +248,8 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
       }
     };
 
-    ipcRenderer.on(IPC.FILE_SAVED, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC.FILE_SAVED, handler);
-    };
+    const unsub = getTransport().on(IPC.FILE_SAVED, handler);
+    return unsub;
   }, [filePath]);
 
   const handleSave = useCallback(() => {

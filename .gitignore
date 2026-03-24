@@ -60,3 +60,6 @@ src/shared/frameTemplates.js
 
 # Backup files from template updates
 *.bak
+
+# Claude Code worktrees
+.claude/worktrees/

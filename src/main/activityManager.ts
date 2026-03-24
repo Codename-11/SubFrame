@@ -7,6 +7,7 @@
 import * as crypto from 'crypto';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
+import { broadcast as bridgeBroadcast } from './eventBridge';
 import type {
   ActivityStream,
   ActivityStatus,
@@ -105,7 +106,7 @@ function toActivityStream(internal: InternalStream): ActivityStream {
  */
 function send(channel: string, data: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(channel, data);
+    bridgeBroadcast(channel, data);
   }
 }
 

@@ -1,52 +1,35 @@
 /**
  * Typed IPC helpers for the renderer process.
- * Wraps Electron's ipcRenderer with type-safe invoke/send functions.
+ *
+ * Delegates to the active transport (Electron IPC or WebSocket).
+ * This file preserves the same API surface so existing callers
+ * (hooks, components) continue to work without changes.
  */
 
 import type { IPCHandleMap, IPCSendMap } from '../../shared/ipcChannels';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from './transportProvider';
 
 /**
- * Type-safe ipcRenderer.invoke — maps channel to args and return type.
+ * Type-safe invoke — request/response via the active transport.
  */
 export function typedInvoke<K extends keyof IPCHandleMap>(
   channel: K,
   ...args: IPCHandleMap[K]['args']
 ): Promise<IPCHandleMap[K]['return']> {
-  return ipcRenderer.invoke(channel, ...args.map(sanitizeForIPC));
+  return getTransport().invoke(channel, ...args);
 }
 
 /**
- * Strip `undefined` values from a plain object to prevent Electron structured clone errors.
- * Only sanitizes plain objects (Object.getPrototypeOf === Object.prototype or null).
- * Does NOT recurse into class instances, Maps, Sets, etc. to avoid infinite loops.
- */
-function sanitizeForIPC<T>(value: T): T {
-  if (value === null || value === undefined || typeof value !== 'object') return value;
-  if (Array.isArray(value)) return value as T;
-  // Only sanitize plain objects — skip class instances, Maps, Dates, etc.
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null) return value;
-  const clean: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (v !== undefined) clean[k] = v;
-  }
-  return clean as T;
-}
-
-/**
- * Type-safe ipcRenderer.send — maps channel to payload type.
+ * Type-safe send — fire-and-forget via the active transport.
  */
 export function typedSend<K extends keyof IPCSendMap>(
   channel: K,
   ...args: IPCSendMap[K] extends void ? [] : [payload: IPCSendMap[K]]
 ): void {
-  if (args.length > 0) {
-    ipcRenderer.send(channel, sanitizeForIPC(args[0]));
-  } else {
-    ipcRenderer.send(channel);
-  }
+  // Callers are type-checked by the generic K constraint above; the inner
+  // dispatch escapes the conditional-tuple overload that TS cannot resolve generically.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (getTransport() as any).send(channel, ...args);
 }
 
 /**
@@ -55,10 +38,8 @@ export function typedSend<K extends keyof IPCSendMap>(
  */
 export function typedOn<K extends string>(
   channel: K,
-  handler: (event: unknown, ...args: unknown[]) => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: (event: unknown, ...args: any[]) => void
 ): () => void {
-  ipcRenderer.on(channel, handler);
-  return () => {
-    ipcRenderer.removeListener(channel, handler);
-  };
+  return getTransport().on(channel, handler);
 }

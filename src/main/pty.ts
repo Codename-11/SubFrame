@@ -7,6 +7,7 @@ import * as pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
+import { broadcast } from './eventBridge';
 
 let ptyProcess: IPty | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -83,7 +84,7 @@ function startPTY(workingDir: string | null = null): IPty {
   // Send PTY output to renderer
   ptyProcess.onData((data: string) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC.TERMINAL_OUTPUT, data);
+      broadcast(IPC.TERMINAL_OUTPUT, data);
     }
   });
 

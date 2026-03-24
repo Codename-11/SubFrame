@@ -59,8 +59,9 @@ const buildOptions = {
   platform: 'browser',
   mainFields: ['module', 'browser', 'main'],
   conditions: ['import', 'module'],
-  // No electron external — this runs in a plain browser
-  external: [],
+  // Electron is never used in web mode (WebSocketTransport replaces ElectronTransport),
+  // but some components transitively import it. Mark as external so esbuild skips it.
+  external: ['electron'],
   jsx: 'automatic',
   loader: {
     '.ts': 'ts',

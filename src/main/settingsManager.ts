@@ -7,6 +7,7 @@ import { ipcMain, type App, type BrowserWindow } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC } from '../shared/ipcChannels';
+import { broadcast } from './eventBridge';
 
 let mainWindow: BrowserWindow | null = null;
 let settingsPath: string | null = null;
@@ -71,10 +72,10 @@ interface DefaultSettings {
       createdAt?: string;
     }>;
   };
-  experimental: {
-    tuiRecovery: boolean;
-    tuiRecoveryThreshold: number;
-    tuiRecoveryMode: 'manual' | 'auto';
+  server: {
+    enabled: boolean;
+    port: number;
+    terminalBatchIntervalMs: number;
   };
   [key: string]: unknown;
 }
@@ -133,10 +134,10 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     activeThemeId: 'classic-amber',
     customThemes: [],
   },
-  experimental: {
-    tuiRecovery: false,
-    tuiRecoveryThreshold: 15,
-    tuiRecoveryMode: 'manual',
+  server: {
+    enabled: false,
+    port: 0,
+    terminalBatchIntervalMs: 16,
   },
 };
 
@@ -206,7 +207,7 @@ function updateSetting(keyPath: string, value: unknown): Record<string, unknown>
 
   // Notify renderer
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC.SETTINGS_UPDATED, { key: keyPath, value, settings });
+    broadcast(IPC.SETTINGS_UPDATED, { key: keyPath, value, settings });
   }
 
   // Notify main-process listeners

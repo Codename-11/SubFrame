@@ -15,8 +15,7 @@ import { ThemeProvider } from './ThemeProvider';
 import { ErrorBoundary } from './ErrorBoundary';
 import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
-
-const { ipcRenderer } = require('electron');
+import { getTransport } from '../lib/transportProvider';
 
 interface PopoutTerminalProps {
   /** Initial terminalId — omit for standby (prewarmed) mode */
@@ -32,8 +31,7 @@ export function PopoutTerminal({ terminalId: initialTerminalId }: PopoutTerminal
     const handler = (_event: unknown, data: { terminalId: string }) => {
       setTerminalId(data.terminalId);
     };
-    ipcRenderer.on(IPC.POPOUT_ACTIVATE, handler);
-    return () => { ipcRenderer.removeListener(IPC.POPOUT_ACTIVATE, handler); };
+    return getTransport().on(IPC.POPOUT_ACTIVATE, handler);
   }, []);
 
   // Listen for agent active status
@@ -45,12 +43,12 @@ export function PopoutTerminal({ terminalId: initialTerminalId }: PopoutTerminal
         document.title = data.active ? 'Terminal (Agent Active) — SubFrame' : 'Terminal — SubFrame';
       }
     };
-    ipcRenderer.on(IPC.CLAUDE_ACTIVE_STATUS, handler);
+    const unsub = getTransport().on(IPC.CLAUDE_ACTIVE_STATUS, handler);
     // Check initial status
     typedInvoke(IPC.IS_TERMINAL_CLAUDE_ACTIVE, terminalId).then((active) => {
       setClaudeActive(active);
     }).catch(() => {});
-    return () => { ipcRenderer.removeListener(IPC.CLAUDE_ACTIVE_STATUS, handler); };
+    return unsub;
   }, [terminalId]);
 
   // Listen for terminal destroyed — close this window
@@ -61,8 +59,7 @@ export function PopoutTerminal({ terminalId: initialTerminalId }: PopoutTerminal
         window.close();
       }
     };
-    ipcRenderer.on(IPC.TERMINAL_DESTROYED, handler);
-    return () => { ipcRenderer.removeListener(IPC.TERMINAL_DESTROYED, handler); };
+    return getTransport().on(IPC.TERMINAL_DESTROYED, handler);
   }, [terminalId]);
 
   const handleDock = () => {
