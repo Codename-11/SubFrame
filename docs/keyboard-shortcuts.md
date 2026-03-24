@@ -37,6 +37,8 @@ All shortcuts use <kbd>Ctrl</kbd> on Windows/Linux and <kbd>Cmd</kbd> (⌘) on m
 | <kbd>Ctrl+Shift+G</kbd> | <kbd>⌘+Shift+G</kbd> | Toggle grid/tabs view |
 | <kbd>Ctrl+Shift+Enter</kbd> | <kbd>⌘+Shift+Enter</kbd> | Start AI tool in new terminal |
 | <kbd>Ctrl+Shift+D</kbd> | <kbd>⌘+Shift+D</kbd> | Pop out terminal to separate window |
+| <kbd>Ctrl+Shift+R</kbd> | <kbd>⌘+Shift+R</kbd> | Restart terminal shell |
+| <kbd>Ctrl+Shift+F</kbd> | <kbd>⌘+Shift+F</kbd> | Toggle terminal freeze (stop rendering) |
 | <kbd>Ctrl+C</kbd> | <kbd>⌘+C</kbd> | Copy selected text (when text is selected) |
 | <kbd>Ctrl+V</kbd> | <kbd>⌘+V</kbd> | Paste from clipboard |
 
@@ -55,6 +57,7 @@ Double-click any terminal tab to rename it. Press <kbd>Enter</kbd> to confirm or
 | <kbd>Ctrl+Shift+G</kbd> | <kbd>⌘+Shift+G</kbd> | Toggle GitHub panel |
 | <kbd>Ctrl+Shift+Y</kbd> | <kbd>⌘+Shift+Y</kbd> | Toggle Pipeline panel |
 | <kbd>Ctrl+Shift+L</kbd> | <kbd>⌘+Shift+L</kbd> | Toggle Prompt Library panel |
+| <kbd>Ctrl+Shift+U</kbd> | <kbd>⌘+Shift+U</kbd> | Toggle System Activity panel |
 | <kbd>Ctrl+/</kbd> | <kbd>⌘+/</kbd> | Open Command Palette |
 | <kbd>Ctrl+Shift+P</kbd> | <kbd>⌘+Shift+P</kbd> | Open Command Palette (alternate) |
 

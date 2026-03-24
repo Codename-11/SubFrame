@@ -23,6 +23,10 @@ The terminal is the heart of SubFrame. You can run multiple terminal sessions si
 
 **Pop-Out Windows** — Detach any terminal to a separate window with `Ctrl+Shift+D` for multi-monitor workflows. Pop-out terminals are fully functional with independent resize handling.
 
+**Terminal Freeze & Restart** — Freeze terminal rendering with `Ctrl+Shift+F` to stop output while keeping the process running (useful for long-running builds). Restart the shell process with `Ctrl+Shift+R` to pick up PATH changes or recover from TUI stalls without losing the terminal tab.
+
+**TUI Stall Recovery** — SubFrame automatically detects when a Terminal User Interface (TUI) becomes unresponsive and offers a one-click recovery option to reset the PTY state.
+
 **File Path Links** — `Ctrl+click` on file paths printed in terminal output to open them directly in the built-in editor.
 
 ::: tip Quick Access

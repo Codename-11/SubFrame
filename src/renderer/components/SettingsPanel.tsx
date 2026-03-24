@@ -115,6 +115,8 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Font Size', 'Font Family', 'Line Height', 'Scrollback Lines',
     'Cursor Style', 'Cursor Blink', 'Default Shell', 'Bell Sound',
     'Copy on Select', 'Max Terminals', 'Font', 'Display', 'Behavior', 'Nerd Font',
+    'Restore on Startup', 'Restore Scrollback', 'Auto-resume Agent', 'Persistence',
+    'Session Recovery', 'Resume Agent',
   ],
   editor: [
     'Font Size', 'Font Family', 'Tab Size', 'Theme',
@@ -378,6 +380,9 @@ export function SettingsPanel() {
   const [availableShells, setAvailableShells] = useState<ShellInfo[]>([]);
   const [bellSound, setBellSound] = useState(false);
   const [copyOnSelect, setCopyOnSelect] = useState(false);
+  const [restoreOnStartup, setRestoreOnStartup] = useState(true);
+  const [restoreScrollback, setRestoreScrollback] = useState(false);
+  const [autoResumeAgent, setAutoResumeAgent] = useState<'auto' | 'prompt' | 'never'>('prompt');
 
   // Editor settings
   const [editorFontSize, setEditorFontSize] = useState(12);
@@ -498,6 +503,9 @@ export function SettingsPanel() {
     setDefaultShell((terminal.defaultShell as string) || '');
     setBellSound((terminal.bellSound as boolean) || false);
     setCopyOnSelect((terminal.copyOnSelect as boolean) || false);
+    setRestoreOnStartup(terminal.restoreOnStartup !== false);
+    setRestoreScrollback(terminal.restoreScrollback === true);
+    setAutoResumeAgent((terminal.autoResumeAgent as 'auto' | 'prompt' | 'never') || 'prompt');
 
     const editor = (settings.editor as Record<string, unknown>) || {};
     setEditorFontSize((editor.fontSize as number) || 12);
@@ -607,6 +615,9 @@ export function SettingsPanel() {
     updateSetting.mutate([{ key: 'terminal.bellSound', value: bellSound }]);
     updateSetting.mutate([{ key: 'terminal.copyOnSelect', value: copyOnSelect }]);
     updateSetting.mutate([{ key: 'terminal.maxTerminals', value: maxTerminals }]);
+    updateSetting.mutate([{ key: 'terminal.restoreOnStartup', value: restoreOnStartup }]);
+    updateSetting.mutate([{ key: 'terminal.restoreScrollback', value: restoreScrollback }]);
+    updateSetting.mutate([{ key: 'terminal.autoResumeAgent', value: autoResumeAgent }]);
     toast.success('Terminal settings saved');
   }
 
@@ -1610,6 +1621,41 @@ export function SettingsPanel() {
                         min={1}
                         max={20}
                         step={1}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
+
+                {/* Persistence group */}
+                {(matchesSearch('Restore on Startup') || matchesSearch('Restore Scrollback') || matchesSearch('Auto-resume Agent') || matchesSearch('Persistence')) && (
+                  <SettingGroup label="Persistence">
+                    {matchesSearch('Restore on Startup') && (
+                      <SettingToggle
+                        label="Restore on Startup"
+                        description="Reopen terminals that were open when SubFrame closed"
+                        value={restoreOnStartup}
+                        onChange={setRestoreOnStartup}
+                      />
+                    )}
+                    {matchesSearch('Restore Scrollback') && (
+                      <SettingToggle
+                        label="Restore Scrollback"
+                        description="Restore terminal scrollback history (may increase memory usage)"
+                        value={restoreScrollback}
+                        onChange={setRestoreScrollback}
+                      />
+                    )}
+                    {matchesSearch('Auto-resume Agent') && (
+                      <SettingSelect
+                        label="Auto-resume Agent"
+                        description="Behavior when reopening a terminal that had an active agent"
+                        value={autoResumeAgent}
+                        onChange={(v) => setAutoResumeAgent(v as 'auto' | 'prompt' | 'never')}
+                        options={[
+                          { value: 'auto', label: 'Auto (Resume immediately)' },
+                          { value: 'prompt', label: 'Prompt (Ask to resume)' },
+                          { value: 'never', label: 'Never (Start fresh)' },
+                        ]}
                       />
                     )}
                   </SettingGroup>

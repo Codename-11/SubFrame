@@ -11,7 +11,9 @@ Open the Settings panel with <kbd>Ctrl</kbd>+<kbd>,</kbd> (or from the menu). It
 - **Terminal** -- font size, scrollback buffer, tab auto-rename
 - **Editor** -- minimap, word wrap, font size, theme selection
 - **Appearance** -- theme presets, custom themes, color pickers, feature toggles
-- **Updater** -- auto-update checks, update channels, check intervals
+- **Hooks** -- Claude Code event hooks, script generation, templates
+- **Integrations** -- Local API Server, DTSP, SubFrame Server (web/remote)
+- **Updates** -- auto-update checks, update channels, check intervals
 - **About** -- version info, license, links, changelog
 
 Changes take effect immediately and are persisted to disk.
