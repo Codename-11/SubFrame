@@ -6,7 +6,7 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowDown, ArrowDownToLine, ArrowUp, Copy, ClipboardPaste, MousePointerClick, Trash2, Search, X, MessageSquare, Pause } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowDownToLine, ArrowUp, Copy, ClipboardPaste, MousePointerClick, Trash2, Search, X, MessageSquare, Pause } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -15,7 +15,7 @@ import {
   ContextMenuTrigger,
 } from './ui/context-menu';
 import { useTerminal } from '../hooks/useTerminal';
-import { typedSend } from '../lib/ipc';
+import { typedSend, typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { useSettings } from '../hooks/useSettings';
 import { useTerminalStore } from '../stores/useTerminalStore';
@@ -82,6 +82,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const claudeActive = useTerminalStore((s) => s.terminals.get(terminalId)?.claudeActive ?? false);
   const isFrozen = useTerminalStore((s) => s.frozenTerminals.has(terminalId));
   const unfreezeTerminal = useTerminalStore((s) => s.unfreezeTerminal);
+  const [stallInfo, setStallInfo] = useState<{ duration: number } | null>(null);
   const [userMessageCount, setUserMessageCount] = useState(0);
   const [hasMessageAbove, setHasMessageAbove] = useState(false);
   const [hasMessageBelow, setHasMessageBelow] = useState(false);
@@ -116,6 +117,20 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       unsub();
       if (outputFlushTimer) clearTimeout(outputFlushTimer);
     };
+  }, [terminalId]);
+
+  // TUI stall detection listeners (experimental recovery feature)
+  useEffect(() => {
+    const handleStall = (_event: unknown, data: { terminalId: string; stallDurationMs: number }) => {
+      if (data.terminalId === terminalId) setStallInfo({ duration: data.stallDurationMs });
+    };
+    const handleClear = (_event: unknown, data: { terminalId: string }) => {
+      if (data.terminalId === terminalId) setStallInfo(null);
+    };
+    const transport = getTransport();
+    const unsub1 = transport.on(IPC.TERMINAL_STALL_DETECTED, handleStall);
+    const unsub2 = transport.on(IPC.TERMINAL_STALL_CLEARED, handleClear);
+    return () => { unsub1(); unsub2(); };
   }, [terminalId]);
 
   // Persist activity timestamp in registry — survives component remount during workspace switch.
@@ -702,6 +717,48 @@ export function Terminal({ terminalId, className }: TerminalProps) {
                 >
                   Resume
                 </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* TUI Stall Recovery Overlay */}
+          <AnimatePresence>
+            {stallInfo && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2.5
+                           bg-warning/10 border border-warning/40 rounded-lg shadow-lg backdrop-blur-sm"
+              >
+                <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs font-medium text-warning">
+                    Terminal stalled for {Math.round(stallInfo.duration / 1000)}s
+                  </span>
+                  <span className="text-[10px] text-text-muted">Claude appears unresponsive</span>
+                </div>
+                <div className="flex items-center gap-1.5 ml-2">
+                  <button
+                    onClick={() => { typedInvoke(IPC.TERMINAL_STALL_RECOVER, { terminalId, action: 'sigwinch' }); setStallInfo(null); }}
+                    className="px-2 py-1 text-[10px] font-medium bg-accent/15 text-accent border border-accent/30 rounded hover:bg-accent/25 transition-colors cursor-pointer"
+                  >
+                    Resize Signal
+                  </button>
+                  <button
+                    onClick={() => { typedInvoke(IPC.TERMINAL_STALL_RECOVER, { terminalId, action: 'ctrl-c' }); setStallInfo(null); }}
+                    className="px-2 py-1 text-[10px] font-medium bg-error/15 text-error border border-error/30 rounded hover:bg-error/25 transition-colors cursor-pointer"
+                  >
+                    Ctrl+C
+                  </button>
+                  <button
+                    onClick={() => setStallInfo(null)}
+                    className="px-2 py-1 text-[10px] text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

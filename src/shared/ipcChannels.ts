@@ -88,6 +88,9 @@ export const IPC = {
   SAVE_TERMINAL_SCROLLBACK: 'save-terminal-scrollback',
   LOAD_TERMINAL_SCROLLBACK: 'load-terminal-scrollback',
   USER_MESSAGE_SIGNAL: 'user-message-signal',
+  TERMINAL_STALL_DETECTED: 'terminal-stall-detected',
+  TERMINAL_STALL_CLEARED: 'terminal-stall-cleared',
+  TERMINAL_STALL_RECOVER: 'terminal-stall-recover',
 
   // Tasks Panel
   LOAD_TASKS: 'load-tasks',
@@ -278,6 +281,12 @@ export const IPC = {
   CLI_OPEN_PROJECT: 'cli-open-project',
   INSTALL_CLI: 'install-cli',
   UNINSTALL_CLI: 'uninstall-cli',
+  CHECK_CLI_STATUS: 'check-cli-status',
+
+  // Windows Context Menu
+  INSTALL_CONTEXT_MENU: 'install-context-menu',
+  UNINSTALL_CONTEXT_MENU: 'uninstall-context-menu',
+  CHECK_CONTEXT_MENU: 'check-context-menu',
 
   // Graceful Shutdown
   GRACEFUL_SHUTDOWN_REQUEST: 'graceful-shutdown-request',
@@ -1282,6 +1291,9 @@ export interface IPCHandleMap {
   [IPC.SAVE_TERMINAL_SCROLLBACK]: { args: [payload: { projectPath: string; terminalId: string; lines: string[] }]; return: { success: boolean } };
   [IPC.LOAD_TERMINAL_SCROLLBACK]: { args: [payload: { projectPath: string; terminalId: string }]; return: { lines: string[] } };
 
+  // Terminal Stall Recovery
+  [IPC.TERMINAL_STALL_RECOVER]: { args: [payload: { terminalId: string; action: 'sigwinch' | 'ctrl-c' | 'sigcont' }]; return: { success: boolean } };
+
   // Skills
   [IPC.LOAD_SKILLS]: { args: [projectPath: string]; return: SkillInfo[] };
 
@@ -1361,6 +1373,24 @@ export interface IPCHandleMap {
   [IPC.UNINSTALL_CLI]: {
     args: [];
     return: { success: boolean; message: string };
+  };
+  [IPC.CHECK_CLI_STATUS]: {
+    args: [];
+    return: { installed: boolean; inPath: boolean; path: string | null };
+  };
+
+  // Windows Context Menu
+  [IPC.INSTALL_CONTEXT_MENU]: {
+    args: [];
+    return: { success: boolean; message: string };
+  };
+  [IPC.UNINSTALL_CONTEXT_MENU]: {
+    args: [];
+    return: { success: boolean; message: string };
+  };
+  [IPC.CHECK_CONTEXT_MENU]: {
+    args: [];
+    return: { installed: boolean };
   };
 }
 
@@ -1517,6 +1547,10 @@ export interface IPCEventMap {
   // Agent State
   [IPC.AGENT_STATE_DATA]: AgentStatePayload;
   [IPC.USER_MESSAGE_SIGNAL]: { terminalId: string; timestamp: string; promptPreview?: string };
+
+  // Terminal Stall Recovery
+  [IPC.TERMINAL_STALL_DETECTED]: { terminalId: string; stallDurationMs: number };
+  [IPC.TERMINAL_STALL_CLEARED]: { terminalId: string };
 
   // Onboarding
   [IPC.ONBOARDING_PROGRESS]: OnboardingProgressEvent;

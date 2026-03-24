@@ -300,6 +300,13 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
     }
   }
 
+  // Tune scroll sensitivity for large scrollbacks to reduce jank
+  const scrollback = options?.scrollback ?? 10000;
+  if (scrollback > 5000) {
+    terminal.options.fastScrollSensitivity = 5;
+    terminal.options.scrollSensitivity = 3;
+  }
+
   // Persistent IPC output listener — keeps scrollback alive even when not visible
   // Uses writeOrBuffer to support freeze/unfreeze — when frozen, output is buffered
   // and flushed on unfreeze instead of being written directly to the terminal.
