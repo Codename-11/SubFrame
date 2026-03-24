@@ -717,6 +717,18 @@ export function TerminalArea() {
         return;
       }
 
+      // Ctrl+Shift+R — Restart terminal shell
+      if (modKey && e.shiftKey && key === 'r') {
+        e.preventDefault();
+        if (activeTerminalId) {
+          typedInvoke(IPC.TERMINAL_RESTART, activeTerminalId).then((r) => {
+            if (r.success) toast.success('Shell restarted');
+            else toast.error(r.error || 'Failed to restart shell');
+          }).catch(() => toast.error('Failed to restart shell'));
+        }
+        return;
+      }
+
       // Ctrl+Shift+F — Freeze/resume terminal output
       if (modKey && e.shiftKey && key === 'f') {
         e.preventDefault();

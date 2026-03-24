@@ -21,6 +21,7 @@ import {
   PinOff,
   Pause,
   Play,
+  RotateCcw,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -451,6 +452,16 @@ export function TerminalTabBar({
                       Freeze Output
                     </ContextMenuItem>
                   )}
+                  <ContextMenuItem onClick={async () => {
+                    try {
+                      const result = await typedInvoke(IPC.TERMINAL_RESTART, t.id);
+                      if (result.success) toast.success('Shell restarted');
+                      else toast.error(result.error || 'Failed to restart shell');
+                    } catch { toast.error('Failed to restart shell'); }
+                  }}>
+                    <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                    Restart Shell
+                  </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem onClick={() => onCloseTerminal(t.id)}>
                     Close

@@ -73,6 +73,7 @@ export type ShortcutId =
   | 'TOGGLE_GRID'
   | 'POPOUT_TERMINAL'
   | 'FREEZE_TERMINAL'
+  | 'RESTART_SHELL'
   | 'SEARCH_TERMINAL'
   // Views (full-view overlays)
   | 'VIEW_OVERVIEW'
@@ -134,6 +135,7 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutEntry> = {
   TOGGLE_GRID:         { keys: 'Ctrl+G',        description: 'Toggle grid view',     category: 'Terminal' },
   POPOUT_TERMINAL:     { keys: 'Ctrl+Shift+D',  description: 'Pop out terminal',     category: 'Terminal' },
   FREEZE_TERMINAL:     { keys: 'Ctrl+Shift+F',  description: 'Freeze/resume output', category: 'Terminal' },
+  RESTART_SHELL:       { keys: 'Ctrl+Shift+R',  description: 'Restart terminal shell', category: 'Terminal' },
   SEARCH_TERMINAL:     { keys: 'Ctrl+F',        description: 'Search in terminal',   category: 'Terminal' },
 
   // ── Views (full-view overlays) ────────────────────

@@ -91,6 +91,7 @@ export const IPC = {
   TERMINAL_STALL_DETECTED: 'terminal-stall-detected',
   TERMINAL_STALL_CLEARED: 'terminal-stall-cleared',
   TERMINAL_STALL_RECOVER: 'terminal-stall-recover',
+  TERMINAL_RESTART: 'terminal-restart-shell',
 
   // Tasks Panel
   LOAD_TASKS: 'load-tasks',
@@ -1293,6 +1294,9 @@ export interface IPCHandleMap {
 
   // Terminal Stall Recovery
   [IPC.TERMINAL_STALL_RECOVER]: { args: [payload: { terminalId: string; action: 'sigwinch' | 'ctrl-c' | 'sigcont' }]; return: { success: boolean } };
+
+  // Terminal Shell Restart
+  [IPC.TERMINAL_RESTART]: { args: [terminalId: string]; return: { success: boolean; error?: string } };
 
   // Skills
   [IPC.LOAD_SKILLS]: { args: [projectPath: string]; return: SkillInfo[] };

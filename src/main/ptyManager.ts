@@ -496,17 +496,7 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
   const shell = shellPath || configuredShell || getDefaultShell();
 
   // Determine shell arguments based on shell type
-  let shellArgs: string[] = [];
-  if (process.platform !== 'win32') {
-    const shellName = shell.split('/').pop();
-    if (shellName === 'fish') {
-      shellArgs = ['-i'];
-    } else if (shellName === 'nu') {
-      shellArgs = ['-l'];
-    } else {
-      shellArgs = ['-i', '-l'];
-    }
-  }
+  const shellArgs = getShellArgs(shell);
 
   const isWindows = process.platform === 'win32';
   const ptyProcess = pty.spawn(shell, shellArgs, {
@@ -583,6 +573,119 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
   console.log(`Created terminal ${terminalId} in ${cwd} (shell: ${shell}, project: ${projectPath || 'global'})`);
 
   return terminalId;
+}
+
+/**
+ * Get shell arguments based on shell type (reusable helper).
+ */
+function getShellArgs(shell: string): string[] {
+  if (process.platform !== 'win32') {
+    const shellName = shell.split('/').pop();
+    if (shellName === 'fish') return ['-i'];
+    if (shellName === 'nu') return ['-l'];
+    return ['-i', '-l'];
+  }
+  return [];
+}
+
+/**
+ * Restart a terminal's shell process in-place.
+ * The terminal ID stays the same — only the PTY process is replaced.
+ * The renderer xterm instance keeps running; it receives output from the new PTY.
+ */
+function restartTerminal(terminalId: string): { success: boolean; error?: string } {
+  const instance = ptyInstances.get(terminalId);
+  if (!instance) return { success: false, error: 'Terminal not found' };
+
+  const { cwd, shell, projectPath } = instance;
+  const oldCols = instance.pty.cols;
+  const oldRows = instance.pty.rows;
+
+  // Kill the old PTY
+  try { instance.pty.kill(); } catch { /* ignore */ }
+
+  // Clean up detection state
+  CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+  claudeActiveFlags.delete(terminalId);
+  const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+  if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
+  terminalSessionMap.delete(terminalId);
+
+  // Spawn new PTY with fresh environment
+  const newShellArgs = getShellArgs(shell);
+  const isWindows = process.platform === 'win32';
+  const newPty = pty.spawn(shell, newShellArgs, {
+    name: 'xterm-256color',
+    cols: oldCols,
+    rows: oldRows,
+    cwd: cwd,
+    ...(isWindows ? { useConpty: true, conptyInheritCursor: true } : {}),
+    env: {
+      ...process.env,  // FRESH env — picks up PATH changes
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      TERM_PROGRAM: 'SubFrame',
+      TERM_PROGRAM_VERSION: require('../../package.json').version,
+      SUBFRAME_TERMINAL_ID: terminalId,
+    } as Record<string, string>
+  });
+
+  // Reconnect output handler
+  newPty.onData((data: string) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      broadcast(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
+    }
+    detectClaudeOutput(terminalId, data);
+    // Update last output timestamp for stall detection
+    const instForStall = ptyInstances.get(terminalId);
+    if (instForStall) {
+      instForStall.lastOutputTimestamp = Date.now();
+      if (instForStall.claudeActive && mainWindow && !mainWindow.isDestroyed()) {
+        broadcast(IPC.TERMINAL_STALL_CLEARED, { terminalId });
+      }
+    }
+    // Track working directory changes via OSC 7
+    const osc7Path = parseOSC7(data);
+    if (osc7Path) {
+      const inst = ptyInstances.get(terminalId);
+      if (inst) inst.cwd = osc7Path;
+    }
+    // Accumulate output if this terminal is being captured
+    const captureBuf = captureBuffers.get(terminalId);
+    if (captureBuf) captureBuf.push(data);
+    // Invoke per-terminal output handlers if registered
+    const handlers = outputHandlers.get(terminalId);
+    if (handlers) handlers.forEach(handler => handler(data));
+  });
+
+  // Reconnect exit handler
+  newPty.onExit(({ exitCode }) => {
+    console.log(`Terminal ${terminalId} exited:`, exitCode);
+    ptyInstances.delete(terminalId);
+    CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+    captureBuffers.delete(terminalId);
+    outputHandlers.delete(terminalId);
+    terminalSessionMap.delete(terminalId);
+    claudeActiveFlags.delete(terminalId);
+    const t = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+    if (t) { clearTimeout(t); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      broadcast(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
+    }
+    const popoutWC = popoutWebContents.get(terminalId);
+    if (popoutWC && !popoutWC.isDestroyed()) {
+      popoutWC.send(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
+    }
+    popoutWebContents.delete(terminalId);
+  });
+
+  // Update the instance in-place
+  instance.pty = newPty;
+  instance.claudeActive = false;
+  instance.lastOutputTimestamp = Date.now();
+
+  console.log(`Restarted terminal ${terminalId} shell (${shell}) in ${cwd}`);
+  return { success: true };
 }
 
 /**
@@ -837,6 +940,11 @@ function setupIPC(ipcMain: IpcMain): void {
       return { success: false };
     }
   });
+
+  // Restart terminal shell (kills old PTY, spawns new one with fresh env)
+  ipcMain.handle(IPC.TERMINAL_RESTART, async (_event, terminalId: string) => {
+    return restartTerminal(terminalId);
+  });
 }
 
 // ─── Output Capture API ──────────────────────────────────────────────────────
@@ -887,7 +995,7 @@ function removeOutputHandler(terminalId: string, handlerId?: string): void {
 }
 
 export {
-  init, createTerminal, writeToTerminal, resizeTerminal,
+  init, createTerminal, restartTerminal, writeToTerminal, resizeTerminal,
   destroyTerminal, destroyAll, getTerminalCount, getTerminalIds,
   hasTerminal, isClaudeActive, getTerminalsByProject, getTerminalInfo,
   getAvailableShells, setupIPC, waitForExit,
