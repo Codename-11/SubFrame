@@ -320,7 +320,7 @@ export function TerminalTabBar({
                       )}
                       {/* Frozen indicator */}
                       {frozenTerminals.has(t.id) && (
-                        <Pause className="h-2.5 w-2.5 text-info flex-shrink-0" title="Output frozen" />
+                        <span title="Output frozen"><Pause className="h-2.5 w-2.5 text-info flex-shrink-0" /></span>
                       )}
                       {/* Agent active indicator */}
                       {t.claudeActive && (

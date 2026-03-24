@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SubFrame</title>
+  <meta name="theme-color" content="#0f0f10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/icon-256.png">
+  <link rel="stylesheet" href="/dist/renderer.css" />
+  <link rel="stylesheet" href="/node_modules/xterm/css/xterm.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #0f0f10;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="/dist/web-renderer.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+          // Service worker registration failed — app works without it
+        });
+      });
+    }
+  </script>
+</body>
+</html>

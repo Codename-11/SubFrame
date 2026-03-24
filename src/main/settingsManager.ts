@@ -71,6 +71,11 @@ interface DefaultSettings {
       createdAt?: string;
     }>;
   };
+  experimental: {
+    tuiRecovery: boolean;
+    tuiRecoveryThreshold: number;
+    tuiRecoveryMode: 'manual' | 'auto';
+  };
   [key: string]: unknown;
 }
 
@@ -127,6 +132,11 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   appearance: {
     activeThemeId: 'classic-amber',
     customThemes: [],
+  },
+  experimental: {
+    tuiRecovery: false,
+    tuiRecoveryThreshold: 15,
+    tuiRecoveryMode: 'manual',
   },
 };
 
