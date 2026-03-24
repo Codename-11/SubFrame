@@ -20,6 +20,7 @@ interface PTYInstance {
   projectPath: string | null;
   claudeActive: boolean;
   shell: string;
+  lastOutputTimestamp: number;
 }
 
 // ── Pop-out Window WebContents ────────────────────────────────────────────────
@@ -84,6 +85,9 @@ const claudeActiveFlags = new Map<string, boolean>();
 
 /** Handle for periodic stale-session check interval (cancellable) */
 let staleSessionTimer: ReturnType<typeof setInterval> | null = null;
+
+/** Handle for periodic TUI stall check interval (cancellable) */
+let stallCheckTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Shell prompt patterns — when one of these appears as the last line of output
@@ -353,6 +357,31 @@ function init(window: BrowserWindow): void {
       } catch { /* ignore read errors */ }
     }
   }, 3000);
+
+  // Periodic TUI stall check (every 2 seconds) — experimental feature
+  stallCheckTimer = setInterval(() => {
+    const enabled = getSetting('experimental.tuiRecovery');
+    if (!enabled) return;
+
+    const threshold = ((getSetting('experimental.tuiRecoveryThreshold') as number) || 15) * 1000;
+    const now = Date.now();
+
+    for (const [terminalId, instance] of ptyInstances) {
+      if (!instance.claudeActive) continue;
+      const stallDuration = now - instance.lastOutputTimestamp;
+      if (stallDuration > threshold) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          broadcast(IPC.TERMINAL_STALL_DETECTED, { terminalId, stallDurationMs: stallDuration });
+        }
+
+        // Auto-recovery mode: send SIGWINCH automatically
+        const mode = getSetting('experimental.tuiRecoveryMode');
+        if (mode === 'auto') {
+          try { instance.pty.resize(instance.pty.cols, instance.pty.rows); } catch { /* ignore */ }
+        }
+      }
+    }
+  }, 2000);
 }
 
 /**
@@ -497,6 +526,15 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
       mainWindow.webContents.send(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
     }
     detectClaudeOutput(terminalId, data);
+    // Update last output timestamp for stall detection
+    const instForStall = ptyInstances.get(terminalId);
+    if (instForStall) {
+      instForStall.lastOutputTimestamp = Date.now();
+      // If this terminal was flagged as stalled, clear it
+      if (instForStall.claudeActive && mainWindow && !mainWindow.isDestroyed()) {
+        broadcast(IPC.TERMINAL_STALL_CLEARED, { terminalId });
+      }
+    }
     // Track working directory changes via OSC 7 escape sequences
     const osc7Path = parseOSC7(data);
     if (osc7Path) {
@@ -534,7 +572,7 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
     popoutWebContents.delete(terminalId);
   });
 
-  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false, shell });
+  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false, shell, lastOutputTimestamp: Date.now() });
   console.log(`Created terminal ${terminalId} in ${cwd} (shell: ${shell}, project: ${projectPath || 'global'})`);
 
   return terminalId;
@@ -622,6 +660,7 @@ function destroyAll(): void {
   for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
   CLAUDE_TIMEOUT_HANDLES.clear();
   if (staleSessionTimer) { clearInterval(staleSessionTimer); staleSessionTimer = null; }
+  if (stallCheckTimer) { clearInterval(stallCheckTimer); stallCheckTimer = null; }
 }
 
 /**
@@ -771,6 +810,24 @@ function setupIPC(ipcMain: IpcMain): void {
       return { lines: content.split('\n') };
     } catch {
       return { lines: [] };
+    }
+  });
+
+  // TUI stall recovery actions (experimental)
+  ipcMain.handle(IPC.TERMINAL_STALL_RECOVER, (_event, { terminalId, action }: { terminalId: string; action: string }) => {
+    const instance = ptyInstances.get(terminalId);
+    if (!instance) return { success: false };
+    try {
+      if (action === 'sigwinch') {
+        instance.pty.resize(instance.pty.cols, instance.pty.rows);
+      } else if (action === 'ctrl-c') {
+        instance.pty.write('\x03');
+      } else if (action === 'sigcont') {
+        instance.pty.kill('SIGCONT');
+      }
+      return { success: true };
+    } catch {
+      return { success: false };
     }
   });
 }
