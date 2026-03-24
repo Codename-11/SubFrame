@@ -13,7 +13,7 @@ import {
   Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
   Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search, Globe,
   Zap, ChevronDown, ChevronRight, Pencil, Wand2, Play, Shield, FileCode, Bell,
-  Monitor, Wifi, Copy, QrCode,
+  Monitor, Wifi, Copy, QrCode, AlertTriangle,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -40,6 +40,29 @@ import { getTransport } from '../lib/transportProvider';
 const APP_VERSION = require('../../../package.json').version;
 
 const BUILTIN_TOOL_IDS = new Set(['claude', 'codex', 'gemini']);
+
+/** Known flag chips per AI tool. Each flag has a key, display label, the actual CLI flag, and whether it's dangerous. */
+interface ToolFlag {
+  key: string;
+  label: string;
+  flag: string;
+  dangerous?: boolean;
+  description?: string;
+}
+
+const TOOL_FLAGS: Record<string, ToolFlag[]> = {
+  claude: [
+    { key: 'dangerously-skip-permissions', label: 'YOLO Mode', flag: '--dangerously-skip-permissions', dangerous: true, description: 'Skips all permission prompts' },
+    { key: 'verbose', label: 'Verbose', flag: '--verbose', description: 'Enable verbose output' },
+  ],
+  codex: [
+    { key: 'full-auto', label: 'Full Auto', flag: '--approval-mode full-auto', dangerous: true, description: 'Auto-approve all actions' },
+    { key: 'auto-edit', label: 'Auto Edit', flag: '--approval-mode auto-edit', description: 'Auto-approve file edits only' },
+  ],
+  gemini: [
+    { key: 'sandbox', label: 'Sandbox', flag: '--sandbox', description: 'Run in sandbox mode' },
+  ],
+};
 
 const DEFAULT_FONT = "'JetBrainsMono Nerd Font', 'CaskaydiaCove Nerd Font', 'FiraCode Nerd Font', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace";
 
@@ -99,8 +122,8 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Font', 'Display',
   ],
   'ai-tool': [
-    'Active Tool', 'Start Command', 'Custom Tools',
-    'Add custom AI tools',
+    'AI Tools', 'Start Command', 'Custom Tools',
+    'Add custom AI tools', 'Dangerous Mode', 'YOLO Mode',
   ],
   hooks: [
     'Hooks', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop',
@@ -341,7 +364,6 @@ export function SettingsPanel() {
   // Local form state
   const [activeTab, setActiveTab] = useState('appearance');
   const [searchQuery, setSearchQuery] = useState('');
-  const [aiCommand, setAiCommand] = useState('');
   const [fontSize, setFontSize] = useState(14);
   const [scrollback, setScrollback] = useState(10000);
   const [maxTerminals, setMaxTerminals] = useState(9);
@@ -382,6 +404,11 @@ export function SettingsPanel() {
   const [newToolName, setNewToolName] = useState('');
   const [newToolCommand, setNewToolCommand] = useState('');
   const [newToolDescription, setNewToolDescription] = useState('');
+
+  // Per-tool flag state: { toolId: { flagKey: boolean } }
+  const [toolFlags, setToolFlags] = useState<Record<string, Record<string, boolean>>>({});
+  // Per-tool custom args: { toolId: string }
+  const [toolCustomArgs, setToolCustomArgs] = useState<Record<string, string>>({});
 
   // Hooks state
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
@@ -492,11 +519,33 @@ export function SettingsPanel() {
     setCustomTokenOverrides({});
 
     if (aiToolConfig) {
-      const activeTool = aiToolConfig.activeTool;
       const aiTools = (settings.aiTools as Record<string, Record<string, unknown>>) || {};
-      const toolSettings = aiTools[activeTool.id] || {};
-      const customCmd = (toolSettings.customCommand as string) || '';
-      setAiCommand(customCmd || activeTool.command);
+      // Parse per-tool flags and custom args from saved custom commands
+      const newFlags: Record<string, Record<string, boolean>> = {};
+      const newCustomArgs: Record<string, string> = {};
+      for (const tool of Object.values(aiToolConfig.availableTools)) {
+        const toolSettings = aiTools[tool.id] || {};
+        const customCmd = (toolSettings.customCommand as string) || '';
+        const knownFlags = TOOL_FLAGS[tool.id] || [];
+        const parsedFlags: Record<string, boolean> = {};
+        let remaining = customCmd;
+        // Strip the base command if it starts with it
+        if (remaining.startsWith(tool.command)) {
+          remaining = remaining.slice(tool.command.length).trim();
+        }
+        for (const f of knownFlags) {
+          if (remaining.includes(f.flag)) {
+            parsedFlags[f.key] = true;
+            remaining = remaining.replace(f.flag, '').trim();
+          } else {
+            parsedFlags[f.key] = false;
+          }
+        }
+        newFlags[tool.id] = parsedFlags;
+        newCustomArgs[tool.id] = remaining.replace(/\s+/g, ' ').trim();
+      }
+      setToolFlags(newFlags);
+      setToolCustomArgs(newCustomArgs);
     }
   }, [settings, aiToolConfig]);
 
@@ -525,10 +574,25 @@ export function SettingsPanel() {
     updateSetting.mutate([{ key, value }]);
   }
 
-  function saveAiCommand() {
-    if (!aiToolConfig) return;
-    const toolId = aiToolConfig.activeTool.id;
-    updateSetting.mutate([{ key: `aiTools.${toolId}.customCommand`, value: aiCommand.trim() }]);
+  /** Compose the full command for a tool from its base command, toggled flags, and custom args. */
+  function composeToolCommand(toolId: string, baseCommand: string): string {
+    const flags = toolFlags[toolId] || {};
+    const knownFlags = TOOL_FLAGS[toolId] || [];
+    const customArgs = (toolCustomArgs[toolId] || '').trim();
+    const parts = [baseCommand];
+    for (const f of knownFlags) {
+      if (flags[f.key]) parts.push(f.flag);
+    }
+    if (customArgs) parts.push(customArgs);
+    return parts.join(' ');
+  }
+
+  /** Save composed command for a specific tool. */
+  function saveToolCommand(toolId: string, baseCommand: string) {
+    const composed = composeToolCommand(toolId, baseCommand);
+    // Only store a custom command if it differs from the bare base command
+    const value = composed === baseCommand ? '' : composed;
+    updateSetting.mutate([{ key: `aiTools.${toolId}.customCommand`, value }]);
     toast.success('Start command saved');
   }
 
@@ -1653,42 +1717,11 @@ export function SettingsPanel() {
             {/* ===== AI Tool ===== */}
             {activeTab === 'ai-tool' && (
               <>
-                {matchesSearch('Active Tool') && (
-                  <div data-setting-label="Active Tool">
-                    <div className="text-sm text-text-primary mb-1">Active Tool</div>
-                    <select
-                      value={aiToolConfig?.activeTool.id || 'claude'}
-                      onChange={async (e) => {
-                        try {
-                          await setAITool.mutateAsync([e.target.value]);
-                          toast.success('Active tool updated');
-                        } catch {
-                          toast.error('Failed to update active tool');
-                        }
-                      }}
-                      className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
-                    >
-                      {aiToolConfig && Object.values(aiToolConfig.availableTools).map((tool) => (
-                        <option key={tool.id} value={tool.id}>
-                          {tool.name}{tool.installed === false ? ' (not installed)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="text-xs text-text-tertiary mt-1 flex items-center gap-1.5">
-                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${aiToolConfig?.activeTool.installed === false ? 'bg-error' : 'bg-success'}`} />
-                      {aiToolConfig?.activeTool.installed === false
-                        ? <span className="text-error">
-                            Not installed
-                            {aiToolConfig.activeTool.installUrl && (
-                              <> — <a
-                                href="#"
-                                className="underline hover:text-accent"
-                                onClick={(e) => { e.preventDefault(); getTransport().platform.openExternal(aiToolConfig.activeTool.installUrl!); }}
-                              >view install guide</a></>
-                            )}
-                          </span>
-                        : <span>{aiToolConfig?.activeTool.description || ''}</span>
-                      }
+                {/* All Tools — shown as cards */}
+                {matchesSearch('AI Tools') && (
+                  <div data-setting-label="AI Tools">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm text-text-primary">AI Tools</div>
                       <button
                         onClick={async () => {
                           setRecheckingTools(true);
@@ -1703,98 +1736,236 @@ export function SettingsPanel() {
                           }
                         }}
                         disabled={recheckingTools}
-                        className="ml-auto text-text-muted hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
-                        title="Recheck install status"
+                        className="text-text-muted hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1 text-xs"
+                        title="Recheck install status for all tools"
                       >
                         <RefreshCw className={`w-3 h-3 ${recheckingTools ? 'animate-spin' : ''}`} />
+                        Recheck
                       </button>
                     </div>
-                  </div>
-                )}
-
-                {matchesSearch('Start Command') && (
-                  <div data-setting-label="Start Command">
-                    <SettingInput
-                      label="Start Command"
-                      value={aiCommand}
-                      onChange={setAiCommand}
-                      placeholder={aiToolConfig?.activeTool.command || 'claude'}
-                    />
-                    <div className="text-xs text-text-tertiary mt-1">
-                      Default: <code className="text-text-secondary">{aiToolConfig?.activeTool.command || 'claude'}</code>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button size="sm" onClick={saveAiCommand} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
-                        Save
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          const defaultCmd = aiToolConfig?.activeTool.command || 'claude';
-                          setAiCommand(defaultCmd);
-                          if (aiToolConfig) {
-                            updateSetting.mutate([{ key: `aiTools.${aiToolConfig.activeTool.id}.customCommand`, value: '' }]);
-                          }
-                          toast.info('Reset to default command');
-                        }}
-                        className="cursor-pointer"
-                      >
-                        Reset to Default
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Custom Tools */}
-                {matchesSearch('Custom Tools') && (
-                  <div className="border-t border-border-subtle pt-4 mt-4" data-setting-label="Custom Tools">
-                    <div className="text-sm text-text-primary mb-2">Custom Tools</div>
                     <div className="text-xs text-text-tertiary mb-3">
-                      Add custom AI tools that appear in the sidebar and session dropdowns
+                      Click a tool to set it as active. All detected tools are shown below.
                     </div>
 
-                    {/* Existing custom tools list */}
-                    {aiToolConfig && (() => {
-                      const customTools = Object.values(aiToolConfig.availableTools).filter(
-                        (t) => !BUILTIN_TOOL_IDS.has(t.id)
-                      );
-                      if (customTools.length === 0) return (
-                        <div className="text-xs text-text-muted mb-3">No custom tools added yet</div>
-                      );
-                      return (
-                        <div className="space-y-1.5 mb-3">
-                          {customTools.map((tool) => (
-                            <div
-                              key={tool.id}
-                              className="flex items-center justify-between bg-bg-deep rounded-md px-2.5 py-1.5 border border-border-subtle"
+                    <div className="space-y-2">
+                      {aiToolConfig && Object.values(aiToolConfig.availableTools).map((tool) => {
+                        const isActive = aiToolConfig.activeTool.id === tool.id;
+                        const isCustom = !BUILTIN_TOOL_IDS.has(tool.id);
+                        const knownFlags = TOOL_FLAGS[tool.id] || [];
+                        const flags = toolFlags[tool.id] || {};
+                        const customArgs = toolCustomArgs[tool.id] || '';
+                        const composed = composeToolCommand(tool.id, tool.command);
+                        const hasDangerousFlag = knownFlags.some((f) => f.dangerous && flags[f.key]);
+
+                        return (
+                          <div
+                            key={tool.id}
+                            className={cn(
+                              'rounded-lg border p-3 transition-colors',
+                              isActive
+                                ? 'border-accent/60 bg-accent/5'
+                                : 'border-border-subtle bg-bg-secondary/50 hover:border-border-default',
+                            )}
+                          >
+                            {/* Card header: click to activate */}
+                            <button
+                              className="w-full flex items-center gap-3 text-left cursor-pointer"
+                              onClick={async () => {
+                                if (isActive) return;
+                                try {
+                                  await setAITool.mutateAsync([tool.id]);
+                                  toast.success(`Switched to ${tool.name}`);
+                                } catch {
+                                  toast.error('Failed to switch tool');
+                                }
+                              }}
                             >
-                              <div className="min-w-0 flex-1">
-                                <div className="text-sm text-text-primary truncate">{tool.name}</div>
-                                <div className="text-xs text-text-tertiary truncate">
-                                  <code>{tool.command}</code>
-                                  {tool.description && ` — ${tool.description}`}
+                              {/* Availability dot */}
+                              <span
+                                className={cn(
+                                  'inline-block w-2.5 h-2.5 rounded-full shrink-0 border',
+                                  tool.installed === false
+                                    ? 'bg-text-muted/40 border-text-muted/40'
+                                    : 'bg-success border-success',
+                                )}
+                                title={tool.installed === false ? 'Not found on PATH' : 'Available'}
+                              />
+
+                              {/* Name + description */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-text-primary truncate">{tool.name}</span>
+                                  {isActive && (
+                                    <span className="text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-accent/20 text-accent shrink-0">
+                                      Active
+                                    </span>
+                                  )}
+                                  {isCustom && (
+                                    <span className="text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-bg-tertiary text-text-tertiary shrink-0">
+                                      Custom
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-text-tertiary truncate mt-0.5">
+                                  {tool.installed === false
+                                    ? <span className="text-error">
+                                        Not installed
+                                        {tool.installUrl && (
+                                          <> — <a
+                                            href="#"
+                                            className="underline hover:text-accent"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); getTransport().platform.openExternal(tool.installUrl!); }}
+                                          >install guide</a></>
+                                        )}
+                                      </span>
+                                    : <span>{tool.description}</span>
+                                  }
                                 </div>
                               </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="cursor-pointer shrink-0 ml-2 text-text-muted hover:text-red-400"
-                                title={`Remove ${tool.name}`}
-                                onClick={() => {
-                                  removeCustomTool.mutate([tool.id]);
-                                  toast.success(`Removed ${tool.name}`);
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
 
-                    {/* Add custom tool form */}
+                              {/* Remove button for custom tools */}
+                              {isCustom && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="cursor-pointer shrink-0 text-text-muted hover:text-red-400"
+                                  title={`Remove ${tool.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeCustomTool.mutate([tool.id]);
+                                    toast.success(`Removed ${tool.name}`);
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </button>
+
+                            {/* Expanded details for active tool */}
+                            {isActive && (
+                              <div className="mt-3 pt-3 border-t border-border-subtle space-y-3">
+                                {/* Start command display */}
+                                <div data-setting-label="Start Command">
+                                  <div className="text-xs text-text-tertiary mb-1.5">Start Command</div>
+                                  {/* Base command (read-only) */}
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <code className="flex-1 text-xs bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-text-secondary select-all">
+                                      {tool.command}
+                                    </code>
+                                    <span className="text-[10px] text-text-muted shrink-0">base</span>
+                                  </div>
+
+                                  {/* Flag chips */}
+                                  {knownFlags.length > 0 && (
+                                    <div className="mb-2">
+                                      <div className="text-[10px] text-text-muted mb-1">Flags</div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {knownFlags.map((f) => {
+                                          const isOn = flags[f.key] ?? false;
+                                          return (
+                                            <button
+                                              key={f.key}
+                                              onClick={() => {
+                                                // If turning ON a dangerous flag, confirm
+                                                if (!isOn && f.dangerous) {
+                                                  if (!window.confirm(`Enable "${f.label}"?\n\n${f.description || f.flag}\n\nThis skips safety prompts — use with caution.`)) return;
+                                                }
+                                                setToolFlags((prev) => ({
+                                                  ...prev,
+                                                  [tool.id]: { ...(prev[tool.id] || {}), [f.key]: !isOn },
+                                                }));
+                                              }}
+                                              className={cn(
+                                                'inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border transition-colors cursor-pointer',
+                                                isOn
+                                                  ? f.dangerous
+                                                    ? 'bg-error/15 border-error/40 text-error'
+                                                    : 'bg-accent/15 border-accent/40 text-accent'
+                                                  : 'bg-bg-deep border-border-subtle text-text-muted hover:text-text-secondary hover:border-border-default',
+                                              )}
+                                              title={`${f.flag}${f.description ? ` — ${f.description}` : ''}`}
+                                            >
+                                              {f.dangerous && isOn && <AlertTriangle className="w-3 h-3" />}
+                                              <code className="text-[11px]">{f.label}</code>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                      {hasDangerousFlag && (
+                                        <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-warning">
+                                          <AlertTriangle className="w-3 h-3 shrink-0" />
+                                          Skips all permission prompts — use with caution
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Custom arguments input */}
+                                  <div className="mb-2">
+                                    <div className="text-[10px] text-text-muted mb-1">Custom arguments</div>
+                                    <Input
+                                      value={customArgs}
+                                      onChange={(e) => setToolCustomArgs((prev) => ({ ...prev, [tool.id]: e.target.value }))}
+                                      placeholder="e.g. --max-turns 15"
+                                      className="bg-bg-deep border-border-subtle text-xs"
+                                    />
+                                  </div>
+
+                                  {/* Composed command preview */}
+                                  <div className="mb-2">
+                                    <div className="text-[10px] text-text-muted mb-1">Resolved command</div>
+                                    <code className="block text-xs bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-text-primary select-all break-all">
+                                      {composed}
+                                    </code>
+                                  </div>
+
+                                  {/* Save / Reset */}
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => saveToolCommand(tool.id, tool.command)}
+                                      className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                                    >
+                                      <Save className="w-3 h-3 mr-1" />
+                                      Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setToolFlags((prev) => {
+                                          const resetFlags: Record<string, boolean> = {};
+                                          for (const f of knownFlags) resetFlags[f.key] = false;
+                                          return { ...prev, [tool.id]: resetFlags };
+                                        });
+                                        setToolCustomArgs((prev) => ({ ...prev, [tool.id]: '' }));
+                                        updateSetting.mutate([{ key: `aiTools.${tool.id}.customCommand`, value: '' }]);
+                                        toast.info('Reset to default command');
+                                      }}
+                                      className="cursor-pointer"
+                                    >
+                                      <RotateCcw className="w-3 h-3 mr-1" />
+                                      Reset
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Tools — add form */}
+                {matchesSearch('Custom Tools') && (
+                  <div className="border-t border-border-subtle pt-4 mt-4" data-setting-label="Custom Tools">
+                    <div className="text-sm text-text-primary mb-2">Add Custom Tool</div>
+                    <div className="text-xs text-text-tertiary mb-3">
+                      Add custom AI tools that appear in the tool list, sidebar, and session dropdowns
+                    </div>
+
                     <div className="space-y-2">
                       <div className="flex gap-2">
                         <Input

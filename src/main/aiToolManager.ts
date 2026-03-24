@@ -61,9 +61,8 @@ const AI_TOOLS: Record<string, AITool> = {
   codex: {
     id: 'codex',
     name: 'Codex CLI',
-    command: './.subframe/bin/codex',
-    fallbackCommand: 'codex',
-    description: 'OpenAI Codex CLI (with AGENTS.md injection)',
+    command: 'codex',
+    description: 'OpenAI Codex CLI',
     commands: {
       review: '/review',
       model: '/model',
