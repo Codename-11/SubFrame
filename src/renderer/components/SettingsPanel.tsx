@@ -1585,8 +1585,13 @@ export function SettingsPanel() {
                     <div className="text-sm text-text-primary mb-1">Active Tool</div>
                     <select
                       value={aiToolConfig?.activeTool.id || 'claude'}
-                      onChange={(e) => {
-                        setAITool.mutate([e.target.value]);
+                      onChange={async (e) => {
+                        try {
+                          await setAITool.mutateAsync([e.target.value]);
+                          toast.success('Active tool updated');
+                        } catch {
+                          toast.error('Failed to update active tool');
+                        }
                       }}
                       className="w-full bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
                     >

@@ -237,6 +237,7 @@ export function WorkspaceSelector() {
       [keys[idx - 1], keys[idx]] = [keys[idx], keys[idx - 1]];
       await typedInvoke(IPC.WORKSPACE_REORDER, keys);
       refetch();
+      toast.success('Workspace order updated');
     } catch {
       toast.error('Failed to reorder workspace');
     } finally {
@@ -255,6 +256,7 @@ export function WorkspaceSelector() {
       [keys[idx], keys[idx + 1]] = [keys[idx + 1], keys[idx]];
       await typedInvoke(IPC.WORKSPACE_REORDER, keys);
       refetch();
+      toast.success('Workspace order updated');
     } catch {
       toast.error('Failed to reorder workspace');
     } finally {
@@ -281,6 +283,7 @@ export function WorkspaceSelector() {
         await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: true });
         refetch();
         typedSend(IPC.LOAD_WORKSPACE);
+        toast.success('Workspace deactivated');
       } catch {
         toast.error('Failed to deactivate workspace');
       } finally {
@@ -293,6 +296,7 @@ export function WorkspaceSelector() {
     try {
       await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: wantDeactivate });
       refetch();
+      toast.success(wantDeactivate ? 'Workspace deactivated' : 'Workspace activated');
     } catch {
       toast.error('Failed to update workspace');
     } finally {
