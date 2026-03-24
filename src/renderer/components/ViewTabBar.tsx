@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useUIStore, type FullViewContent, getTabIdForContent } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useTerminalStore } from '../stores/useTerminalStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
+import { useIpcQuery } from '../hooks/useIpc';
+import { typedInvoke, typedSend } from '../lib/ipc';
 import {
   X,
   TerminalSquare,
@@ -24,6 +27,7 @@ import {
   Pin,
   BookMarked,
   Cpu,
+  Plus,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -33,7 +37,7 @@ import {
 } from './ui/tooltip';
 import { toast } from 'sonner';
 import { IPC } from '../../shared/ipcChannels';
-import type { ClaudeUsageData, UsageWindow, UsageSource } from '../../shared/ipcChannels';
+import type { ClaudeUsageData, UsageWindow, UsageSource, WorkspaceListResult } from '../../shared/ipcChannels';
 import { SHORTCUTS } from '../lib/shortcuts';
 
 const { ipcRenderer } = require('electron');
@@ -123,6 +127,68 @@ export function ViewTabBar() {
   const { updateSetting } = useSettings();
   const { config: aiToolConfig } = useAIToolConfig();
   const projects = useProjectStore(s => s.projects);
+  const terminals = useTerminalStore(s => s.terminals);
+
+  // ── Workspace pills data ─────────────────────────────────────────────────
+  const { data: workspaceListRaw, refetch: refetchWorkspaces } = useIpcQuery(IPC.WORKSPACE_LIST, [], {
+    staleTime: 10000,
+  });
+  const wsParsed = workspaceListRaw as WorkspaceListResult | undefined;
+  const wsWorkspaces = useMemo(() =>
+    wsParsed?.workspaces?.filter(ws => !(ws.inactive))?.map((ws, i) => ({
+      key: ws.key,
+      name: ws.name,
+      active: ws.key === wsParsed!.active,
+      projectCount: ws.projectCount ?? 0,
+      index: i + 1,
+    })) ?? [],
+    [wsParsed]
+  );
+
+  // Agent activity detection for workspace pills
+  const allTerminals = useMemo(() => Array.from(terminals.values()), [terminals]);
+  const currentProjectPaths = useMemo(() => new Set(projects.map(p => p.path)), [projects]);
+
+  const getWsAgentActive = useCallback((wsKey: string, isCurrentWs: boolean): boolean => {
+    if (isCurrentWs) {
+      return allTerminals.some(t => currentProjectPaths.has(t.projectPath) && t.claudeActive);
+    }
+    return false;
+  }, [allTerminals, currentProjectPaths]);
+
+  const [wsSwitching, setWsSwitching] = useState(false);
+  const [wsPulse, setWsPulse] = useState(false);
+
+  const handleWsSwitch = useCallback(async (key: string) => {
+    if (wsSwitching || wsParsed?.active === key) return;
+    setWsSwitching(true);
+    try {
+      await typedInvoke(IPC.WORKSPACE_SWITCH, key);
+      refetchWorkspaces();
+      typedSend(IPC.LOAD_WORKSPACE);
+    } catch {
+      toast.error('Failed to switch workspace');
+    } finally {
+      setWsSwitching(false);
+    }
+  }, [wsSwitching, wsParsed, refetchWorkspaces]);
+
+  const handleWsCreate = useCallback(() => {
+    window.dispatchEvent(new Event('open-workspace-create'));
+  }, []);
+
+  // Ctrl+Alt+W highlight pulse
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        setWsPulse(true);
+        setTimeout(() => setWsPulse(false), 1200);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // Derive per-project tool binding
   const currentProject = currentProjectPath ? projects.find(p => p.path === currentProjectPath) : null;
@@ -295,6 +361,68 @@ export function ViewTabBar() {
           );
         })}
       </div>
+
+      {/* ── Workspace pills ────────────────────────────────────────────── */}
+      {wsWorkspaces.length > 0 && (
+        <div className={`flex items-center border-l border-border-subtle ml-2 pl-2 flex-shrink-0 transition-all duration-300 ${
+          wsPulse ? 'ring-1 ring-accent/40 rounded-md bg-accent/5' : ''
+        }`}>
+          {wsWorkspaces.map(ws => {
+            const isActive = ws.active;
+            const agentActive = getWsAgentActive(ws.key, isActive);
+            return (
+              <TooltipProvider key={ws.key} delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleWsSwitch(ws.key)}
+                      disabled={wsSwitching}
+                      className={`relative flex items-center justify-center h-5 w-auto min-w-[24px] px-1.5 rounded-md text-[10px] font-mono font-semibold
+                        transition-colors cursor-pointer disabled:opacity-50 mx-0.5
+                        ${isActive
+                          ? 'bg-accent/20 text-accent border border-accent/30'
+                          : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
+                        }`}
+                    >
+                      #{ws.index}
+                      {/* Agent active dot */}
+                      {agentActive && (
+                        <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
+                          <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-success animate-ping opacity-40" />
+                          <span className="block w-1.5 h-1.5 rounded-full bg-success" />
+                        </span>
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">
+                      {ws.name}{ws.projectCount > 0 ? ` (${ws.projectCount} project${ws.projectCount > 1 ? 's' : ''})` : ''}
+                      {ws.index <= 9 ? ` — ${SHORTCUTS[`WORKSPACE_${ws.index}` as keyof typeof SHORTCUTS]?.keys}` : ''}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          })}
+          {/* Add workspace button */}
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleWsCreate}
+                  className="flex items-center justify-center h-5 w-5 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-hover/50
+                    transition-colors cursor-pointer mx-0.5 border border-transparent"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>New workspace</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
 
       {/* Usage pill + view shortcuts + sidebar toggle on the right */}
       <div className="flex items-center gap-1 px-1.5 flex-shrink-0">
