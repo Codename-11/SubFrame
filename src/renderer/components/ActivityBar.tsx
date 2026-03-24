@@ -344,9 +344,11 @@ export function ActivityBar() {
   return (
     <div className="flex flex-col border-t border-border-subtle bg-bg-primary shrink-0">
       {/* ── Collapsed / Header Bar ────────────────────────────────────────── */}
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded((v) => !v); }}
         className="flex items-center gap-2 h-6 px-2 hover:bg-bg-hover transition-colors cursor-pointer select-none w-full text-left"
       >
         {/* Left: icon + mode toggle (when expanded) + stream name + status */}
@@ -411,7 +413,7 @@ export function ActivityBar() {
             <ChevronUp size={12} className="text-text-tertiary" />
           )}
         </span>
-      </button>
+      </div>
 
       {/* ── Expanded Panel ────────────────────────────────────────────────── */}
       <AnimatePresence>
