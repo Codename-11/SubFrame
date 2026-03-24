@@ -39,6 +39,7 @@ import * as activityManager from './activityManager';
 import * as outputChannelManager from './outputChannelManager';
 import * as popoutManager from './popoutManager';
 import * as apiServerManager from './apiServerManager';
+import * as webServerManager from './webServerManager';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
 // ── Global error handlers — surface errors to terminal on crash/exit ──
@@ -546,6 +547,7 @@ function setupAllIPC(): void {
   outputChannelManager.setupIPC(ipcMain);
   popoutManager.setupIPC(ipcMain);
   apiServerManager.setupIPC(ipcMain);
+  webServerManager.setupIPC(ipcMain);
   // Note: updaterManager.setupIPC() is called inside updaterManager.init()
   // because it needs app.isPackaged to be set first
 
@@ -710,6 +712,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   popoutManager.init(window);
   updaterManager.init(window, app);
   apiServerManager.init(window);
+  webServerManager.init();
 }
 
 // ── Single instance lock — ensures only one SubFrame window ─────────────────
@@ -774,6 +777,7 @@ if (!gotTheLock) {
   // fires when windows close but the app stays alive in the dock)
   app.on('before-quit', () => {
     apiServerManager.shutdown();
+    webServerManager.shutdown();
   });
 
   app.on('activate', () => {

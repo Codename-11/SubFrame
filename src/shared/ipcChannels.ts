@@ -299,6 +299,15 @@ export const IPC = {
   API_SERVER_REGEN_TOKEN: 'api-server-regen-token',    // handle: regenerate auth token
   DETECT_AI_FEATURES: 'detect-ai-features',            // handle: scan AI tool config for features
 
+  // Web Server
+  WEB_SERVER_INFO: 'web-server-info',
+  WEB_SERVER_TOGGLE: 'web-server-toggle',
+  WEB_SERVER_REGEN_TOKEN: 'web-server-regen-token',
+  WEB_SERVER_GENERATE_PAIRING: 'web-server-generate-pairing',
+  WEB_SERVER_GET_SSH_COMMAND: 'web-server-get-ssh-command',
+  WEB_CLIENT_CONNECTED: 'web-client-connected',
+  WEB_CLIENT_DISCONNECTED: 'web-client-disconnected',
+
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
   MENU_TOGGLE_RIGHT_PANEL: 'menu-toggle-right-panel',
@@ -1186,6 +1195,28 @@ export interface IPCHandleMap {
   [IPC.DETECT_AI_FEATURES]: { args: [projectPath: string]; return: { hooks: boolean; mcpServers: boolean; skills: boolean; hookCount: number; mcpServerCount: number } };
   [IPC.SELECT_DEFAULT_PROJECT_DIR]: { args: []; return: string | null };
 
+  // Web Server
+  [IPC.WEB_SERVER_INFO]: {
+    args: [];
+    return: { enabled: boolean; port: number; token: string; clientConnected: boolean; clientInfo: { userAgent: string; connectedAt: string } | null };
+  };
+  [IPC.WEB_SERVER_TOGGLE]: {
+    args: [enable: boolean];
+    return: { enabled: boolean; port: number; token: string };
+  };
+  [IPC.WEB_SERVER_REGEN_TOKEN]: {
+    args: [];
+    return: { token: string };
+  };
+  [IPC.WEB_SERVER_GENERATE_PAIRING]: {
+    args: [];
+    return: { code: string; expiresIn: number };
+  };
+  [IPC.WEB_SERVER_GET_SSH_COMMAND]: {
+    args: [];
+    return: { command: string; sshAvailable: boolean };
+  };
+
   // GitHub
   [IPC.LOAD_GITHUB_ISSUES]: { args: [payload: { projectPath: string; state?: string }]; return: GitHubIssuesResult };
   [IPC.LOAD_GITHUB_WORKFLOWS]: { args: [projectPath: string]; return: GitHubWorkflowsResult };
@@ -1527,6 +1558,10 @@ export interface IPCEventMap {
   [IPC.MENU_CLOSE_TERMINAL]: void;
   [IPC.MENU_OPEN_SETTINGS]: void;
   [IPC.MENU_NEW_TERMINAL]: void;
+
+  // Web Server
+  [IPC.WEB_CLIENT_CONNECTED]: { userAgent: string; connectedAt: string };
+  [IPC.WEB_CLIENT_DISCONNECTED]: void;
 }
 
 // ─── CommonJS compat (keep old require('...ipcChannels') working) ────────────

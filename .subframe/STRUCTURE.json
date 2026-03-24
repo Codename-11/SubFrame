@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-23",
+  "lastUpdated": "2026-03-24",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -1306,6 +1306,55 @@
         ]
       }
     },
+    "main/eventBridge": {
+      "file": "src\\main\\eventBridge.ts",
+      "description": "Event Bridge — fan-out for main→renderer broadcasts.",
+      "exports": [
+        "initEventBridge",
+        "broadcast",
+        "addBridgeListener",
+        "getMainWindow",
+        "getBridgeListenerCount"
+      ],
+      "depends": [],
+      "functions": {
+        "initEventBridge": {
+          "line": 29,
+          "params": [
+            "window"
+          ],
+          "purpose": "── Public API ──────────────────────────────────────────────────────────────"
+        },
+        "broadcast": {
+          "line": 37,
+          "params": [
+            "channel",
+            "data"
+          ],
+          "purpose": "Drop-in replacement for mainWindow.webContents.send()."
+        },
+        "addBridgeListener": {
+          "line": 58,
+          "params": [
+            "listener"
+          ]
+        },
+        "getMainWindow": {
+          "line": 64
+        },
+        "getBridgeListenerCount": {
+          "line": 69
+        }
+      },
+      "loc": 72,
+      "ipc": {
+        "listens": [],
+        "emits": [
+          "channel",
+          "channel"
+        ]
+      }
+    },
     "main/fileEditor": {
       "file": "src\\main\\fileEditor.ts",
       "description": "File Editor Module Handles file reading and writing for the editor overlay",
@@ -2048,11 +2097,12 @@
         "outputChannelManager",
         "popoutManager",
         "apiServerManager",
+        "webServerManager",
         "shared/logoSVG"
       ],
       "functions": {
         "handleCLIArgs": {
-          "line": 70,
+          "line": 71,
           "params": [
             "argv"
           ],
@@ -2063,37 +2113,37 @@
           ]
         },
         "sendCLIOpenFile": {
-          "line": 106,
+          "line": 107,
           "params": [
             "filePath"
           ]
         },
         "sendCLIOpenProject": {
-          "line": 123,
+          "line": 124,
           "params": [
             "dirPath"
           ]
         },
         "getWindowStatePath": {
-          "line": 138,
+          "line": 139,
           "purpose": "Get path for persisted window state"
         },
         "loadWindowState": {
-          "line": 145,
+          "line": 146,
           "purpose": "Load saved window state (bounds + maximized)",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "saveWindowState": {
-          "line": 157,
+          "line": 158,
           "purpose": "Save current window state",
           "calls": [
             "getWindowStatePath"
           ]
         },
         "createSplash": {
-          "line": 170,
+          "line": 171,
           "params": [
             "bounds",
             "isMaximized"
@@ -2104,7 +2154,7 @@
           ]
         },
         "createWindow": {
-          "line": 220,
+          "line": 221,
           "purpose": "Create main application window",
           "calls": [
             "createSplash",
@@ -2114,25 +2164,25 @@
           ]
         },
         "setupAllIPC": {
-          "line": 522,
+          "line": 523,
           "purpose": "Setup all IPC handlers"
         },
         "init": {
-          "line": 682,
+          "line": 684,
           "purpose": "Initialize application",
           "calls": [
             "setupAllIPC"
           ]
         },
         "initModulesWithWindow": {
-          "line": 693,
+          "line": 695,
           "params": [
             "window"
           ],
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 787,
+      "loc": 791,
       "ipc": {
         "listens": [
           "GRACEFUL_SHUTDOWN_CONFIRM",
@@ -2152,6 +2202,63 @@
           "GRACEFUL_SHUTDOWN_STATUS",
           "GRACEFUL_SHUTDOWN_COMPLETE"
         ]
+      }
+    },
+    "main/ipcRouter": {
+      "file": "src\\main\\ipcRouter.ts",
+      "description": "IPC Router — dual-registration handler router.",
+      "exports": [
+        "createRoutableIPC",
+        "routeInvoke",
+        "routeSend",
+        "hasInvokeHandler",
+        "hasSendHandler"
+      ],
+      "depends": [],
+      "functions": {
+        "createRoutableIPC": {
+          "line": 34,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "raw ipcMain. Handlers are registered in both Electron IPC and the parallel map."
+        },
+        "routeInvoke": {
+          "line": 59,
+          "params": [
+            "channel",
+            "args"
+          ],
+          "purpose": "Used by WebSocket server for request/response messages."
+        },
+        "routeSend": {
+          "line": 70,
+          "params": [
+            "channel",
+            "...args"
+          ],
+          "purpose": "Used by WebSocket server for fire-and-forget messages."
+        },
+        "hasInvokeHandler": {
+          "line": 82,
+          "params": [
+            "channel"
+          ]
+        },
+        "hasSendHandler": {
+          "line": 87,
+          "params": [
+            "channel"
+          ]
+        }
+      },
+      "loc": 98,
+      "ipc": {
+        "listens": [
+          "channel",
+          "channel"
+        ],
+        "emits": []
       }
     },
     "main/menu": {
@@ -4233,7 +4340,7 @@
       ],
       "functions": {
         "init": {
-          "line": 141,
+          "line": 151,
           "params": [
             "window",
             "app"
@@ -4245,18 +4352,18 @@
           ]
         },
         "loadSettings": {
-          "line": 151,
+          "line": 161,
           "purpose": "Load settings from file",
           "calls": [
             "deepMerge"
           ]
         },
         "saveSettings": {
-          "line": 170,
+          "line": 180,
           "purpose": "Save settings to file"
         },
         "updateSetting": {
-          "line": 183,
+          "line": 193,
           "params": [
             "keyPath",
             "value"
@@ -4267,21 +4374,21 @@
           ]
         },
         "onSettingChange": {
-          "line": 213,
+          "line": 223,
           "params": [
             "listener"
           ],
           "purpose": "Register a listener for setting changes (main-process only)"
         },
         "getSetting": {
-          "line": 224,
+          "line": 234,
           "params": [
             "keyPath"
           ],
           "purpose": "Get a setting by key path"
         },
         "deepMerge": {
-          "line": 239,
+          "line": 249,
           "params": [
             "target",
             "unknown>",
@@ -4291,14 +4398,14 @@
           "purpose": "Deep merge two objects"
         },
         "setupIPC": {
-          "line": 260,
+          "line": 270,
           "purpose": "Setup IPC handlers",
           "calls": [
             "updateSetting"
           ]
         }
       },
-      "loc": 271,
+      "loc": 281,
       "ipc": {
         "listens": [
           "LOAD_SETTINGS",
@@ -4763,6 +4870,187 @@
           "UPDATER_PROGRESS"
         ]
       }
+    },
+    "main/webServerManager": {
+      "file": "src\\main\\webServerManager.ts",
+      "description": "Web Server Manager — serves SubFrame UI as a web app with WebSocket transport.",
+      "exports": [
+        "init",
+        "setupIPC",
+        "shutdown",
+        "startServer",
+        "stopServer"
+      ],
+      "depends": [
+        "../package.json",
+        "eventBridge",
+        "settingsManager",
+        "http",
+        "crypto",
+        "fs",
+        "path",
+        "os",
+        "ws",
+        "ipcRouter",
+        "shared/ipcChannels",
+        "shared/wsProtocol"
+      ],
+      "functions": {
+        "writeServiceConfig": {
+          "line": 65
+        },
+        "removeServiceConfig": {
+          "line": 76
+        },
+        "getDistDir": {
+          "line": 96
+        },
+        "getWebIndexPath": {
+          "line": 104,
+          "calls": [
+            "getDistDir"
+          ]
+        },
+        "serveStatic": {
+          "line": 108,
+          "params": [
+            "res",
+            "urlPath"
+          ],
+          "calls": [
+            "getDistDir",
+            "getWebIndexPath"
+          ]
+        },
+        "handleHTTP": {
+          "line": 147,
+          "params": [
+            "req",
+            "res"
+          ],
+          "purpose": "── HTTP Request Handler ───────────────────────────────────────────────────",
+          "calls": [
+            "getWebIndexPath",
+            "handlePairing",
+            "serveStatic"
+          ]
+        },
+        "handlePairing": {
+          "line": 185,
+          "params": [
+            "req",
+            "res"
+          ],
+          "purpose": "── Pairing ────────────────────────────────────────────────────────────────"
+        },
+        "handleWsConnection": {
+          "line": 215,
+          "params": [
+            "ws",
+            "req"
+          ],
+          "purpose": "── WebSocket Handler ──────────────────────────────────────────────────────",
+          "calls": [
+            "broadcastIPC",
+            "createSession",
+            "hasInvokeHandler",
+            "routeInvoke",
+            "routeSend",
+            "wsSend"
+          ]
+        },
+        "createSession": {
+          "line": 338,
+          "params": [
+            "ws",
+            "userAgent"
+          ]
+        },
+        "wsSend": {
+          "line": 349,
+          "params": [
+            "ws",
+            "msg"
+          ]
+        },
+        "onBridgeEvent": {
+          "line": 357,
+          "params": [
+            "channel",
+            "data"
+          ],
+          "purpose": "── Event Bridge → WebSocket ───────────────────────────────────────────────",
+          "calls": [
+            "batchTerminalOutput",
+            "wsSend"
+          ]
+        },
+        "batchTerminalOutput": {
+          "line": 371,
+          "params": [
+            "terminalId",
+            "chunk"
+          ]
+        },
+        "flushTerminalBatches": {
+          "line": 381,
+          "calls": [
+            "wsSend"
+          ]
+        },
+        "broadcastIPC": {
+          "line": 399,
+          "params": [
+            "channel",
+            "data"
+          ],
+          "purpose": "Convenience: send IPC event to Electron window (for UI indicators)",
+          "calls": [
+            "broadcast"
+          ]
+        },
+        "startServer": {
+          "line": 408,
+          "purpose": "── Server Start/Stop ──────────────────────────────────────────────────────",
+          "calls": [
+            "addBridgeListener",
+            "handleHTTP",
+            "writeServiceConfig"
+          ]
+        },
+        "stopServer": {
+          "line": 439,
+          "calls": [
+            "removeServiceConfig"
+          ]
+        },
+        "init": {
+          "line": 467,
+          "purpose": "── Manager Lifecycle ──────────────────────────────────────────────────────",
+          "calls": [
+            "startServer"
+          ]
+        },
+        "setupIPC": {
+          "line": 485,
+          "params": [
+            "router"
+          ],
+          "calls": [
+            "startServer",
+            "stopServer",
+            "writeServiceConfig",
+            "wsSend"
+          ]
+        },
+        "shutdown": {
+          "line": 566,
+          "calls": [
+            "stopServer"
+          ]
+        }
+      },
+      "loc": 571
     },
     "main/workspace": {
       "file": "src\\main\\workspace.ts",
@@ -6853,7 +7141,7 @@
           ]
         }
       },
-      "loc": 2282,
+      "loc": 2286,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -6930,7 +7218,7 @@
           ]
         },
         "CollapsedWorkspaceSwitcher": {
-          "line": 566,
+          "line": 569,
           "calls": [
             "cn",
             "typedInvoke",
@@ -6939,26 +7227,26 @@
           ]
         },
         "GitStatusBar": {
-          "line": 677,
+          "line": 680,
           "calls": [
             "useGitStatus"
           ]
         },
         "CollapsedGitStatus": {
-          "line": 702,
+          "line": 705,
           "calls": [
             "cn",
             "useGitStatus"
           ]
         },
         "GitBranchIcon": {
-          "line": 743,
+          "line": 746,
           "params": [
             "{ className }"
           ]
         }
       },
-      "loc": 751,
+      "loc": 754,
       "ipc": {
         "listens": [
           "IS_FRAME_PROJECT_RESULT",
@@ -9120,7 +9408,7 @@
           "purpose": "Does NOT recurse into class instances, Maps, Sets, etc. to avoid infinite loops."
         }
       },
-      "loc": 69,
+      "loc": 70,
       "ipc": {
         "listens": [
           "channel"
@@ -9166,7 +9454,7 @@
           ]
         },
         "typedOn": {
-          "line": 36,
+          "line": 39,
           "params": [
             "channel",
             "// eslint-disable-next-line @typescript-eslint/no-explicit-any\n  handler",
@@ -9178,7 +9466,7 @@
           ]
         }
       },
-      "loc": 43
+      "loc": 46
     },
     "renderer/lib/promptUtils": {
       "file": "src\\renderer\\lib\\promptUtils.ts",
@@ -9520,38 +9808,46 @@
         "hideLinkTooltip": {
           "line": 552
         },
+        "getCtrlLabel": {
+          "line": 557,
+          "calls": [
+            "getTransport"
+          ]
+        },
         "registerWebLinkProvider": {
-          "line": 569,
+          "line": 572,
           "params": [
             "terminal"
           ],
           "purpose": "Detects URLs and opens them on Ctrl+Click with hover tooltip.",
           "calls": [
+            "getCtrlLabel",
             "getTransport",
             "hideLinkTooltip",
             "showLinkTooltip"
           ]
         },
         "registerFilePathLinkProvider": {
-          "line": 667,
+          "line": 670,
           "params": [
             "terminal",
             "getProjectPath"
           ],
           "calls": [
+            "getCtrlLabel",
             "getProjectPath",
             "hideLinkTooltip",
             "showLinkTooltip"
           ]
         },
         "initAPIBridge": {
-          "line": 749,
+          "line": 752,
           "calls": [
             "getTransport"
           ]
         },
         "registerSelectionSync": {
-          "line": 828,
+          "line": 831,
           "params": [
             "terminalId"
           ],
@@ -9561,7 +9857,7 @@
           ]
         }
       },
-      "loc": 841,
+      "loc": 844,
       "ipc": {
         "listens": [
           "TERMINAL_OUTPUT_ID",
@@ -9619,6 +9915,14 @@
         }
       },
       "loc": 7
+    },
+    "renderer/lib/webSocketTransport": {
+      "file": "src\\renderer\\lib\\webSocketTransport.ts",
+      "description": "WebSocket transport — connects to SubFrame Server via WebSocket.",
+      "exports": [],
+      "depends": [],
+      "functions": {},
+      "loc": 294
     },
     "renderer/stores/useProjectStore": {
       "file": "src\\renderer\\stores\\useProjectStore.ts",
@@ -9697,6 +10001,42 @@
         }
       },
       "loc": 366
+    },
+    "renderer/web-entry": {
+      "file": "src\\renderer\\web-entry.tsx",
+      "description": "Web-mode entry point for SubFrame Server.",
+      "exports": [],
+      "depends": [
+        "react",
+        "react-dom/client",
+        "@tanstack/react-query",
+        "@/components/ui/sonner",
+        "components/ErrorBoundary",
+        "components/App",
+        "lib/transportProvider",
+        "lib/webSocketTransport"
+      ],
+      "functions": {
+        "ConnectingScreen": {
+          "line": 40,
+          "params": [
+            "{ message }"
+          ],
+          "purpose": "── Connection UI ─────────────────────────────────────────────────────────"
+        },
+        "SessionTakeoverScreen": {
+          "line": 52,
+          "params": [
+            "{ currentDevice",
+            "connectedAt",
+            "onTakeover }: {\n  currentDevice: string;\n  connectedAt: string;\n  onTakeover"
+          ]
+        },
+        "DisconnectedScreen": {
+          "line": 82
+        }
+      },
+      "loc": 181
     },
     "shared/activityTypes": {
       "file": "src\\shared\\activityTypes.ts",
@@ -10311,7 +10651,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1537
+      "loc": 1572
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -10487,7 +10827,17 @@
       "exports": [],
       "depends": [],
       "functions": {},
-      "loc": 54
+      "loc": 56
+    },
+    "shared/wsProtocol": {
+      "file": "src\\shared\\wsProtocol.ts",
+      "description": "WebSocket protocol message types for SubFrame Server.",
+      "exports": [
+        "WS_ERRORS"
+      ],
+      "depends": [],
+      "functions": {},
+      "loc": 124
     }
   },
   "ipcChannels": {
@@ -11056,6 +11406,13 @@
         "description": "ErrorBoundary — Catches React render errors and displays them instead of silently unmounting the entire component tree."
       }
     ],
+    "event-bridge": [
+      {
+        "module": "main/eventBridge",
+        "file": "src\\main\\eventBridge.ts",
+        "description": "Event Bridge — fan-out for main→renderer broadcasts."
+      }
+    ],
     "file-editor": [
       {
         "module": "main/fileEditor",
@@ -11173,6 +11530,13 @@
         "module": "shared/ipcChannels",
         "file": "src\\shared\\ipcChannels.ts",
         "description": "IPC Channel Constants — TypeScript Edition Single source of truth for all IPC channel names and their type signatures."
+      }
+    ],
+    "ipc-router": [
+      {
+        "module": "main/ipcRouter",
+        "file": "src\\main\\ipcRouter.ts",
+        "description": "IPC Router — dual-registration handler router."
       }
     ],
     "logo-svg": [
@@ -11746,6 +12110,27 @@
         "description": ""
       }
     ],
+    "web-entry": [
+      {
+        "module": "renderer/web-entry",
+        "file": "src\\renderer\\web-entry.tsx",
+        "description": "Web-mode entry point for SubFrame Server."
+      }
+    ],
+    "web-server": [
+      {
+        "module": "main/webServerManager",
+        "file": "src\\main\\webServerManager.ts",
+        "description": "Web Server Manager — serves SubFrame UI as a web app with WebSocket transport."
+      }
+    ],
+    "web-socket-transport": [
+      {
+        "module": "renderer/lib/webSocketTransport",
+        "file": "src\\renderer\\lib\\webSocketTransport.ts",
+        "description": "WebSocket transport — connects to SubFrame Server via WebSocket."
+      }
+    ],
     "whats-new": [
       {
         "module": "renderer/components/WhatsNew",
@@ -11770,6 +12155,13 @@
         "module": "renderer/components/WorkspaceSelector",
         "file": "src\\renderer\\components\\WorkspaceSelector.tsx",
         "description": ""
+      }
+    ],
+    "ws-protocol": [
+      {
+        "module": "shared/wsProtocol",
+        "file": "src\\shared\\wsProtocol.ts",
+        "description": "WebSocket protocol message types for SubFrame Server."
       }
     ]
   }

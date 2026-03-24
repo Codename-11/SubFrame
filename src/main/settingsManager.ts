@@ -71,6 +71,11 @@ interface DefaultSettings {
       createdAt?: string;
     }>;
   };
+  server: {
+    enabled: boolean;
+    port: number;
+    terminalBatchIntervalMs: number;
+  };
   [key: string]: unknown;
 }
 
@@ -127,6 +132,11 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   appearance: {
     activeThemeId: 'classic-amber',
     customThemes: [],
+  },
+  server: {
+    enabled: false,
+    port: 0,
+    terminalBatchIntervalMs: 16,
   },
 };
 
