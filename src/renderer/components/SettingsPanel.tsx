@@ -111,6 +111,7 @@ const SECTION_LABELS: Record<string, string[]> = {
   integrations: [
     'Local API Server', 'API Server', 'Enable API', 'DTSP', 'Desktop Text Source Protocol',
     'SubFrame Server', 'Web Server', 'Remote Access', 'SSH Tunnel', 'Pairing',
+    'Shell Integration', 'CLI Status', 'Context Menu', 'Explorer',
   ],
   updates: [
     'Auto-check for updates', 'Pre-release Channel',
@@ -403,6 +404,10 @@ export function SettingsPanel() {
   const [webServerQrVisible, setWebServerQrVisible] = useState(false);
   const [webServerQrDataUrl, setWebServerQrDataUrl] = useState<string | null>(null);
 
+  // Shell integration status
+  const [cliStatus, setCliStatus] = useState<{ installed: boolean; inPath: boolean; path: string | null } | null>(null);
+  const [contextMenuInstalled, setContextMenuInstalled] = useState(false);
+
   // Web Server info query — only active when integrations tab is shown
   const isIntegrationsTab = activeTab === 'integrations';
   const { data: webServerInfo, refetch: refetchWebServerInfo } = useIpcQuery(
@@ -434,6 +439,23 @@ export function SettingsPanel() {
       setWebServerQrDataUrl(null);
     }
   }, [webServerQrVisible, webServerInfo?.enabled, webServerInfo?.port, webServerInfo?.token]);
+
+  // Check CLI and context menu status when integrations tab is active
+  useEffect(() => {
+    if (!isIntegrationsTab) return;
+    typedInvoke(IPC.CHECK_CLI_STATUS).then(setCliStatus).catch(() => {});
+    if (process.platform === 'win32') {
+      typedInvoke(IPC.CHECK_CONTEXT_MENU).then((r) => setContextMenuInstalled(r.installed)).catch(() => {});
+    }
+  }, [isIntegrationsTab]);
+
+  const checkContextMenu = useCallback(() => {
+    typedInvoke(IPC.CHECK_CONTEXT_MENU).then((r) => setContextMenuInstalled(r.installed)).catch(() => {});
+  }, []);
+
+  const refreshCliStatus = useCallback(() => {
+    typedInvoke(IPC.CHECK_CLI_STATUS).then(setCliStatus).catch(() => {});
+  }, []);
 
   // Sync form state from loaded data
   useEffect(() => {
@@ -1332,6 +1354,7 @@ export function SettingsPanel() {
                             const result = await typedInvoke(IPC.INSTALL_CLI);
                             if (result.success) {
                               toast.success(result.message);
+                              refreshCliStatus();
                             } else {
                               toast.error(result.message);
                             }
@@ -1356,6 +1379,7 @@ export function SettingsPanel() {
                             const result = await typedInvoke(IPC.UNINSTALL_CLI);
                             if (result.success) {
                               toast.success(result.message);
+                              refreshCliStatus();
                             } else {
                               toast.error(result.message);
                             }
@@ -2308,6 +2332,85 @@ export function SettingsPanel() {
                         <Globe className="w-3 h-3 mr-1.5" />
                         Setup Guide
                       </Button>
+                    )}
+                  </SettingGroup>
+                )}
+
+                {/* Shell Integration (Experimental) */}
+                {(matchesSearch('Shell Integration') || matchesSearch('CLI Status') || matchesSearch('Context Menu') || matchesSearch('Explorer')) && (
+                  <SettingGroup label="Shell Integration">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-warning/15 text-warning border border-warning/30">
+                        Experimental
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-tertiary mb-3">
+                      Integrate SubFrame with your operating system for quick access from file explorers and terminal.
+                    </p>
+
+                    {/* CLI Status */}
+                    <div className="p-3 rounded-md border border-border-subtle bg-bg-secondary/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-medium text-text-primary">CLI Tool</span>
+                          <p className="text-[10px] text-text-muted mt-0.5">
+                            {cliStatus?.installed
+                              ? cliStatus.inPath
+                                ? `Installed at ${cliStatus.path}`
+                                : 'Installed but not in PATH'
+                              : 'Not installed'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {cliStatus?.installed && !cliStatus.inPath && (
+                            <span className="text-[9px] text-warning px-1.5 py-0.5 rounded bg-warning/10 border border-warning/20">PATH issue</span>
+                          )}
+                          <div className={`w-2 h-2 rounded-full ${cliStatus?.installed ? (cliStatus.inPath ? 'bg-success' : 'bg-warning') : 'bg-text-muted'}`} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Windows Context Menu */}
+                    {process.platform === 'win32' && (
+                      <div className="flex items-center justify-between p-3 rounded-md border border-border-subtle bg-bg-secondary/30 mt-2">
+                        <div>
+                          <span className="text-xs font-medium text-text-primary">Explorer Context Menu</span>
+                          <p className="text-[10px] text-text-muted mt-0.5">
+                            Add &quot;Open with SubFrame&quot; to right-click menu in Windows Explorer
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {contextMenuInstalled && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                try {
+                                  const r = await typedInvoke(IPC.UNINSTALL_CONTEXT_MENU);
+                                  if (r.success) { toast.success('Context menu removed'); checkContextMenu(); }
+                                  else toast.error(r.message);
+                                } catch { toast.error('Failed to remove context menu'); }
+                              }}
+                              className="h-7 px-2 text-xs text-error hover:text-error cursor-pointer"
+                            >
+                              Remove
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const r = await typedInvoke(IPC.INSTALL_CONTEXT_MENU);
+                                if (r.success) { toast.success('Context menu registered'); checkContextMenu(); }
+                                else toast.error(r.message);
+                              } catch { toast.error('Failed to register context menu'); }
+                            }}
+                            className="h-7 px-3 text-xs bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                          >
+                            {contextMenuInstalled ? 'Reinstall' : 'Install'}
+                          </Button>
+                        </div>
+                      </div>
                     )}
                   </SettingGroup>
                 )}

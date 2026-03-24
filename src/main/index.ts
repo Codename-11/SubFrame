@@ -675,6 +675,85 @@ function setupAllIPC(): void {
     }
   });
 
+  // ─── CLI Status Check ────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.CHECK_CLI_STATUS, async () => {
+    try {
+      if (process.platform === 'win32') {
+        const binDir = path.join(process.env.LOCALAPPDATA || '', 'SubFrame', 'bin');
+        const cmdPath = path.join(binDir, 'subframe.cmd');
+        const exists = fs.existsSync(cmdPath);
+        // Check if binDir is in the user's persistent PATH
+        const userPath = process.env.PATH || '';
+        const inPath = userPath.split(';').some((p: string) => p.toLowerCase() === binDir.toLowerCase());
+        return { installed: exists, inPath, path: exists ? cmdPath : null };
+      } else {
+        const symlinkPath = '/usr/local/bin/subframe';
+        const exists = fs.existsSync(symlinkPath);
+        return { installed: exists, inPath: exists, path: exists ? symlinkPath : null };
+      }
+    } catch {
+      return { installed: false, inPath: false, path: null };
+    }
+  });
+
+  // ─── Windows Context Menu Integration ────────────────────────────────────────
+
+  ipcMain.handle(IPC.INSTALL_CONTEXT_MENU, async () => {
+    if (process.platform !== 'win32') {
+      return { success: false, message: 'Context menu integration is Windows-only' };
+    }
+    try {
+      const exePath = process.execPath;
+      const { execSync } = require('child_process');
+
+      // Directory background context menu (right-click in empty space)
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\Background\\shell\\SubFrame" /ve /d "Open with SubFrame" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\Background\\shell\\SubFrame" /v Icon /d "${exePath},0" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\Background\\shell\\SubFrame\\command" /ve /d "\\"${exePath}\\" \\"%V\\"" /f`, { stdio: 'pipe' });
+
+      // Directory context menu (right-click on folder)
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame" /ve /d "Open with SubFrame" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame" /v Icon /d "${exePath},0" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame\\command" /ve /d "\\"${exePath}\\" \\"%1\\"" /f`, { stdio: 'pipe' });
+
+      // File context menu (right-click on any file)
+      execSync(`reg add "HKCU\\Software\\Classes\\*\\shell\\SubFrame" /ve /d "Open with SubFrame" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\*\\shell\\SubFrame" /v Icon /d "${exePath},0" /f`, { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\Classes\\*\\shell\\SubFrame\\command" /ve /d "\\"${exePath}\\" \\"%1\\"" /f`, { stdio: 'pipe' });
+
+      return { success: true, message: 'Context menu registered' };
+    } catch (err) {
+      return { success: false, message: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.UNINSTALL_CONTEXT_MENU, async () => {
+    if (process.platform !== 'win32') {
+      return { success: false, message: 'Context menu integration is Windows-only' };
+    }
+    try {
+      const { execSync } = require('child_process');
+      execSync('reg delete "HKCU\\Software\\Classes\\Directory\\Background\\shell\\SubFrame" /f', { stdio: 'pipe' });
+      execSync('reg delete "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame" /f', { stdio: 'pipe' });
+      execSync('reg delete "HKCU\\Software\\Classes\\*\\shell\\SubFrame" /f', { stdio: 'pipe' });
+      return { success: true, message: 'Context menu removed' };
+    } catch (err) {
+      return { success: false, message: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.CHECK_CONTEXT_MENU, async () => {
+    if (process.platform !== 'win32') return { installed: false };
+    try {
+      const { execSync } = require('child_process');
+      execSync('reg query "HKCU\\Software\\Classes\\Directory\\shell\\SubFrame" /ve', { stdio: 'pipe' });
+      return { installed: true };
+    } catch {
+      return { installed: false };
+    }
+  });
+
   // Legacy single-terminal input handler
   ipcMain.on(IPC.TERMINAL_INPUT, (_event, data: string) => {
     pty.writeToPTY(data);
