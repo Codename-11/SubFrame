@@ -4926,7 +4926,7 @@
           ]
         },
         "handleHTTP": {
-          "line": 160,
+          "line": 167,
           "params": [
             "req",
             "res"
@@ -4939,7 +4939,7 @@
           ]
         },
         "handlePairing": {
-          "line": 198,
+          "line": 205,
           "params": [
             "req",
             "res"
@@ -4947,7 +4947,7 @@
           "purpose": "── Pairing ────────────────────────────────────────────────────────────────"
         },
         "handleWsConnection": {
-          "line": 228,
+          "line": 235,
           "params": [
             "ws",
             "req"
@@ -4963,21 +4963,21 @@
           ]
         },
         "createSession": {
-          "line": 351,
+          "line": 358,
           "params": [
             "ws",
             "userAgent"
           ]
         },
         "wsSend": {
-          "line": 362,
+          "line": 369,
           "params": [
             "ws",
             "msg"
           ]
         },
         "onBridgeEvent": {
-          "line": 370,
+          "line": 377,
           "params": [
             "channel",
             "data"
@@ -4989,20 +4989,20 @@
           ]
         },
         "batchTerminalOutput": {
-          "line": 384,
+          "line": 391,
           "params": [
             "terminalId",
             "chunk"
           ]
         },
         "flushTerminalBatches": {
-          "line": 394,
+          "line": 401,
           "calls": [
             "wsSend"
           ]
         },
         "broadcastIPC": {
-          "line": 412,
+          "line": 419,
           "params": [
             "channel",
             "data"
@@ -5013,7 +5013,7 @@
           ]
         },
         "startServer": {
-          "line": 421,
+          "line": 428,
           "purpose": "── Server Start/Stop ──────────────────────────────────────────────────────",
           "calls": [
             "addBridgeListener",
@@ -5022,20 +5022,20 @@
           ]
         },
         "stopServer": {
-          "line": 452,
+          "line": 459,
           "calls": [
             "removeServiceConfig"
           ]
         },
         "init": {
-          "line": 480,
+          "line": 487,
           "purpose": "── Manager Lifecycle ──────────────────────────────────────────────────────",
           "calls": [
             "startServer"
           ]
         },
         "setupIPC": {
-          "line": 498,
+          "line": 505,
           "params": [
             "router"
           ],
@@ -5047,13 +5047,13 @@
           ]
         },
         "shutdown": {
-          "line": 579,
+          "line": 586,
           "calls": [
             "stopServer"
           ]
         }
       },
-      "loc": 584
+      "loc": 591
     },
     "main/workspace": {
       "file": "src\\main\\workspace.ts",
@@ -5644,13 +5644,15 @@
         "hooks/useOnboarding",
         "hooks/useSettings",
         "hooks/useIpc",
+        "hooks/useViewport",
         "../shared/ipcChannels",
         "lib/ipc",
-        "lib/transportProvider"
+        "lib/transportProvider",
+        "mobile/MobileApp"
       ],
       "functions": {
         "App": {
-          "line": 40,
+          "line": 42,
           "purpose": "Keyboard shortcuts are wired here to match the original app.",
           "calls": [
             "TerminalArea",
@@ -5660,11 +5662,12 @@
             "typedSend",
             "useAIToolConfig",
             "useIpcQuery",
-            "useOnboarding"
+            "useOnboarding",
+            "useViewport"
           ]
         }
       },
-      "loc": 645,
+      "loc": 662,
       "ipc": {
         "listens": [
           "WORKSPACE_DATA",
@@ -6229,6 +6232,73 @@
         ],
         "emits": []
       }
+    },
+    "renderer/components/mobile/MobileApp": {
+      "file": "src\\renderer\\components\\mobile\\MobileApp.tsx",
+      "description": "Mobile layout shell. Renders a bottom tab bar and swaps content based on the active tab. Reuses existing desktop components at full width.",
+      "exports": [
+        "MobileApp"
+      ],
+      "depends": [
+        "react",
+        "MobileBottomNav",
+        "MobileTerminalWrapper",
+        "TasksPanel",
+        "ActivityBar",
+        "../stores/useUIStore"
+      ],
+      "functions": {
+        "MobileTabContent": {
+          "line": 14,
+          "params": [
+            "{ tab }"
+          ]
+        },
+        "MobileApp": {
+          "line": 51
+        }
+      },
+      "loc": 61
+    },
+    "renderer/components/mobile/MobileBottomNav": {
+      "file": "src\\renderer\\components\\mobile\\MobileBottomNav.tsx",
+      "description": "Mobile bottom navigation bar. Fixed at the bottom of the viewport with four tabs: Terminal, Tasks, Activity, Settings.",
+      "exports": [
+        "MobileBottomNav"
+      ],
+      "depends": [
+        "framer-motion",
+        "lucide-react",
+        "../lib/utils"
+      ],
+      "functions": {
+        "MobileBottomNav": {
+          "line": 25,
+          "params": [
+            "{ activeTab",
+            "onTabChange }"
+          ]
+        }
+      },
+      "loc": 57
+    },
+    "renderer/components/mobile/MobileTerminalWrapper": {
+      "file": "src\\renderer\\components\\mobile\\MobileTerminalWrapper.tsx",
+      "description": "Mobile terminal wrapper. Renders the active terminal at full width using the existing Terminal component. Falls back to a \"no terminals\" message if none exist.",
+      "exports": [
+        "MobileTerminalWrapper"
+      ],
+      "depends": [
+        "../stores/useTerminalStore",
+        "../stores/useProjectStore",
+        "Terminal"
+      ],
+      "functions": {
+        "MobileTerminalWrapper": {
+          "line": 11
+        }
+      },
+      "loc": 40
     },
     "renderer/components/OnboardingDialog": {
       "file": "src\\renderer\\components\\OnboardingDialog.tsx",
@@ -9223,6 +9293,26 @@
       },
       "loc": 56
     },
+    "renderer/hooks/useViewport": {
+      "file": "src\\renderer\\hooks\\useViewport.ts",
+      "description": "Responsive viewport hook for mobile/tablet/desktop detection. Only active in web mode — Electron always reports 'desktop'.",
+      "exports": [
+        "useViewport"
+      ],
+      "depends": [
+        "react",
+        "lib/transportProvider"
+      ],
+      "functions": {
+        "useViewport": {
+          "line": 8,
+          "calls": [
+            "getTransport"
+          ]
+        }
+      },
+      "loc": 27
+    },
     "renderer/index": {
       "file": "src\\renderer\\index.tsx",
       "description": "",
@@ -10038,6 +10128,14 @@
         }
       },
       "loc": 366
+    },
+    "renderer/sw": {
+      "file": "src\\renderer\\sw.js",
+      "description": "",
+      "exports": [],
+      "depends": [],
+      "functions": {},
+      "loc": 32
     },
     "renderer/web-entry": {
       "file": "src\\renderer\\web-entry.tsx",
@@ -11597,6 +11695,27 @@
         "description": "Application Menu Module Defines menu structure and handlers Supports dynamic menu based on active AI tool"
       }
     ],
+    "mobile-app": [
+      {
+        "module": "renderer/components/mobile/MobileApp",
+        "file": "src\\renderer\\components\\mobile\\MobileApp.tsx",
+        "description": "Mobile layout shell. Renders a bottom tab bar and swaps content based on the active tab. Reuses existing desktop components at full width."
+      }
+    ],
+    "mobile-bottom-nav": [
+      {
+        "module": "renderer/components/mobile/MobileBottomNav",
+        "file": "src\\renderer\\components\\mobile\\MobileBottomNav.tsx",
+        "description": "Mobile bottom navigation bar. Fixed at the bottom of the viewport with four tabs: Terminal, Tasks, Activity, Settings."
+      }
+    ],
+    "mobile-terminal-wrapper": [
+      {
+        "module": "renderer/components/mobile/MobileTerminalWrapper",
+        "file": "src\\renderer\\components\\mobile\\MobileTerminalWrapper.tsx",
+        "description": "Mobile terminal wrapper. Renders the active terminal at full width using the existing Terminal component. Falls back to a \"no terminals\" message if none exist."
+      }
+    ],
     "onboarding": [
       {
         "module": "main/onboardingManager",
@@ -11833,6 +11952,13 @@
         "module": "shared/subframeHealth",
         "file": "src\\shared\\subframeHealth.ts",
         "description": "SubFrame Health Checking Evaluates the deployment status of all SubFrame components in a project. Used by the health panel to show what's installed, outdated, or missing."
+      }
+    ],
+    "sw": [
+      {
+        "module": "renderer/sw",
+        "file": "src\\renderer\\sw.js",
+        "description": ""
       }
     ],
     "system": [
@@ -12131,6 +12257,13 @@
         "module": "renderer/hooks/useUpdater",
         "file": "src\\renderer\\hooks\\useUpdater.ts",
         "description": "TanStack Query hook for auto-updater state management. Listens for status/progress events from the main process and exposes mutations for check, download, and install actions."
+      }
+    ],
+    "use-viewport": [
+      {
+        "module": "renderer/hooks/useViewport",
+        "file": "src\\renderer\\hooks\\useViewport.ts",
+        "description": "Responsive viewport hook for mobile/tablet/desktop detection. Only active in web mode — Electron always reports 'desktop'."
       }
     ],
     "utils": [

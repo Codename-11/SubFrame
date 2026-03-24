@@ -117,6 +117,13 @@ function serveStatic(res: http.ServerResponse, urlPath: string): boolean {
   let filePath: string;
   if (urlPath === '/' || urlPath === '/index.html') {
     filePath = getWebIndexPath();
+  } else if (urlPath === '/manifest.json' || urlPath === '/sw.js') {
+    // PWA files — resolve from src/renderer/ (development) or dist/ (production)
+    const projectRoot = path.join(__dirname, '..', '..');
+    const filename = urlPath.slice(1); // strip leading /
+    const distPath = path.join(getDistDir(), filename);
+    const srcPath = path.join(projectRoot, 'src', 'renderer', filename);
+    filePath = fs.existsSync(distPath) ? distPath : srcPath;
   } else {
     // Resolve from project root for /node_modules/ and /assets/ paths, dist/ for /dist/
     const projectRoot = path.join(__dirname, '..', '..');
@@ -145,7 +152,7 @@ function serveStatic(res: http.ServerResponse, urlPath: string): boolean {
     const content = fs.readFileSync(filePath);
     res.writeHead(200, {
       'Content-Type': contentType,
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
+      'Cache-Control': (ext === '.html' || urlPath === '/sw.js' || urlPath === '/manifest.json') ? 'no-cache' : 'public, max-age=3600',
       'Access-Control-Allow-Origin': '*',
     });
     res.end(content);

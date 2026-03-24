@@ -27,10 +27,12 @@ import * as terminalRegistry from '../lib/terminalRegistry';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useAIToolConfig } from '../hooks/useSettings';
 import { useIpcQuery } from '../hooks/useIpc';
+import { useViewport } from '../hooks/useViewport';
 import { IPC } from '../../shared/ipcChannels';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import type { UninstallResult, WorkspaceListResult, WorkspaceData, WorkspaceProject } from '../../shared/ipcChannels';
 import { getTransport } from '../lib/transportProvider';
+import { MobileApp } from './mobile/MobileApp';
 
 /**
  * Root application layout.
@@ -457,9 +459,24 @@ export function App() {
     }
   }, [onboarding.analysisResult, onboardingDialogOpen]);
 
+  // Responsive viewport — web mobile gets a different layout
+  const { isMobile, isWeb } = useViewport();
+
   // Compute sidebar pixel width for CSS
   const resolvedSidebarWidth =
     sidebarState === 'hidden' ? 0 : sidebarState === 'collapsed' ? 54 : sidebarWidth;
+
+  // Mobile web layout — simplified bottom-tab navigation
+  if (isMobile && isWeb) {
+    return (
+      <>
+        <MobileApp />
+        {/* Modals/overlays that must be available in mobile mode */}
+        <SettingsPanel />
+        <ThemeProvider />
+      </>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg-deep text-text-primary font-sans">

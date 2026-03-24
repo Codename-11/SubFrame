@@ -6,6 +6,36 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### SubFrame Server — Full Web/Mobile Access (2026-03-23)
+
+**Phase 2: WebSocket Server**
+- **`webServerManager.ts`** — HTTP server for static assets + WebSocket server (ws lib) for real-time IPC transport. Follows standard manager pattern (init/setupIPC/shutdown).
+- **`ipcRouter.ts`** — Dual-registration wrapper around IpcMain. Managers register handlers in both Electron IPC and a parallel map, so WebSocket server can call same handlers via `routeInvoke()`/`routeSend()`.
+- **`eventBridge.ts`** — Fan-out for main→renderer broadcasts. `broadcast()` sends to both Electron window and WS subscribers. Replaces direct `webContents.send()`.
+- **`wsProtocol.ts`** — Typed message format: invoke/response, send, subscribe/unsubscribe, auth, session-takeover, ping/pong.
+- Terminal output batching: merges rapid PTY chunks into ~16ms frames (configurable via `server.terminalBatchIntervalMs`).
+- Single-session model with takeover (Google Messages for Web pattern). Old client sees "Session moved" screen.
+- Token-based auth + 6-char pairing code (5-minute expiry).
+- Service discovery: writes `{ port, token, pid, version }` to `~/.subframe/web-server.json`.
+- **`WebSocketTransport`** — browser-side Transport implementation. Auto-reconnect with exponential backoff (1s→30s max). Selective event subscription. Heartbeat ping every 30s.
+- **`web-entry.tsx`** — Browser entry point with connecting/takeover/disconnect UI screens.
+- **`build-web.js`** — esbuild config for browser bundle (no electron external).
+- **`web-index.html`** — HTML shell with PWA meta tags.
+
+**Phase 3: Settings UI & Setup Wizard**
+- **SettingsPanel** — "SubFrame Server" section under Integrations tab. Enable toggle, server status, connected client indicator, Setup Guide / Regenerate Token / Pairing Code buttons.
+- **`WebServerSetup.tsx`** — 4-step setup wizard: Enable → SSH Tunnel (copy-ready command) → Connect (URL + pairing code, live status) → Done (device info, PWA hint). Auto-advances on client connect.
+
+**Phase 4: Mobile UI & PWA**
+- **`useViewport`** hook — responsive breakpoints (mobile <768, tablet 768-1024, desktop >=1024). No-op in Electron.
+- **`MobileApp.tsx`** — Mobile layout shell with bottom tab navigation.
+- **`MobileBottomNav.tsx`** — 4-tab bottom bar (Terminal/Tasks/Activity/Settings) with Framer Motion animated indicator.
+- **`MobileTerminalWrapper.tsx`** — Full-width terminal renderer for mobile.
+- **App.tsx routing** — `isMobile && isWeb` renders MobileApp; desktop layout unchanged.
+- **PWA manifest** — standalone display, dark theme, icon references.
+- **Service worker** — cache-first for shell assets, network-first for API/WS.
+- webServerManager serves manifest.json and sw.js with no-cache headers.
+
 ### Transport Abstraction Layer (2026-03-23)
 
 - **`Transport` interface** (`src/shared/transport.ts`) — three methods matching Electron's IPC model: `invoke` (request/response), `send` (fire-and-forget), `on` (event subscription returning unsub fn). Plus `TransportPlatform` for shell/clipboard/platform APIs.
