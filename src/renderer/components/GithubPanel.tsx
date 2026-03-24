@@ -15,6 +15,16 @@ import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
+import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
@@ -405,10 +415,54 @@ function WorkflowsTab() {
 
 function WorktreesTab() {
   const { worktrees: worktreeList, isLoading, refetch, removeWorktree } = useGitWorktrees();
-  async function handleRemove(wtPath: string) { if (!window.confirm(`Remove worktree at "${wtPath}"?`)) return; const projectPath = useProjectStore.getState().currentProjectPath; if (!projectPath) return; try { const r = await removeWorktree.mutateAsync([{ projectPath, worktreePath: wtPath, force: false }]); if (r.error) { if (window.confirm('Has local changes. Force remove?')) { try { await removeWorktree.mutateAsync([{ projectPath, worktreePath: wtPath, force: true }]); toast.success('Force-removed'); } catch { toast.error('Failed'); } } } else toast.success('Removed'); } catch { toast.error('Failed to remove'); } }
+  const [removeTarget, setRemoveTarget] = useState<{ path: string; force: boolean } | null>(null);
+
+  function handleRemove(wtPath: string) {
+    setRemoveTarget({ path: wtPath, force: false });
+  }
+
+  async function confirmRemove() {
+    if (!removeTarget) return;
+    const projectPath = useProjectStore.getState().currentProjectPath;
+    if (!projectPath) return;
+    try {
+      const result = await removeWorktree.mutateAsync([{ projectPath, worktreePath: removeTarget.path, force: removeTarget.force }]);
+      if (result.error && !removeTarget.force) {
+        // Has local changes — offer force remove
+        setRemoveTarget({ ...removeTarget, force: true });
+        return;
+      } else if (result.error) {
+        toast.error('Failed to remove worktree');
+      } else {
+        toast.success(removeTarget.force ? 'Worktree force-removed' : 'Worktree removed');
+      }
+    } catch {
+      toast.error('Failed to remove worktree');
+    }
+    setRemoveTarget(null);
+  }
+
   return <div className="flex flex-col h-full">
     <div className="flex items-center justify-end px-3 py-1.5 border-b border-border-subtle shrink-0"><Button size="sm" variant="ghost" onClick={() => refetch()} className="h-6 px-1.5 cursor-pointer"><RefreshCw size={12} className={cn(isLoading && 'animate-spin')} /></Button></div>
     <ScrollArea className="flex-1 min-h-0">{isLoading && worktreeList.length === 0 ? <div className="flex items-center justify-center h-32 text-text-tertiary text-sm">Loading...</div> : worktreeList.length === 0 ? <div className="flex flex-col items-center justify-center h-32 text-text-tertiary text-sm gap-1"><FolderGit2 size={24} className="opacity-40" /><span>No worktrees</span></div> : <div className="flex flex-col">{worktreeList.map((wt) => { const pathName = wt.path.split(/[/\\]/).pop() || wt.path; return <div key={wt.path} className="flex items-center gap-2.5 px-3 py-2.5 border-b border-border-subtle/50 hover:bg-bg-hover/30 transition-colors group"><FolderGit2 size={14} className="text-text-tertiary shrink-0" /><div className="flex-1 min-w-0"><div className="text-xs font-medium text-text-primary">{pathName}</div><div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] text-text-tertiary">{wt.branch || 'detached'}</span>{wt.isMain && <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-accent/20 text-accent">main</Badge>}</div><div className="text-[10px] text-text-tertiary truncate mt-0.5">{wt.path}</div></div>{!wt.isMain && <button onClick={() => handleRemove(wt.path)} className="p-1 text-text-tertiary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer" title="Remove"><Trash2 size={12} /></button>}</div>; })}</div>}</ScrollArea>
+    <AlertDialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
+      <AlertDialogContent className="bg-bg-primary border-border-subtle text-text-primary">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{removeTarget?.force ? 'Force Remove Worktree?' : 'Remove Worktree?'}</AlertDialogTitle>
+          <AlertDialogDescription className="text-text-secondary text-xs">
+            {removeTarget?.force
+              ? 'This worktree has local changes. Force removing will discard them.'
+              : `Remove worktree at "${removeTarget?.path?.split(/[/\\]/).pop()}"?`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+          <AlertDialogAction className={removeTarget?.force ? 'bg-error text-white hover:bg-error/80 cursor-pointer' : 'bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer'} onClick={confirmRemove}>
+            {removeTarget?.force ? 'Force Remove' : 'Remove'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>;
 }
 

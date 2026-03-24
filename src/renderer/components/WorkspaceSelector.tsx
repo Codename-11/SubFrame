@@ -238,6 +238,7 @@ export function WorkspaceSelector() {
       const inactiveKeys = inactiveWorkspaces.map(ws => ws.key);
       await typedInvoke(IPC.WORKSPACE_REORDER, [...keys, ...inactiveKeys]);
       refetch();
+      toast.success('Workspace order updated');
     } catch {
       toast.error('Failed to reorder workspace');
     } finally {
@@ -256,6 +257,7 @@ export function WorkspaceSelector() {
       const inactiveKeys = inactiveWorkspaces.map(ws => ws.key);
       await typedInvoke(IPC.WORKSPACE_REORDER, [...keys, ...inactiveKeys]);
       refetch();
+      toast.success('Workspace order updated');
     } catch {
       toast.error('Failed to reorder workspace');
     } finally {
@@ -282,6 +284,7 @@ export function WorkspaceSelector() {
         await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: true });
         refetch();
         typedSend(IPC.LOAD_WORKSPACE);
+        toast.success('Workspace deactivated');
       } catch {
         toast.error('Failed to deactivate workspace');
       } finally {
@@ -294,6 +297,7 @@ export function WorkspaceSelector() {
     try {
       await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: wantDeactivate });
       refetch();
+      toast.success(wantDeactivate ? 'Workspace deactivated' : 'Workspace activated');
     } catch {
       toast.error('Failed to update workspace');
     } finally {
