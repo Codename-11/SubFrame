@@ -125,7 +125,8 @@ if (rootEl) {
         </div>
       );
     },
-    onSessionInUse: (currentDevice, connectedAt) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onSessionInUse: (currentDevice: any, connectedAt: any) => {
       root.render(
         <SessionTakeoverScreen
           currentDevice={currentDevice}
@@ -172,7 +173,8 @@ if (rootEl) {
         </ErrorBoundary>
       );
     })
-    .catch((err) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .catch((err: any) => {
       root.render(
         <ConnectingScreen message={`Failed to connect: ${err.message}`} />
       );

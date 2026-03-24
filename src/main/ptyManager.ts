@@ -371,7 +371,7 @@ function init(window: BrowserWindow): void {
       const stallDuration = now - instance.lastOutputTimestamp;
       if (stallDuration > threshold) {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          broadcast(IPC.TERMINAL_STALL_DETECTED, { terminalId, stallDurationMs: stallDuration });
+          mainWindow.webContents.send(IPC.TERMINAL_STALL_DETECTED, { terminalId, stallDurationMs: stallDuration });
         }
 
         // Auto-recovery mode: send SIGWINCH automatically
@@ -532,7 +532,7 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
       instForStall.lastOutputTimestamp = Date.now();
       // If this terminal was flagged as stalled, clear it
       if (instForStall.claudeActive && mainWindow && !mainWindow.isDestroyed()) {
-        broadcast(IPC.TERMINAL_STALL_CLEARED, { terminalId });
+        mainWindow.webContents.send(IPC.TERMINAL_STALL_CLEARED, { terminalId });
       }
     }
     // Track working directory changes via OSC 7 escape sequences

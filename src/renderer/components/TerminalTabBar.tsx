@@ -6,6 +6,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { generateTerminalName, getUsedTerminalNames } from '../lib/terminalNames';
 import {
   Plus,
   X,
@@ -189,11 +190,13 @@ export function TerminalTabBar({
   }, [renameTerminal]);
 
   const resetTerminalName = useCallback((terminal: TerminalInfo) => {
-    const index = terminalList.indexOf(terminal) + 1;
-    const defaultName = `Terminal ${index}`;
+    const allTerminals = useTerminalStore.getState().terminals;
+    const usedNames = getUsedTerminalNames(allTerminals);
+    usedNames.delete(terminal.name.toLowerCase()); // Exclude current name so it can be reused
+    const defaultName = generateTerminalName(usedNames);
     renameTerminal(terminal.id, defaultName, 'default');
     toast.info(`Tab reset: ${defaultName}`, { duration: 2000 });
-  }, [terminalList, renameTerminal]);
+  }, [renameTerminal]);
 
   const handleReorder = useCallback(
     (newOrder: TerminalInfo[]) => {

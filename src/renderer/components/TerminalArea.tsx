@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ArrowLeft, ExternalLink } from 'lucide-react';
 import { TerminalTabBar } from './TerminalTabBar';
+import { generateTerminalName, getUsedTerminalNames } from '../lib/terminalNames';
 import { TerminalGrid } from './TerminalGrid';
 import { Terminal } from './Terminal';
 import { OverviewPanel } from './OverviewPanel';
@@ -307,9 +308,10 @@ export function TerminalArea() {
 
       if (data.success && data.terminalId) {
         terminalCounterRef.current += 1;
+        const defaultName = data.name || generateTerminalName(getUsedTerminalNames(terminals));
         addTerminal({
           id: data.terminalId,
-          name: data.name || `Terminal ${terminalCounterRef.current}`,
+          name: defaultName,
           projectPath: data.projectPath || currentProjectPath || '',
           isActive: !data.background,
         });
