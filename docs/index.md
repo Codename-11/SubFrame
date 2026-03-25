@@ -1,6 +1,18 @@
 ---
 layout: doc
 title: SubFrame Documentation
+head:
+  - - script
+    - type: application/ld+json
+    - |
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "SubFrame",
+        "operatingSystem": "Windows, macOS, Linux",
+        "applicationCategory": "DeveloperApplication",
+        "softwareVersion": "0.9.0-beta"
+      }
 ---
 
 # SubFrame Documentation

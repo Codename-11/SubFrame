@@ -8,11 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Terminal Persistence settings UI** — `restoreOnStartup`, `restoreScrollback`, and `autoResumeAgent` are now configurable in Settings > Terminal > Persistence. Includes tooltips and search indexing
+- **Terminal shortcuts** — `Ctrl+Shift+R` (Restart Shell) and `Ctrl+Shift+F` (Freeze/Unfreeze Terminal) added to documentation and keyboard shortcuts overlay
+- **System panel shortcut** — `Ctrl+Shift+U` added to documentation and keyboard shortcuts overlay
+
+## [0.9.0-beta] - 2026-03-24
+
+### Added
 - **SubFrame Server** — serve SubFrame's UI as a web app with real-time WebSocket transport. Enable via Settings > Integrations > SubFrame Server. Includes HTTP static serving, WS channel router, terminal output batching (~60fps), single-session with takeover (Google Messages for Web pattern), token auth, 6-char pairing codes, SSH tunnel guided setup wizard, and service discovery via `~/.subframe/web-server.json`
 - **Mobile responsive layout** — bottom-nav mobile UI (Terminal/Tasks/Activity/Settings tabs) when accessed via phone browser. Desktop layout unchanged in Electron. Viewport-aware routing via `useViewport` hook
 - **PWA support** — installable Progressive Web App with manifest, service worker (shell caching), and offline reconnection overlay. Add to home screen on mobile for standalone experience
 - **Transport abstraction layer** — pluggable `Transport` interface (`src/shared/transport.ts`) decouples all renderer IPC from Electron. `ElectronTransport` wraps `ipcRenderer`/`shell`/`clipboard`; `WebSocketTransport` enables browser/mobile access. All 26 renderer files migrated — only `electronTransport.ts` imports Electron directly
-- **System Panel** — app dashboard (`Ctrl+Shift+U`) with version/update status, AI tool picker, health, integrations, feature detection, shortcuts, and prompt library cards
+- **System Panel** — app dashboard (`Ctrl+Shift+U`) with version/update status, AI tool management, integration controls, and feature detection. It opens as a full-page view (like Overview) and includes:
 - **AI Tool picker** — switch AI tools directly from System Panel with installed status indicators
 - **API Server controls** — on/off toggle, token regeneration, and config copy from System Panel
 - **Feature detection** — scans Claude Code config for hooks, MCP servers, and skills; shows counts and hints
@@ -478,7 +485,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.5.4-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.9.0-beta...HEAD
+[0.9.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.8.0-beta...v0.9.0-beta
+[0.8.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.7.0-beta...v0.8.0-beta
+[0.7.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.6.0-beta...v0.7.0-beta
+[0.6.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.4-beta...v0.6.0-beta
 [0.5.4-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.3-beta...v0.5.4-beta
 [0.5.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.2-beta...v0.5.3-beta
 [0.5.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.1-beta...v0.5.2-beta
