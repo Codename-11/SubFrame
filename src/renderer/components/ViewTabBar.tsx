@@ -35,11 +35,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+import { Reorder, useDragControls } from 'framer-motion';
 import { toast } from 'sonner';
 import { IPC } from '../../shared/ipcChannels';
 import type { ClaudeUsageData, UsageWindow, UsageSource, WorkspaceListResult } from '../../shared/ipcChannels';
 import { SHORTCUTS } from '../lib/shortcuts';
 import { getTransport } from '../lib/transportProvider';
+import {
+  WORKSPACE_ICON_COMPONENTS,
+  normalizeWorkspacePillDisplay,
+  getWorkspacePillPresentation,
+} from '../lib/workspacePills';
 
 const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   terminal: TerminalSquare,
@@ -110,6 +116,133 @@ function formatSubType(subType: string | null): string | null {
   return subType.charAt(0).toUpperCase() + subType.slice(1);
 }
 
+interface WorkspacePillInfo {
+  key: string;
+  name: string;
+  active: boolean;
+  projectCount: number;
+  projectPaths: string[];
+  shortLabel: string | null;
+  icon: string | null;
+  index: number;
+}
+
+function WorkspacePillButton({
+  workspace,
+  activity,
+  display,
+  disabled,
+  onSwitch,
+  onReorderCommit,
+}: {
+  workspace: WorkspacePillInfo;
+  activity: { terminalCount: number; agentCount: number };
+  display: ReturnType<typeof normalizeWorkspacePillDisplay>;
+  disabled: boolean;
+  onSwitch: (key: string) => void;
+  onReorderCommit: () => void;
+}) {
+  const dragControls = useDragControls();
+  const holdTimerRef = useRef<number | null>(null);
+  const suppressClickUntilRef = useRef(0);
+
+  const hasTerminals = activity.terminalCount > 0;
+  const hasAgents = activity.agentCount > 0;
+  const presentation = getWorkspacePillPresentation({
+    display,
+    index: workspace.index,
+    name: workspace.name,
+    shortLabel: workspace.shortLabel,
+    icon: workspace.icon,
+  });
+  const WorkspaceIcon = presentation.icon ? WORKSPACE_ICON_COMPONENTS[presentation.icon] : null;
+  const usesCompactWidth = !presentation.indexText && !presentation.text && !!WorkspaceIcon;
+
+  const clearHoldTimer = useCallback(() => {
+    if (holdTimerRef.current != null) {
+      window.clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }, []);
+
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    clearHoldTimer();
+    holdTimerRef.current = window.setTimeout(() => {
+      suppressClickUntilRef.current = Date.now() + 250;
+      dragControls.start(event, { snapToCursor: false });
+    }, 180);
+  }, [clearHoldTimer, disabled, dragControls]);
+
+  useEffect(() => clearHoldTimer, [clearHoldTimer]);
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Reorder.Item
+            value={workspace.key}
+            dragListener={false}
+            dragControls={dragControls}
+            onDragEnd={() => {
+              clearHoldTimer();
+              suppressClickUntilRef.current = Date.now() + 250;
+              onReorderCommit();
+            }}
+            className="list-none"
+          >
+            <button
+              onPointerDown={handlePointerDown}
+              onPointerUp={clearHoldTimer}
+              onPointerLeave={clearHoldTimer}
+              onPointerCancel={clearHoldTimer}
+              onClick={() => {
+                if (suppressClickUntilRef.current > Date.now()) return;
+                onSwitch(workspace.key);
+              }}
+              disabled={disabled}
+              className={`relative flex items-center justify-center h-5 w-auto rounded-md text-[10px] font-semibold
+                transition-colors cursor-pointer disabled:opacity-50 mx-0.5 touch-none
+                ${usesCompactWidth ? 'min-w-[24px] px-1.5' : 'min-w-[28px] px-2 gap-1'}
+                ${presentation.indexText && !presentation.text && !WorkspaceIcon ? 'font-mono' : 'tracking-wide'}
+                ${workspace.active
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
+                }`}
+            >
+              {presentation.indexText && <span className="font-mono">{presentation.indexText}</span>}
+              {WorkspaceIcon && <WorkspaceIcon className="w-3 h-3 flex-shrink-0" />}
+              {presentation.text && <span className="truncate max-w-[48px]">{presentation.text}</span>}
+              {hasAgents && (
+                <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
+                  <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-success animate-ping opacity-40" />
+                  <span className="block w-1.5 h-1.5 rounded-full bg-success" />
+                </span>
+              )}
+              {hasTerminals && (
+                <span className="absolute -bottom-1 -right-1 min-w-[12px] h-3 px-0.5 rounded-full bg-info/90 text-[8px] leading-3 text-bg-deep font-bold text-center shadow-sm">
+                  {activity.terminalCount > 9 ? '9+' : activity.terminalCount}
+                </span>
+              )}
+            </button>
+          </Reorder.Item>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p className="text-xs">
+            {workspace.name}
+            {workspace.projectCount > 0 ? ` (${workspace.projectCount} project${workspace.projectCount > 1 ? 's' : ''})` : ''}
+            {hasTerminals ? ` — ${activity.terminalCount} terminal${activity.terminalCount > 1 ? 's' : ''}` : ' — no terminals'}
+            {hasAgents ? `, ${activity.agentCount} active AI` : ''}
+            {` — #${workspace.index}`}
+            {workspace.index <= 9 ? ` · ${SHORTCUTS[`WORKSPACE_${workspace.index}` as keyof typeof SHORTCUTS]?.keys}` : ''}
+            {' · hold and drag to reorder'}
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function ViewTabBar() {
   const openTabs = useUIStore(s => s.openTabs);
   const fullViewContent = useUIStore(s => s.fullViewContent);
@@ -123,9 +256,9 @@ export function ViewTabBar() {
   const setSidebarState = useUIStore(s => s.setSidebarState);
   const currentProjectPath = useProjectStore(s => s.currentProjectPath);
   const workspaceName = useProjectStore(s => s.workspaceName);
-  const { updateSetting } = useSettings();
-  const { config: aiToolConfig } = useAIToolConfig();
   const projects = useProjectStore(s => s.projects);
+  const { settings, updateSetting } = useSettings();
+  const { config: aiToolConfig } = useAIToolConfig();
   const terminals = useTerminalStore(s => s.terminals);
 
   // ── Workspace pills data ─────────────────────────────────────────────────
@@ -133,30 +266,59 @@ export function ViewTabBar() {
     staleTime: 10000,
   });
   const wsParsed = workspaceListRaw as WorkspaceListResult | undefined;
-  const wsWorkspaces = useMemo(() =>
+  const wsWorkspaces = useMemo<WorkspacePillInfo[]>(() =>
     wsParsed?.workspaces?.filter(ws => !(ws.inactive))?.map((ws, i) => ({
       key: ws.key,
       name: ws.name,
       active: ws.key === wsParsed!.active,
       projectCount: ws.projectCount ?? 0,
+      projectPaths: ws.projectPaths ?? [],
+      shortLabel: ws.shortLabel ?? null,
+      icon: ws.icon ?? null,
       index: i + 1,
     })) ?? [],
     [wsParsed]
   );
+  const workspacePillDisplay = normalizeWorkspacePillDisplay((settings?.appearance as Record<string, unknown>)?.workspacePillDisplay ?? (settings?.appearance as Record<string, unknown>)?.workspacePillStyle);
+  const inactiveWorkspaceKeys = useMemo(
+    () => wsParsed?.workspaces?.filter(ws => ws.inactive)?.map(ws => ws.key) ?? [],
+    [wsParsed]
+  );
 
-  // Agent activity detection for workspace pills
+  // Workspace activity detection for pills
   const allTerminals = useMemo(() => Array.from(terminals.values()), [terminals]);
-  const currentProjectPaths = useMemo(() => new Set(projects.map(p => p.path)), [projects]);
-
-  const getWsAgentActive = useCallback((wsKey: string, isCurrentWs: boolean): boolean => {
-    if (isCurrentWs) {
-      return allTerminals.some(t => currentProjectPaths.has(t.projectPath) && t.claudeActive);
+  const workspaceActivity = useMemo(() => {
+    const activity = new Map<string, { terminalCount: number; agentCount: number }>();
+    for (const ws of wsWorkspaces) {
+      const pathSet = new Set(ws.projectPaths);
+      let terminalCount = 0;
+      let agentCount = 0;
+      for (const terminal of allTerminals) {
+        if (!pathSet.has(terminal.projectPath || '')) continue;
+        terminalCount += 1;
+        if (terminal.claudeActive) agentCount += 1;
+      }
+      activity.set(ws.key, { terminalCount, agentCount });
     }
-    return false;
-  }, [allTerminals, currentProjectPaths]);
+    return activity;
+  }, [allTerminals, wsWorkspaces]);
 
   const [wsSwitching, setWsSwitching] = useState(false);
+  const [wsReordering, setWsReordering] = useState(false);
   const [wsPulse, setWsPulse] = useState(false);
+  const [workspaceOrderKeys, setWorkspaceOrderKeys] = useState<string[]>([]);
+  const workspaceOrderKeysRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    const nextKeys = wsWorkspaces.map((workspace) => workspace.key);
+    setWorkspaceOrderKeys((prev) => {
+      const preserved = prev.filter((key) => nextKeys.includes(key));
+      const appended = nextKeys.filter((key) => !preserved.includes(key));
+      const merged = [...preserved, ...appended];
+      workspaceOrderKeysRef.current = merged;
+      return merged;
+    });
+  }, [wsWorkspaces]);
 
   const handleWsSwitch = useCallback(async (key: string) => {
     if (wsSwitching || wsParsed?.active === key) return;
@@ -171,6 +333,33 @@ export function ViewTabBar() {
       setWsSwitching(false);
     }
   }, [wsSwitching, wsParsed, refetchWorkspaces]);
+
+  const workspaceByKey = useMemo(
+    () => new Map(wsWorkspaces.map((workspace) => [workspace.key, workspace])),
+    [wsWorkspaces]
+  );
+
+  const handleWorkspaceReorderCommit = useCallback(async () => {
+    if (wsReordering) return;
+    const orderedActiveKeys = workspaceOrderKeysRef.current.filter((key) => workspaceByKey.has(key));
+    const currentActiveKeys = wsWorkspaces.map((workspace) => workspace.key);
+    if (
+      orderedActiveKeys.length !== currentActiveKeys.length ||
+      orderedActiveKeys.every((key, index) => key === currentActiveKeys[index]) === false
+    ) {
+      setWsReordering(true);
+      try {
+        await typedInvoke(IPC.WORKSPACE_REORDER, [...orderedActiveKeys, ...inactiveWorkspaceKeys]);
+        refetchWorkspaces();
+      } catch {
+        toast.error('Failed to reorder workspace');
+        workspaceOrderKeysRef.current = currentActiveKeys;
+        setWorkspaceOrderKeys(currentActiveKeys);
+      } finally {
+        setWsReordering(false);
+      }
+    }
+  }, [inactiveWorkspaceKeys, refetchWorkspaces, workspaceByKey, wsReordering, wsWorkspaces]);
 
   const handleWsCreate = useCallback(() => {
     window.dispatchEvent(new Event('open-workspace-create'));
@@ -364,43 +553,32 @@ export function ViewTabBar() {
         <div className={`flex items-center border-l border-border-subtle ml-2 pl-2 flex-shrink-0 transition-all duration-300 ${
           wsPulse ? 'ring-1 ring-accent/40 rounded-md bg-accent/5' : ''
         }`}>
-          {wsWorkspaces.map(ws => {
-            const isActive = ws.active;
-            const agentActive = getWsAgentActive(ws.key, isActive);
-            return (
-              <TooltipProvider key={ws.key} delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleWsSwitch(ws.key)}
-                      disabled={wsSwitching}
-                      className={`relative flex items-center justify-center h-5 w-auto min-w-[24px] px-1.5 rounded-md text-[10px] font-mono font-semibold
-                        transition-colors cursor-pointer disabled:opacity-50 mx-0.5
-                        ${isActive
-                          ? 'bg-accent/20 text-accent border border-accent/30'
-                          : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
-                        }`}
-                    >
-                      #{ws.index}
-                      {/* Agent active dot */}
-                      {agentActive && (
-                        <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
-                          <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-success animate-ping opacity-40" />
-                          <span className="block w-1.5 h-1.5 rounded-full bg-success" />
-                        </span>
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p className="text-xs">
-                      {ws.name}{ws.projectCount > 0 ? ` (${ws.projectCount} project${ws.projectCount > 1 ? 's' : ''})` : ''}
-                      {ws.index <= 9 ? ` — ${SHORTCUTS[`WORKSPACE_${ws.index}` as keyof typeof SHORTCUTS]?.keys}` : ''}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            );
-          })}
+          <Reorder.Group
+            axis="x"
+            values={workspaceOrderKeys}
+            onReorder={(nextOrder) => {
+              workspaceOrderKeysRef.current = nextOrder;
+              setWorkspaceOrderKeys(nextOrder);
+            }}
+            className="flex items-center"
+          >
+            {workspaceOrderKeys.map((workspaceKey, renderIndex) => {
+              const ws = workspaceByKey.get(workspaceKey);
+              if (!ws) return null;
+              const activity = workspaceActivity.get(ws.key) ?? { terminalCount: 0, agentCount: 0 };
+              return (
+                <WorkspacePillButton
+                  key={ws.key}
+                  workspace={{ ...ws, index: renderIndex + 1 }}
+                  activity={activity}
+                  display={workspacePillDisplay}
+                  disabled={wsSwitching || wsReordering}
+                  onSwitch={handleWsSwitch}
+                  onReorderCommit={handleWorkspaceReorderCommit}
+                />
+              );
+            })}
+          </Reorder.Group>
           {/* Add workspace button */}
           <TooltipProvider delayDuration={400}>
             <Tooltip>

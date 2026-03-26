@@ -62,6 +62,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/introduction' },
+      { text: 'Remote Access', link: '/remote-access' },
       { text: 'Reference', link: '/sub-tasks' },
       { text: 'Blog', link: '/blog/' },
       { text: 'GitHub', link: 'https://github.com/Codename-11/SubFrame' },
@@ -75,6 +76,7 @@ export default defineConfig({
             { text: 'Introduction', link: '/introduction' },
             { text: 'Getting Started', link: '/getting-started' },
             { text: 'AI Tool Setup', link: '/ai-tool-setup' },
+            { text: 'Remote Access', link: '/remote-access' },
             { text: 'Features Overview', link: '/features' },
           ],
         },

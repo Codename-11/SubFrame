@@ -79,6 +79,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const generalSettings = (settings?.general as Record<string, unknown>) || {};
   const highlightUserMessages = generalSettings.highlightUserMessages !== false;
   const userMessageColor = (generalSettings.userMessageColor as string) || '#ff6eb4';
+  const showFreezeOverlay = terminalSettings.showFreezeOverlay !== false;
   const claudeActive = useTerminalStore((s) => s.terminals.get(terminalId)?.claudeActive ?? false);
   const isFrozen = useTerminalStore((s) => s.frozenTerminals.has(terminalId));
   const unfreezeTerminal = useTerminalStore((s) => s.unfreezeTerminal);
@@ -697,7 +698,7 @@ export function Terminal({ terminalId, className }: TerminalProps) {
 
           {/* Frozen overlay indicator */}
           <AnimatePresence>
-            {isFrozen && (
+            {showFreezeOverlay && isFrozen && (
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}

@@ -19,7 +19,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { RoutableIPC } from './ipcRouter';
 import { routeInvoke, routeSend, hasInvokeHandler, hasSendHandler } from './ipcRouter';
 import { addBridgeListener } from './eventBridge';
-import { IPC } from '../shared/ipcChannels';
+import { IPC, type WebRemotePointerState, type WebSessionState } from '../shared/ipcChannels';
 import type { ClientMessage, ServerMessage } from '../shared/wsProtocol';
 import { WS_ERRORS } from '../shared/wsProtocol';
 
@@ -30,7 +30,73 @@ let wss: WebSocketServer | null = null;
 let authToken = '';
 let serverPort = 0;
 let enabled = false;
+let startOnLaunch = false;
+let lanMode = false;
+let configuredPort = 0;
 let removeBridgeListener: (() => void) | null = null;
+let liveSessionState: Pick<WebSessionState, 'currentProjectPath' | 'session' | 'ui'> | null = null;
+let lastStartError: string | null = null;
+
+// ── Network Utilities ──────────────────────────────────────────────────────
+
+function isPrivateIpv4(address: string): boolean {
+  return (
+    address.startsWith('10.') ||
+    address.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(address)
+  );
+}
+
+/** Return external IPv4 addresses, preferring RFC1918 LAN addresses first. */
+function getLanIps(): string[] {
+  const interfaces = os.networkInterfaces();
+  const addresses = new Set<string>();
+
+  for (const ifaces of Object.values(interfaces)) {
+    for (const iface of ifaces ?? []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        addresses.add(iface.address);
+      }
+    }
+  }
+
+  return [...addresses].sort((a, b) => {
+    const aPrivate = isPrivateIpv4(a);
+    const bPrivate = isPrivateIpv4(b);
+    if (aPrivate !== bPrivate) return aPrivate ? -1 : 1;
+    return a.localeCompare(b);
+  });
+}
+
+function getLanIp(): string | null {
+  return getLanIps()[0] ?? null;
+}
+
+function normalizePort(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(numeric) || Number.isNaN(numeric)) return 0;
+  if (numeric < 0) return 0;
+  if (numeric > 65535) return 65535;
+  return numeric;
+}
+
+function getStoredLastPort(): number {
+  try {
+    const settingsManager = require('./settingsManager');
+    return normalizePort(settingsManager.getSetting('server.lastPort'));
+  } catch {
+    return 0;
+  }
+}
+
+function persistLastPort(port: number): void {
+  try {
+    const settingsManager = require('./settingsManager');
+    settingsManager.updateSetting('server.lastPort', port);
+  } catch {
+    // ignore
+  }
+}
 
 interface WebSession {
   id: string;
@@ -83,6 +149,72 @@ function removeServiceConfig(): void {
   try { if (fs.existsSync(CONFIG_PATH)) fs.unlinkSync(CONFIG_PATH); } catch { /* ignore */ }
 }
 
+function getRemoteCursorEnabled(): boolean {
+  try {
+    const settingsManager = require('./settingsManager') as typeof import('./settingsManager');
+    return settingsManager.getSetting('server.showRemoteCursor') === true;
+  } catch {
+    return false;
+  }
+}
+
+function buildRemotePointerLabel(userAgent: string): string {
+  const lower = userAgent.toLowerCase();
+  if (lower.includes('android')) return 'Remote Android';
+  if (lower.includes('iphone') || lower.includes('ipad') || lower.includes('ios')) return 'Remote iPhone';
+  if (lower.includes('mobile')) return 'Remote Mobile';
+  if (lower.includes('tablet')) return 'Remote Tablet';
+  return 'Remote Web';
+}
+
+function clearRemotePointer(): void {
+  broadcastIPC(IPC.WEB_REMOTE_POINTER_CLEARED, undefined);
+}
+
+function getSessionContext(): { workspaceName: string; projectPath: string | null; projectName: string | null } {
+  const workspace = require('./workspace') as typeof import('./workspace');
+  const workspaceData = workspace.getProjectsWithScanned();
+  const sessionProjectPath = liveSessionState?.currentProjectPath
+    ?? workspaceData.projects.find((project: { source?: string }) => project.source !== 'scanned')?.path
+    ?? workspaceData.projects[0]?.path
+    ?? null;
+  const sessionProject = workspaceData.projects.find((project) => project.path === sessionProjectPath) ?? null;
+
+  return {
+    workspaceName: workspaceData.workspaceName,
+    projectPath: sessionProjectPath,
+    projectName: sessionProject?.name ?? null,
+  };
+}
+
+function getWebBootstrapPayload(): {
+  workspaceName: string;
+  projectName: string | null;
+  appearance: {
+    activeThemeId: string;
+    customThemes: unknown[];
+    enableNeonTraces?: boolean;
+    enableScanlines?: boolean;
+    enableLogoGlow?: boolean;
+  };
+} {
+  const settingsManager = require('./settingsManager') as typeof import('./settingsManager');
+  const appearance = (settingsManager.getSetting('appearance') as Record<string, unknown> | undefined) ?? {};
+  const sessionContext = getSessionContext();
+
+  return {
+    workspaceName: sessionContext.workspaceName,
+    projectName: sessionContext.projectName,
+    appearance: {
+      activeThemeId: typeof appearance.activeThemeId === 'string' ? appearance.activeThemeId : 'classic-amber',
+      customThemes: Array.isArray(appearance.customThemes) ? appearance.customThemes : [],
+      enableNeonTraces: typeof appearance.enableNeonTraces === 'boolean' ? appearance.enableNeonTraces : undefined,
+      enableScanlines: typeof appearance.enableScanlines === 'boolean' ? appearance.enableScanlines : undefined,
+      enableLogoGlow: typeof appearance.enableLogoGlow === 'boolean' ? appearance.enableLogoGlow : undefined,
+    },
+  };
+}
+
 // ── Static Asset Serving ───────────────────────────────────────────────────
 
 const MIME_TYPES: Record<string, string> = {
@@ -133,10 +265,11 @@ function serveStatic(res: http.ServerResponse, urlPath: string): boolean {
   } else {
     // Resolve from project root for /node_modules/ and /assets/ paths, dist/ for /dist/
     const projectRoot = path.join(__dirname, '..', '..');
-    const normalized = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
-    if (urlPath.startsWith('/dist/')) {
+    const relativeUrlPath = urlPath.replace(/^\/+/, '');
+    const normalized = path.normalize(relativeUrlPath).replace(/^(\.\.[/\\])+/, '');
+    if (relativeUrlPath.startsWith('dist/')) {
       filePath = path.join(distDir, normalized.replace(/^dist[/\\]/, ''));
-    } else if (urlPath.startsWith('/node_modules/') || urlPath.startsWith('/assets/')) {
+    } else if (relativeUrlPath.startsWith('node_modules/') || relativeUrlPath.startsWith('assets/')) {
       filePath = path.join(projectRoot, normalized);
     } else {
       filePath = path.join(distDir, normalized);
@@ -191,6 +324,13 @@ function handleHTTP(req: http.IncomingMessage, res: http.ServerResponse): void {
       activeSession: activeSession ? { userAgent: activeSession.userAgent, connectedAt: activeSession.connectedAt } : null,
       uptime: process.uptime(),
     }));
+    return;
+  }
+
+  // Public bootstrap info for the unauthenticated access screen
+  if (pathname === '/api/bootstrap') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+    res.end(JSON.stringify(getWebBootstrapPayload()));
     return;
   }
 
@@ -367,11 +507,19 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
 
       case 'send': {
         try {
-          if (msg.payload !== undefined) {
-            routeSend(msg.channel, msg.payload);
-          } else {
-            routeSend(msg.channel);
-          }
+          const sendToRequester = (replyChannel: string, payload?: unknown) => {
+            wsSend(ws, { type: 'event', channel: replyChannel, payload });
+          };
+          const reply = (replyChannel: string, payload?: unknown) => {
+            sendToRequester(replyChannel, payload);
+            if (replyChannel === IPC.TERMINAL_CREATED) {
+              broadcastIPC(replyChannel, payload);
+            }
+          };
+          routeSend(msg.channel, msg.payload !== undefined ? [msg.payload] : [], {
+            sendToSender: sendToRequester,
+            reply,
+          });
         } catch (err) {
           console.warn(`[Web Server] Send error on ${msg.channel}:`, (err as Error).message);
         }
@@ -400,6 +548,7 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
     clearTimeout(authTimer);
     if (activeSession && activeSession.ws === ws) {
       activeSession = null;
+      clearRemotePointer();
       broadcastIPC(IPC.WEB_CLIENT_DISCONNECTED, undefined);
     }
     if (pendingTakeoverWs === ws) {
@@ -508,6 +657,7 @@ function broadcastIPC(channel: string, data: unknown): void {
 function startServer(): void {
   if (httpServer) return;
   authToken = authToken || crypto.randomBytes(24).toString('hex');
+  lastStartError = null;
 
   httpServer = http.createServer((req, res) => {
     try {
@@ -534,15 +684,55 @@ function startServer(): void {
 
   wss.on('connection', handleWsConnection);
 
-  httpServer.listen(0, '127.0.0.1', () => {
-    const addr = httpServer!.address();
-    serverPort = typeof addr === 'object' && addr ? addr.port : 0;
-    console.log(`[Web Server] Listening on http://127.0.0.1:${serverPort}`);
-    writeServiceConfig();
-  });
+  const bindAddress = lanMode ? '0.0.0.0' : '127.0.0.1';
+  const lastPort = getStoredLastPort();
+  const desiredPort = configuredPort > 0 ? configuredPort : lastPort;
+  const allowFallback = configuredPort === 0 && desiredPort > 0;
+
+  const listen = (portToTry: number, fallbackReason?: string) => {
+    const handleListening = () => {
+      cleanupStartupListeners();
+      const addr = httpServer!.address();
+      serverPort = typeof addr === 'object' && addr ? addr.port : 0;
+      const displayAddr = lanMode ? `0.0.0.0 (LAN)` : '127.0.0.1';
+      if (fallbackReason) {
+        console.warn(`[Web Server] ${fallbackReason}`);
+      }
+      console.log(`[Web Server] Listening on http://${displayAddr}:${serverPort}`);
+      persistLastPort(serverPort);
+      lastStartError = null;
+      writeServiceConfig();
+    };
+
+    const handleStartupError = (err: NodeJS.ErrnoException) => {
+      cleanupStartupListeners();
+      if (allowFallback && portToTry !== 0 && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
+        listen(0, `Preferred auto port ${portToTry} unavailable, falling back to an open port.`);
+        return;
+      }
+
+      const portLabel = portToTry > 0 ? `port ${portToTry}` : 'an available port';
+      lastStartError = `Failed to bind ${portLabel}: ${err.code || err.message}`;
+      console.error('[Web Server] Failed to start:', err);
+      stopServer();
+    };
+
+    const cleanupStartupListeners = () => {
+      httpServer?.off('listening', handleListening);
+      httpServer?.off('error', handleStartupError);
+    };
+
+    httpServer!.once('listening', handleListening);
+    httpServer!.once('error', handleStartupError);
+    httpServer!.listen(portToTry, bindAddress);
+  };
+
+  listen(desiredPort);
 
   httpServer.on('error', (err) => {
-    console.error('[Web Server] Server error:', err);
+    if (httpServer?.listening) {
+      console.error('[Web Server] Server error:', err);
+    }
   });
 
   // Rate limit counter reset — clear counters every second
@@ -576,6 +766,7 @@ function stopServer(): void {
   }
   activeSession = null;
   pendingTakeoverWs = null;
+  clearRemotePointer();
 
   // Unsubscribe from event bridge
   removeBridgeListener?.();
@@ -597,10 +788,15 @@ function init(): void {
   // Check settings
   try {
     const settingsManager = require('./settingsManager');
-    enabled = settingsManager.getSetting('server.enabled') === true;
+    startOnLaunch = settingsManager.getSetting('server.startOnLaunch') === true;
+    enabled = startOnLaunch;
+    configuredPort = normalizePort(settingsManager.getSetting('server.port'));
     batchIntervalMs = settingsManager.getSetting('server.terminalBatchIntervalMs') ?? 16;
+    lanMode = settingsManager.getSetting('server.lanMode') === true;
   } catch {
     enabled = false;
+    startOnLaunch = false;
+    configuredPort = 0;
   }
 
   if (!enabled) {
@@ -620,9 +816,36 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
         if (key === 'server.enabled') {
           const enable = value === true;
           if (enable && !httpServer) { enabled = true; startServer(); }
-          else if (!enable && httpServer) { enabled = false; stopServer(); }
+          else if (!enable) {
+            enabled = false;
+            lastStartError = null;
+            if (httpServer) stopServer();
+          }
+        } else if (key === 'server.startOnLaunch') {
+          startOnLaunch = value === true;
+        } else if (key === 'server.port') {
+          const nextPort = normalizePort(value);
+          if (nextPort !== configuredPort) {
+            configuredPort = nextPort;
+            if (enabled) {
+              if (httpServer) stopServer();
+              startServer();
+            }
+          }
         } else if (key === 'server.terminalBatchIntervalMs') {
           batchIntervalMs = (value as number) ?? 16;
+        } else if (key === 'server.lanMode') {
+          const newLanMode = value === true;
+          if (newLanMode !== lanMode) {
+            lanMode = newLanMode;
+            // Restart server so it rebinds to the correct address
+            if (enabled) {
+              if (httpServer) stopServer();
+              startServer();
+            }
+          }
+        } else if (key === 'server.showRemoteCursor' && value !== true) {
+          clearRemotePointer();
         }
       });
     }
@@ -630,16 +853,113 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
 
   // IPC: get server info
   router.handle(IPC.WEB_SERVER_INFO, () => {
+    const sessionContext = getSessionContext();
+
     return {
       enabled,
+      startOnLaunch,
       port: serverPort,
       token: authToken,
+      configuredPort,
+      lanMode,
+      lanIp: lanMode ? getLanIp() : null,
+      lanIps: lanMode ? getLanIps() : [],
       clientConnected: !!activeSession,
       clientInfo: activeSession ? {
         userAgent: activeSession.userAgent,
         connectedAt: activeSession.connectedAt,
       } : null,
+      sessionContext,
+      lastStartError,
     };
+  });
+
+  router.handle(IPC.WEB_SESSION_STATE, async () => {
+    const workspace = require('./workspace') as typeof import('./workspace');
+    const workspaceData = workspace.getProjectsWithScanned();
+    const terminalState = await routeInvoke(IPC.GET_TERMINAL_STATE, []) as {
+      terminals: WebSessionState['terminals'];
+    };
+
+    const fallbackProjectPath =
+      liveSessionState?.currentProjectPath
+      ?? terminalState.terminals.find((terminal) => terminal.projectPath)?.projectPath
+      ?? workspaceData.projects.find((project: { source?: string }) => project.source !== 'scanned')?.path
+      ?? workspaceData.projects[0]?.path
+      ?? null;
+
+    return {
+      currentProjectPath: fallbackProjectPath,
+      workspaceName: workspaceData.workspaceName,
+      projects: workspaceData.projects,
+      session: liveSessionState?.session ?? null,
+      ui: liveSessionState?.ui ?? null,
+      terminals: terminalState.terminals,
+    } satisfies WebSessionState;
+  });
+
+  router.on(IPC.WEB_SESSION_SYNC, (_event, payload) => {
+    if (!payload || typeof payload !== 'object') return;
+    const data = payload as {
+      currentProjectPath?: string | null;
+      session?: WebSessionState['session'];
+      ui?: WebSessionState['ui'];
+    };
+    const nextState = liveSessionState ?? {
+      currentProjectPath: null,
+      session: null,
+      ui: null,
+    };
+
+    if ('currentProjectPath' in data) {
+      nextState.currentProjectPath = data.currentProjectPath ?? null;
+    }
+    if ('session' in data) {
+      nextState.session = data.session ?? null;
+    }
+    if ('ui' in data) {
+      nextState.ui = data.ui ?? null;
+    }
+
+    liveSessionState = nextState;
+    broadcastIPC(IPC.WEB_SESSION_SYNC, liveSessionState);
+  });
+
+  router.on(IPC.WEB_REMOTE_POINTER_SYNC, (_event, payload) => {
+    if (!getRemoteCursorEnabled()) return;
+    if (!payload || typeof payload !== 'object' || !activeSession) return;
+
+    const data = payload as {
+      normalizedX?: number;
+      normalizedY?: number;
+      pointerType?: 'mouse' | 'touch' | 'pen';
+      phase?: 'move' | 'down' | 'up' | 'leave';
+      viewportWidth?: number;
+      viewportHeight?: number;
+      timestamp?: number;
+    };
+
+    if (data.phase === 'leave') {
+      clearRemotePointer();
+      return;
+    }
+
+    const normalizedX = typeof data.normalizedX === 'number' ? Math.max(0, Math.min(1, data.normalizedX)) : null;
+    const normalizedY = typeof data.normalizedY === 'number' ? Math.max(0, Math.min(1, data.normalizedY)) : null;
+    if (normalizedX === null || normalizedY === null) return;
+
+    const event: WebRemotePointerState = {
+      normalizedX,
+      normalizedY,
+      pointerType: data.pointerType ?? 'mouse',
+      phase: data.phase ?? 'move',
+      viewportWidth: Math.max(1, Math.round(data.viewportWidth ?? 1)),
+      viewportHeight: Math.max(1, Math.round(data.viewportHeight ?? 1)),
+      label: buildRemotePointerLabel(activeSession.userAgent),
+      timestamp: typeof data.timestamp === 'number' ? data.timestamp : Date.now(),
+    };
+
+    broadcastIPC(IPC.WEB_REMOTE_POINTER_UPDATED, event);
   });
 
   // IPC: toggle server
@@ -647,17 +967,12 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
     if (enable && !httpServer) {
       enabled = true;
       startServer();
-      try {
-        const settingsManager = require('./settingsManager');
-        settingsManager.updateSetting('server.enabled', true);
-      } catch { /* ignore */ }
     } else if (!enable && httpServer) {
       enabled = false;
       stopServer();
-      try {
-        const settingsManager = require('./settingsManager');
-        settingsManager.updateSetting('server.enabled', false);
-      } catch { /* ignore */ }
+    } else if (!enable) {
+      enabled = false;
+      lastStartError = null;
     }
     return { enabled, port: serverPort, token: authToken };
   });

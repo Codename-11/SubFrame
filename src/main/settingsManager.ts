@@ -3,11 +3,12 @@
  * Manages application settings stored in frame-settings.json
  */
 
-import { ipcMain, type App, type BrowserWindow } from 'electron';
+import { ipcMain, type App, type BrowserWindow, type IpcMain } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
+import type { RoutableIPC } from './ipcRouter';
 
 let mainWindow: BrowserWindow | null = null;
 let settingsPath: string | null = null;
@@ -41,6 +42,8 @@ interface DefaultSettings {
     autoResumeAgent: 'auto' | 'prompt' | 'never';
     agentExitTimeout: number;
     maxScrollbackExport: number;
+    showFreezeHoverAction: boolean;
+    showFreezeOverlay: boolean;
   };
   editor: {
     minimap: boolean;
@@ -63,6 +66,11 @@ interface DefaultSettings {
   };
   appearance: {
     activeThemeId: string;
+    workspacePillDisplay: {
+      showIndex: boolean;
+      showShortLabel: boolean;
+      showIcon: boolean;
+    };
     customThemes: Array<{
       id: string;
       name: string;
@@ -74,8 +82,12 @@ interface DefaultSettings {
   };
   server: {
     enabled: boolean;
+    startOnLaunch: boolean;
     port: number;
+    lastPort: number;
     terminalBatchIntervalMs: number;
+    lanMode: boolean;
+    showRemoteCursor: boolean;
   };
   [key: string]: unknown;
 }
@@ -110,6 +122,8 @@ const DEFAULT_SETTINGS: DefaultSettings = {
     autoResumeAgent: 'prompt',
     agentExitTimeout: 5000,
     maxScrollbackExport: 5000,
+    showFreezeHoverAction: true,
+    showFreezeOverlay: true,
   },
   editor: {
     minimap: false,
@@ -132,12 +146,21 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   },
   appearance: {
     activeThemeId: 'classic-amber',
+    workspacePillDisplay: {
+      showIndex: true,
+      showShortLabel: false,
+      showIcon: false,
+    },
     customThemes: [],
   },
   server: {
     enabled: false,
+    startOnLaunch: false,
     port: 0,
+    lastPort: 0,
     terminalBatchIntervalMs: 16,
+    lanMode: false,
+    showRemoteCursor: false,
   },
 };
 
@@ -153,7 +176,6 @@ function init(window: BrowserWindow, app: App): void {
   mainWindow = window;
   settingsPath = path.join(app.getPath('userData'), 'frame-settings.json');
   loadSettings();
-  setupIPC();
 }
 
 /**
@@ -163,7 +185,15 @@ function loadSettings(): Record<string, unknown> {
   try {
     if (settingsPath && fs.existsSync(settingsPath)) {
       const data = fs.readFileSync(settingsPath, 'utf8');
-      const loaded = JSON.parse(data);
+      const loaded = JSON.parse(data) as Record<string, unknown>;
+      const loadedServer = loaded.server as Record<string, unknown> | undefined;
+      if (
+        loadedServer &&
+        !Object.prototype.hasOwnProperty.call(loadedServer, 'startOnLaunch') &&
+        loadedServer.enabled === true
+      ) {
+        loadedServer.startOnLaunch = true;
+      }
       settings = deepMerge(structuredClone(DEFAULT_SETTINGS) as Record<string, unknown>, loaded);
     } else {
       settings = structuredClone(DEFAULT_SETTINGS) as Record<string, unknown>;
@@ -268,14 +298,14 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
 /**
  * Setup IPC handlers
  */
-function setupIPC(): void {
-  ipcMain.handle(IPC.LOAD_SETTINGS, () => {
+function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
+  ipc.handle(IPC.LOAD_SETTINGS, () => {
     return settings;
   });
 
-  ipcMain.handle(IPC.UPDATE_SETTING, (_event, { key, value }: { key: string; value: unknown }) => {
+  ipc.handle(IPC.UPDATE_SETTING, (_event, { key, value }: { key: string; value: unknown }) => {
     return updateSetting(key, value);
   });
 }
 
-export { init, loadSettings, saveSettings, updateSetting, getSetting, onSettingChange };
+export { init, setupIPC, loadSettings, saveSettings, updateSetting, getSetting, onSettingChange };

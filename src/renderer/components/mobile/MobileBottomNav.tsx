@@ -1,14 +1,14 @@
 /**
  * Mobile bottom navigation bar.
- * Fixed at the bottom of the viewport with four tabs:
- * Terminal, Tasks, Activity, Settings.
+ * Fixed at the bottom of the viewport with five tabs:
+ * Terminal, Tasks, Panels, Activity, Settings.
  */
 
 import { motion } from 'framer-motion';
-import { Terminal as TerminalIcon, ListTodo, Activity, Settings } from 'lucide-react';
+import { Terminal as TerminalIcon, ListTodo, Activity, Settings, PanelsTopLeft } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export type MobileTab = 'terminal' | 'tasks' | 'activity' | 'settings';
+export type MobileTab = 'terminal' | 'tasks' | 'panels' | 'activity' | 'settings';
 
 interface MobileBottomNavProps {
   activeTab: MobileTab;
@@ -18,6 +18,7 @@ interface MobileBottomNavProps {
 const tabs: { id: MobileTab; label: string; icon: typeof TerminalIcon }[] = [
   { id: 'terminal', label: 'Terminal', icon: TerminalIcon },
   { id: 'tasks', label: 'Tasks', icon: ListTodo },
+  { id: 'panels', label: 'Panels', icon: PanelsTopLeft },
   { id: 'activity', label: 'Activity', icon: Activity },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];

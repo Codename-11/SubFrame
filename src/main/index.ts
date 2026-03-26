@@ -41,6 +41,7 @@ import * as popoutManager from './popoutManager';
 import * as apiServerManager from './apiServerManager';
 import * as webServerManager from './webServerManager';
 import { initEventBridge, broadcast } from './eventBridge';
+import { createRoutableIPC } from './ipcRouter';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
 
 // ── Global error handlers — surface errors to terminal on crash/exit ──
@@ -525,38 +526,43 @@ function createWindow(): BrowserWindow {
  * Setup all IPC handlers
  */
 function setupAllIPC(): void {
+  const routedIpc = createRoutableIPC(ipcMain);
+
   // Setup module IPC handlers
-  pty.setupIPC(ipcMain);
-  ptyManager.setupIPC(ipcMain);
-  dialogs.setupIPC(ipcMain);
-  fileTree.setupIPC(ipcMain);
-  promptLogger.setupIPC(ipcMain);
-  workspace.setupIPC(ipcMain);
-  frameProject.setupIPC(ipcMain);
-  fileEditor.setupIPC(ipcMain);
-  tasksManager.setupIPC(ipcMain);
-  pluginsManager.setupIPC(ipcMain);
-  githubManager.setupIPC(ipcMain);
-  claudeUsageManager.setupIPC(ipcMain);
-  overviewManager.setupIPC(ipcMain);
-  gitBranchesManager.setupIPC(ipcMain);
-  claudeSessionsManager.setupIPC(ipcMain);
-  aiFilesManager.setupIPC(ipcMain);
-  agentStateManager.setupIPC(ipcMain);
-  skillsManager.setupIPC(ipcMain);
-  promptsManager.setupIPC(ipcMain);
-  onboardingManager.setupIPC(ipcMain);
-  pipelineManager.setupIPC(ipcMain);
-  activityManager.setupIPC(ipcMain);
-  outputChannelManager.setupIPC(ipcMain);
-  popoutManager.setupIPC(ipcMain);
-  apiServerManager.setupIPC(ipcMain);
-  webServerManager.setupIPC(ipcMain);
-  // Note: updaterManager.setupIPC() is called inside updaterManager.init()
-  // because it needs app.isPackaged to be set first
+  settingsManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  aiToolManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  pty.setupIPC(routedIpc as unknown as typeof ipcMain);
+  ptyManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  dialogs.setupIPC(routedIpc as unknown as typeof ipcMain);
+  fileTree.setupIPC(routedIpc as unknown as typeof ipcMain);
+  promptLogger.setupIPC(routedIpc as unknown as typeof ipcMain);
+  workspace.setupIPC(routedIpc as unknown as typeof ipcMain);
+  frameProject.setupIPC(routedIpc as unknown as typeof ipcMain);
+  fileEditor.setupIPC(routedIpc as unknown as typeof ipcMain);
+  tasksManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  pluginsManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  githubManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  claudeUsageManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  overviewManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  gitBranchesManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  claudeSessionsManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  aiFilesManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  agentStateManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  skillsManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  promptsManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  onboardingManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  pipelineManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  activityManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  outputChannelManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  popoutManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  apiServerManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  webServerManager.setupIPC(routedIpc);
+  updaterManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  // Note: updaterManager.init() still owns updater lifecycle wiring because it
+  // needs app.isPackaged to be set first.
 
   // What's New — read RELEASE_NOTES.md from app root
-  ipcMain.handle(IPC.GET_RELEASE_NOTES, () => {
+  routedIpc.handle(IPC.GET_RELEASE_NOTES, () => {
     const version: string = require('../../package.json').version;
     const notesPath = path.join(app.getAppPath(), 'RELEASE_NOTES.md');
     let content = '';
@@ -569,7 +575,7 @@ function setupAllIPC(): void {
   });
 
   // CLI install — create a shell wrapper in a PATH-accessible location
-  ipcMain.handle(IPC.INSTALL_CLI, async () => {
+  routedIpc.handle(IPC.INSTALL_CLI, async () => {
     try {
       const cliSource = path.join(__dirname, '..', 'scripts', 'subframe-cli.js');
 
@@ -636,7 +642,7 @@ function setupAllIPC(): void {
     }
   });
 
-  ipcMain.handle(IPC.UNINSTALL_CLI, async () => {
+  routedIpc.handle(IPC.UNINSTALL_CLI, async () => {
     try {
       if (process.platform === 'win32') {
         const appData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
@@ -677,7 +683,7 @@ function setupAllIPC(): void {
 
   // ─── CLI Status Check ────────────────────────────────────────────────────────
 
-  ipcMain.handle(IPC.CHECK_CLI_STATUS, async () => {
+  routedIpc.handle(IPC.CHECK_CLI_STATUS, async () => {
     try {
       if (process.platform === 'win32') {
         const binDir = path.join(process.env.LOCALAPPDATA || '', 'SubFrame', 'bin');
@@ -699,7 +705,7 @@ function setupAllIPC(): void {
 
   // ─── Windows Context Menu Integration ────────────────────────────────────────
 
-  ipcMain.handle(IPC.INSTALL_CONTEXT_MENU, async () => {
+  routedIpc.handle(IPC.INSTALL_CONTEXT_MENU, async () => {
     if (process.platform !== 'win32') {
       return { success: false, message: 'Context menu integration is Windows-only' };
     }
@@ -728,7 +734,7 @@ function setupAllIPC(): void {
     }
   });
 
-  ipcMain.handle(IPC.UNINSTALL_CONTEXT_MENU, async () => {
+  routedIpc.handle(IPC.UNINSTALL_CONTEXT_MENU, async () => {
     if (process.platform !== 'win32') {
       return { success: false, message: 'Context menu integration is Windows-only' };
     }
@@ -743,7 +749,7 @@ function setupAllIPC(): void {
     }
   });
 
-  ipcMain.handle(IPC.CHECK_CONTEXT_MENU, async () => {
+  routedIpc.handle(IPC.CHECK_CONTEXT_MENU, async () => {
     if (process.platform !== 'win32') return { installed: false };
     try {
       const { execSync } = require('child_process');

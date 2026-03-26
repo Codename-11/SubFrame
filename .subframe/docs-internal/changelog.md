@@ -6,6 +6,37 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### Remote Web Session Parity (2026-03-25)
+
+- **Remote cursor tracking** — SubFrame Server now has an optional `Remote Cursor Tracking` setting that shows web-client mouse/touch activity on the host desktop while a remote session is active.
+- **Requester-scoped browser send/on replies** — the IPC router now provides a browser-mode `event.sender.send(...)` path instead of only `reply()`, which fixes web features that still use Electron-style send/on request flows such as tasks, workspace loads, file-tree loads, and AI-files status checks.
+- **Remaining routed invoke gaps closed** — updater actions and the top-level release-notes / CLI / context-menu handlers now register through the routable IPC layer too, so browser mode no longer hits the same `No invoke handler` class of bug outside the initial AI-tool fix.
+- **Live UI hydration** now carries right-panel and full-view state in addition to terminal/session data, so remote clients can open closer to the host renderer’s current project context instead of restoring only terminal tabs.
+- **Dialog + panel mirroring** — live UI sync now includes sidebar state, right-panel collapse/width, settings dialog state, and open full-view tabs, and the main process re-broadcasts those updates back into Electron so browser-originated panel/dialog changes also show up on the desktop host.
+- **Live session follow-up sync** — once connected, the browser now continues receiving host session updates for terminal naming/layout and UI state instead of only hydrating once at connect time.
+- **Phone web shell parity** — mobile web now exposes a dedicated `Panels` tab for the same project, GitHub, agent, and automation panels available in the desktop right sidebar.
+- **Phone terminal parity** — the mobile `Terminal` tab now renders the real `TerminalArea` instead of a stripped single-terminal wrapper, so workspace/view tabs and terminal tab/grid behavior stay aligned with desktop.
+- **Mobile panel routing** — when shared UI state opens a panel on phone web, the shell now switches to `Tasks` or `Panels` instead of dropping that intent because the desktop `RightPanel` component is not mounted there.
+- **Sub-Tasks in panel matrix** — mobile `Panels` now includes the Sub-Tasks surface as well, matching the desktop right-panel feature list instead of making tasks the only missing panel family.
+- **Activity bar server badge** — the bottom activity bar now shows `Web Off`, `Web Ready`, `Web Live`, or `Web Error` states with a small action menu for start/stop and URL copy actions.
+- **Session-scoped server start** — manual start/stop no longer persists across app restarts by default. A new `Start Server on Launch` setting controls persistent auto-start separately from the current-session run state.
+- **Browser send/reply bridge** — router-backed `ipcMain.on(...)` handlers can now reply back through the WebSocket/event bridge, which fixes host-controlled actions like `New Terminal` that depend on follow-up events such as `terminal-created`.
+- **Remote-cursor idle toggle behavior** — when `Remote Cursor Tracking` is off, the browser no longer keeps publishing pointer events in the background; the transport listeners only attach while the feature is enabled.
+
+### Workspace Pill Identity Settings (2026-03-25)
+
+- **Top bar workspace pills** now support four display modes: `Index`, `Short Label`, `Icon`, and `Icon + Short Label`. Default remains the current numeric `#1` style.
+- **Settings > Appearance** now separates `Theme Actions` from `Workspace Pills`, so workspace controls are not visually mixed with theme saving.
+- **Settings > Appearance > Workspace Pills** now uses combinable content toggles instead of a single style dropdown, so `Index`, `Short Label`, and `Icon` can be mixed freely.
+- **Matrix-style pill composition** supports combinations like index + short label, index + icon, or all three together without adding extra preset modes.
+- **Index + short label fallback** — when a workspace has an explicit short label, enabling `Index` now renders `# + short label` automatically instead of forcing a second toggle just to reach that combination.
+- **Top bar reordering** — hold a workspace pill briefly, then drag to reorder. The dragged topbar order persists through the existing workspace reorder IPC path.
+- **Workspace metadata** now persists `shortLabel` and `icon` alongside workspace names/projects, so pill identity survives restarts and applies consistently anywhere the workspace list is loaded.
+- Short labels are capped at 4 characters and label-based modes fall back to an auto-generated monogram when no custom label is set.
+- **Grid freeze parity** — grid headers now expose freeze/resume controls next to pop-out, matching the tab-strip freeze affordance.
+- **Paused output overlay setting** — the in-terminal `Output paused` banner is now separately configurable and defaults to on.
+- **CLI actions mirrored** — SubFrame CLI install/remove actions are now available in both General > CLI and Integrations > Shell Integration.
+
 ### SubFrame Server — Full Web/Mobile Access (2026-03-23)
 
 **Phase 2: WebSocket Server**
@@ -24,7 +55,7 @@ Notable changes grouped by date and domain.
 
 **Phase 3: Settings UI & Setup Wizard**
 - **SettingsPanel** — "SubFrame Server" section under Integrations tab. Enable toggle, server status, connected client indicator, Setup Guide / Regenerate Token / Pairing Code buttons.
-- **`WebServerSetup.tsx`** — 4-step setup wizard: Enable → SSH Tunnel (copy-ready command) → Connect (URL + pairing code, live status) → Done (device info, PWA hint). Auto-advances on client connect.
+- **`WebServerSetup.tsx`** — 4-step setup wizard: Enable → Access (SSH tunnel or trusted-LAN mode) → Connect (URL + pairing code, live status) → Done (device info, PWA hint). LAN mode binds to `0.0.0.0`, shows local IP/QR guidance, and warns against public/shared networks.
 
 **Phase 4: Mobile UI & PWA**
 - **`useViewport`** hook — responsive breakpoints (mobile <768, tablet 768-1024, desktop >=1024). No-op in Electron.
@@ -35,6 +66,29 @@ Notable changes grouped by date and domain.
 - **PWA manifest** — standalone display, dark theme, icon references.
 - **Service worker** — cache-first for shell assets, network-first for API/WS.
 - webServerManager serves manifest.json and sw.js with no-cache headers.
+
+**Web asset path fix (2026-03-25)**
+- `web-index.html` and `sw.js` now reference `/dist/web-renderer.css` instead of `/dist/renderer.css`.
+- `webServerManager.ts` now strips leading slashes before normalizing `/dist/...` URLs on Windows, preventing asset requests like `/dist/web-renderer.js` from resolving to `dist/dist/...` and falling through to the SPA HTML fallback.
+- This fixes browser-mode loads where the CSS request fell through to the SPA HTML fallback, causing MIME-type errors and `expected expression, got '<'` console failures.
+
+**Live web session hydration (2026-03-25)**
+- The main `SubFrame Server` card in Settings now shows the full tokenized connection URL inline, not just inside the setup wizard, with a direct copy action.
+- The same card now also separates the raw base URL from the tokenized connection URL, so host/port and shareable auth link are visible without mixing them.
+- Desktop renderer terminal/session state is now synced into the main process for web mode, so remote browsers can hydrate from the live desktop session instead of relying purely on browser-local `localStorage`.
+- `GET_TERMINAL_STATE` now includes `projectPath`, which lets the web client attach existing running terminals to the right project/workspace instead of restoring an empty or stale local session.
+- `web-entry.tsx` now seeds the project store, terminal store, and browser session storage from `WEB_SESSION_STATE` before rendering the app, so phones/tablets open closer to the current desktop context on first connect.
+- `WEB_SERVER_INFO` now exposes the mirrored workspace/project context, and the settings card shows `Mirroring <workspace> / <project>` so it is obvious what the remote device will attach to.
+- `webSocketTransport.ts` now falls back from `crypto.randomUUID()` to `crypto.getRandomValues()` and finally a timestamp/random string, fixing live-session hydration on older Android/mobile browsers that do not implement `randomUUID`.
+- `index.ts` now registers module IPC handlers through `createRoutableIPC(ipcMain)`, so WebSocket `invoke` calls like `web-session-state` are actually present in the router map instead of existing only on raw Electron IPC.
+- `web-entry.tsx` no longer requires the long `?token=` link just to get started. Opening the base URL now shows a small access screen where the client can pair with a short code or paste a session token directly.
+- Successful direct-link connections now strip the tokenized query from the browser address bar and keep the token only in `sessionStorage`, so reloads work without leaving the full auth token visible in the URL.
+- `WebSocketTransport` now exposes takeover requests for the mobile/web access screen, and its reconnect callback now fires correctly after successful reconnects instead of leaving the disconnect overlay stuck.
+- SubFrame Server now remembers the last successful auto-selected port and tries to reuse it on the next start. If that previous port is busy, auto mode falls back to any open port; if the user sets a fixed preferred port, bind failures are surfaced back through Settings instead of silently changing ports.
+- Settings > Integrations > SubFrame Server now includes a `Preferred Port` control plus explicit startup-error messaging, so LAN/mobile bookmarks and third-party integrations can target a stable port when desired.
+- `settingsManager` and `aiToolManager` now register their handlers through the routed IPC wrapper as well, fixing browser-mode invokes like `get-ai-tool-config` and preventing the web client from falling back into raw-`ipcMain` only channels.
+- The web server now exposes a small public `/api/bootstrap` payload with appearance and mirror context, and `web-entry.tsx` uses it to apply the active SubFrame theme before authentication so the pairing/connecting/takeover screens match the desktop theme instead of hard-coded fallback colors.
+- The pairing-code button in Settings now actually behaves like a copy action: it generates a code when needed, copies it to the clipboard, keeps the current code visible in the button label, and falls back gracefully if clipboard access is blocked.
 
 ### Transport Abstraction Layer (2026-03-23)
 

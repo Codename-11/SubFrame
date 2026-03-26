@@ -13,6 +13,24 @@ const INVOKE_TIMEOUT_MS = 15_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 
+function createInvokeId(): string {
+  const webCrypto = globalThis.crypto;
+  if (webCrypto?.randomUUID) {
+    return webCrypto.randomUUID();
+  }
+
+  if (webCrypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    webCrypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0'));
+    return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+  }
+
+  return `invoke-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 interface PendingInvoke {
   resolve: (result: unknown) => void;
   reject: (error: Error) => void;
@@ -77,14 +95,15 @@ export class WebSocketTransport implements Transport {
         }
 
         if (msg.type === 'auth-ok') {
+          const wasReconnect = this.reconnectAttempts > 0;
           this.authenticated = true;
-          this.reconnectAttempts = 0;
           this.startHeartbeat();
           // Restore subscriptions after reconnect
           if (this.subscriptions.size > 0) {
             this.sendRaw({ type: 'subscribe', channels: [...this.subscriptions] });
           }
-          if (this.reconnectAttempts > 0) this.onReconnect?.();
+          this.reconnectAttempts = 0;
+          if (wasReconnect) this.onReconnect?.();
           resolve();
           return;
         }
@@ -126,7 +145,7 @@ export class WebSocketTransport implements Transport {
         return;
       }
 
-      const id = crypto.randomUUID();
+      const id = createInvokeId();
       const timer = setTimeout(() => {
         this.pendingInvokes.delete(id);
         reject(new Error(`Invoke timeout: ${String(channel)}`));
@@ -252,6 +271,10 @@ export class WebSocketTransport implements Transport {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
     }
+  }
+
+  requestTakeover(): void {
+    this.sendRaw({ type: 'takeover' });
   }
 
   private startHeartbeat(): void {

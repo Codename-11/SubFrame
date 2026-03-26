@@ -1,11 +1,13 @@
 ---
 title: Integrations
-description: SubFrame's Local API Server and DTSP protocol — connect external tools to terminal state, selection, and agent-initiated TTS.
+description: SubFrame's Local API Server and DTSP protocol for automation, external tools, and agent-initiated TTS.
 ---
 
 # Integrations
 
 SubFrame exposes terminal state to external tools through a **Local API Server** and the **DTSP** (Desktop Text Source Protocol) discovery standard. This enables tools like Conjure (TTS), Stream Deck, custom scripts, and any DTSP-aware application to interact with SubFrame's terminals.
+
+> Looking for browser-based desktop or mobile control of the full SubFrame UI? That lives under [Remote Access](/remote-access) via SubFrame Server. This page is about automation and tool integration, not the remote web client.
 
 ## Architecture
 

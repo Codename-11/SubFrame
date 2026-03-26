@@ -45,6 +45,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+import { useSettings } from '../hooks/useSettings';
 import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore';
 import { IPC } from '../../shared/ipcChannels';
 import type { ShellInfo } from '../../shared/ipcChannels';
@@ -59,6 +60,11 @@ interface TerminalTabBarProps {
   projectTerminals: TerminalInfo[];
   /** Current project path (used to detect cross-project pinned terminals) */
   currentProjectPath?: string;
+  /** Temporary workspace-wide terminal mix mode */
+  combineWorkspaceTerminals?: boolean;
+  canCombineWorkspaceTerminals?: boolean;
+  workspaceTerminalCount?: number;
+  onToggleCombine?: () => void;
   /** Terminal IDs that overflow the grid (not visible in grid view) */
   gridOverflowIds?: Set<string>;
   /** Called when any terminal tab is clicked (in addition to store setActiveTerminal) */
@@ -76,6 +82,10 @@ export function TerminalTabBar({
   onPopOutTerminal,
   projectTerminals,
   currentProjectPath,
+  combineWorkspaceTerminals,
+  canCombineWorkspaceTerminals,
+  workspaceTerminalCount,
+  onToggleCombine,
   gridOverflowIds,
   onTerminalTabClick,
   editorFiles,
@@ -96,6 +106,7 @@ export function TerminalTabBar({
   const unpinTerminal = useTerminalStore((s) => s.unpinTerminal);
   const frozenTerminals = useTerminalStore((s) => s.frozenTerminals);
   const toggleFreezeTerminal = useTerminalStore((s) => s.toggleFreezeTerminal);
+  const { settings } = useSettings();
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -105,6 +116,7 @@ export function TerminalTabBar({
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   // (Agent active status tracked in useTerminalStore.claudeActive, updated by TerminalArea)
+  const showFreezeHoverAction = ((settings?.terminal as Record<string, unknown>)?.showFreezeHoverAction) !== false;
 
   // Load available shells
   useEffect(() => {
@@ -146,11 +158,11 @@ export function TerminalTabBar({
   // Use projectTerminals prop directly (already sorted by parent — includes pinned cross-project terminals)
   const terminalList = projectTerminals;
 
-  // Identify cross-project pinned terminals (pinned terminals whose projectPath differs from current)
+  // Identify terminals coming from a different project than the currently selected one.
   const normalizedCurrentPath = currentProjectPath ?? '';
-  const crossProjectIds = new Set(
+  const foreignProjectIds = new Set(
     projectTerminals
-      .filter((t) => pinnedTerminals.has(t.id) && (t.projectPath || '') !== normalizedCurrentPath)
+      .filter((t) => (t.projectPath || '') !== normalizedCurrentPath)
       .map((t) => t.id)
   );
 
@@ -211,6 +223,15 @@ export function TerminalTabBar({
     toggleFreezeTerminal(activeTerminalId);
   }, [activeTerminalId, toggleFreezeTerminal]);
 
+  const toggleFreezeForTerminal = useCallback((terminalId: string) => {
+    if (terminalRegistry.isFrozen(terminalId)) {
+      terminalRegistry.unfreeze(terminalId);
+    } else {
+      terminalRegistry.freeze(terminalId);
+    }
+    toggleFreezeTerminal(terminalId);
+  }, [toggleFreezeTerminal]);
+
   const isActiveFrozen = activeTerminalId ? frozenTerminals.has(activeTerminalId) : false;
 
   return (
@@ -269,16 +290,17 @@ export function TerminalTabBar({
               <ContextMenu>
                 <ContextMenuTrigger asChild>
                   <button
-                    className={`group relative flex items-center gap-1.5 px-3 h-7 rounded-md text-xs
-                               whitespace-nowrap transition-colors cursor-pointer select-none
-                               ${crossProjectIds.has(t.id) ? 'border-l-2 border-accent/40' : ''}
+                    className={`group relative flex items-center gap-1.5 pl-3 h-7 rounded-md text-xs
+                               whitespace-nowrap transition-all duration-150 cursor-pointer select-none
+                               ${showFreezeHoverAction ? 'pr-6 hover:pr-18' : 'pr-6 hover:pr-14'}
+                               ${foreignProjectIds.has(t.id) ? 'border-l-2 border-info/40' : ''}
                                ${
-                                 t.id === activeTerminalId && !activeEditorFile
-                                   ? 'text-accent'
-                                   : crossProjectIds.has(t.id)
-                                     ? 'text-text-secondary hover:text-text-primary hover:bg-bg-hover bg-bg-tertiary/50'
-                                     : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
-                               }`}
+                                  t.id === activeTerminalId && !activeEditorFile
+                                    ? 'text-accent'
+                                    : foreignProjectIds.has(t.id)
+                                      ? 'text-text-secondary hover:text-text-primary hover:bg-bg-hover bg-bg-tertiary/50'
+                                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+                                }`}
                     onClick={() => {
                       setActiveTerminal(t.id);
                       onTerminalTabClick?.(t.id);
@@ -300,18 +322,22 @@ export function TerminalTabBar({
                     )}
 
                     <span className="relative z-10 flex items-center gap-1.5">
-                      {/* Cross-project pinned badge */}
-                      {crossProjectIds.has(t.id) && (
+                      {/* Foreign-project badge */}
+                      {foreignProjectIds.has(t.id) && (
                         <span
-                          className="flex items-center gap-0.5 px-1 py-px rounded text-[9px] font-medium bg-accent/15 text-accent/80 flex-shrink-0"
-                          title={`Pinned from ${t.projectPath || 'unknown'}`}
+                          className={`flex items-center gap-0.5 px-1 py-px rounded text-[9px] font-medium flex-shrink-0 ${
+                            pinnedTerminals.has(t.id)
+                              ? 'bg-accent/15 text-accent/80'
+                              : 'bg-info/15 text-info/80'
+                          }`}
+                          title={`${pinnedTerminals.has(t.id) ? 'Pinned from' : 'From'} ${t.projectPath || 'unknown'}`}
                         >
-                          <Pin className="h-2.5 w-2.5" />
+                          {pinnedTerminals.has(t.id) && <Pin className="h-2.5 w-2.5" />}
                           {(t.projectPath || '').split(/[/\\]/).pop() || '?'}
                         </span>
                       )}
                       {/* Pin indicator for native terminals that are pinned */}
-                      {pinnedTerminals.has(t.id) && !crossProjectIds.has(t.id) && (
+                      {pinnedTerminals.has(t.id) && !foreignProjectIds.has(t.id) && (
                         <span title="Pinned — visible across workspaces" className="flex-shrink-0 flex items-center">
                           <Pin className="h-2.5 w-2.5 text-accent/60" />
                         </span>
@@ -360,6 +386,46 @@ export function TerminalTabBar({
                         </>
                       )}
 
+                    </span>
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1">
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (pinnedTerminals.has(t.id)) {
+                            unpinTerminal(t.id);
+                          } else {
+                            pinTerminal(t.id);
+                          }
+                        }}
+                        className={`transition-all cursor-pointer ${
+                          pinnedTerminals.has(t.id)
+                            ? 'opacity-65 hover:opacity-100 text-accent'
+                            : 'opacity-0 group-hover:opacity-40 hover:!opacity-100 text-text-secondary hover:text-accent'
+                        }`}
+                        aria-label={`${pinnedTerminals.has(t.id) ? 'Unpin' : 'Pin'} terminal ${t.name}`}
+                        title={pinnedTerminals.has(t.id) ? 'Unpin Terminal' : 'Pin Terminal'}
+                      >
+                        {pinnedTerminals.has(t.id) ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                      </span>
+                      {showFreezeHoverAction && (
+                        <span
+                          role="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFreezeForTerminal(t.id);
+                          }}
+                          className={`transition-all cursor-pointer ${
+                            frozenTerminals.has(t.id)
+                              ? 'opacity-65 hover:opacity-100 text-info'
+                              : 'opacity-0 group-hover:opacity-40 hover:!opacity-100 text-text-secondary hover:text-info'
+                          }`}
+                          aria-label={`${frozenTerminals.has(t.id) ? 'Resume' : 'Freeze'} terminal ${t.name}`}
+                          title={frozenTerminals.has(t.id) ? 'Resume Output' : 'Freeze Output'}
+                        >
+                          {frozenTerminals.has(t.id) ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+                        </span>
+                      )}
                       {!t.poppedOut && onPopOutTerminal && (
                         <span
                           role="button"
@@ -367,7 +433,7 @@ export function TerminalTabBar({
                             e.stopPropagation();
                             onPopOutTerminal(t.id);
                           }}
-                          className="opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-accent transition-opacity cursor-pointer"
+                          className="opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-accent transition-all cursor-pointer text-text-secondary"
                           aria-label={`Pop out terminal ${t.name}`}
                           title="Pop Out (Ctrl+Shift+D)"
                         >
@@ -380,8 +446,9 @@ export function TerminalTabBar({
                           e.stopPropagation();
                           onCloseTerminal(t.id);
                         }}
-                        className="opacity-40 hover:opacity-100 hover:text-error transition-opacity ml-0.5 cursor-pointer"
+                        className="opacity-0 group-hover:opacity-45 hover:!opacity-100 hover:text-error transition-all cursor-pointer text-text-secondary"
                         aria-label={`Close terminal ${t.name}`}
+                        title="Close Terminal"
                       >
                         <X className="h-3 w-3" />
                       </span>
@@ -435,22 +502,20 @@ export function TerminalTabBar({
                     </ContextMenuItem>
                   )}
                   <ContextMenuSeparator />
-                  {frozenTerminals.has(t.id) ? (
-                    <ContextMenuItem onClick={() => {
-                      terminalRegistry.unfreeze(t.id);
-                      toggleFreezeTerminal(t.id);
-                    }}>
-                      <Play className="mr-2 h-3.5 w-3.5" />
-                      Resume Output
-                    </ContextMenuItem>
-                  ) : (
-                    <ContextMenuItem onClick={() => {
-                      terminalRegistry.freeze(t.id);
-                      toggleFreezeTerminal(t.id);
-                    }}>
-                      <Pause className="mr-2 h-3.5 w-3.5" />
-                      Freeze Output
-                    </ContextMenuItem>
+                    {frozenTerminals.has(t.id) ? (
+                      <ContextMenuItem onClick={() => {
+                        toggleFreezeForTerminal(t.id);
+                      }}>
+                        <Play className="mr-2 h-3.5 w-3.5" />
+                        Resume Output
+                      </ContextMenuItem>
+                    ) : (
+                      <ContextMenuItem onClick={() => {
+                        toggleFreezeForTerminal(t.id);
+                      }}>
+                        <Pause className="mr-2 h-3.5 w-3.5" />
+                        Freeze Output
+                      </ContextMenuItem>
                   )}
                   <ContextMenuItem onClick={async () => {
                     try {
@@ -572,6 +637,34 @@ export function TerminalTabBar({
         </DropdownMenu>
 
         {/* View mode toggle */}
+        {canCombineWorkspaceTerminals && (
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleCombine}
+                  className={`flex items-center h-7 px-1.5 rounded-md transition-colors cursor-pointer text-[10px] font-semibold
+                             ${
+                               combineWorkspaceTerminals
+                                 ? 'text-info bg-info/10'
+                                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+                             }`}
+                  aria-label={combineWorkspaceTerminals ? 'Show current project terminals only' : 'Combine workspace terminal tabs'}
+                >
+                  Mix
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>
+                  {combineWorkspaceTerminals
+                    ? `Combined workspace view active${workspaceTerminalCount ? ` — ${workspaceTerminalCount} terminals visible` : ''}`
+                    : 'Combine tabs from other projects in this workspace'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
         <TooltipProvider delayDuration={400}>
           <Tooltip>
             <TooltipTrigger asChild>

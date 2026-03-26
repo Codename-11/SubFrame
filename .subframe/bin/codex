@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# @subframe-version 0.7.0-beta
+# @subframe-version 0.9.0-beta
 # @subframe-managed
 # SubFrame AI Tool Wrapper for Codex CLI
 # This script injects AGENTS.md as initial prompt

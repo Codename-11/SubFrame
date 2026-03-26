@@ -2,7 +2,7 @@ const CACHE_NAME = 'subframe-shell-v1';
 const SHELL_ASSETS = [
   '/',
   '/dist/web-renderer.js',
-  '/dist/renderer.css',
+  '/dist/web-renderer.css',
   '/node_modules/xterm/css/xterm.css',
 ];
 

@@ -4,11 +4,12 @@
  * In dev mode (app.isPackaged === false), all operations are no-ops.
  */
 
-import { ipcMain, type App, type BrowserWindow } from 'electron';
+import { ipcMain, type App, type BrowserWindow, type IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import type { UpdaterStatus, UpdaterProgress } from '../shared/ipcChannels';
 import { getSetting } from './settingsManager';
 import { broadcast } from './eventBridge';
+import type { RoutableIPC } from './ipcRouter';
 
 let mainWindow: BrowserWindow | null = null;
 let isPackaged = false;
@@ -52,7 +53,6 @@ function init(window: BrowserWindow, app: App): void {
 
   if (!isPackaged) {
     console.log('[updater] Dev mode — auto-updater disabled');
-    setupIPC();
     return;
   }
 
@@ -107,9 +107,6 @@ function init(window: BrowserWindow, app: App): void {
     isManualCheck = false;
   });
 
-  // Register IPC handlers (must happen inside init so isPackaged is set)
-  setupIPC();
-
   // Check if auto-checking is enabled
   const autoCheck = getSetting('updater.autoCheck');
   if (autoCheck === false) {
@@ -146,20 +143,20 @@ function init(window: BrowserWindow, app: App): void {
 /**
  * Setup IPC handlers for updater actions.
  */
-function setupIPC(): void {
+function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
   if (!isPackaged) {
     // Dev mode stubs — return safe defaults
-    ipcMain.handle(IPC.UPDATER_CHECK, () => ({
+    ipc.handle(IPC.UPDATER_CHECK, () => ({
       updateAvailable: false,
     }));
-    ipcMain.handle(IPC.UPDATER_DOWNLOAD, () => {});
-    ipcMain.handle(IPC.UPDATER_INSTALL, () => {});
+    ipc.handle(IPC.UPDATER_DOWNLOAD, () => {});
+    ipc.handle(IPC.UPDATER_INSTALL, () => {});
     return;
   }
 
   const { autoUpdater } = require('electron-updater');
 
-  ipcMain.handle(IPC.UPDATER_CHECK, async () => {
+  ipc.handle(IPC.UPDATER_CHECK, async () => {
     try {
       isManualCheck = true;
       const result = await autoUpdater.checkForUpdates();
@@ -179,7 +176,7 @@ function setupIPC(): void {
     }
   });
 
-  ipcMain.handle(IPC.UPDATER_DOWNLOAD, async () => {
+  ipc.handle(IPC.UPDATER_DOWNLOAD, async () => {
     try {
       await autoUpdater.downloadUpdate();
     } catch (err) {
@@ -188,7 +185,7 @@ function setupIPC(): void {
     }
   });
 
-  ipcMain.handle(IPC.UPDATER_INSTALL, () => {
+  ipc.handle(IPC.UPDATER_INSTALL, () => {
     // If a before-install hook is set and returns false, defer to graceful shutdown
     if (beforeInstallHook && !beforeInstallHook()) {
       return;

@@ -251,6 +251,63 @@ SubFrame does not manage API keys directly — each AI tool handles its own auth
 Never store API keys in SubFrame's configuration files. Use your shell's environment variables or the tool's built-in authentication mechanism.
 :::
 
+## Remote Access Issues
+
+### SubFrame Server starts, but phone or tablet cannot connect
+
+Check the access mode first:
+
+- If **Allow LAN access** is off, SubFrame is still bound to `127.0.0.1` and remote devices will need the SSH tunnel path instead of direct Wi-Fi access
+- If **Allow LAN access** is on, make sure the host machine and remote device are on the same network
+- If your network changes, reopen **Settings > Integrations > SubFrame Server** and verify the current **Base URL**, **Connection URL**, and LAN IP
+
+If direct mobile access is your goal, LAN mode is the simplest path on trusted home or office Wi-Fi.
+
+### No LAN IP detected
+
+If SubFrame shows no LAN IP:
+
+1. Make sure the host machine is connected to Wi-Fi or Ethernet
+2. Disable and re-enable **Allow LAN access**
+3. If you are on a VPN, corporate network, or unusual virtual adapter setup, try disconnecting or switching networks
+
+If you still do not get a LAN IP, use **SSH tunnel mode** instead.
+
+### Browser says token is invalid or the session suddenly disconnects
+
+This usually means the token changed or the old session is stale.
+
+Try this:
+
+1. Copy a fresh **Connection URL** from Settings
+2. Or open the **Base URL** and use a new **Generate + Copy Code** pairing code
+3. If needed, click **Regenerate Token** on the host and reconnect from the browser
+
+Pairing codes expire after 5 minutes, so generate a new one if the browser says the code is invalid or expired.
+
+### Preferred Port fails to bind
+
+If SubFrame Server reports a startup error after you set **Preferred Port**:
+
+- Another process may already be using that port
+- The port may require elevated privileges
+- A stale bookmark may still point to an older port
+
+To fix it:
+
+1. Choose a different fixed port
+2. Or clear **Preferred Port** so SubFrame returns to auto mode and reuses the last working port when available
+3. Copy the fresh **Base URL** or **Connection URL** after the server restarts
+
+### SSH mode works differently from LAN mode
+
+In **SSH tunnel mode**, treat the setup guide as the source of truth for the command and browser address to use on the remote device. After the tunnel is active, the browser should use the remote-side tunnel endpoint, typically `http://localhost:8080`, not the host machine's private server port. In **LAN mode**, use the LAN IP, QR code, base URL, or connection URL shown directly in Settings.
+
+If you are unsure which path you are on:
+
+- **SSH mode** = localhost-only on the host, safer default
+- **LAN mode** = direct same-network browser access, trusted networks only
+
 ## Performance
 
 ### Slow Startup

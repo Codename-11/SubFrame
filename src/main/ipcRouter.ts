@@ -16,6 +16,7 @@
  */
 
 import type { IpcMain, IpcMainEvent, IpcMainInvokeEvent } from 'electron';
+import { broadcast } from './eventBridge';
 
 // ── Handler registries ──────────────────────────────────────────────────────
 
@@ -67,14 +68,28 @@ export async function routeInvoke(channel: string, args: unknown[]): Promise<unk
  * Route a send-style call to the registered handler(s).
  * Used by WebSocket server for fire-and-forget messages.
  */
-export function routeSend(channel: string, ...args: unknown[]): void {
+export function routeSend(channel: string, args: unknown[] = [], transport?: RoutedSendTransport): void {
   const handlers = onHandlers.get(channel);
   if (!handlers || handlers.length === 0) {
     console.warn(`[IPC Router] No send handler for channel: ${channel}`);
     return;
   }
+  const sendToSender = transport?.sendToSender ?? ((replyChannel: string, payload?: unknown) => {
+    broadcast(replyChannel, payload);
+  });
+  const reply = transport?.reply ?? sendToSender;
+  const routedEvent = {
+    sender: {
+      send(replyChannel: string, payload?: unknown) {
+        sendToSender(replyChannel, payload);
+      },
+    },
+    reply(replyChannel: string, payload?: unknown) {
+      reply(replyChannel, payload);
+    },
+  } as unknown as IpcMainEvent;
   for (const handler of handlers) {
-    handler(null as unknown as IpcMainEvent, ...args);
+    handler(routedEvent, ...args);
   }
 }
 
@@ -94,4 +109,9 @@ export interface RoutableIPC {
   handle(channel: string, handler: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown): void;
   on(channel: string, handler: (event: IpcMainEvent, ...args: unknown[]) => void): void;
   removeHandler(channel: string): void;
+}
+
+interface RoutedSendTransport {
+  sendToSender?: (channel: string, payload?: unknown) => void;
+  reply?: (channel: string, payload?: unknown) => void;
 }

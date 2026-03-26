@@ -313,8 +313,13 @@ export const IPC = {
   WEB_SERVER_INFO: 'web-server-info',
   WEB_SERVER_TOGGLE: 'web-server-toggle',
   WEB_SERVER_REGEN_TOKEN: 'web-server-regen-token',
+  WEB_SESSION_STATE: 'web-session-state',
+  WEB_SESSION_SYNC: 'web-session-sync',
   WEB_SERVER_GENERATE_PAIRING: 'web-server-generate-pairing',
   WEB_SERVER_GET_SSH_COMMAND: 'web-server-get-ssh-command',
+  WEB_REMOTE_POINTER_SYNC: 'web-remote-pointer-sync',
+  WEB_REMOTE_POINTER_UPDATED: 'web-remote-pointer-updated',
+  WEB_REMOTE_POINTER_CLEARED: 'web-remote-pointer-cleared',
   WEB_CLIENT_CONNECTED: 'web-client-connected',
   WEB_CLIENT_DISCONNECTED: 'web-client-disconnected',
 
@@ -347,17 +352,114 @@ export interface WorkspaceData {
   settings?: Record<string, unknown>;
 }
 
+/** Live desktop session snapshot used to hydrate remote web clients. */
+export interface WebSessionState {
+  currentProjectPath: string | null;
+  workspaceName: string;
+  projects: WorkspaceProject[];
+  session: {
+    viewMode: 'tabs' | 'grid';
+    activeTerminalId: string | null;
+    terminalNames: Record<string, string>;
+    terminalNameSources?: Record<string, 'default' | 'user' | 'session'>;
+    gridLayout?: string;
+    gridSlots?: (string | null)[];
+    tabOrder?: string[];
+    maximizedTerminalId?: string | null;
+    terminalCwds?: Record<string, string>;
+    terminalShells?: Record<string, string>;
+    terminalSessionIds?: Record<string, string>;
+  } | null;
+  ui: {
+    sidebarState: 'expanded' | 'collapsed' | 'hidden';
+    sidebarWidth: number;
+    activePanel:
+      | 'tasks'
+      | 'sessions'
+      | 'plugins'
+      | 'gitChanges'
+      | 'githubIssues'
+      | 'githubPRs'
+      | 'githubBranches'
+      | 'githubWorktrees'
+      | 'githubWorkflows'
+      | 'githubNotifications'
+      | 'history'
+      | 'overview'
+      | 'aiFiles'
+      | 'subframeHealth'
+      | 'agentState'
+      | 'skills'
+      | 'prompts'
+      | 'pipeline'
+      | 'system'
+      | null;
+    rightPanelCollapsed: boolean;
+    rightPanelWidth: number;
+    settingsOpen: boolean;
+    shortcutsHelpOpen: boolean;
+    fullViewContent:
+      | 'overview'
+      | 'structureMap'
+      | 'tasks'
+      | 'stats'
+      | 'decisions'
+      | 'pipeline'
+      | 'agentState'
+      | 'shortcuts'
+      | 'system'
+      | null;
+    openTabs: Array<{
+      id: string;
+      label: string;
+      closable: boolean;
+    }>;
+  } | null;
+  terminals: Array<{
+    id: string;
+    cwd: string;
+    shell: string;
+    claudeActive: boolean;
+    sessionId: string | null;
+    projectPath: string | null;
+  }>;
+}
+
+export interface WebRemotePointerState {
+  normalizedX: number;
+  normalizedY: number;
+  pointerType: 'mouse' | 'touch' | 'pen';
+  phase: 'move' | 'down' | 'up' | 'leave';
+  viewportWidth: number;
+  viewportHeight: number;
+  label: string;
+  timestamp: number;
+}
+
 /** Workspace list entry */
 export interface WorkspaceListEntry {
   key: string;
   name: string;
   active: boolean;
+  projectCount?: number;
+  projectPaths?: string[];
+  shortLabel?: string;
+  icon?: string;
+  inactive?: boolean;
 }
 
 /** Response from WORKSPACE_LIST handler */
 export interface WorkspaceListResult {
   active: string;
-  workspaces: Array<{ key: string; name: string; projectCount: number; inactive?: boolean }>;
+  workspaces: Array<{
+    key: string;
+    name: string;
+    projectCount: number;
+    projectPaths: string[];
+    shortLabel?: string;
+    icon?: string;
+    inactive?: boolean;
+  }>;
 }
 
 /** File tree node */
@@ -1193,7 +1295,10 @@ export interface IPCHandleMap {
   [IPC.WORKSPACE_LIST]: { args: []; return: WorkspaceListResult };
   [IPC.WORKSPACE_SWITCH]: { args: [key: string]; return: { projects: WorkspaceProject[]; workspaceName: string } | null };
   [IPC.WORKSPACE_CREATE]: { args: [name: string]; return: unknown };
-  [IPC.WORKSPACE_RENAME]: { args: [payload: { key: string; newName: string }]; return: unknown };
+  [IPC.WORKSPACE_RENAME]: {
+    args: [payload: { key: string; newName?: string; shortLabel?: string | null; icon?: string | null }];
+    return: unknown;
+  };
   [IPC.WORKSPACE_DELETE]: { args: [key: string]; return: unknown };
   [IPC.WORKSPACE_REORDER]: { args: [orderedKeys: string[]]; return: boolean };
   [IPC.WORKSPACE_SET_INACTIVE]: { args: [payload: { key: string; inactive: boolean }]; return: boolean };
@@ -1208,7 +1313,24 @@ export interface IPCHandleMap {
   // Web Server
   [IPC.WEB_SERVER_INFO]: {
     args: [];
-    return: { enabled: boolean; port: number; token: string; clientConnected: boolean; clientInfo: { userAgent: string; connectedAt: string } | null };
+    return: {
+      enabled: boolean;
+      startOnLaunch: boolean;
+      port: number;
+      token: string;
+      configuredPort: number;
+      lanMode: boolean;
+      lanIp: string | null;
+      lanIps: string[];
+      clientConnected: boolean;
+      clientInfo: { userAgent: string; connectedAt: string } | null;
+      sessionContext: { workspaceName: string; projectPath: string | null; projectName: string | null } | null;
+      lastStartError: string | null;
+    };
+  };
+  [IPC.WEB_SESSION_STATE]: {
+    args: [];
+    return: WebSessionState;
   };
   [IPC.WEB_SERVER_TOGGLE]: {
     args: [enable: boolean];
@@ -1288,7 +1410,7 @@ export interface IPCHandleMap {
   [IPC.GET_TERMINAL_SESSION_NAME]: { args: [payload: { terminalId: string; sessionId?: string }]; return: { name: string | null } };
 
   // Terminal State (cwd, shell, session per terminal)
-  [IPC.GET_TERMINAL_STATE]: { args: []; return: { terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null }> } };
+  [IPC.GET_TERMINAL_STATE]: { args: []; return: { terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null; projectPath: string | null }> } };
   [IPC.SAVE_TERMINAL_SCROLLBACK]: { args: [payload: { projectPath: string; terminalId: string; lines: string[] }]; return: { success: boolean } };
   [IPC.LOAD_TERMINAL_SCROLLBACK]: { args: [payload: { projectPath: string; terminalId: string }]; return: { lines: string[] } };
 
@@ -1424,6 +1546,21 @@ export interface IPCSendMap {
   [IPC.REMOVE_PROJECT_FROM_WORKSPACE]: string; // projectPath
   [IPC.RENAME_PROJECT]: { projectPath: string; newName: string };
   [IPC.SET_PROJECT_AI_TOOL]: { projectPath: string; aiTool: string | null };
+  [IPC.WEB_SESSION_SYNC]: {
+    origin: 'electron' | 'web';
+    currentProjectPath: string | null;
+    session?: WebSessionState['session'];
+    ui?: WebSessionState['ui'];
+  };
+  [IPC.WEB_REMOTE_POINTER_SYNC]: {
+    normalizedX: number;
+    normalizedY: number;
+    pointerType: 'mouse' | 'touch' | 'pen';
+    phase: 'move' | 'down' | 'up' | 'leave';
+    viewportWidth: number;
+    viewportHeight: number;
+    timestamp: number;
+  };
 
   // Multi-Terminal
   [IPC.TERMINAL_CREATE]: { projectPath?: string; shell?: string; cwd?: string };

@@ -1,5 +1,3 @@
-<!-- @subframe-version 0.2.7-beta -->
-<!-- @subframe-managed -->
 ---
 name: sub-audit
 description: Run a code review and documentation audit on recent changes. Finds bugs, edge cases, missing docs, and type safety issues.
@@ -7,6 +5,9 @@ argument-hint: [scope - e.g., "auth feature", "last 5 commits"]
 disable-model-invocation: false
 allowed-tools: Bash, Read, Grep, Glob, Agent
 ---
+
+<!-- @subframe-version 0.2.7-beta -->
+<!-- @subframe-managed -->
 
 # SubFrame Audit
 

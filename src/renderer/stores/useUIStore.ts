@@ -11,6 +11,18 @@ export interface ViewTab {
   closable: boolean; // false for 'terminal'
 }
 
+export interface LiveUIStateSnapshot {
+  sidebarState: SidebarState;
+  sidebarWidth: number;
+  activePanel: PanelId;
+  rightPanelCollapsed: boolean;
+  rightPanelWidth: number;
+  settingsOpen: boolean;
+  shortcutsHelpOpen: boolean;
+  fullViewContent: FullViewContent;
+  openTabs: ViewTab[];
+}
+
 export const VIEW_TAB_LABELS: Record<string, string> = {
   terminal: 'Terminals',
   overview: 'Overview',
@@ -59,6 +71,45 @@ function persistTabs(tabs: ViewTab[]) {
     localStorage.setItem('subframe-open-tabs', JSON.stringify(tabs));
   } catch { /* ignore */ }
 }
+
+function cloneTabs(tabs: ViewTab[]): ViewTab[] {
+  return tabs.map((tab) => ({ ...tab }));
+}
+
+function cloneLiveUIStateSnapshot(snapshot: LiveUIStateSnapshot): LiveUIStateSnapshot {
+  return {
+    ...snapshot,
+    openTabs: cloneTabs(snapshot.openTabs),
+  };
+}
+
+function isSameTabs(left: ViewTab[], right: ViewTab[]): boolean {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (a.id !== b.id || a.label !== b.label || a.closable !== b.closable) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isSameLiveUIState(left: LiveUIStateSnapshot, right: LiveUIStateSnapshot): boolean {
+  return (
+    left.sidebarState === right.sidebarState &&
+    left.sidebarWidth === right.sidebarWidth &&
+    left.activePanel === right.activePanel &&
+    left.rightPanelCollapsed === right.rightPanelCollapsed &&
+    left.rightPanelWidth === right.rightPanelWidth &&
+    left.settingsOpen === right.settingsOpen &&
+    left.shortcutsHelpOpen === right.shortcutsHelpOpen &&
+    left.fullViewContent === right.fullViewContent &&
+    isSameTabs(left.openTabs, right.openTabs)
+  );
+}
+
+let pendingMirroredUISnapshot: LiveUIStateSnapshot | null = null;
 
 interface UIState {
   // Sidebar
@@ -135,6 +186,19 @@ interface UIState {
   setPendingEnhance: (v: UIState['pendingEnhance']) => void;
   clearPendingEnhance: () => void;
 }
+
+type LiveUIStateSource = Pick<
+  UIState,
+  | 'sidebarState'
+  | 'sidebarWidth'
+  | 'activePanel'
+  | 'rightPanelCollapsed'
+  | 'rightPanelWidth'
+  | 'settingsOpen'
+  | 'shortcutsHelpOpen'
+  | 'fullViewContent'
+  | 'openTabs'
+>;
 
 export const useUIStore = create<UIState>((set, get) => ({
   sidebarState: (localStorage.getItem('sidebar-state') as SidebarState) || 'expanded',
@@ -363,3 +427,60 @@ export const useUIStore = create<UIState>((set, get) => ({
   setPendingEnhance: (v) => set({ pendingEnhance: v }),
   clearPendingEnhance: () => set({ pendingEnhance: null }),
 }));
+
+export function buildLiveUIStateSnapshot(state: LiveUIStateSource = useUIStore.getState()): LiveUIStateSnapshot {
+  return {
+    sidebarState: state.sidebarState,
+    sidebarWidth: state.sidebarWidth,
+    activePanel: state.activePanel,
+    rightPanelCollapsed: state.rightPanelCollapsed,
+    rightPanelWidth: state.rightPanelWidth,
+    settingsOpen: state.settingsOpen,
+    shortcutsHelpOpen: state.shortcutsHelpOpen,
+    fullViewContent: state.fullViewContent,
+    openTabs: cloneTabs(state.openTabs),
+  };
+}
+
+export function applyLiveUIStateSnapshot(snapshot: LiveUIStateSnapshot): void {
+  const current = buildLiveUIStateSnapshot();
+  if (isSameLiveUIState(current, snapshot)) {
+    return;
+  }
+
+  pendingMirroredUISnapshot = cloneLiveUIStateSnapshot(snapshot);
+
+  try {
+    localStorage.setItem('sidebar-state', snapshot.sidebarState);
+    localStorage.setItem('sidebar-width', String(snapshot.sidebarWidth));
+    localStorage.setItem('right-panel-width', String(snapshot.rightPanelWidth));
+    persistTabs(snapshot.openTabs);
+  } catch {
+    // ignore
+  }
+
+  useUIStore.setState({
+    sidebarState: snapshot.sidebarState,
+    sidebarWidth: snapshot.sidebarWidth,
+    activePanel: snapshot.activePanel,
+    rightPanelVisible: snapshot.activePanel !== null,
+    rightPanelCollapsed: snapshot.rightPanelCollapsed,
+    rightPanelWidth: snapshot.rightPanelWidth,
+    fullViewContent: snapshot.fullViewContent,
+    openTabs: cloneTabs(snapshot.openTabs),
+    settingsOpen: snapshot.settingsOpen,
+    shortcutsHelpOpen: snapshot.shortcutsHelpOpen,
+  });
+}
+
+export function consumeMirroredUISyncSuppression(snapshot: LiveUIStateSnapshot): boolean {
+  if (!pendingMirroredUISnapshot) {
+    return false;
+  }
+
+  const shouldSuppress = isSameLiveUIState(pendingMirroredUISnapshot, snapshot);
+  if (shouldSuppress) {
+    pendingMirroredUISnapshot = null;
+  }
+  return shouldSuppress;
+}

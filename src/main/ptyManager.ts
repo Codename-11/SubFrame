@@ -886,7 +886,7 @@ function setupIPC(ipcMain: IpcMain): void {
 
   // Get terminal state (cwd, shell, session) for save/restore
   ipcMain.handle(IPC.GET_TERMINAL_STATE, () => {
-    const terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null }> = [];
+    const terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null; projectPath: string | null }> = [];
     for (const [id, instance] of ptyInstances) {
       terminals.push({
         id,
@@ -894,6 +894,7 @@ function setupIPC(ipcMain: IpcMain): void {
         shell: instance.shell,
         claudeActive: instance.claudeActive,
         sessionId: terminalSessionMap.get(id) ?? null,
+        projectPath: instance.projectPath ?? null,
       });
     }
     return { terminals };

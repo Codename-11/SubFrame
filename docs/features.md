@@ -36,6 +36,34 @@ The terminal is the heart of SubFrame. You can run multiple terminal sessions si
 - `Ctrl+1` through `Ctrl+9` — Jump to terminal by position
 :::
 
+## Remote Access (SubFrame Server)
+
+SubFrame Server lets you open the same SubFrame session in a browser on another device. It is designed for real remote control, not just passive viewing, so you can keep the host desktop app running and connect from a laptop, tablet, or phone when needed.
+
+**Two access modes**:
+
+- **SSH Tunnel** — recommended default. Keeps the server bound to localhost and exposes it only through the SSH tunnel you create.
+- **Local Network (LAN)** — opt-in mode for trusted home or office Wi-Fi. Makes direct phone and tablet access practical without an SSH app.
+
+**Connection options**:
+
+- **Connection URL** — fastest path for another desktop or known device
+- **QR code** — ideal for mobile and tablet access on LAN
+- **Pairing code** — short-lived 6-character code for the browser access screen
+- **Session token** — manual token paste when you want tighter control over the login flow
+
+**What remote clients get**:
+
+- Live terminal access to the mirrored host session
+- Host workspace and project context during hydration
+- Ongoing session sync for terminal names and layout
+- Mobile-friendly panels for project, GitHub, agent, automation, and tasks
+- Optional remote cursor tracking for demos, mobile control, and debugging
+
+Enable it from **Settings > Integrations > SubFrame Server**.
+
+-> [Full Remote Access guide](/remote-access)
+
 ## Workspaces
 
 Workspaces let you organize projects into groups and switch between them instantly. Each workspace has its own set of projects, terminal sessions, and layout state.
@@ -297,7 +325,7 @@ View past prompt and session history from the History panel (`Ctrl+Shift+H`). Se
 
 ## Integrations & System Panel
 
-SubFrame exposes terminal state to external tools via a **Local API Server** and the **DTSP** (Desktop Text Source Protocol) discovery standard.
+SubFrame exposes terminal state to external tools via a **Local API Server** and the **DTSP** (Desktop Text Source Protocol) discovery standard, and it can also expose the full UI remotely through **SubFrame Server**.
 
 ### System Panel
 
@@ -305,12 +333,27 @@ The System Panel (`Ctrl+Shift+U`) is an app dashboard showing version/update sta
 
 - **Version & Update** — current version, update status with download/restart controls
 - **AI Tool Picker** — switch between AI tools directly, with installed status indicators
+- **SubFrame Server** — start/stop remote web access, copy the base URL or tokenized connection URL, generate pairing codes, and show QR codes for mobile devices
 - **API Server** — toggle on/off, port, auth token (copy/regenerate), connected clients, request count, TTS activity
 - **DTSP** — toggle discovery registration on/off, registration status
 - **Feature Detection** — scans Claude Code config for hooks, MCP servers, and skills
 - **Quick Access** — health, shortcuts reference, prompt library
 
+### SubFrame Server
+
+SubFrame Server is the remote-control path. It serves the SubFrame UI over HTTP/WebSocket so another browser can control the live host session.
+
+- **SSH tunnel mode** keeps the server on localhost and is the recommended default
+- **LAN mode** binds to your local network for direct phone and tablet access on trusted Wi-Fi
+- **Base URL and Connection URL** are both shown in Settings so you can choose pairing or direct token flow
+- **Pairing code and QR code** make mobile access much faster
+- **Remote session context** shows which workspace and project the browser will mirror
+
+> For the full browser/mobile workflow, see the [Remote Access guide](/remote-access).
+
 ### Local API Server
+
+SubFrame also runs a separate localhost HTTP server for automation and tool integrations. This is different from SubFrame Server: it exposes terminal data and events to other applications rather than serving the full remote UI.
 
 SubFrame runs a localhost HTTP server (auto-assigned port, token auth) that external tools can query for terminal data:
 

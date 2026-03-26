@@ -26,6 +26,7 @@ Welcome to the SubFrame docs. SubFrame is a terminal-first IDE for AI coding too
 - **[Introduction](/introduction)** — What SubFrame is and who it's for
 - **[Getting Started](/getting-started)** — Install, set up, and run your first AI session
 - **[AI Tool Setup](/ai-tool-setup)** — Configure Claude Code, Codex CLI, or Gemini CLI
+- **[Remote Access](/remote-access)** — Control the same SubFrame session from desktop, tablet, or phone
 - **[Features Overview](/features)** — Explore terminals, tasks, pipelines, and more
 
 </div>
@@ -43,4 +44,4 @@ Welcome to the SubFrame docs. SubFrame is a terminal-first IDE for AI coding too
 
 - [Context Preservation](/blog/context-preservation) — How SubFrame maintains AI context
 - [Multi-AI Support](/blog/multi-ai-support) — Backlink injection and wrapper scripts
-- [SubFrame Server](/blog/subframe-server) — Remote development roadmap
+- [SubFrame Server](/blog/subframe-server) — How remote desktop and mobile access shipped

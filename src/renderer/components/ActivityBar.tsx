@@ -13,6 +13,10 @@ import {
   Activity,
   ChevronUp,
   ChevronDown,
+  ChevronsUpDown,
+  Copy,
+  ExternalLink,
+  Globe,
   X,
   Check,
   Square,
@@ -22,9 +26,21 @@ import {
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { useActivity } from '../hooks/useActivity';
+import { useIpcQuery } from '../hooks/useIpc';
 import { useOutputChannels, useOutputChannelLog, useClearOutputChannel } from '../hooks/useOutputChannels';
+import { useUIStore } from '../stores/useUIStore';
 import type { ActivityStatus } from '../../shared/activityTypes';
+import { IPC } from '../../shared/ipcChannels';
+import { typedInvoke } from '../lib/ipc';
+import { toast } from 'sonner';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -239,11 +255,74 @@ function ModeToggle({
 
 export function ActivityBar() {
   const { streams, activeStream, outputLogs, cancelStream, clearStream, clearAllFinished, revision } = useActivity();
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const [expanded, setExpanded] = useState(false);
   const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
   const [mode, setMode] = useState<BarMode>('activity');
   const [showOutputPanel, setShowOutputPanel] = useState(false);
   const logEndRef = useRef<HTMLDivElement | null>(null);
+  const { data: webServerInfo } = useIpcQuery(IPC.WEB_SERVER_INFO, [], {
+    staleTime: 5_000,
+    refetchInterval: 5_000,
+  });
+  const webStatus = useMemo(() => {
+    if (!webServerInfo) {
+      return null;
+    }
+    if (webServerInfo.lastStartError) {
+      return {
+        label: 'Web Error',
+        className: 'bg-error/15 text-error hover:text-error',
+        title: webServerInfo.lastStartError,
+      };
+    }
+    if (webServerInfo.clientConnected) {
+      return {
+        label: 'Web Live',
+        className: 'bg-accent/20 text-accent',
+        title: `Remote client connected via ${webServerInfo.lanMode ? 'LAN' : 'local-only'} mode`,
+      };
+    }
+    if (webServerInfo.enabled) {
+      return {
+        label: 'Web Ready',
+        className: 'bg-bg-tertiary text-text-secondary hover:text-text-primary',
+        title: `Server running on port ${webServerInfo.port}${webServerInfo.startOnLaunch ? ' • starts on launch' : ''}`,
+      };
+    }
+    return {
+      label: 'Web Off',
+      className: 'bg-bg-tertiary/70 text-text-muted hover:text-text-secondary',
+      title: webServerInfo.startOnLaunch
+        ? 'Server is off for this session but will start on launch'
+        : 'Server is off. Start it here or from Settings.',
+    };
+  }, [webServerInfo]);
+  const webServerBaseUrl = webServerInfo?.enabled && webServerInfo.port
+    ? `http://${webServerInfo.lanMode && webServerInfo.lanIp ? webServerInfo.lanIp : 'localhost'}:${webServerInfo.port}`
+    : '';
+  const webServerConnectionUrl = webServerInfo?.enabled && webServerInfo.port && webServerInfo.token
+    ? `${webServerBaseUrl}/?token=${webServerInfo.token}`
+    : '';
+
+  const copyToClipboard = useCallback(async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error(`Failed to copy ${label.toLowerCase()}`);
+    }
+  }, []);
+
+  const toggleWebServer = useCallback(async () => {
+    if (!webServerInfo) return;
+    try {
+      await typedInvoke(IPC.WEB_SERVER_TOGGLE, !webServerInfo.enabled);
+      toast.success(!webServerInfo.enabled ? 'SubFrame Server started' : 'SubFrame Server stopped');
+    } catch {
+      toast.error(!webServerInfo.enabled ? 'Failed to start SubFrame Server' : 'Failed to stop SubFrame Server');
+    }
+  }, [webServerInfo]);
 
   // Listen for external toggle from StatusBar
   useEffect(() => {
@@ -387,6 +466,58 @@ export function ActivityBar() {
 
         {/* Right: elapsed + stream count + toggle */}
         <span className="flex items-center gap-1.5 shrink-0">
+          {webStatus && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-medium transition-colors',
+                    webStatus.className,
+                  )}
+                  title={webStatus.title}
+                >
+                  <Globe size={10} />
+                  <span>{webStatus.label}</span>
+                  <ChevronsUpDown size={9} className="opacity-70" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[220px]">
+                <DropdownMenuItem
+                  onClick={toggleWebServer}
+                  className="text-xs cursor-pointer"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  {webServerInfo?.enabled ? 'Stop SubFrame Server' : 'Start SubFrame Server'}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setSettingsOpen(true)}
+                  className="text-xs cursor-pointer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open Server Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => copyToClipboard(webServerBaseUrl, 'Base URL')}
+                  disabled={!webServerBaseUrl}
+                  className="text-xs cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy Base URL
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => copyToClipboard(webServerConnectionUrl, 'Connection URL')}
+                  disabled={!webServerConnectionUrl}
+                  className="text-xs cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy Connection URL
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {mode === 'activity' && elapsed && (
             <span className="text-[10px] text-accent tabular-nums">
               {elapsed}

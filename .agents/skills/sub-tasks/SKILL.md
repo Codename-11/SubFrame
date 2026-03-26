@@ -1,5 +1,3 @@
-<!-- @subframe-version 0.2.7-beta -->
-<!-- @subframe-managed -->
 ---
 name: sub-tasks
 description: View and manage SubFrame Sub-Tasks. Use when starting work, completing tasks, checking what's pending, or creating new tasks from conversation.
@@ -7,6 +5,9 @@ disable-model-invocation: false
 argument-hint: [list|start|complete|add|get|archive]
 allowed-tools: Bash, Read, Write, Edit, Glob
 ---
+
+<!-- @subframe-version 0.2.7-beta -->
+<!-- @subframe-managed -->
 
 # SubFrame Sub-Tasks
 

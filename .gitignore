@@ -45,6 +45,7 @@ docs/.vitepress/cache/
 .subframe/agent-state.json
 .subframe/agent-state.json.tmp.*
 .subframe/tasks.json.pre-migration-backup
+.subframe/scrollback/
 
 # Private sub-tasks (local only, not shared via git)
 .subframe/tasks/private/

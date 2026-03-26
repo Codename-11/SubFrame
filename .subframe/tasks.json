@@ -1,13 +1,33 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
+    "purpose": "Sub-Task tracking index (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-23",
+    "lastUpdated": "2026-03-25",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-23T23:48:52.779Z",
+  "lastUpdated": "2026-03-25T01:58:20.683Z",
+  "taskSchema": {
+    "_comment": "This schema shows the expected structure for each task",
+    "id": "unique-id (task-xxx format)",
+    "title": "Short actionable title (max 60 chars)",
+    "description": "Claude's detailed explanation - what, how, which files affected",
+    "userRequest": "Original user prompt/request - copy verbatim",
+    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
+    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
+    "status": "pending | in_progress | completed",
+    "priority": "high | medium | low",
+    "category": "feature | fix | refactor | docs | test",
+    "context": "Session date and context",
+    "blockedBy": "Array of task IDs this task is blocked by",
+    "blocks": "Array of task IDs this task blocks",
+    "steps": "Array of { label, completed } step objects",
+    "private": "boolean — if true, task is stored locally and excluded from git",
+    "createdAt": "ISO timestamp",
+    "updatedAt": "ISO timestamp",
+    "completedAt": "ISO timestamp | null"
+  },
   "tasks": {
     "pending": [
       {
@@ -90,6 +110,20 @@
             "label": "Add global AI tool config viewer/editor section to the Agent Settings panel"
           }
         ]
+      },
+      {
+        "id": "task-1774403900645-k2l2pwve2",
+        "title": "Allow popping out terminal session/detaching from SubFrame.",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-25T01:58:20.645Z",
+        "updatedAt": "2026-03-25T01:58:20.645Z",
+        "completedAt": null,
+        "description": "Terminals should have a feature once 'popped-out' to allow 'detaching' from SubFrame process so updating/restarting etc will be unaffected. Secondarily/If-Possible - allow 'Re-Attach' to new process. This should include a built-in system to find SubFrame process and if more than one allow selecting somehow intelligently.",
+        "steps": []
       },
       {
         "id": "task-m6",
@@ -812,21 +846,6 @@
         "steps": []
       },
       {
-        "id": "task-mn3t6lif-8ogg",
-        "title": "Settings UI for terminal persistence",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "context": "Session 2026-03-23",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-23T23:20:19.046Z",
-        "updatedAt": "2026-03-23T23:20:19.046Z",
-        "completedAt": null,
-        "description": "Add UI controls in SettingsPanel for the new terminal persistence settings: restoreOnStartup toggle, restoreScrollback toggle, autoResumeAgent dropdown (auto/prompt/never), agentExitTimeout slider, maxScrollbackExport input. These settings exist in settingsManager but have no UI yet.",
-        "steps": []
-      },
-      {
         "id": "task-mn3t6vrx-kgmb",
         "title": "Workspace-specific panel state save/restore",
         "status": "pending",
@@ -842,7 +861,23 @@
         "steps": []
       }
     ],
-    "inProgress": [],
+    "inProgress": [
+      {
+        "id": "task-mn3t6lif-8ogg",
+        "title": "Settings UI for terminal persistence",
+        "status": "in_progress",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-23",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-23T23:20:19.046Z",
+        "updatedAt": "2026-03-24T14:24:46.745Z",
+        "completedAt": null,
+        "description": "Add UI controls in SettingsPanel for the new terminal persistence settings: restoreOnStartup toggle, restoreScrollback toggle, autoResumeAgent dropdown (auto/prompt/never), agentExitTimeout slider, maxScrollbackExport input. These settings exist in settingsManager but have no UI yet.",
+        "steps": []
+      }
+    ],
     "completed": [
       {
         "id": "task-1772674776397-kc624grpq",
@@ -1585,6 +1620,21 @@
         "steps": []
       },
       {
+        "id": "task-mm9u1q50-8xrh",
+        "title": "Transport abstraction layer (IPC → pluggable)",
+        "status": "completed",
+        "priority": "medium",
+        "category": "refactor",
+        "context": "Session 2026-03-02",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-02T23:51:26.099Z",
+        "updatedAt": "2026-03-23T23:48:52.774Z",
+        "completedAt": "2026-03-23T23:48:52.774Z",
+        "description": "Refactor src/renderer/lib/ipc.ts to use a pluggable Transport interface. Extract ElectronTransport (current window.electron.invoke) and prepare WebSocketTransport stub for future browser mode. useIpcQuery/useIpcMutation stay unchanged — only the underlying transport swaps. This unlocks: CDN-loaded renderer for instant UI updates in Electron, browser mode via subframe-server, and mobile/tablet access. Depends on subframe-server being ready for the WebSocket side.",
+        "steps": []
+      },
+      {
         "id": "task-mm9uh469-gki8",
         "title": "Rewrite AGENTS.md template for user projects",
         "status": "completed",
@@ -2307,22 +2357,11 @@
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
         "steps": []
-      },
-      {
-        "id": "task-mm9u1q50-8xrh",
-        "title": "Transport abstraction layer (IPC → pluggable)",
-        "status": "completed",
-        "priority": "medium",
-        "category": "refactor",
-        "context": "Session 2026-03-02",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-02T23:51:26.099Z",
-        "updatedAt": "2026-03-23T23:48:52.774Z",
-        "completedAt": "2026-03-23T23:48:52.774Z",
-        "description": "Refactor src/renderer/lib/ipc.ts to use a pluggable Transport interface. Extract ElectronTransport (current window.electron.invoke) and prepare WebSocketTransport stub for future browser mode. useIpcQuery/useIpcMutation stay unchanged — only the underlying transport swaps. This unlocks: CDN-loaded renderer for instant UI updates in Electron, browser mode via subframe-server, and mobile/tablet access. Depends on subframe-server being ready for the WebSocket side.",
-        "steps": []
       }
     ]
+  },
+  "metadata": {
+    "totalCreated": 128,
+    "totalCompleted": 82
   }
 }

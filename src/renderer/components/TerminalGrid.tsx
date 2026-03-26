@@ -5,11 +5,13 @@
  */
 
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { X, Maximize2, Minimize2, Plus, GripVertical, Bot, ExternalLink } from 'lucide-react';
+import { X, Maximize2, Minimize2, Plus, GripVertical, Bot, ExternalLink, Pause, Play } from 'lucide-react';
 import { Terminal } from './Terminal';
 import { useTerminalStore, type TerminalInfo } from '../stores/useTerminalStore';
 import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
+import { useSettings } from '../hooks/useSettings';
+import * as terminalRegistry from '../lib/terminalRegistry';
 
 interface GridSlotPlacement {
   row: number;      // grid-row-start (1-based)
@@ -87,6 +89,19 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
   const setMaximizedTerminal = useTerminalStore((s) => s.setMaximizedTerminal);
   const gridSlots = useTerminalStore((s) => s.gridSlots);
   const setGridSlots = useTerminalStore((s) => s.setGridSlots);
+  const frozenTerminals = useTerminalStore((s) => s.frozenTerminals);
+  const toggleFreezeTerminal = useTerminalStore((s) => s.toggleFreezeTerminal);
+  const { settings } = useSettings();
+  const showFreezeHoverAction = ((settings?.terminal as Record<string, unknown>)?.showFreezeHoverAction) !== false;
+
+  const toggleFreezeForTerminal = useCallback((terminalId: string) => {
+    if (terminalRegistry.isFrozen(terminalId)) {
+      terminalRegistry.unfreeze(terminalId);
+    } else {
+      terminalRegistry.freeze(terminalId);
+    }
+    toggleFreezeTerminal(terminalId);
+  }, [toggleFreezeTerminal]);
 
   const config = GRID_LAYOUTS[gridLayout] ?? GRID_LAYOUTS['1x1'];
   const maxCells = config.slots.length > 0 ? config.slots.length : config.rows * config.cols;
@@ -283,6 +298,15 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
         <div className="flex items-center justify-between h-6 px-2 bg-bg-secondary border-b border-border-subtle shrink-0">
           <span className="text-[10px] text-text-tertiary truncate">{maximizedTerminal.name}</span>
           <div className="flex items-center gap-1">
+            {showFreezeHoverAction && (
+              <button
+                onClick={() => toggleFreezeForTerminal(maximizedTerminal.id)}
+                className="text-text-tertiary hover:text-info transition-colors cursor-pointer"
+                title={frozenTerminals.has(maximizedTerminal.id) ? 'Resume Output' : 'Freeze Output'}
+              >
+                {frozenTerminals.has(maximizedTerminal.id) ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+              </button>
+            )}
             {onPopOutTerminal && !maximizedTerminal.poppedOut && (
               <button
                 onClick={() => onPopOutTerminal(maximizedTerminal.id)}
@@ -397,6 +421,22 @@ export function TerminalGrid({ onCloseTerminal, onCreateTerminal, onPopOutTermin
                   <span className="text-[10px] text-text-tertiary truncate">{t.name}</span>
                 </div>
                 <div className="flex items-center flex-shrink-0 pr-1">
+                  {showFreezeHoverAction && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFreezeForTerminal(t.id);
+                      }}
+                      className={`transition-colors cursor-pointer rounded p-1 ${
+                        frozenTerminals.has(t.id)
+                          ? 'text-info hover:bg-info/10'
+                          : 'text-text-tertiary hover:text-info hover:bg-bg-hover'
+                      }`}
+                      title={frozenTerminals.has(t.id) ? 'Resume Output' : 'Freeze Output'}
+                    >
+                      {frozenTerminals.has(t.id) ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+                    </button>
+                  )}
                   {onPopOutTerminal && !t.poppedOut && (
                     <button
                       onClick={(e) => {

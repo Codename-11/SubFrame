@@ -1,9 +1,9 @@
 /**
  * WebServerSetup — Multi-step setup wizard for SubFrame Server.
  *
- * 4 steps: Enable → SSH Tunnel → Connect → Done
- * Guides the user through enabling the web server, setting up an SSH tunnel,
- * and connecting a remote browser client.
+ * 4 steps: Enable → Access → Connect → Done
+ * Access step adapts: SSH Tunnel (default) or Local Network (LAN mode).
+ * LAN mode binds to 0.0.0.0 so phones/tablets on the same network can connect directly.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -29,6 +29,9 @@ import {
   ChevronLeft,
   Download,
   Terminal,
+  AlertTriangle,
+  Smartphone,
+  Network,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -48,10 +51,12 @@ interface StepDef {
 
 const STEPS: StepDef[] = [
   { label: 'Enable', subtitle: 'Start the server', icon: Monitor },
-  { label: 'SSH Tunnel', subtitle: 'Secure connection', icon: Shield },
+  { label: 'Access', subtitle: 'Choose method', icon: Shield },
   { label: 'Connect', subtitle: 'Pair your device', icon: Wifi },
   { label: 'Done', subtitle: 'Ready to go', icon: Check },
 ];
+
+const SSH_TUNNEL_BROWSER_PORT = 8080;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -69,6 +74,8 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
     [],
     { enabled: open, refetchInterval: open ? 3000 : false }
   );
+
+  const isLanMode = serverInfo?.lanMode ?? false;
 
   // Listen for client connect/disconnect events
   useIPCEvent<{ userAgent: string; connectedAt: string }>(
@@ -91,10 +98,11 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
     }
   }, [open, refetchServerInfo]);
 
-  // Generate QR code when server info is available
+  // Generate QR code when server info changes
   useEffect(() => {
-    if (serverInfo?.enabled && serverInfo.port && serverInfo.token) {
-      const url = `http://localhost:${serverInfo.port}/?token=${serverInfo.token}`;
+    if (serverInfo?.enabled && serverInfo.port && serverInfo.token && serverInfo.lanMode && serverInfo.lanIp) {
+      const host = serverInfo.lanIp;
+      const url = `http://${host}:${serverInfo.port}/?token=${serverInfo.token}`;
       QRCode.toDataURL(url, {
         width: 200,
         margin: 2,
@@ -103,7 +111,7 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
     } else {
       setQrDataUrl(null);
     }
-  }, [serverInfo?.enabled, serverInfo?.port, serverInfo?.token]);
+  }, [serverInfo?.enabled, serverInfo?.port, serverInfo?.token, serverInfo?.lanMode, serverInfo?.lanIp]);
 
   // Auto-advance to Done when client connects on step 2
   useEffect(() => {
@@ -112,14 +120,14 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
     }
   }, [step, serverInfo?.clientConnected]);
 
-  // Fetch SSH command when entering step 1
+  // Fetch SSH command when entering step 1 in SSH mode
   useEffect(() => {
-    if (step === 1 && serverInfo?.enabled) {
+    if (step === 1 && serverInfo?.enabled && !isLanMode) {
       typedInvoke(IPC.WEB_SERVER_GET_SSH_COMMAND)
         .then((result) => setSshCommand(result.command))
         .catch(() => setSshCommand(null));
     }
-  }, [step, serverInfo?.enabled]);
+  }, [step, serverInfo?.enabled, isLanMode]);
 
   async function toggleServer(enable: boolean) {
     try {
@@ -129,6 +137,16 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
       else toast.success('SubFrame Server stopped');
     } catch (_err) {
       toast.error('Failed to toggle server');
+    }
+  }
+
+  async function toggleLanMode(enable: boolean) {
+    try {
+      await typedInvoke(IPC.UPDATE_SETTING, { key: 'server.lanMode', value: enable });
+      await refetchServerInfo();
+      toast.success(enable ? 'LAN mode enabled' : 'SSH tunnel mode enabled');
+    } catch {
+      toast.error('Failed to update LAN mode');
     }
   }
 
@@ -155,9 +173,9 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
   const canGoNext = (): boolean => {
     switch (step) {
       case 0: return !!serverInfo?.enabled;
-      case 1: return true;
+      case 1: return !isLanMode || !!serverInfo?.lanIp;
       case 2: return !!serverInfo?.clientConnected;
-      case 3: return false; // last step
+      case 3: return false;
       default: return false;
     }
   };
@@ -169,7 +187,7 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-text-secondary">
-          SubFrame Server lets you access this IDE from a web browser on another device — like a tablet or phone over SSH.
+          SubFrame Server lets you access this IDE from a web browser on another device.
         </p>
 
         <div className="flex items-center justify-between bg-bg-secondary rounded-lg p-4">
@@ -202,67 +220,224 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
             </div>
           </div>
         )}
+
+        {isEnabled && (
+          <p className="text-xs text-text-muted">
+            Next, choose how to access the server — SSH tunnel or local network.
+          </p>
+        )}
       </div>
     );
   }
 
-  function renderStepSSH() {
-    const command = sshCommand || `ssh -L 8080:localhost:${serverInfo?.port ?? '???'} user@hostname`;
+  function renderStepAccess() {
+    const currentLanMode = serverInfo?.lanMode ?? false;
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <p className="text-sm text-text-secondary">
-          Run this command on your remote device to create a secure SSH tunnel to the server.
+          Choose how remote devices will connect to SubFrame.
         </p>
 
-        <div className="bg-bg-deep rounded-lg p-3 space-y-2">
-          <div className="flex items-center gap-2 text-xs text-text-tertiary">
-            <Terminal className="w-3.5 h-3.5" />
-            <span>SSH Tunnel Command</span>
+        {/* SSH Tunnel option */}
+        <button
+          onClick={() => toggleLanMode(false)}
+          className={cn(
+            'w-full text-left rounded-lg border p-3 transition-colors cursor-pointer',
+            !currentLanMode
+              ? 'border-accent bg-accent/5'
+              : 'border-border-subtle bg-bg-secondary hover:bg-bg-tertiary'
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <div className={cn(
+              'mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center',
+              !currentLanMode ? 'border-accent' : 'border-border-default'
+            )}>
+              {!currentLanMode && <div className="w-2 h-2 rounded-full bg-accent" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <Shield className="w-3.5 h-3.5 text-text-secondary" />
+                <span className="text-sm font-medium text-text-primary">SSH Tunnel</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400 font-medium">Recommended</span>
+              </div>
+              <p className="text-xs text-text-tertiary mt-1">
+                Run an SSH tunnel command on the remote device. Works over the internet, no firewall changes needed.
+              </p>
+              <p className="text-xs text-text-muted mt-1">Works on: laptop, desktop, iOS (via SSH apps)</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs font-mono text-accent bg-bg-primary rounded px-2 py-1.5 break-all select-all">
-              {command}
-            </code>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="shrink-0 cursor-pointer"
-              onClick={() => copyToClipboard(command, 'SSH command')}
-            >
-              {copied === 'SSH command' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-            </Button>
-          </div>
-        </div>
+        </button>
 
-        <div className="bg-bg-secondary/50 rounded-lg p-3 text-xs text-text-tertiary space-y-1">
-          <p>
-            Replace <span className="font-mono text-text-secondary">user@hostname</span> with your SSH credentials.
-          </p>
-          <p>
-            The tunnel forwards port <span className="font-mono text-text-secondary">8080</span> on the remote device to port{' '}
-            <span className="font-mono text-text-secondary">{serverInfo?.port ?? '???'}</span> on this machine.
-          </p>
-        </div>
+        {/* LAN option */}
+        <button
+          onClick={() => toggleLanMode(true)}
+          className={cn(
+            'w-full text-left rounded-lg border p-3 transition-colors cursor-pointer',
+            currentLanMode
+              ? 'border-amber-500/60 bg-amber-500/5'
+              : 'border-border-subtle bg-bg-secondary hover:bg-bg-tertiary'
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <div className={cn(
+              'mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center',
+              currentLanMode ? 'border-amber-400' : 'border-border-default'
+            )}>
+              {currentLanMode && <div className="w-2 h-2 rounded-full bg-amber-400" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <Network className="w-3.5 h-3.5 text-text-secondary" />
+                <span className="text-sm font-medium text-text-primary">Local Network</span>
+                <Smartphone className="w-3 h-3 text-text-muted" />
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 font-medium">Android friendly</span>
+              </div>
+              <p className="text-xs text-text-tertiary mt-1">
+                Binds to all network interfaces so any device on your Wi-Fi can connect directly — no tunnel needed.
+              </p>
+              <p className="text-xs text-text-muted mt-1">Works on: Android, tablet, any device on the same Wi-Fi</p>
+            </div>
+          </div>
+        </button>
+
+        {/* LAN warning */}
+        {currentLanMode && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/8 p-3">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-200/80 space-y-1">
+              <p className="font-medium text-amber-300">Use on trusted networks only</p>
+              <p>
+                LAN mode exposes the server to all devices on your network. Only enable this at home or in a private office — never on public Wi-Fi or shared networks.
+              </p>
+              <p>
+                Connections still require a token or pairing code, but the server is network-accessible.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* SSH info when SSH mode */}
+        {!currentLanMode && (
+          <div className="bg-bg-deep rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-text-tertiary">
+              <Terminal className="w-3.5 h-3.5" />
+              <span>SSH Tunnel Command</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs font-mono text-accent bg-bg-primary rounded px-2 py-1.5 break-all select-all">
+                {sshCommand || `ssh -L 8080:localhost:${serverInfo?.port ?? '???'} user@hostname`}
+              </code>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="shrink-0 cursor-pointer"
+                onClick={() => copyToClipboard(sshCommand || `ssh -L 8080:localhost:${serverInfo?.port ?? '???'} user@hostname`, 'SSH command')}
+              >
+                {copied === 'SSH command' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </Button>
+            </div>
+            <p className="text-xs text-text-muted">
+              Replace <span className="font-mono text-text-secondary">user@hostname</span> with your SSH credentials. Forwards port 8080 on the remote to port{' '}
+              <span className="font-mono text-text-secondary">{serverInfo?.port ?? '???'}</span> here.
+            </p>
+            <p className="text-xs text-text-muted">
+              After the tunnel is active, open <span className="font-mono text-text-secondary">http://localhost:{SSH_TUNNEL_BROWSER_PORT}</span> in a browser on that remote machine.
+            </p>
+          </div>
+        )}
+
+        {/* LAN IP when LAN mode */}
+        {currentLanMode && serverInfo?.lanIp && (
+          <div className="bg-bg-deep rounded-lg p-3 space-y-1.5">
+            <div className="text-xs text-text-tertiary">Your local IP address</div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-sm font-mono text-accent">{serverInfo.lanIp}</code>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="cursor-pointer"
+                onClick={() => copyToClipboard(serverInfo.lanIp!, 'IP address')}
+              >
+                {copied === 'IP address' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </Button>
+            </div>
+            <p className="text-xs text-text-muted">
+              Devices on the same network will connect to this IP. On the next step you'll get a QR code.
+            </p>
+            {serverInfo.lanIps.length > 1 && (
+              <p className="text-[10px] text-text-muted">
+                Other detected addresses: {serverInfo.lanIps.filter((ip) => ip !== serverInfo.lanIp).join(', ')}
+              </p>
+            )}
+          </div>
+        )}
+
+        {currentLanMode && !serverInfo?.lanIp && (
+          <div className="text-xs text-text-muted bg-bg-deep rounded-lg p-3">
+            No LAN IP detected. Make sure you're connected to a network.
+          </div>
+        )}
       </div>
     );
   }
 
   function renderStepConnect() {
-    const connectionUrl = serverInfo
-      ? `http://localhost:${serverInfo.port}/?token=${serverInfo.token}`
-      : '';
+    const host = isLanMode && serverInfo?.lanIp ? serverInfo.lanIp : 'localhost';
+    const accessPort = isLanMode ? serverInfo?.port ?? 0 : SSH_TUNNEL_BROWSER_PORT;
+    const baseUrl = serverInfo ? `http://${host}:${accessPort}` : '';
+    const connectionUrl = serverInfo ? `${baseUrl}/?token=${serverInfo.token}` : '';
 
     return (
       <div className="space-y-4">
         <p className="text-sm text-text-secondary">
-          Open the connection URL in a browser on the remote device, or use a pairing code for quick authentication.
+          {isLanMode
+            ? 'Open the base URL to pair with a code, or use the tokenized connection URL directly on any device connected to this Wi-Fi.'
+            : 'Run the SSH tunnel on the remote machine first. Then open the remote browser URL below on that same machine, or open the base URL and pair with a code.'}
         </p>
+
+        {/* Android tip for LAN mode */}
+        {isLanMode && (
+          <div className="flex items-start gap-2.5 bg-blue-500/8 border border-blue-500/20 rounded-lg p-3">
+            <Smartphone className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-blue-200/80">
+              <span className="font-medium text-blue-300">Android:</span>{' '}
+              Scan the QR code with your camera or Chrome — no app needed. Install as PWA via "Add to Home Screen" for a native-like experience.
+            </div>
+          </div>
+        )}
+
+        {/* Base URL */}
+        <div className="bg-bg-deep rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2 text-xs text-text-tertiary">
+            <Globe className="w-3.5 h-3.5" />
+            <span>{isLanMode ? 'Base URL' : 'Remote Base URL (After SSH Tunnel)'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-[11px] font-mono text-text-secondary bg-bg-primary rounded px-2 py-1.5 break-all select-all">
+              {baseUrl}
+            </code>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="shrink-0 cursor-pointer"
+              onClick={() => copyToClipboard(baseUrl, 'Base URL')}
+            >
+              {copied === 'Base URL' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+            </Button>
+          </div>
+          <p className="text-xs text-text-muted">
+            {isLanMode
+              ? 'Open this URL and pair with a code or paste a token in the browser.'
+              : `Open this URL on the remote machine after the SSH tunnel is active. This points at localhost:${SSH_TUNNEL_BROWSER_PORT} on the remote side of the tunnel, not the host machine's internal server port.`}
+          </p>
+        </div>
 
         {/* Connection URL */}
         <div className="bg-bg-deep rounded-lg p-3 space-y-2">
           <div className="flex items-center gap-2 text-xs text-text-tertiary">
             <Globe className="w-3.5 h-3.5" />
-            <span>Connection URL</span>
+            <span>{isLanMode ? 'Connection URL' : 'Remote Connection URL (Token Included)'}</span>
           </div>
           <div className="flex items-center gap-2">
             <code className="flex-1 text-[11px] font-mono text-text-secondary bg-bg-primary rounded px-2 py-1.5 break-all select-all">
@@ -272,17 +447,23 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
               size="sm"
               variant="ghost"
               className="shrink-0 cursor-pointer"
-              onClick={() => copyToClipboard(connectionUrl, 'URL')}
+              onClick={() => copyToClipboard(connectionUrl, 'Connection URL')}
             >
-              {copied === 'URL' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied === 'Connection URL' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
             </Button>
           </div>
+          <p className="text-xs text-text-muted">
+            Open this exact URL when you want the quickest path. It includes the current auth token.
+          </p>
         </div>
 
         {/* QR Code */}
-        {qrDataUrl && (
-          <div className="flex justify-center my-4">
+        {qrDataUrl && isLanMode && (
+          <div className="flex flex-col items-center gap-1.5 my-2">
             <img src={qrDataUrl} alt="QR Code for connection URL" className="rounded-lg" style={{ width: 200, height: 200 }} />
+            {isLanMode && (
+              <p className="text-[10px] text-text-muted">Scan with any device on this Wi-Fi</p>
+            )}
           </div>
         )}
 
@@ -291,6 +472,7 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
           <div className="flex items-center gap-2 text-xs text-text-tertiary">
             <QrCode className="w-3.5 h-3.5" />
             <span>Pairing Code</span>
+            <span className="text-text-muted">(expires in 5 min)</span>
           </div>
           {pairingCode ? (
             <div className="flex items-center gap-3">
@@ -323,6 +505,9 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
               Generate Pairing Code
             </Button>
           )}
+          <p className="text-xs text-text-muted">
+            Open the base URL above if you want to pair manually instead of using the tokenized connection URL.
+          </p>
         </div>
 
         {/* Connection status */}
@@ -372,11 +557,21 @@ export function WebServerSetup({ open, onOpenChange }: WebServerSetupProps) {
             In your browser, look for &quot;Add to Home Screen&quot; or &quot;Install App&quot; in the menu to use SubFrame as a standalone app.
           </div>
         </div>
+
+        {/* LAN reminder */}
+        {isLanMode && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-200/70">
+              LAN mode is active. The server is accessible to all devices on your network. Disable it in Settings → Server when not needed.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
 
-  const stepRenderers = [renderStepEnable, renderStepSSH, renderStepConnect, renderStepDone];
+  const stepRenderers = [renderStepEnable, renderStepAccess, renderStepConnect, renderStepDone];
 
   // ── Render ──────────────────────────────────────────────────────────────────
 

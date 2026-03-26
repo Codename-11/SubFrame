@@ -1,5 +1,3 @@
-<!-- @subframe-version 0.2.7-beta -->
-<!-- @subframe-managed -->
 ---
 name: onboard
 description: Analyze project intelligence files and bootstrap SubFrame's STRUCTURE.json, PROJECT_NOTES.md, and initial sub-tasks from existing codebase context.
@@ -7,6 +5,9 @@ disable-model-invocation: false
 argument-hint: [--dry-run]
 allowed-tools: Bash, Read, Write, Glob, Grep
 ---
+
+<!-- @subframe-version 0.2.7-beta -->
+<!-- @subframe-managed -->
 
 # SubFrame Onboard
 

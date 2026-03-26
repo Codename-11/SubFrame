@@ -18,7 +18,8 @@ import { ActivityBar } from './ActivityBar';
 import { StatusBar } from './StatusBar';
 import { TasksPalette } from './TasksPalette';
 import { AIToolPalette } from './AIToolPalette';
-import { useUIStore } from '../stores/useUIStore';
+import { RemoteCursorOverlay, RemotePointerPublisher } from './RemoteCursorOverlay';
+import { applyLiveUIStateSnapshot, buildLiveUIStateSnapshot, consumeMirroredUISyncSuppression, useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
 
@@ -45,8 +46,12 @@ export function App() {
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const activePanel = useUIStore((s) => s.activePanel);
+  const fullViewContent = useUIStore((s) => s.fullViewContent);
   const rightPanelCollapsed = useUIStore((s) => s.rightPanelCollapsed);
   const rightPanelWidth = useUIStore((s) => s.rightPanelWidth);
+  const settingsOpen = useUIStore((s) => s.settingsOpen);
+  const shortcutsHelpOpen = useUIStore((s) => s.shortcutsHelpOpen);
+  const openTabs = useUIStore((s) => s.openTabs);
   const togglePanel = useUIStore((s) => s.togglePanel);
   const toggleFullView = useUIStore((s) => s.toggleFullView);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
@@ -360,6 +365,59 @@ export function App() {
     window.__dismissLoadingScreen?.();
   }, []);
 
+  // Sync live desktop UI state for remote web hydration.
+  useEffect(() => {
+    const snapshot = buildLiveUIStateSnapshot({
+      sidebarState,
+      sidebarWidth,
+      activePanel,
+      rightPanelCollapsed,
+      rightPanelWidth,
+      settingsOpen,
+      shortcutsHelpOpen,
+      fullViewContent,
+      openTabs,
+    });
+    if (consumeMirroredUISyncSuppression(snapshot)) {
+      return;
+    }
+
+    getTransport().send(IPC.WEB_SESSION_SYNC, {
+      origin: getTransport().platform.isElectron ? 'electron' : 'web',
+      currentProjectPath,
+      ui: snapshot,
+    });
+  }, [
+    activePanel,
+    currentProjectPath,
+    fullViewContent,
+    openTabs,
+    rightPanelCollapsed,
+    rightPanelWidth,
+    settingsOpen,
+    shortcutsHelpOpen,
+    sidebarState,
+    sidebarWidth,
+  ]);
+
+  // Apply remote UI sync back into the desktop host so browser-originated
+  // panel and dialog changes mirror in the Electron window too.
+  useEffect(() => {
+    if (!getTransport().platform.isElectron) return;
+
+    return getTransport().on(IPC.WEB_SESSION_SYNC, (_event, payload) => {
+      if (!payload || typeof payload !== 'object') return;
+      const data = payload as {
+        origin?: 'electron' | 'web';
+        ui?: ReturnType<typeof buildLiveUIStateSnapshot> | null;
+      };
+      if (data.origin !== 'web') return;
+      if (data.ui) {
+        applyLiveUIStateSnapshot(data.ui);
+      }
+    });
+  }, []);
+
   // Listen for menu-triggered actions from main process
   useEffect(() => {
     const onToggleSidebar = () => useUIStore.getState().toggleSidebar();
@@ -471,6 +529,8 @@ export function App() {
   if (isMobile && isWeb) {
     return (
       <>
+        <RemotePointerPublisher />
+        <RemoteCursorOverlay />
         <MobileApp />
         <SettingsPanel />
         <ThemeProvider />
@@ -482,6 +542,8 @@ export function App() {
   if (isTablet && isWeb) {
     return (
       <>
+        <RemotePointerPublisher />
+        <RemoteCursorOverlay />
         <TabletApp />
         <SettingsPanel />
         <CommandPalette />
@@ -492,6 +554,8 @@ export function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg-deep text-text-primary font-sans">
+      <RemotePointerPublisher />
+      <RemoteCursorOverlay />
       {/* Sidebar */}
       <AnimatePresence initial={false}>
         {sidebarState !== 'hidden' && (

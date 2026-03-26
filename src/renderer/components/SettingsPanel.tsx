@@ -13,7 +13,7 @@ import {
   Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
   Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search, Globe,
   Zap, ChevronDown, ChevronRight, Pencil, Wand2, Play, Shield, FileCode, Bell,
-  Monitor, Wifi, Copy, QrCode, AlertTriangle,
+  Monitor, Wifi, Copy, QrCode, AlertTriangle, Smartphone,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -22,12 +22,22 @@ import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import { useIpcQuery } from '../hooks/useIpc';
 import { useIPCEvent } from '../hooks/useIPCListener';
-import { IPC, type ShellInfo } from '../../shared/ipcChannels';
+import { IPC, type ShellInfo, type WorkspaceListResult } from '../../shared/ipcChannels';
 import { WebServerSetup } from './WebServerSetup';
 import { toast } from 'sonner';
 import { EDITOR_THEMES } from '../lib/codemirror-theme';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
+import {
+  DEFAULT_WORKSPACE_PILL_DISPLAY,
+  WORKSPACE_ICON_COMPONENTS,
+  WORKSPACE_ICON_OPTIONS,
+  getWorkspacePillPresentation,
+  normalizeWorkspaceIcon,
+  normalizeWorkspacePillDisplay,
+  normalizeWorkspaceShortLabel,
+  type WorkspacePillDisplaySettings,
+} from '../lib/workspacePills';
 import {
   type ThemeTokens,
   type ThemeDefinition,
@@ -103,6 +113,7 @@ const SECTION_LABELS: Record<string, string[]> = {
   appearance: [
     'Theme Presets', 'Customize', 'Neon Traces', 'CRT Scanlines', 'Logo Glow',
     'Accent', 'Neon Purple', 'Neon Pink', 'Neon Cyan', 'Save as Custom Theme',
+    'Workspace Pills', 'Workspace Pill Style', 'Short Label', 'Icon', 'Icon + Short Label',
   ],
   general: [
     'Open terminal on startup', 'Reuse idle terminal for agent',
@@ -116,7 +127,8 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Cursor Style', 'Cursor Blink', 'Default Shell', 'Bell Sound',
     'Copy on Select', 'Max Terminals', 'Font', 'Display', 'Behavior', 'Nerd Font',
     'Restore on Startup', 'Restore Scrollback', 'Auto-resume Agent', 'Persistence',
-    'Session Recovery', 'Resume Agent',
+    'Session Recovery', 'Resume Agent', 'Freeze Hover Action', 'Hover Freeze Button',
+    'Paused Output Overlay', 'Freeze Overlay',
   ],
   editor: [
     'Font Size', 'Font Family', 'Tab Size', 'Theme',
@@ -135,7 +147,8 @@ const SECTION_LABELS: Record<string, string[]> = {
   ],
   integrations: [
     'Local API Server', 'API Server', 'Enable API', 'DTSP', 'Desktop Text Source Protocol',
-    'SubFrame Server', 'Web Server', 'Remote Access', 'SSH Tunnel', 'Pairing',
+    'SubFrame Server', 'Web Server', 'Remote Access', 'SSH Tunnel', 'LAN', 'Local Network', 'Android', 'Pairing',
+    'Preferred Port', 'Static Port', 'Connection URL', 'Session Token', 'Remote Cursor', 'Cursor Tracking',
     'Shell Integration', 'CLI Status', 'Context Menu', 'Explorer',
   ],
   updates: [
@@ -351,6 +364,138 @@ function SettingSlider({ label, description, value, onChange, min, max, step, fo
   );
 }
 
+function WorkspacePillAppearanceRow({
+  workspace,
+  index,
+  display,
+  onSaved,
+}: {
+  workspace: WorkspaceListResult['workspaces'][number];
+  index: number;
+  display: WorkspacePillDisplaySettings;
+  onSaved: () => void | Promise<unknown>;
+}) {
+  const [shortLabel, setShortLabel] = useState(workspace.shortLabel ?? '');
+  const [icon, setIcon] = useState(workspace.icon ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setShortLabel(workspace.shortLabel ?? '');
+    setIcon(workspace.icon ?? '');
+  }, [workspace.key, workspace.shortLabel, workspace.icon]);
+
+  const normalizedShortLabel = normalizeWorkspaceShortLabel(shortLabel) ?? '';
+  const normalizedIcon = normalizeWorkspaceIcon(icon) ?? '';
+  const savedShortLabel = normalizeWorkspaceShortLabel(workspace.shortLabel) ?? '';
+  const savedIcon = normalizeWorkspaceIcon(workspace.icon) ?? '';
+  const isDirty = normalizedShortLabel !== savedShortLabel || normalizedIcon !== savedIcon;
+
+  const preview = getWorkspacePillPresentation({
+    display,
+    index,
+    name: workspace.name,
+    shortLabel: normalizedShortLabel,
+    icon: normalizedIcon,
+  });
+  const PreviewIcon = preview.icon ? WORKSPACE_ICON_COMPONENTS[preview.icon] : null;
+
+  const handleSave = useCallback(async () => {
+    if (!isDirty || saving) return;
+    setSaving(true);
+    try {
+      await typedInvoke(IPC.WORKSPACE_RENAME, {
+        key: workspace.key,
+        shortLabel: normalizedShortLabel || null,
+        icon: normalizedIcon || null,
+      });
+      await onSaved();
+      toast.success(`Updated "${workspace.name}"`);
+    } catch {
+      toast.error('Failed to update workspace pill');
+    } finally {
+      setSaving(false);
+    }
+  }, [isDirty, normalizedIcon, normalizedShortLabel, onSaved, saving, workspace.key, workspace.name]);
+
+  const handleReset = useCallback(() => {
+    setShortLabel(workspace.shortLabel ?? '');
+    setIcon(workspace.icon ?? '');
+  }, [workspace.icon, workspace.shortLabel]);
+
+  return (
+    <div className="rounded-lg border border-border-subtle bg-bg-secondary/40 p-3 space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center min-w-[34px] h-7 px-2 rounded-md border border-border-subtle bg-bg-deep text-[10px] font-semibold tracking-wide text-text-primary">
+          {preview.indexText && <span className="font-mono">{preview.indexText}</span>}
+          {PreviewIcon && <PreviewIcon className="w-3.5 h-3.5 shrink-0" />}
+          {preview.text && (
+            <span className={cn((PreviewIcon || preview.indexText) ? 'ml-1' : '')}>
+              {preview.text}
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm text-text-primary truncate">{workspace.name}</div>
+          <div className="text-[10px] text-text-muted">
+            #{index} · {workspace.projectCount} project{workspace.projectCount === 1 ? '' : 's'}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-end">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1">Short Label</div>
+          <Input
+            value={shortLabel}
+            onChange={(e) => setShortLabel((e.target.value || '').replace(/\s+/g, '').toUpperCase().slice(0, 4))}
+            placeholder="Optional"
+            maxLength={4}
+            className="bg-bg-deep border-border-subtle text-sm"
+          />
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1">Icon</div>
+          <select
+            value={icon}
+            onChange={(e) => setIcon(e.target.value)}
+            className="w-full h-9 bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
+          >
+            <option value="">None</option>
+            {WORKSPACE_ICON_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex gap-2 md:justify-end">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleReset}
+            disabled={saving || !isDirty}
+            className="cursor-pointer"
+          >
+            Reset
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || !isDirty}
+            className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="text-[10px] text-text-muted">
+        Short labels are optional and capped at 4 characters. Icon-only mode falls back to the label when no icon is set.
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Main component ---------- */
 
 export function SettingsPanel() {
@@ -435,18 +580,46 @@ export function SettingsPanel() {
   const [webServerPairingCode, setWebServerPairingCode] = useState<string | null>(null);
   const [webServerQrVisible, setWebServerQrVisible] = useState(false);
   const [webServerQrDataUrl, setWebServerQrDataUrl] = useState<string | null>(null);
+  const [webServerPortInput, setWebServerPortInput] = useState('');
 
   // Shell integration status
   const [cliStatus, setCliStatus] = useState<{ installed: boolean; inPath: boolean; path: string | null } | null>(null);
   const [contextMenuInstalled, setContextMenuInstalled] = useState(false);
 
   // Web Server info query — only active when integrations tab is shown
+  const isAppearanceTab = activeTab === 'appearance';
   const isIntegrationsTab = activeTab === 'integrations';
+  const { data: workspaceListRaw, refetch: refetchWorkspaceList } = useIpcQuery(
+    IPC.WORKSPACE_LIST,
+    [],
+    { enabled: settingsOpen && isAppearanceTab, staleTime: 10000 }
+  );
   const { data: webServerInfo, refetch: refetchWebServerInfo } = useIpcQuery(
     IPC.WEB_SERVER_INFO,
     [],
     { enabled: settingsOpen && isIntegrationsTab, refetchInterval: isIntegrationsTab ? 5000 : false }
   );
+  const webServerAccessHost = webServerInfo?.enabled && webServerInfo.port
+    ? (webServerInfo.lanMode && webServerInfo.lanIp ? webServerInfo.lanIp : 'localhost')
+    : '';
+  const webServerAccessPort = webServerInfo?.enabled && webServerInfo.port
+    ? (webServerInfo.lanMode ? webServerInfo.port : 8080)
+    : 0;
+  const webServerBaseUrl = webServerInfo?.enabled && webServerInfo.port
+    ? `http://${webServerAccessHost}:${webServerAccessPort}`
+    : '';
+  const webServerConnectionUrl = webServerInfo?.enabled && webServerInfo.port && webServerInfo.token
+    ? `${webServerBaseUrl}/?token=${webServerInfo.token}`
+    : '';
+  const configuredWebServerPort = typeof webServerInfo?.configuredPort === 'number'
+    ? webServerInfo.configuredPort
+    : Number(((settings?.server as Record<string, unknown>)?.port as number | undefined) ?? 0);
+  const webServerRunning = webServerInfo?.enabled === true && webServerInfo.port > 0;
+  const effectiveWebServerPort = webServerRunning
+    ? webServerInfo?.port ?? null
+    : configuredWebServerPort > 0
+      ? configuredWebServerPort
+      : null;
 
   // Listen for web client connect/disconnect to refresh server info
   useIPCEvent(
@@ -460,8 +633,15 @@ export function SettingsPanel() {
 
   // Generate QR code for SubFrame Server when toggled visible
   useEffect(() => {
-    if (webServerQrVisible && webServerInfo?.enabled && webServerInfo.port && webServerInfo.token) {
-      const url = `http://localhost:${webServerInfo.port}/?token=${webServerInfo.token}`;
+    if (
+      webServerQrVisible &&
+      webServerInfo?.enabled &&
+      webServerInfo.port &&
+      webServerInfo.token &&
+      webServerInfo.lanMode &&
+      webServerInfo.lanIp
+    ) {
+      const url = `http://${webServerInfo.lanIp}:${webServerInfo.port}/?token=${webServerInfo.token}`;
       QRCode.toDataURL(url, {
         width: 150,
         margin: 2,
@@ -470,7 +650,11 @@ export function SettingsPanel() {
     } else {
       setWebServerQrDataUrl(null);
     }
-  }, [webServerQrVisible, webServerInfo?.enabled, webServerInfo?.port, webServerInfo?.token]);
+  }, [webServerQrVisible, webServerInfo?.enabled, webServerInfo?.port, webServerInfo?.token, webServerInfo?.lanMode, webServerInfo?.lanIp]);
+
+  useEffect(() => {
+    setWebServerPortInput(configuredWebServerPort > 0 ? String(configuredWebServerPort) : '');
+  }, [configuredWebServerPort]);
 
   // Check CLI and context menu status when integrations tab is active
   useEffect(() => {
@@ -488,6 +672,84 @@ export function SettingsPanel() {
   const refreshCliStatus = useCallback(() => {
     typedInvoke(IPC.CHECK_CLI_STATUS).then(setCliStatus).catch(() => {});
   }, []);
+
+  const applyWebServerPort = useCallback(() => {
+    const trimmed = webServerPortInput.trim();
+    const nextPort = trimmed === '' ? 0 : Number.parseInt(trimmed, 10);
+
+    if (!Number.isFinite(nextPort) || Number.isNaN(nextPort) || nextPort < 0 || nextPort > 65535) {
+      toast.error('Preferred port must be between 0 and 65535');
+      return;
+    }
+
+    typedInvoke(IPC.UPDATE_SETTING, { key: 'server.port', value: nextPort })
+      .then(() => {
+        setWebServerPortInput(nextPort > 0 ? String(nextPort) : '');
+        refetchWebServerInfo();
+        toast.success(nextPort > 0 ? `Preferred port set to ${nextPort}` : 'Preferred port reset to auto');
+      })
+      .catch(() => toast.error('Failed to update preferred port'));
+  }, [refetchWebServerInfo, webServerPortInput]);
+
+  const copyTextToClipboard = useCallback(async (value: string): Promise<boolean> => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch {
+      // fall through
+    }
+
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return copied;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const handleInstallCli = useCallback(async () => {
+    setCliInstalling(true);
+    try {
+      const result = await typedInvoke(IPC.INSTALL_CLI);
+      if (result.success) {
+        toast.success(result.message);
+        refreshCliStatus();
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('Failed to install CLI');
+    } finally {
+      setCliInstalling(false);
+    }
+  }, [refreshCliStatus]);
+
+  const handleUninstallCli = useCallback(async () => {
+    setCliUninstalling(true);
+    try {
+      const result = await typedInvoke(IPC.UNINSTALL_CLI);
+      if (result.success) {
+        toast.success(result.message);
+        refreshCliStatus();
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('Failed to uninstall CLI');
+    } finally {
+      setCliUninstalling(false);
+    }
+  }, [refreshCliStatus]);
 
   // Sync form state from loaded data
   useEffect(() => {
@@ -568,6 +830,11 @@ export function SettingsPanel() {
   }, []);
 
   const general = (settings.general as Record<string, unknown>) || {};
+  const appearanceSettings = (settings.appearance as Record<string, unknown>) || {};
+  const terminalSettings = (settings.terminal as Record<string, unknown>) || {};
+  const workspacePillDisplay = normalizeWorkspacePillDisplay(appearanceSettings.workspacePillDisplay ?? appearanceSettings.workspacePillStyle);
+  const appearanceWorkspaceList = ((workspaceListRaw as WorkspaceListResult | undefined)?.workspaces ?? [])
+    .filter((workspace) => !workspace.inactive);
   const autoCreateTerminal = (general.autoCreateTerminal as boolean) || false;
   const reuseIdleTerminal = general.reuseIdleTerminal !== false; // default true
   const showDotfiles = (general.showDotfiles as boolean) || false;
@@ -577,6 +844,8 @@ export function SettingsPanel() {
   const gridOverflowAutoSwitch = general.gridOverflowAutoSwitch !== false;
   const highlightUserMessages = general.highlightUserMessages !== false; // default true
   const userMessageColor = (general.userMessageColor as string) || '#ff6eb4';
+  const showFreezeHoverAction = terminalSettings.showFreezeHoverAction !== false;
+  const showFreezeOverlay = terminalSettings.showFreezeOverlay !== false;
 
   function saveToggle(key: string, value: boolean) {
     updateSetting.mutate([{ key, value }]);
@@ -876,16 +1145,16 @@ export function SettingsPanel() {
   return (
     <>
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-[800px] !flex !flex-col h-[80vh] overflow-hidden p-0" aria-describedby={undefined}>
+      <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-[1100px] !flex !flex-col h-[88vh] max-h-[920px] overflow-hidden p-0" aria-describedby={undefined}>
         <DialogHeader className="shrink-0 px-6 pt-6">
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-1 min-h-0">
+        <div className="flex flex-1 min-h-0 bg-bg-deep/35">
           {/* Sidebar navigation */}
-          <div className="w-44 border-r border-border-subtle shrink-0 flex flex-col">
+          <div className="w-52 lg:w-56 border-r border-border-subtle bg-bg-secondary/35 shrink-0 flex flex-col">
             {/* Search input */}
-            <div className="px-3 pt-3 pb-2">
+            <div className="px-3.5 pt-3.5 pb-2.5">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
                 <input
@@ -907,7 +1176,7 @@ export function SettingsPanel() {
             </div>
 
             {/* Nav items */}
-            <nav className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+            <nav className="flex-1 overflow-y-auto px-2.5 pb-4 space-y-1">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.key;
@@ -919,10 +1188,10 @@ export function SettingsPanel() {
                     key={item.key}
                     onClick={() => setActiveTab(item.key)}
                     className={cn(
-                      'flex items-center gap-2.5 w-full text-left px-2.5 py-1.5 rounded-md text-sm transition-colors cursor-pointer',
+                      'flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer',
                       isActive
-                        ? 'bg-bg-hover text-text-primary border-l-2 border-accent'
-                        : 'text-text-secondary hover:bg-bg-hover/50 hover:text-text-primary border-l-2 border-transparent'
+                        ? 'bg-bg-hover text-text-primary border border-accent/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]'
+                        : 'text-text-secondary hover:bg-bg-hover/60 hover:text-text-primary border border-transparent'
                     )}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
@@ -937,7 +1206,8 @@ export function SettingsPanel() {
           </div>
 
           {/* Content pane */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-5 lg:px-8">
+            <div className="mx-auto w-full max-w-[920px] space-y-5">
 
             {/* ===== Appearance ===== */}
             {activeTab === 'appearance' && (
@@ -1119,96 +1389,182 @@ export function SettingsPanel() {
                   </SettingGroup>
                 )}
 
-                {/* Action buttons */}
-                <div className="flex gap-2 flex-wrap">
-                  {showSaveThemeInput ? (
-                    <div className="flex gap-2 items-center flex-1">
-                      <Input
-                        value={customThemeName}
-                        onChange={(e) => setCustomThemeName(e.target.value)}
-                        placeholder="Theme name"
-                        className="bg-bg-deep border-border-subtle text-sm flex-1"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') {
-                            setShowSaveThemeInput(false);
-                            setCustomThemeName('');
-                          }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer shrink-0"
-                        disabled={!customThemeName.trim()}
-                        onClick={() => {
-                          const appearance = (settings.appearance as Record<string, unknown>) || {};
-                          const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
-                          const base = getThemeById(activeThemeId, customThemes) ?? THEME_CLASSIC_AMBER;
-                          const newTheme: ThemeDefinition = {
-                            id: `custom-${Date.now()}`,
-                            name: customThemeName.trim(),
-                            description: 'Custom theme',
-                            tokens: { ...base.tokens, ...customTokenOverrides } as ThemeTokens,
-                            builtIn: false,
-                            createdAt: new Date().toISOString(),
-                          };
-                          const updated = [...customThemes, newTheme];
-                          updateSetting.mutate([{ key: 'appearance.customThemes', value: updated }]);
-                          updateSetting.mutate([{ key: 'appearance.activeThemeId', value: newTheme.id }]);
-                          setActiveThemeId(newTheme.id);
-                          setCustomTokenOverrides({});
-                          setShowSaveThemeInput(false);
-                          setCustomThemeName('');
-                          toast.success(`Saved theme "${newTheme.name}"`);
-                        }}
-                      >
-                        <Save className="h-3.5 w-3.5 mr-1" />
-                        Save
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="cursor-pointer shrink-0"
-                        onClick={() => {
-                          setShowSaveThemeInput(false);
-                          setCustomThemeName('');
-                        }}
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <Button
-                        size="sm"
-                        className={cn(
-                          'cursor-pointer',
-                          Object.keys(customTokenOverrides).length > 0
-                            ? 'bg-accent text-bg-deep hover:bg-accent/80'
-                            : 'bg-bg-tertiary text-text-secondary hover:bg-bg-hover',
-                        )}
-                        onClick={() => setShowSaveThemeInput(true)}
-                      >
-                        <Save className="h-3.5 w-3.5 mr-1" />
-                        Save as Custom Theme
-                      </Button>
-                      {Object.keys(customTokenOverrides).length > 0 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="cursor-pointer"
-                          onClick={() => {
-                            setCustomTokenOverrides({});
-                            toast.info('Reset to preset defaults');
-                          }}
-                        >
-                          <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                          Reset
-                        </Button>
+                {(matchesSearch('Save as Custom Theme') || showSaveThemeInput || Object.keys(customTokenOverrides).length > 0) && (
+                  <SettingGroup label="Theme Actions">
+                    <div className="flex gap-2 flex-wrap">
+                      {showSaveThemeInput ? (
+                        <div className="flex gap-2 items-center flex-1">
+                          <Input
+                            value={customThemeName}
+                            onChange={(e) => setCustomThemeName(e.target.value)}
+                            placeholder="Theme name"
+                            className="bg-bg-deep border-border-subtle text-sm flex-1"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                setShowSaveThemeInput(false);
+                                setCustomThemeName('');
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer shrink-0"
+                            disabled={!customThemeName.trim()}
+                            onClick={() => {
+                              const appearance = (settings.appearance as Record<string, unknown>) || {};
+                              const customThemes = (appearance.customThemes as ThemeDefinition[]) || [];
+                              const base = getThemeById(activeThemeId, customThemes) ?? THEME_CLASSIC_AMBER;
+                              const newTheme: ThemeDefinition = {
+                                id: `custom-${Date.now()}`,
+                                name: customThemeName.trim(),
+                                description: 'Custom theme',
+                                tokens: { ...base.tokens, ...customTokenOverrides } as ThemeTokens,
+                                builtIn: false,
+                                createdAt: new Date().toISOString(),
+                              };
+                              const updated = [...customThemes, newTheme];
+                              updateSetting.mutate([{ key: 'appearance.customThemes', value: updated }]);
+                              updateSetting.mutate([{ key: 'appearance.activeThemeId', value: newTheme.id }]);
+                              setActiveThemeId(newTheme.id);
+                              setCustomTokenOverrides({});
+                              setShowSaveThemeInput(false);
+                              setCustomThemeName('');
+                              toast.success(`Saved theme "${newTheme.name}"`);
+                            }}
+                          >
+                            <Save className="h-3.5 w-3.5 mr-1" />
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="cursor-pointer shrink-0"
+                            onClick={() => {
+                              setShowSaveThemeInput(false);
+                              setCustomThemeName('');
+                            }}
+                          >
+                            <XIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            className={cn(
+                              'cursor-pointer',
+                              Object.keys(customTokenOverrides).length > 0
+                                ? 'bg-accent text-bg-deep hover:bg-accent/80'
+                                : 'bg-bg-tertiary text-text-secondary hover:bg-bg-hover',
+                            )}
+                            onClick={() => setShowSaveThemeInput(true)}
+                          >
+                            <Save className="h-3.5 w-3.5 mr-1" />
+                            Save as Custom Theme
+                          </Button>
+                          {Object.keys(customTokenOverrides).length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="cursor-pointer"
+                              onClick={() => {
+                                setCustomTokenOverrides({});
+                                toast.info('Reset to preset defaults');
+                              }}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                              Reset
+                            </Button>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </SettingGroup>
+                )}
+
+                {(
+                  matchesSearch('Workspace Pills') ||
+                  matchesSearch('Workspace Pill Style') ||
+                  matchesSearch('Short Label') ||
+                  matchesSearch('Icon')
+                ) && (
+                  <SettingGroup label="Workspace Pills">
+                    <div data-setting-label="Workspace Pill Style">
+                      <div className="text-sm text-text-primary mb-1">Workspace Pill Content</div>
+                      <div className="text-xs text-text-tertiary mb-2">
+                        Mix and match number, short label, and icon. If a workspace has a custom short label, enabling Index will show `# + short label` automatically.
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        {([
+                          {
+                            key: 'showIndex',
+                            label: 'Index',
+                            description: 'Keep the #1 shortcut marker visible and pair it with a custom short label when set',
+                          },
+                          {
+                            key: 'showShortLabel',
+                            label: 'Short Label',
+                            description: 'Show the workspace short name or monogram',
+                          },
+                          {
+                            key: 'showIcon',
+                            label: 'Icon',
+                            description: 'Show the optional workspace icon',
+                          },
+                        ] as const).map((option) => {
+                          const enabled = workspacePillDisplay[option.key];
+                          return (
+                            <button
+                              key={option.key}
+                              onClick={() => {
+                                const nextDisplay = {
+                                  ...workspacePillDisplay,
+                                  [option.key]: !enabled,
+                                };
+                                const hasAnyEnabled = nextDisplay.showIndex || nextDisplay.showShortLabel || nextDisplay.showIcon;
+                                updateSetting.mutate([{
+                                  key: 'appearance.workspacePillDisplay',
+                                  value: hasAnyEnabled ? nextDisplay : DEFAULT_WORKSPACE_PILL_DISPLAY,
+                                }]);
+                              }}
+                              className={cn(
+                                'rounded-lg border p-3 text-left transition-colors cursor-pointer',
+                                enabled
+                                  ? 'border-accent bg-accent/10 text-text-primary'
+                                  : 'border-border-subtle bg-bg-deep text-text-secondary hover:bg-bg-hover',
+                              )}
+                            >
+                              <div className="text-sm font-medium">{option.label}</div>
+                              <div className="text-[10px] text-text-tertiary mt-1">{option.description}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-xs text-text-tertiary">
+                        Set an optional short label and icon per workspace. Short labels are capped at 4 characters.
+                      </div>
+                      {appearanceWorkspaceList.length > 0 ? (
+                        appearanceWorkspaceList.map((workspace, index) => (
+                          <WorkspacePillAppearanceRow
+                            key={workspace.key}
+                            workspace={workspace}
+                            index={index + 1}
+                            display={workspacePillDisplay}
+                            onSaved={refetchWorkspaceList}
+                          />
+                        ))
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-border-subtle bg-bg-deep/40 px-3 py-4 text-xs text-text-muted">
+                          Create a workspace first to customize its pill label or icon.
+                        </div>
+                      )}
+                    </div>
+                  </SettingGroup>
+                )}
               </>
             )}
 
@@ -1423,22 +1779,7 @@ export function SettingsPanel() {
                         variant="outline"
                         className="text-xs"
                         disabled={cliInstalling || cliUninstalling}
-                        onClick={async () => {
-                          setCliInstalling(true);
-                          try {
-                            const result = await typedInvoke(IPC.INSTALL_CLI);
-                            if (result.success) {
-                              toast.success(result.message);
-                              refreshCliStatus();
-                            } else {
-                              toast.error(result.message);
-                            }
-                          } catch {
-                            toast.error('Failed to install CLI');
-                          } finally {
-                            setCliInstalling(false);
-                          }
-                        }}
+                        onClick={handleInstallCli}
                       >
                         {cliInstalling && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
                         Install CLI to PATH
@@ -1448,22 +1789,7 @@ export function SettingsPanel() {
                         variant="ghost"
                         className="text-xs text-text-muted hover:text-error ml-2"
                         disabled={cliInstalling || cliUninstalling}
-                        onClick={async () => {
-                          setCliUninstalling(true);
-                          try {
-                            const result = await typedInvoke(IPC.UNINSTALL_CLI);
-                            if (result.success) {
-                              toast.success(result.message);
-                              refreshCliStatus();
-                            } else {
-                              toast.error(result.message);
-                            }
-                          } catch {
-                            toast.error('Failed to uninstall CLI');
-                          } finally {
-                            setCliUninstalling(false);
-                          }
-                        }}
+                        onClick={handleUninstallCli}
                       >
                         {cliUninstalling && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
                         Uninstall
@@ -1570,7 +1896,7 @@ export function SettingsPanel() {
                 )}
 
                 {/* Behavior group */}
-                {(matchesSearch('Default Shell') || matchesSearch('Bell Sound') || matchesSearch('Copy on Select') || matchesSearch('Max Terminals') || matchesSearch('Behavior')) && (
+                {(matchesSearch('Default Shell') || matchesSearch('Bell Sound') || matchesSearch('Copy on Select') || matchesSearch('Max Terminals') || matchesSearch('Freeze Hover Action') || matchesSearch('Paused Output Overlay') || matchesSearch('Behavior')) && (
                   <SettingGroup label="Behavior">
                     {matchesSearch('Default Shell') && availableShells.length > 0 && (
                       <SettingSelect
@@ -1621,6 +1947,22 @@ export function SettingsPanel() {
                         min={1}
                         max={20}
                         step={1}
+                      />
+                    )}
+                    {matchesSearch('Freeze Hover Action') && (
+                      <SettingToggle
+                        label="Freeze Hover Action"
+                        description="Show a pause or resume icon on terminal tabs when you hover them"
+                        value={showFreezeHoverAction}
+                        onChange={(v) => saveToggle('terminal.showFreezeHoverAction', v)}
+                      />
+                    )}
+                    {matchesSearch('Paused Output Overlay') && (
+                      <SettingToggle
+                        label="Paused Output Overlay"
+                        description="Show the in-terminal paused banner with a resume action when output is frozen"
+                        value={showFreezeOverlay}
+                        onChange={(v) => saveToggle('terminal.showFreezeOverlay', v)}
                       />
                     )}
                   </SettingGroup>
@@ -2430,29 +2772,239 @@ export function SettingsPanel() {
                 {matchesSearch('SubFrame Server') && (
                   <SettingGroup label="SubFrame Server">
                     <SettingToggle
-                      label="Enable SubFrame Server"
-                      description="Serve the IDE UI as a web app accessible from remote devices via SSH tunnel"
-                      value={(settings?.server as Record<string, unknown>)?.enabled === true}
+                      label="Run SubFrame Server"
+                      description="Start or stop the remote web UI for this SubFrame session"
+                      value={webServerInfo?.enabled === true}
                       onChange={(v) => {
-                        updateSetting.mutate([{ key: 'server.enabled', value: v }]);
-                        // Also toggle the server immediately
                         typedInvoke(IPC.WEB_SERVER_TOGGLE, v)
-                          .then(() => refetchWebServerInfo())
+                          .then(() => {
+                            refetchWebServerInfo();
+                            toast.success(v ? 'SubFrame Server started' : 'SubFrame Server stopped');
+                          })
                           .catch(() => {});
+                      }}
+                    />
+
+                    <SettingToggle
+                      label="Start Server on Launch"
+                      description="Automatically start SubFrame Server whenever SubFrame opens"
+                      value={(settings?.server as Record<string, unknown>)?.startOnLaunch === true}
+                      onChange={(v) => {
+                        typedInvoke(IPC.UPDATE_SETTING, { key: 'server.startOnLaunch', value: v })
+                          .then(() => toast.success(v ? 'Server will start on launch' : 'Server launch auto-start disabled'))
+                          .catch(() => toast.error('Failed to update launch behavior'));
+                      }}
+                    />
+
+                    <SettingInput
+                      label="Preferred Port"
+                      description="Use a fixed port for bookmarks and integrations. Leave blank or enter 0 for auto; auto mode reuses the last successful port when it is still available."
+                      type="number"
+                      min={0}
+                      max={65535}
+                      step={1}
+                      value={webServerPortInput}
+                      onChange={setWebServerPortInput}
+                      placeholder={configuredWebServerPort > 0 ? undefined : (effectiveWebServerPort ? String(effectiveWebServerPort) : 'Auto')}
+                      extra={
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="cursor-pointer shrink-0"
+                          onClick={applyWebServerPort}
+                        >
+                          Apply
+                        </Button>
+                      }
+                    />
+                    <div className="text-[10px] text-text-muted px-1 -mt-1">
+                      Mode: {configuredWebServerPort > 0 ? `Fixed port ${configuredWebServerPort}` : 'Auto reuse'}
+                      {effectiveWebServerPort ? ` · Current port ${effectiveWebServerPort}` : ''}
+                    </div>
+
+                    <SettingToggle
+                      label="Remote Cursor Tracking"
+                      description="Show remote mouse or touch activity on the host desktop while a web client is controlling this SubFrame instance"
+                      value={(settings?.server as Record<string, unknown>)?.showRemoteCursor === true}
+                      onChange={(v) => {
+                        typedInvoke(IPC.UPDATE_SETTING, { key: 'server.showRemoteCursor', value: v })
+                          .then(() => {
+                            toast.success(v ? 'Remote cursor tracking enabled' : 'Remote cursor tracking disabled');
+                          })
+                          .catch(() => toast.error('Failed to update remote cursor tracking'));
                       }}
                     />
 
                     {/* Server status — shown when enabled */}
                     {webServerInfo?.enabled && (
                       <>
+                        <SettingToggle
+                          label="Allow LAN access"
+                          description="Bind SubFrame Server to your local network so phones and tablets on the same Wi-Fi can connect directly"
+                          value={webServerInfo.lanMode}
+                          onChange={(v) => {
+                            typedInvoke(IPC.UPDATE_SETTING, { key: 'server.lanMode', value: v })
+                              .then(() => {
+                                refetchWebServerInfo();
+                                toast.success(v ? 'LAN access enabled' : 'LAN access disabled');
+                              })
+                              .catch(() => toast.error('Failed to update LAN access'));
+                          }}
+                          extra={webServerInfo.lanMode ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-medium">
+                              Trusted networks only
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400 font-medium">
+                              SSH recommended
+                            </span>
+                          )}
+                        />
+
+                        {webServerInfo.lanMode ? (
+                          <div className="rounded-lg border border-amber-500/25 bg-amber-500/7 p-3 space-y-2">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                              <div className="text-xs text-amber-200/80">
+                                LAN mode exposes SubFrame Server to every device on this network. Use it only on trusted home or office Wi-Fi, and disable it when you are done.
+                              </div>
+                            </div>
+                            {webServerInfo.lanIp ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-amber-200/70">
+                                  <Wifi className="w-3 h-3" />
+                                  <span>Android / Mobile Access</span>
+                                </div>
+                                <div className="text-xs text-text-secondary">
+                                  Open <span className="font-mono">http://{webServerInfo.lanIp}:{webServerInfo.port}</span> on the same Wi-Fi, or scan the QR code below. No SSH app is required on Android.
+                                </div>
+                                {webServerInfo.lanIps.length > 1 && (
+                                  <div className="text-[10px] text-text-muted">
+                                    Other detected addresses: {webServerInfo.lanIps.filter((ip) => ip !== webServerInfo.lanIp).join(', ')}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-text-muted">
+                                No LAN IP detected yet. Connect this machine to Wi-Fi or Ethernet to enable direct mobile access.
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-border-subtle bg-bg-deep p-3">
+                            <div className="flex items-start gap-2">
+                              <Shield className="w-3.5 h-3.5 text-green-400 shrink-0 mt-0.5" />
+                              <div className="text-xs text-text-tertiary">
+                                SSH tunnel mode keeps the server bound to localhost. Use this for the safest remote access path or whenever you are not on a trusted network.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {webServerInfo.lastStartError && (
+                          <div className="rounded-lg border border-red-500/25 bg-red-500/7 p-3 space-y-1.5">
+                            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-red-200/80">
+                              <AlertTriangle className="w-3.5 h-3.5 text-red-300" />
+                              <span>Server Start Failed</span>
+                            </div>
+                            <div className="text-xs text-red-100/85">
+                              {webServerInfo.lastStartError}
+                            </div>
+                            {configuredWebServerPort > 0 && (
+                              <div className="text-[10px] text-red-100/65">
+                                Choose a different fixed port, or clear Preferred Port to let SubFrame reuse the last open port automatically.
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div className="bg-bg-deep rounded-lg p-2.5 space-y-1.5">
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-xs text-text-secondary">Server running</span>
+                            <div className={cn('w-2 h-2 rounded-full', webServerRunning ? 'bg-green-500 animate-pulse' : 'bg-amber-400')} />
+                            <span className="text-xs text-text-secondary">
+                              {webServerRunning ? 'Server running' : 'Waiting for port'}
+                            </span>
                             <span className="text-[10px] text-text-muted ml-auto font-mono">
-                              port {webServerInfo.port}
+                              {webServerRunning ? `port ${webServerInfo.port}` : configuredWebServerPort > 0 ? `fixed ${configuredWebServerPort}` : 'auto'}
                             </span>
                           </div>
+                          <div className="flex items-center gap-2 text-[10px] text-text-muted">
+                            {webServerInfo.lanMode ? (
+                              <>
+                                <Smartphone className="w-3 h-3 text-blue-400" />
+                                <span>Access: LAN</span>
+                                {webServerInfo.lanIp && <span className="font-mono">{webServerInfo.lanIp}</span>}
+                              </>
+                            ) : (
+                              <>
+                                <Shield className="w-3 h-3 text-green-400" />
+                                <span>Access: SSH tunnel / localhost only</span>
+                                <span className="font-mono">remote :8080</span>
+                              </>
+                            )}
+                          </div>
+
+                          {webServerBaseUrl && (
+                            <div className="pt-1 border-t border-border-subtle space-y-1.5">
+                              <div className="flex items-center gap-2 text-[10px] text-text-muted uppercase tracking-wider">
+                                <Globe className="w-3 h-3" />
+                                <span>{webServerInfo.lanMode ? 'Base URL' : 'Remote Base URL (After SSH Tunnel)'}</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <code className="flex-1 text-[10px] font-mono text-text-secondary bg-bg-primary rounded px-2 py-1.5 break-all select-all">
+                                  {webServerBaseUrl}
+                                </code>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="shrink-0 h-7 px-2 cursor-pointer"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(webServerBaseUrl)
+                                      .then(() => toast.success('Base URL copied'))
+                                      .catch(() => toast.error('Failed to copy base URL'));
+                                  }}
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                              <div className="text-[10px] text-text-muted">
+                                {webServerInfo.lanMode
+                                  ? 'Open this base URL on another device, then pair with a code or paste a token directly in the browser.'
+                                  : 'Open this URL on the remote machine after the SSH tunnel is active. It points at the tunnel endpoint on that remote device, not the host machine\'s private server port.'}
+                              </div>
+                            </div>
+                          )}
+
+                          {webServerConnectionUrl && (
+                            <div className="pt-1 border-t border-border-subtle space-y-1.5">
+                              <div className="flex items-center gap-2 text-[10px] text-text-muted uppercase tracking-wider">
+                                <Globe className="w-3 h-3" />
+                                <span>{webServerInfo.lanMode ? 'Connection URL' : 'Remote Connection URL (Token Included)'}</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <code className="flex-1 text-[10px] font-mono text-text-secondary bg-bg-primary rounded px-2 py-1.5 break-all select-all">
+                                  {webServerConnectionUrl}
+                                </code>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="shrink-0 h-7 px-2 cursor-pointer"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(webServerConnectionUrl)
+                                      .then(() => toast.success('Connection URL copied'))
+                                      .catch(() => toast.error('Failed to copy connection URL'));
+                                  }}
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                              <div className="text-[10px] text-text-muted">
+                                {webServerInfo.lanMode
+                                  ? 'Open this exact URL on the connecting device. It includes the current auth token.'
+                                  : 'Open this exact URL on the remote machine after the tunnel is active. It already includes the current auth token.'}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Connected client indicator */}
                           {webServerInfo.clientConnected && webServerInfo.clientInfo ? (
@@ -2465,12 +3017,26 @@ export function SettingsPanel() {
                                 <div className="text-[10px] text-text-muted">
                                   Connected {new Date(webServerInfo.clientInfo.connectedAt).toLocaleTimeString()}
                                 </div>
+                                {webServerInfo.sessionContext && (
+                                  <div className="text-[10px] text-text-muted truncate">
+                                    Mirroring {webServerInfo.sessionContext.workspaceName}
+                                    {webServerInfo.sessionContext.projectName ? ` / ${webServerInfo.sessionContext.projectName}` : ''}
+                                  </div>
+                                )}
                               </div>
                               <Wifi className="w-3 h-3 text-green-500 shrink-0" />
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-1 border-t border-border-subtle">
-                              <span className="text-[10px] text-text-muted">No client connected</span>
+                              <div className="min-w-0">
+                                <div className="text-[10px] text-text-muted">No client connected</div>
+                                {webServerInfo.sessionContext && (
+                                  <div className="text-[10px] text-text-muted truncate">
+                                    Ready to mirror {webServerInfo.sessionContext.workspaceName}
+                                    {webServerInfo.sessionContext.projectName ? ` / ${webServerInfo.sessionContext.projectName}` : ''}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -2506,33 +3072,54 @@ export function SettingsPanel() {
                             size="sm"
                             variant="outline"
                             className="cursor-pointer text-xs"
-                            onClick={() => {
-                              typedInvoke(IPC.WEB_SERVER_GENERATE_PAIRING)
-                                .then((result) => {
-                                  setWebServerPairingCode(result.code);
-                                  toast.success(`Pairing code: ${result.code}`, { duration: 10000 });
-                                })
-                                .catch(() => toast.error('Failed to generate pairing code'));
+                            onClick={async () => {
+                              try {
+                                const code = webServerPairingCode
+                                  ?? (await typedInvoke(IPC.WEB_SERVER_GENERATE_PAIRING)).code;
+                                setWebServerPairingCode(code);
+
+                                const copied = await copyTextToClipboard(code);
+                                if (copied) {
+                                  toast.success(`Pairing code copied: ${code}`, { duration: 10000 });
+                                } else {
+                                  toast.success(`Pairing code ready: ${code}`, { duration: 10000 });
+                                  toast.error('Clipboard access failed. Copy the code manually from the button label.');
+                                }
+                              } catch {
+                                toast.error('Failed to generate pairing code');
+                              }
                             }}
                           >
                             <Copy className="w-3 h-3 mr-1.5" />
-                            {webServerPairingCode ? `Code: ${webServerPairingCode}` : 'Show Pairing Code'}
+                            {webServerPairingCode ? `Copy Code: ${webServerPairingCode}` : 'Generate + Copy Code'}
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="cursor-pointer text-xs"
-                            onClick={() => setWebServerQrVisible((v) => !v)}
-                          >
-                            <QrCode className="w-3 h-3 mr-1.5" />
-                            {webServerQrVisible ? 'Hide QR Code' : 'Show QR Code'}
-                          </Button>
+                          {webServerInfo.lanMode ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="cursor-pointer text-xs"
+                              onClick={() => setWebServerQrVisible((v) => !v)}
+                            >
+                              <QrCode className="w-3 h-3 mr-1.5" />
+                              {webServerQrVisible ? 'Hide QR Code' : 'Show QR Code'}
+                            </Button>
+                          ) : null}
                         </div>
 
                         {/* Inline QR Code */}
                         {webServerQrVisible && webServerQrDataUrl && (
-                          <div className="flex justify-center py-2">
+                          <div className="flex flex-col items-center gap-1.5 py-2">
                             <img src={webServerQrDataUrl} alt="QR Code for connection URL" className="rounded-lg" style={{ width: 150, height: 150 }} />
+                            {webServerInfo.lanMode && (
+                              <div className="text-[10px] text-text-muted">
+                                Scan from Android/iPhone on the same Wi-Fi
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {!webServerInfo.lanMode && (
+                          <div className="text-[10px] text-text-muted">
+                            QR code sharing is available in LAN mode. In SSH mode, copy the remote base URL or tokenized remote connection URL instead.
                           </div>
                         )}
                       </>
@@ -2584,6 +3171,28 @@ export function SettingsPanel() {
                           )}
                           <div className={`w-2 h-2 rounded-full ${cliStatus?.installed ? (cliStatus.inPath ? 'bg-success' : 'bg-warning') : 'bg-text-muted'}`} />
                         </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleInstallCli}
+                          disabled={cliInstalling || cliUninstalling}
+                          className="h-7 px-3 text-xs cursor-pointer"
+                        >
+                          {cliInstalling && <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" />}
+                          Install
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleUninstallCli}
+                          disabled={cliInstalling || cliUninstalling}
+                          className="h-7 px-2 text-xs text-error hover:text-error cursor-pointer"
+                        >
+                          {cliUninstalling && <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" />}
+                          Remove
+                        </Button>
                       </div>
                     </div>
 
@@ -2773,6 +3382,7 @@ export function SettingsPanel() {
               </>
             )}
 
+            </div>
           </div>
         </div>
       </DialogContent>

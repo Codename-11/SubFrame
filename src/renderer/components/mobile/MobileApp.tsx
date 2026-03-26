@@ -6,7 +6,8 @@
 
 import { useState, useEffect } from 'react';
 import { MobileBottomNav, type MobileTab } from './MobileBottomNav';
-import { MobileTerminalWrapper } from './MobileTerminalWrapper';
+import { MobilePanelsView } from './MobilePanelsView';
+import { TerminalArea } from '../TerminalArea';
 import { TasksPanel } from '../TasksPanel';
 import { ActivityBar } from '../ActivityBar';
 import { useUIStore } from '../../stores/useUIStore';
@@ -24,13 +25,19 @@ function MobileTabContent({ tab }: { tab: MobileTab }) {
 
   switch (tab) {
     case 'terminal':
-      return <MobileTerminalWrapper />;
+      return (
+        <div className="flex-1 min-h-0 bg-bg-deep">
+          <TerminalArea />
+        </div>
+      );
     case 'tasks':
       return (
-        <div className="flex-1 min-h-0 overflow-auto bg-bg-deep">
+        <div className="flex flex-1 min-h-0 flex-col bg-bg-deep">
           <TasksPanel />
         </div>
       );
+    case 'panels':
+      return <MobilePanelsView />;
     case 'activity':
       return (
         <div className="flex-1 min-h-0 overflow-auto bg-bg-deep">
@@ -50,6 +57,15 @@ function MobileTabContent({ tab }: { tab: MobileTab }) {
 
 export function MobileApp() {
   const [activeTab, setActiveTab] = useState<MobileTab>('terminal');
+  const activePanel = useUIStore((s) => s.activePanel);
+
+  useEffect(() => {
+    if (activePanel === 'tasks') {
+      setActiveTab('tasks');
+    } else if (activePanel) {
+      setActiveTab('panels');
+    }
+  }, [activePanel]);
 
   return (
     <div className="flex flex-col h-screen w-screen bg-bg-deep text-text-primary font-sans">

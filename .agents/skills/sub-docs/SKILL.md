@@ -1,5 +1,3 @@
-<!-- @subframe-version 0.2.7-beta -->
-<!-- @subframe-managed -->
 ---
 name: sub-docs
 description: Sync all SubFrame documentation after feature work. Updates AGENTS.md lists, changelog, PROJECT_NOTES decisions, and STRUCTURE.json.
@@ -7,6 +5,9 @@ argument-hint: [summary of what changed]
 disable-model-invocation: false
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
+
+<!-- @subframe-version 0.2.7-beta -->
+<!-- @subframe-managed -->
 
 # SubFrame Documentation Sync
 

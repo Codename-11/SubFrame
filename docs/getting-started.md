@@ -202,12 +202,15 @@ SubFrame is designed for keyboard-driven workflows. Press `Ctrl+?` (or `Cmd+?` o
 
 That's it — SubFrame enhances your AI tools with persistent context and task tracking. Everything the AI does is visible in your terminal.
 
+If you want to keep working away from your desk, open **Settings > Integrations > SubFrame Server** and enable remote access. You can then connect from another desktop browser, a tablet, or a phone using SSH tunnel mode or trusted-LAN mode.
+
 ## Next Steps
 
 Now that you are up and running, explore these guides to get the most out of SubFrame:
 
 - **[Features](/features)** — Deep dive into terminal management, task tracking, context preservation, and more
 - **[AI Tool Setup](/ai-tool-setup)** — Install and configure Claude Code, Codex CLI, or Gemini CLI
+- **[Remote Access](/remote-access)** — Control the same SubFrame session from another desktop, tablet, or phone
 - **[Keyboard Shortcuts](/keyboard-shortcuts)** — Full shortcut reference for fast navigation
 - **[Configuration](/configuration)** — Customize SubFrame settings and workspace preferences
 - **[Troubleshooting](/troubleshooting)** — Common issues and solutions

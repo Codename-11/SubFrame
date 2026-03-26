@@ -3,12 +3,13 @@
  * Manages switching between different AI coding tools (Claude Code, Codex CLI, etc.)
  */
 
-import { ipcMain, type App, type BrowserWindow } from 'electron';
+import { ipcMain, type App, type BrowserWindow, type IpcMain } from 'electron';
 import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
+import type { RoutableIPC } from './ipcRouter';
 
 interface AIToolCommands {
   [key: string]: string;
@@ -105,7 +106,6 @@ function init(window: BrowserWindow, app: App): void {
   mainWindow = window;
   configPath = path.join(app.getPath('userData'), 'ai-tool-config.json');
   loadConfig();
-  setupIPC();
 }
 
 /**
@@ -324,16 +324,16 @@ function removeCustomTool(toolId: string): boolean {
 /**
  * Setup IPC handlers
  */
-function setupIPC(): void {
-  ipcMain.handle(IPC.GET_AI_TOOL_CONFIG, async () => {
+function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
+  ipc.handle(IPC.GET_AI_TOOL_CONFIG, async () => {
     return getConfig();
   });
 
-  ipcMain.handle(IPC.SET_AI_TOOL, async (_event, toolId: string) => {
+  ipc.handle(IPC.SET_AI_TOOL, async (_event, toolId: string) => {
     return setActiveTool(toolId);
   });
 
-  ipcMain.handle(IPC.ADD_CUSTOM_AI_TOOL, async (_event, tool: { id: string; name: string; command: string; description?: string }) => {
+  ipc.handle(IPC.ADD_CUSTOM_AI_TOOL, async (_event, tool: { id: string; name: string; command: string; description?: string }) => {
     const result = addCustomTool(tool);
     if (result && mainWindow && !mainWindow.isDestroyed()) {
       broadcast(IPC.AI_TOOL_CHANGED, await getActiveTool());
@@ -341,7 +341,7 @@ function setupIPC(): void {
     return result;
   });
 
-  ipcMain.handle(IPC.REMOVE_CUSTOM_AI_TOOL, async (_event, toolId: string) => {
+  ipc.handle(IPC.REMOVE_CUSTOM_AI_TOOL, async (_event, toolId: string) => {
     const result = removeCustomTool(toolId);
     if (result && mainWindow && !mainWindow.isDestroyed()) {
       broadcast(IPC.AI_TOOL_CHANGED, await getActiveTool());
@@ -349,13 +349,13 @@ function setupIPC(): void {
     return result;
   });
 
-  ipcMain.handle(IPC.RECHECK_AI_TOOLS, async () => {
+  ipc.handle(IPC.RECHECK_AI_TOOLS, async () => {
     installCache.clear();
     return getConfig();
   });
 
   // Detect AI tool features by reading actual config files
-  ipcMain.handle(IPC.DETECT_AI_FEATURES, async (_event, projectPath: string) => {
+  ipc.handle(IPC.DETECT_AI_FEATURES, async (_event, projectPath: string) => {
     try {
       const os = require('os');
       // Read project-level .claude/settings.json
@@ -438,7 +438,7 @@ async function getStartCommand(): Promise<string> {
 }
 
 export {
-  init, getAvailableTools, getActiveTool, setActiveTool,
+  init, setupIPC, getAvailableTools, getActiveTool, setActiveTool,
   getConfig, getCommand, getStartCommand, checkToolInstalled,
   addCustomTool, removeCustomTool, onActiveToolChanged, AI_TOOLS
 };

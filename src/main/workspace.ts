@@ -25,6 +25,8 @@ interface WorkspaceEntry {
   name: string;
   createdAt: string;
   projects: WorkspaceProject[];
+  shortLabel?: string;
+  icon?: string;
   inactive?: boolean; // Defaults to false (active) for backward compat
 }
 
@@ -39,6 +41,9 @@ interface WorkspaceListItem {
   key: string;
   name: string;
   projectCount: number;
+  projectPaths: string[];
+  shortLabel?: string;
+  icon?: string;
   inactive?: boolean;
 }
 
@@ -95,7 +100,7 @@ function createDefaultWorkspace(): WorkspaceData {
       default: {
         name: 'Default Workspace',
         createdAt: new Date().toISOString(),
-        projects: []
+        projects: [],
       }
     }
   };
@@ -118,7 +123,7 @@ function loadWorkspace(): WorkspaceData {
         workspace.workspaces.default = {
           name: 'Default Workspace',
           createdAt: new Date().toISOString(),
-          projects: []
+          projects: [],
         };
       }
       saveWorkspace(workspace);
@@ -389,6 +394,9 @@ function getWorkspaceList(): WorkspaceListResult {
         key,
         name: workspace.workspaces[key].name,
         projectCount: workspace.workspaces[key].projects ? workspace.workspaces[key].projects.length : 0,
+        projectPaths: workspace.workspaces[key].projects ? workspace.workspaces[key].projects.map((project) => project.path) : [],
+        shortLabel: workspace.workspaces[key].shortLabel,
+        icon: workspace.workspaces[key].icon,
         inactive: workspace.workspaces[key].inactive ?? false,
       })),
   };
@@ -431,7 +439,7 @@ function createWorkspace(name: string): WorkspaceListResult | null {
   workspace.workspaces[slug] = {
     name: name.trim(),
     createdAt: new Date().toISOString(),
-    projects: []
+    projects: [],
   };
   workspace.activeWorkspace = slug;
 
@@ -447,13 +455,33 @@ function createWorkspace(name: string): WorkspaceListResult | null {
 /**
  * Rename a workspace (cannot change the slug key)
  */
-function renameWorkspace(key: string, newName: string): boolean {
-  if (!newName || !newName.trim()) return false;
-
+function renameWorkspace(key: string, updates: { newName?: string; shortLabel?: string | null; icon?: string | null }): boolean {
   const workspace = loadWorkspace();
   if (!workspace.workspaces[key]) return false;
 
-  workspace.workspaces[key].name = newName.trim();
+  if (typeof updates.newName === 'string') {
+    if (!updates.newName.trim()) return false;
+    workspace.workspaces[key].name = updates.newName.trim();
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'shortLabel')) {
+    const shortLabel = updates.shortLabel?.trim().toUpperCase().replace(/\s+/g, '').slice(0, 4) ?? '';
+    if (shortLabel) {
+      workspace.workspaces[key].shortLabel = shortLabel;
+    } else {
+      delete workspace.workspaces[key].shortLabel;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'icon')) {
+    const icon = updates.icon?.trim() ?? '';
+    if (icon) {
+      workspace.workspaces[key].icon = icon;
+    } else {
+      delete workspace.workspaces[key].icon;
+    }
+  }
+
   saveWorkspace(workspace);
   return true;
 }
@@ -483,7 +511,7 @@ function deleteWorkspace(key: string): { success: boolean; error?: string } {
       workspace.workspaces.default = {
         name: 'Default Workspace',
         createdAt: new Date().toISOString(),
-        projects: []
+        projects: [],
       };
     }
   }
@@ -575,7 +603,16 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.WORKSPACE_LIST, () => getWorkspaceList());
   ipcMain.handle(IPC.WORKSPACE_SWITCH, (_e, key: string) => switchWorkspace(key));
   ipcMain.handle(IPC.WORKSPACE_CREATE, (_e, name: string) => createWorkspace(name));
-  ipcMain.handle(IPC.WORKSPACE_RENAME, (_e, { key, newName }: { key: string; newName: string }) => renameWorkspace(key, newName));
+  ipcMain.handle(
+    IPC.WORKSPACE_RENAME,
+    (_e, payload: { key: string; newName?: string; shortLabel?: string | null; icon?: string | null }) => (
+      renameWorkspace(payload.key, {
+        newName: payload.newName,
+        shortLabel: payload.shortLabel,
+        icon: payload.icon,
+      })
+    )
+  );
   ipcMain.handle(IPC.WORKSPACE_DELETE, (_e, key: string) => deleteWorkspace(key));
   ipcMain.handle(IPC.WORKSPACE_REORDER, (_event, orderedKeys: string[]) => {
     return reorderWorkspaces(orderedKeys);

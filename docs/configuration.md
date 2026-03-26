@@ -18,6 +18,30 @@ Open the Settings panel with <kbd>Ctrl</kbd>+<kbd>,</kbd> (or from the menu). It
 
 Changes take effect immediately and are persisted to disk.
 
+## SubFrame Server Settings
+
+SubFrame Server can expose the full SubFrame UI in a browser for remote desktop, tablet, and phone access.
+
+| Setting | Description | Default |
+|---|---|---|
+| **Enable SubFrame Server** | Start the web server and WebSocket transport for browser access | `false` |
+| **Start Server on Launch** | Automatically start SubFrame Server whenever the desktop app opens | `false` |
+| **Preferred Port** | Use a fixed port for bookmarks and integrations, or `0` / blank for auto reuse | `0` |
+| **Remote Cursor Tracking** | Show remote mouse or touch activity on the host desktop while a web client is connected | `false` |
+| **Allow LAN access** | Bind to your local network so devices on the same Wi-Fi can connect directly without SSH | `false` |
+
+When **Allow LAN access** is off, SubFrame stays on `127.0.0.1` and you should connect through an SSH tunnel. This is the recommended mode for anything beyond a trusted local network.
+
+When **Allow LAN access** is on, SubFrame binds to `0.0.0.0` and becomes reachable from other devices on the same network. Use this only on trusted home or office Wi-Fi. Android access works directly in Chrome or via a QR code; no SSH tunnel app is required.
+
+SubFrame exposes both a plain **Base URL** and a tokenized **Connection URL** in Settings. The base URL is intended for pairing-code or token-entry login from the browser access screen. The connection URL includes the current auth token and is the fastest direct-connect path.
+
+Pairing codes are generated from the desktop app, expire after 5 minutes, and are useful when you do not want to expose the full tokenized URL. QR codes are especially convenient for phone and tablet access on LAN.
+
+When **Preferred Port** is left in auto mode, SubFrame tries to reuse the last successful port when it is still available. This helps bookmarks, mobile shortcuts, and repeat remote access stay more stable without forcing a permanently fixed port.
+
+-> For the full setup flow, see [Remote Access](/remote-access).
+
 ## General Settings
 
 | Setting | Description | Default |

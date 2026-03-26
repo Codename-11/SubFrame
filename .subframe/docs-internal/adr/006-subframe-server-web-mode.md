@@ -64,7 +64,7 @@ Implemented pluggable `Transport` interface (`src/shared/transport.ts`) with `El
 
 ### Phase 3: Settings UI + Setup Wizard (2026-03-23) ✅
 
-SettingsPanel integration with enable toggle, server status, connected client indicator. `WebServerSetup.tsx` 4-step wizard: Enable → SSH Tunnel → Connect (URL + pairing code) → Done.
+SettingsPanel integration with enable toggle, LAN-mode toggle, server status, and connected client indicator. `WebServerSetup.tsx` 4-step wizard: Enable → Access (SSH tunnel or trusted-LAN mode) → Connect (URL + pairing code) → Done.
 
 ### Phase 4: Mobile UI + PWA (2026-03-23) ✅
 

@@ -5,7 +5,7 @@
  * via IPC and keyboard shortcuts. Scopes terminals per-project with hot-swap.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { X, ArrowLeft, ExternalLink } from 'lucide-react';
 import { TerminalTabBar } from './TerminalTabBar';
 import { generateTerminalName, getUsedTerminalNames } from '../lib/terminalNames';
@@ -65,15 +65,14 @@ interface SessionData {
 
 /** Terminal state snapshot from main process (cached during save) */
 interface TerminalStateSnapshot {
-  terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null }>;
+  terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null; projectPath: string | null }>;
 }
 
-function saveSession(
+function buildSessionData(
   projectPath: string | null,
   store: ReturnType<typeof useTerminalStore.getState>,
   terminalState?: TerminalStateSnapshot | null,
-) {
-  const key = projectPath ?? GLOBAL_PROJECT;
+): SessionData {
   const normalizedPath = projectPath ?? '';
   const terminals = Array.from(store.terminals.values()).filter(
     (t) => (t.projectPath || '') === normalizedPath
@@ -116,6 +115,25 @@ function saveSession(
     terminalSessionIds: Object.keys(terminalSessionIds).length > 0 ? terminalSessionIds : undefined,
   };
 
+  return data;
+}
+
+function syncLiveWebSession(projectPath: string | null, data: SessionData) {
+  getTransport().send(IPC.WEB_SESSION_SYNC, {
+    origin: getTransport().platform.isElectron ? 'electron' : 'web',
+    currentProjectPath: projectPath,
+    session: data,
+  });
+}
+
+function saveSession(
+  projectPath: string | null,
+  store: ReturnType<typeof useTerminalStore.getState>,
+  terminalState?: TerminalStateSnapshot | null,
+) {
+  const key = projectPath ?? GLOBAL_PROJECT;
+  const data = buildSessionData(projectPath, store, terminalState);
+
   try {
     const all = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}');
     all[key] = data;
@@ -123,6 +141,8 @@ function saveSession(
   } catch {
     // ignore
   }
+
+  syncLiveWebSession(projectPath, data);
 }
 
 /** Fetch terminal state from main process and save session with it */
@@ -163,6 +183,8 @@ export function TerminalArea() {
   const switchToProject = useTerminalStore((s) => s.switchToProject);
 
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
+  const workspaceName = useProjectStore((s) => s.workspaceName);
+  const workspaceProjects = useProjectStore((s) => s.projects);
   const fullViewContent = useUIStore((s) => s.fullViewContent);
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
   const toggleFullView = useUIStore((s) => s.toggleFullView);
@@ -176,6 +198,7 @@ export function TerminalArea() {
   const { settings } = useSettings();
   const { config: aiToolConfig } = useAIToolConfig();
   const aiToolName = aiToolConfig?.activeTool.name || 'AI Tool';
+  const [combineWorkspaceTerminals, setCombineWorkspaceTerminals] = useState(false);
   const prevProjectRef = useRef<string | null>(null);
   /** Tracks which project path we have successfully restored terminal-dependent state for.
    *  `null` means restoration is pending (terminals not yet available). */
@@ -189,8 +212,20 @@ export function TerminalArea() {
   // Filter terminals for current project (normalise null → '' for comparison)
   const normalizedPath = currentProjectPath ?? '';
   const pinnedTerminals = useTerminalStore((s) => s.pinnedTerminals);
+  const workspaceProjectPaths = useMemo(
+    () => new Set(workspaceProjects.map((project) => project.path)),
+    [workspaceProjects]
+  );
+  const hasOtherWorkspaceProjects = useMemo(
+    () => workspaceProjects.some((project) => project.path !== normalizedPath),
+    [workspaceProjects, normalizedPath]
+  );
   const nativeProjectTerminals = Array.from(terminals.values())
     .filter((t) => (t.projectPath || '') === normalizedPath)
+    .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
+
+  const workspaceTerminals = Array.from(terminals.values())
+    .filter((t) => workspaceProjectPaths.has(t.projectPath || ''))
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
 
   // Include pinned terminals from other projects
@@ -198,8 +233,15 @@ export function TerminalArea() {
     .filter((t) => pinnedTerminals.has(t.id) && (t.projectPath || '') !== normalizedPath)
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
 
-  // Combined: native project terminals first, then pinned from other projects
-  const projectTerminals = [...nativeProjectTerminals, ...pinnedFromOtherProjects];
+  const pinnedOutsideWorkspace = Array.from(terminals.values())
+    .filter((t) => pinnedTerminals.has(t.id) && !workspaceProjectPaths.has(t.projectPath || ''))
+    .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id));
+
+  // Project mode: native project terminals + pinned extras.
+  // Combine mode: all workspace terminals + pinned terminals from outside the workspace.
+  const projectTerminals = combineWorkspaceTerminals
+    ? [...workspaceTerminals, ...pinnedOutsideWorkspace]
+    : [...nativeProjectTerminals, ...pinnedFromOtherProjects];
 
   // Grid overflow detection — when active terminal exceeds grid capacity,
   // temporarily show it in single view instead of the grid
@@ -219,6 +261,24 @@ export function TerminalArea() {
     && projectTerminals.length > gridMaxCells
     && !gridTerminalIds.has(activeTerminalId);
   const showOverflowSingle = gridOverflowAutoSwitch && activeIsOverflow;
+
+  // Combine mode is temporary; reset when switching workspaces or when no secondary project exists.
+  useEffect(() => {
+    setCombineWorkspaceTerminals(false);
+  }, [workspaceName]);
+
+  useEffect(() => {
+    if (!hasOtherWorkspaceProjects && combineWorkspaceTerminals) {
+      setCombineWorkspaceTerminals(false);
+    }
+  }, [combineWorkspaceTerminals, hasOtherWorkspaceProjects]);
+
+  // If combine mode is turned off while focused on a foreign terminal, restore the active terminal for the current project.
+  useEffect(() => {
+    if (!activeTerminalId) return;
+    if (projectTerminals.some((terminal) => terminal.id === activeTerminalId)) return;
+    switchToProject(normalizedPath);
+  }, [activeTerminalId, projectTerminals, switchToProject, normalizedPath]);
 
   // Create terminal helper (ref guard prevents double-clicks, with safety timeout)
   const creatingTerminal = useRef(false);
@@ -516,6 +576,7 @@ export function TerminalArea() {
     if (!session) {
       switchToProject(normalizedPath);
       restoredForProjectRef.current = normalizedPath;
+      void saveSessionWithState(currentProjectPath, useTerminalStore.getState());
       return;
     }
 
@@ -568,6 +629,7 @@ export function TerminalArea() {
     // switchToProject before marking restored — so auto-save captures post-switch state
     switchToProject(normalizedPath);
     restoredForProjectRef.current = normalizedPath;
+    void saveSessionWithState(currentProjectPath, useTerminalStore.getState());
   }, [currentProjectPath, terminals, setViewMode, renameTerminal, switchToProject, normalizedPath]);
 
   // Periodically cache terminal state from main process for synchronous saves.
@@ -598,6 +660,23 @@ export function TerminalArea() {
     // projectTerminals changes when createdAt changes (reorder), gridSlots changes on grid swap
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectTerminals, gridSlots, currentProjectPath]);
+
+  // Keep the live web-session snapshot aligned with the current desktop terminal state
+  // so remote clients inherit the host's terminal names/layout immediately instead of
+  // waiting for the next autosave or project switch.
+  useEffect(() => {
+    if (!getTransport().platform.isElectron) return;
+    if (restoredForProjectRef.current !== normalizedPath) return;
+    syncLiveWebSession(currentProjectPath, buildSessionData(currentProjectPath, useTerminalStore.getState(), cachedTerminalStateRef.current));
+  }, [
+    currentProjectPath,
+    normalizedPath,
+    projectTerminals,
+    activeTerminalId,
+    viewMode,
+    gridLayout,
+    gridSlots,
+  ]);
 
   // Save scrollback for all terminals in a project (fire-and-forget)
   const saveScrollbackForProject = useCallback((projPath: string | null) => {
@@ -881,6 +960,10 @@ export function TerminalArea() {
           onPopOutTerminal={popOutTerminal}
           projectTerminals={projectTerminals}
           currentProjectPath={normalizedPath}
+          combineWorkspaceTerminals={combineWorkspaceTerminals}
+          canCombineWorkspaceTerminals={hasOtherWorkspaceProjects}
+          workspaceTerminalCount={workspaceTerminals.length}
+          onToggleCombine={() => setCombineWorkspaceTerminals((value) => !value)}
           gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
             ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
             : undefined}
@@ -975,7 +1058,9 @@ export function TerminalArea() {
               />
 
               <p className="text-sm text-text-secondary font-medium">
-                {currentProjectPath ? 'No terminals for this project' : 'Select a project to get started'}
+                {currentProjectPath
+                  ? (combineWorkspaceTerminals ? 'No terminals in this workspace' : 'No terminals for this project')
+                  : 'Select a project to get started'}
               </p>
 
               <div className="flex items-center gap-3 mt-4">
