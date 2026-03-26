@@ -1,49 +1,15 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking index (SubFrame's task system)",
+    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-25",
+    "lastUpdated": "2026-03-26",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-25T01:58:20.683Z",
-  "taskSchema": {
-    "_comment": "This schema shows the expected structure for each task",
-    "id": "unique-id (task-xxx format)",
-    "title": "Short actionable title (max 60 chars)",
-    "description": "Claude's detailed explanation - what, how, which files affected",
-    "userRequest": "Original user prompt/request - copy verbatim",
-    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
-    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
-    "status": "pending | in_progress | completed",
-    "priority": "high | medium | low",
-    "category": "feature | fix | refactor | docs | test",
-    "context": "Session date and context",
-    "blockedBy": "Array of task IDs this task is blocked by",
-    "blocks": "Array of task IDs this task blocks",
-    "steps": "Array of { label, completed } step objects",
-    "private": "boolean — if true, task is stored locally and excluded from git",
-    "createdAt": "ISO timestamp",
-    "updatedAt": "ISO timestamp",
-    "completedAt": "ISO timestamp | null"
-  },
+  "lastUpdated": "2026-03-26T14:15:40.644Z",
   "tasks": {
     "pending": [
-      {
-        "id": "task-1772731742884-0p0hh1fz8",
-        "title": "Settings>AI Tool>Start Command - Enhance with Quick Badges",
-        "status": "pending",
-        "priority": "low",
-        "category": "feature",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-05T17:29:02.884Z",
-        "updatedAt": "2026-03-05T17:29:02.884Z",
-        "completedAt": null,
-        "description": "In Settings for our AI Tool we allow setting the default start command, etc. It would be nice if common usages were below the input field as pills - respective to the AI tool used? For example Claude could have 'claude', or 'claude --dangerously-skip-permissions', etc.",
-        "steps": []
-      },
       {
         "id": "task-1772759585638-fa4jd4idr",
         "title": "Overview Navbar status badge",
@@ -2357,11 +2323,21 @@
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
         "notes": "[2026-03-03] Reimplemented all terminal UX changes: WebGL/Canvas/Search addons, Framer Motion animated tabs with drag-to-reorder, live output overlay, search bar (Ctrl+F), Shift+Enter newline, animated scroll button, workspace terminal scoping (activeByProject + switchToProject + projectTerminals prop)\n[2026-03-07] Implemented: reuse idle terminal (with setting), agent status broadcasting, bot icon in tabs/grid, auto-rename tabs, agent activity full-view popout, multi-session panel/sidebar, session differentiation with timestamps\n[2026-03-07] Added session↔terminal correlation via timestamp matching in ptyManager. Jump to terminal button in AgentStateView session cards and full-view detail pane.",
         "steps": []
+      },
+      {
+        "id": "task-1772731742884-0p0hh1fz8",
+        "title": "Settings>AI Tool>Start Command - Enhance with Quick Badges",
+        "status": "completed",
+        "priority": "low",
+        "category": "feature",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-05T17:29:02.884Z",
+        "updatedAt": "2026-03-26T14:15:40.640Z",
+        "completedAt": "2026-03-26T14:15:40.640Z",
+        "description": "In Settings for our AI Tool we allow setting the default start command, etc. It would be nice if common usages were below the input field as pills - respective to the AI tool used? For example Claude could have 'claude', or 'claude --dangerously-skip-permissions', etc.",
+        "steps": []
       }
     ]
-  },
-  "metadata": {
-    "totalCreated": 128,
-    "totalCompleted": 82
   }
 }

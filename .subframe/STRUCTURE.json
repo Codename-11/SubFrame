@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-25",
+  "lastUpdated": "2026-03-26",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -175,14 +175,14 @@
           ]
         },
         "getAbortSignal": {
-          "line": 307,
+          "line": 310,
           "params": [
             "streamId"
           ],
           "purpose": "Get the AbortSignal for a stream so executors can listen for cancellation."
         },
         "cancelStream": {
-          "line": 315,
+          "line": 318,
           "params": [
             "streamId"
           ],
@@ -192,14 +192,14 @@
           ]
         },
         "clearStream": {
-          "line": 326,
+          "line": 331,
           "params": [
             "streamId"
           ],
           "purpose": "Remove a completed stream from history."
         },
         "setupIPC": {
-          "line": 338,
+          "line": 343,
           "params": [
             "ipc"
           ],
@@ -211,10 +211,10 @@
           ]
         },
         "hasActiveStreams": {
-          "line": 372
+          "line": 377
         }
       },
-      "loc": 393,
+      "loc": 398,
       "ipc": {
         "listens": [
           "ACTIVITY_CLEAR"
@@ -2413,12 +2413,12 @@
             "phase",
             "message",
             "progress",
-            "extra"
+            "extra?: {\n    terminalId?: string;\n    activityStreamId?: string;\n    timeoutMs?: number;\n    elapsedMs?: number;\n    stalled?: boolean;\n    stallDurationMs?: number;\n  }"
           ],
           "purpose": "Send a progress event to the renderer."
         },
         "detectProjectIntelligence": {
-          "line": 137,
+          "line": 144,
           "params": [
             "projectPath"
           ],
@@ -2429,7 +2429,7 @@
           ]
         },
         "gatherContext": {
-          "line": 202,
+          "line": 209,
           "params": [
             "projectPath",
             "detected",
@@ -2438,7 +2438,7 @@
           "purpose": "Read detected files into a concatenated context string, respecting budgets."
         },
         "buildAnalysisPrompt": {
-          "line": 294,
+          "line": 301,
           "params": [
             "context",
             "projectName",
@@ -2447,19 +2447,19 @@
           "purpose": "Build the analysis prompt that instructs the AI to output structured JSON."
         },
         "findBashShell": {
-          "line": 359,
+          "line": 366,
           "purpose": "Throws if on Windows and no bash-compatible shell is found."
         },
         "checkAIToolAvailable": {
-          "line": 394,
+          "line": 401,
           "purpose": "Delegates to aiToolManager which caches install checks for 1 minute."
         },
         "getAnalysisTimeout": {
-          "line": 420,
+          "line": 427,
           "purpose": "Get the configured analysis timeout, falling back to the default."
         },
         "runAnalysisInTerminal": {
-          "line": 436,
+          "line": 443,
           "params": [
             "projectPath",
             "prompt",
@@ -2468,25 +2468,25 @@
           "purpose": "pipes it through the active AI tool, captures output, and returns the raw result."
         },
         "parseAnalysisResponse": {
-          "line": 685,
+          "line": 723,
           "params": [
             "raw"
           ],
           "purpose": "Looks for the first ```json ... ``` block."
         },
         "generateTaskId": {
-          "line": 799,
+          "line": 837,
           "purpose": "Generate a short unique-ish task ID."
         },
         "getExistingTaskTitles": {
-          "line": 808,
+          "line": 846,
           "params": [
             "projectPath"
           ],
           "purpose": "Get existing task titles from .subframe/tasks/ to avoid duplicates."
         },
         "importResults": {
-          "line": 835,
+          "line": 873,
           "params": [
             "projectPath",
             "results",
@@ -2499,14 +2499,14 @@
           ]
         },
         "init": {
-          "line": 1041,
+          "line": 1079,
           "params": [
             "window"
           ],
           "purpose": "Initialize the onboarding manager with a window reference."
         },
         "setupIPC": {
-          "line": 1048,
+          "line": 1086,
           "params": [
             "ipcMain"
           ],
@@ -2526,11 +2526,11 @@
           ]
         },
         "hasActiveAnalyses": {
-          "line": 1374,
+          "line": 1428,
           "purpose": "─── Exports ─────────────────────────────────────────────────────────────────"
         }
       },
-      "loc": 1391,
+      "loc": 1445,
       "ipc": {
         "listens": [
           "DETECT_PROJECT_INTELLIGENCE",
@@ -4769,6 +4769,7 @@
           "purpose": "Setup IPC handlers",
           "calls": [
             "addTask",
+            "broadcast",
             "checkToolInstalled",
             "deleteTask",
             "getActiveTool",
@@ -4779,7 +4780,7 @@
           ]
         }
       },
-      "loc": 840,
+      "loc": 844,
       "ipc": {
         "listens": [
           "LOAD_TASKS",
@@ -5484,18 +5485,19 @@
         "stores/useUIStore",
         "../shared/ipcChannels",
         "lib/ipc",
+        "lib/activityBarEvents",
         "sonner"
       ],
       "functions": {
         "formatElapsed": {
-          "line": 52,
+          "line": 53,
           "params": [
             "ms"
           ],
           "purpose": "─── Helpers ─────────────────────────────────────────────────────────────────"
         },
         "useElapsedTime": {
-          "line": 62,
+          "line": 63,
           "params": [
             "startedAt",
             "isRunning"
@@ -5505,14 +5507,14 @@
           ]
         },
         "StatusDot": {
-          "line": 84,
+          "line": 85,
           "params": [
             "{ status }"
           ],
           "purpose": "─── Status Indicator ────────────────────────────────────────────────────────"
         },
         "OutputChannelViewer": {
-          "line": 116,
+          "line": 117,
           "purpose": "─── Output Channel Viewer ──────────────────────────────────────────────────",
           "calls": [
             "useClearOutputChannel",
@@ -5521,7 +5523,7 @@
           ]
         },
         "ModeToggle": {
-          "line": 217,
+          "line": 218,
           "params": [
             "{\r\n  mode",
             "onChange",
@@ -5530,7 +5532,7 @@
           "purpose": "─── Mode Toggle Pills ─────────────────────────────────────────────────────"
         },
         "ActivityBar": {
-          "line": 256,
+          "line": 257,
           "purpose": "─── ActivityBar ─────────────────────────────────────────────────────────────",
           "calls": [
             "clearStream",
@@ -5542,7 +5544,7 @@
           ]
         }
       },
-      "loc": 670
+      "loc": 702
     },
     "renderer/components/AgentStateView": {
       "file": "src\\renderer\\components\\AgentStateView.tsx",
@@ -5745,22 +5747,27 @@
         "hooks/useOnboarding",
         "hooks/useSettings",
         "hooks/useIpc",
+        "hooks/useIPCListener",
         "hooks/useViewport",
         "../shared/ipcChannels",
         "lib/ipc",
+        "lib/activityBarEvents",
         "lib/transportProvider",
         "mobile/MobileApp",
-        "mobile/TabletApp"
+        "mobile/TabletApp",
+        "sonner"
       ],
       "functions": {
         "App": {
-          "line": 44,
+          "line": 47,
           "purpose": "Keyboard shortcuts are wired here to match the original app.",
           "calls": [
             "TerminalArea",
             "applyLiveUIStateSnapshot",
             "buildLiveUIStateSnapshot",
             "cn",
+            "consumeMirroredUISyncSuppression",
+            "focusActivityBar",
             "getTransport",
             "typedInvoke",
             "typedSend",
@@ -5771,7 +5778,7 @@
           ]
         }
       },
-      "loc": 728,
+      "loc": 802,
       "ipc": {
         "listens": [
           "WORKSPACE_DATA",
@@ -6403,6 +6410,7 @@
         "AIFilesPanel",
         "SubFrameHealthPanel",
         "SystemPanel",
+        "TasksPanel",
         "GithubPanel",
         "AgentStateView",
         "SessionsPanel",
@@ -6414,19 +6422,19 @@
       ],
       "functions": {
         "PanelBody": {
-          "line": 101,
+          "line": 110,
           "params": [
             "{ panel }"
           ]
         },
         "MobilePanelsView": {
-          "line": 144,
+          "line": 155,
           "calls": [
             "cn"
           ]
         }
       },
-      "loc": 219
+      "loc": 228
     },
     "renderer/components/mobile/MobileTerminalWrapper": {
       "file": "src\\renderer\\components\\mobile\\MobileTerminalWrapper.tsx",
@@ -6482,12 +6490,13 @@
         "ui/checkbox",
         "ui/scroll-area",
         "lib/utils",
+        "lib/activityBarEvents",
         "hooks/useIPCListener",
         "../shared/ipcChannels"
       ],
       "functions": {
         "OnboardingDialog": {
-          "line": 129,
+          "line": 131,
           "params": [
             "{\r\n  open",
             "onOpenChange",
@@ -6495,6 +6504,7 @@
             "analysisResult",
             "progress",
             "terminalId",
+            "activityStreamId",
             "isAnalyzing",
             "isImporting",
             "error",
@@ -6517,7 +6527,7 @@
           "purpose": "── Component ────────────────────────────────────────────────────────────────"
         },
         "ReviewSection": {
-          "line": 1210,
+          "line": 1233,
           "params": [
             "{\r\n  checked",
             "onCheckedChange",
@@ -6529,14 +6539,14 @@
           "purpose": "── ReviewSection helper ─────────────────────────────────────────────────────"
         },
         "PriorityBadge": {
-          "line": 1245,
+          "line": 1268,
           "params": [
             "{ priority }"
           ],
           "purpose": "── PriorityBadge helper ─────────────────────────────────────────────────────"
         }
       },
-      "loc": 1263
+      "loc": 1286
     },
     "renderer/components/OverviewPanel": {
       "file": "src\\renderer\\components\\OverviewPanel.tsx",
@@ -7200,14 +7210,14 @@
           ]
         },
         "RemoteCursorOverlay": {
-          "line": 75,
+          "line": 78,
           "calls": [
             "getTransport",
             "useRemoteCursorEnabled"
           ]
         }
       },
-      "loc": 158,
+      "loc": 161,
       "ipc": {
         "listens": [
           "WEB_REMOTE_POINTER_UPDATED",
@@ -7364,17 +7374,17 @@
       ],
       "functions": {
         "detectNerdFont": {
-          "line": 88
+          "line": 109
         },
         "SettingGroup": {
-          "line": 237,
+          "line": 260,
           "params": [
             "{ label",
             "children }"
           ]
         },
         "SettingToggle": {
-          "line": 253,
+          "line": 276,
           "params": [
             "{ label",
             "description",
@@ -7384,7 +7394,7 @@
           ]
         },
         "SettingSelect": {
-          "line": 280,
+          "line": 303,
           "params": [
             "{ label",
             "description",
@@ -7394,7 +7404,7 @@
           ]
         },
         "SettingInput": {
-          "line": 311,
+          "line": 334,
           "params": [
             "{ label",
             "description",
@@ -7410,7 +7420,7 @@
           ]
         },
         "SettingSlider": {
-          "line": 344,
+          "line": 367,
           "params": [
             "{ label",
             "description",
@@ -7423,7 +7433,7 @@
           ]
         },
         "WorkspacePillAppearanceRow": {
-          "line": 367,
+          "line": 390,
           "params": [
             "{\n  workspace",
             "index",
@@ -7433,7 +7443,7 @@
           ]
         },
         "SettingsPanel": {
-          "line": 501,
+          "line": 524,
           "calls": [
             "cn",
             "detectNerdFont",
@@ -7449,7 +7459,7 @@
           ]
         }
       },
-      "loc": 3372,
+      "loc": 3512,
       "ipc": {
         "listens": [
           "AVAILABLE_SHELLS_DATA",
@@ -8166,30 +8176,31 @@
         "sonner",
         "react-markdown",
         "remark-gfm",
-        "lib/transportProvider"
+        "lib/transportProvider",
+        "lib/activityBarEvents"
       ],
       "functions": {
         "markdownToForm": {
-          "line": 121,
+          "line": 122,
           "params": [
             "md"
           ]
         },
         "formatDate": {
-          "line": 190,
+          "line": 191,
           "params": [
             "iso"
           ]
         },
         "SortHeader": {
-          "line": 218,
+          "line": 219,
           "params": [
             "{ column",
             "label }"
           ]
         },
         "TaskActions": {
-          "line": 240,
+          "line": 241,
           "params": [
             "{\r\n  task",
             "onUpdateStatus",
@@ -8202,13 +8213,13 @@
           ]
         },
         "TasksPanel": {
-          "line": 325,
+          "line": 326,
           "params": [
             "{ isFullView"
           ]
         },
         "TaskDetail": {
-          "line": 1664,
+          "line": 1695,
           "params": [
             "{ task",
             "updateTask",
@@ -8218,7 +8229,7 @@
           ]
         }
       },
-      "loc": 1847,
+      "loc": 1878,
       "ipc": {
         "listens": [],
         "emits": [
@@ -8572,41 +8583,45 @@
         "stores/useTerminalStore",
         "hooks/useSettings",
         "hooks/useIpc",
+        "hooks/useActivity",
         "lib/ipc",
         "framer-motion",
         "sonner",
         "../shared/ipcChannels",
         "lib/shortcuts",
-        "lib/transportProvider"
+        "lib/transportProvider",
+        "lib/activityBarEvents"
       ],
       "functions": {
         "formatTierName": {
-          "line": 103,
+          "line": 111,
           "params": [
             "tier"
           ]
         },
         "formatSubType": {
-          "line": 114,
+          "line": 122,
           "params": [
             "subType"
           ]
         },
         "WorkspacePillButton": {
-          "line": 130,
+          "line": 138,
           "params": [
             "{\n  workspace",
             "activity",
             "display",
             "disabled",
             "onSwitch",
+            "onDeactivate",
             "onReorderCommit",
             "}: {\n  workspace: WorkspacePillInfo;\n  activity: { terminalCount: number; agentCount: number };\n  display: ReturnType<typeof normalizeWorkspacePillDisplay>;\n  disabled: boolean;\n  onSwitch"
           ]
         },
         "ViewTabBar": {
-          "line": 246,
+          "line": 270,
           "calls": [
+            "focusActivityBar",
             "formatSubType",
             "formatTierName",
             "getTabIdForContent",
@@ -8615,12 +8630,13 @@
             "typedInvoke",
             "typedSend",
             "useAIToolConfig",
+            "useActivity",
             "useIpcQuery",
             "useSettings"
           ]
         },
         "UsageTooltip": {
-          "line": 727,
+          "line": 834,
           "params": [
             "{ data",
             "fetching }"
@@ -8628,7 +8644,7 @@
           "purpose": "── Rich tooltip ────────────────────────────────────────────────────────────"
         },
         "TooltipUsageRow": {
-          "line": 801,
+          "line": 908,
           "params": [
             "{ label",
             "utilization",
@@ -8636,7 +8652,7 @@
           ]
         },
         "UsageItem": {
-          "line": 827,
+          "line": 934,
           "params": [
             "{ label",
             "utilization",
@@ -8645,14 +8661,14 @@
           "purpose": "── Shared sub-components ───────────────────────────────────────────────────"
         },
         "ResetTime": {
-          "line": 850,
+          "line": 957,
           "params": [
             "{ resetsAt",
             "showAbsolute"
           ]
         }
       },
-      "loc": 891,
+      "loc": 998,
       "ipc": {
         "listens": [
           "CLAUDE_USAGE_DATA"
@@ -8683,7 +8699,7 @@
       ],
       "functions": {
         "WebServerSetup": {
-          "line": 61,
+          "line": 63,
           "params": [
             "{ open",
             "onOpenChange }"
@@ -8691,7 +8707,7 @@
           "purpose": "── Component ────────────────────────────────────────────────────────────────"
         }
       },
-      "loc": 644
+      "loc": 676
     },
     "renderer/components/WhatsNew": {
       "file": "src\\renderer\\components\\WhatsNew.tsx",
@@ -8853,14 +8869,14 @@
           ]
         },
         "AddProjectButton": {
-          "line": 565,
+          "line": 607,
           "calls": [
             "typedInvoke",
             "typedSend"
           ]
         }
       },
-      "loc": 642
+      "loc": 684
     },
     "renderer/global.d": {
       "file": "src\\renderer\\global.d.ts",
@@ -9229,7 +9245,7 @@
           ]
         }
       },
-      "loc": 222
+      "loc": 245
     },
     "renderer/hooks/useOutputChannels": {
       "file": "src\\renderer\\hooks\\useOutputChannels.ts",
@@ -9638,6 +9654,24 @@
       ],
       "functions": {},
       "loc": 84
+    },
+    "renderer/lib/activityBarEvents": {
+      "file": "src\\renderer\\lib\\activityBarEvents.ts",
+      "description": "",
+      "exports": [
+        "focusActivityBar",
+        "ACTIVITY_BAR_FOCUS_EVENT"
+      ],
+      "depends": [],
+      "functions": {
+        "focusActivityBar": {
+          "line": 10,
+          "params": [
+            "detail"
+          ]
+        }
+      },
+      "loc": 13
     },
     "renderer/lib/codemirror-extensions": {
       "file": "src\\renderer\\lib\\codemirror-extensions.ts",
@@ -10533,6 +10567,7 @@
         "getTabIdForContent",
         "buildLiveUIStateSnapshot",
         "applyLiveUIStateSnapshot",
+        "consumeMirroredUISyncSuppression",
         "VIEW_TAB_LABELS",
         "useUIStore"
       ],
@@ -10561,15 +10596,24 @@
             "tabs"
           ]
         },
-        "isSameTabs": {
+        "cloneLiveUIStateSnapshot": {
           "line": 79,
+          "params": [
+            "snapshot"
+          ],
+          "calls": [
+            "cloneTabs"
+          ]
+        },
+        "isSameTabs": {
+          "line": 86,
           "params": [
             "left",
             "right"
           ]
         },
         "isSameLiveUIState": {
-          "line": 91,
+          "line": 98,
           "params": [
             "left",
             "right"
@@ -10579,7 +10623,7 @@
           ]
         },
         "buildLiveUIStateSnapshot": {
-          "line": 422,
+          "line": 443,
           "params": [
             "state"
           ],
@@ -10588,19 +10632,29 @@
           ]
         },
         "applyLiveUIStateSnapshot": {
-          "line": 436,
+          "line": 457,
           "params": [
             "snapshot"
           ],
           "calls": [
             "buildLiveUIStateSnapshot",
+            "cloneLiveUIStateSnapshot",
             "cloneTabs",
             "isSameLiveUIState",
             "persistTabs"
           ]
+        },
+        "consumeMirroredUISyncSuppression": {
+          "line": 488,
+          "params": [
+            "snapshot"
+          ],
+          "calls": [
+            "isSameLiveUIState"
+          ]
         }
       },
-      "loc": 464
+      "loc": 499
     },
     "renderer/sw": {
       "file": "src\\renderer\\sw.js",
@@ -10801,7 +10855,7 @@
           ]
         }
       },
-      "loc": 1013,
+      "loc": 1016,
       "ipc": {
         "listens": [
           "WEB_SESSION_SYNC"
@@ -11422,7 +11476,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1746
+      "loc": 1754
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -12007,6 +12061,13 @@
         "module": "renderer/components/ActivityBar",
         "file": "src\\renderer\\components\\ActivityBar.tsx",
         "description": "ActivityBar — Thin bottom bar for centralized activity streams output and output channel viewer. Collapsed: single row showing active stream status + latest log line. Expanded: tabbed view with two modes: - \"Activity\" — per-stream output logs with cancel controls - \"Output\"   — VS Code-style output channels viewer"
+      }
+    ],
+    "activity-bar-events": [
+      {
+        "module": "renderer/lib/activityBarEvents",
+        "file": "src\\renderer\\lib\\activityBarEvents.ts",
+        "description": ""
       }
     ],
     "activity-types": [

@@ -53,6 +53,7 @@ import { toast } from 'sonner';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getTransport } from '../lib/transportProvider';
+import { focusActivityBar } from '../lib/activityBarEvents';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-zinc-600 text-zinc-200',
@@ -336,6 +337,9 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const setTasksFilterSetByUser = useUIStore((s) => s.setTasksFilterSetByUser);
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
   const closeRightPanel = useUIStore((s) => s.closeRightPanel);
+  const activeTaskEnhance = useUIStore((s) => s.activeTaskEnhance);
+  const setActiveTaskEnhance = useUIStore((s) => s.setActiveTaskEnhance);
+  const clearActiveTaskEnhance = useUIStore((s) => s.clearActiveTaskEnhance);
   const pendingEnhance = useUIStore((s) => s.pendingEnhance);
   const clearPendingEnhance = useUIStore((s) => s.clearPendingEnhance);
 
@@ -408,6 +412,11 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   // Ref tracks dialog state for async callbacks (closures can't see latest useState)
   const dialogOpenRef = useRef(dialogOpen);
   useEffect(() => { dialogOpenRef.current = dialogOpen; }, [dialogOpen]);
+  useEffect(() => {
+    if (!activeTaskEnhance && enhancing) {
+      setEnhancing(false);
+    }
+  }, [activeTaskEnhance, enhancing]);
 
   /** Apply enhanced data to form fields */
   const applyEnhancedData = useCallback((e: Record<string, unknown>) => {
@@ -422,6 +431,14 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const handleEnhance = useCallback(async () => {
     if (!currentProjectPath || enhancing) return;
     setEnhancing(true);
+    toast.loading('Enhancing task with AI...', {
+      id: 'enhance-progress',
+      duration: Infinity,
+      action: {
+        label: 'View Activity',
+        onClick: () => focusActivityBar({ mode: 'activity' }),
+      },
+    });
     // Dismiss any previous enhance toast (prevents stale "View Results" from overlapping)
     toast.dismiss('enhance-result');
     // Clear any previous pending enhance to avoid stale data
@@ -436,43 +453,31 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
           category: formCategory,
         },
       });
-      if (result.success && result.enhanced) {
-        if (dialogOpenRef.current) {
-          // Dialog still open — apply directly
-          applyEnhancedData(result.enhanced);
-          toast.success('Task enhanced by AI');
-        } else {
-          // Dialog was closed — store result for later retrieval
-          useUIStore.getState().setPendingEnhance({
-            enhanced: result.enhanced,
-            editingTaskId: editingTask?.id ?? null,
-            openRequested: false,
-          });
-          toast.success('Task enhanced by AI', {
-            id: 'enhance-result',
-            action: {
-              label: 'View Results',
-              onClick: () => {
-                const store = useUIStore.getState();
-                if (store.pendingEnhance) {
-                  store.setPendingEnhance({ ...store.pendingEnhance, openRequested: true });
-                  // Ensure Tasks panel is mounted so the reopen effect can fire
-                  store.setActivePanel('tasks');
-                }
-              },
-            },
-            duration: 10_000,
-          });
-        }
+      if (result.started) {
+        setActiveTaskEnhance({
+          activityStreamId: result.activityStreamId,
+          editingTaskId: editingTask?.id ?? null,
+        });
+        toast.loading('Enhancing task with AI...', {
+          id: 'enhance-progress',
+          duration: Infinity,
+          action: {
+            label: 'View Activity',
+            onClick: () => focusActivityBar({ mode: 'activity', streamId: result.activityStreamId }),
+          },
+        });
       } else {
+        toast.dismiss('enhance-progress');
+        setEnhancing(false);
         toast.error(result.error || 'AI enhancement failed');
       }
     } catch {
-      toast.error('Failed to reach AI tool');
-    } finally {
+      toast.dismiss('enhance-progress');
       setEnhancing(false);
+      clearActiveTaskEnhance();
+      toast.error('Failed to reach AI tool');
     }
-  }, [currentProjectPath, enhancing, formTitle, formDescription, formPriority, formCategory, editingTask, applyEnhancedData]);
+  }, [currentProjectPath, enhancing, formTitle, formDescription, formPriority, formCategory, editingTask?.id, setActiveTaskEnhance, clearActiveTaskEnhance]);
 
   // Stable callbacks — mutation refs are stable from useTasks, so no deps needed
   const handleUpdateStatus = useCallback(
@@ -757,6 +762,20 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
 
   // Re-open dialog with enhanced data when "View Results" toast action is clicked
   useEffect(() => {
+    if (!dialogOpen || !dialogOpenRef.current || !pendingEnhance || pendingEnhance.openRequested) return;
+
+    const currentEditingTaskId = editingTask?.id ?? null;
+    if (pendingEnhance.editingTaskId !== currentEditingTaskId) return;
+
+    toast.dismiss('enhance-result');
+    applyEnhancedData(pendingEnhance.enhanced);
+    setEnhancing(false);
+    clearActiveTaskEnhance();
+    clearPendingEnhance();
+  }, [dialogOpen, editingTask?.id, pendingEnhance, applyEnhancedData, clearActiveTaskEnhance, clearPendingEnhance]);
+
+  // Re-open dialog with enhanced data when "View Results" toast action is clicked
+  useEffect(() => {
     if (!pendingEnhance?.openRequested) return;
     const { enhanced, editingTaskId } = pendingEnhance;
 
@@ -806,6 +825,8 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       toast.success('Sub-task created');
     }
     setDialogOpen(false);
+    setEnhancing(false);
+    clearActiveTaskEnhance();
     // Discard any stale pending enhance result
     clearPendingEnhance();
   }
@@ -1284,7 +1305,12 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
       <Dialog open={dialogOpen} onOpenChange={(open) => {
         // Prevent accidental close while AI enhance is running
         if (!open && enhancing) {
-          toast.info('AI enhancement in progress — close will continue in background');
+          toast.info('AI enhancement in progress — close will continue in background', {
+            action: {
+              label: 'View Activity',
+              onClick: () => focusActivityBar({ mode: 'activity' }),
+            },
+          });
         }
         setDialogOpen(open);
       }}>
@@ -1651,6 +1677,11 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
             <DialogClose asChild>
               <Button variant="ghost" className="cursor-pointer">Cancel</Button>
             </DialogClose>
+            {enhancing && (
+              <Button type="button" variant="ghost" onClick={() => focusActivityBar({ mode: 'activity' })} className="cursor-pointer">
+                View Activity
+              </Button>
+            )}
             <Button onClick={handleSubmit} disabled={!formTitle.trim() || enhancing} className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer">
               {editingTask ? 'Update' : 'Create'}
             </Button>

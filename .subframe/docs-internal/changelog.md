@@ -6,6 +6,15 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### AI Background Work UX (2026-03-26)
+
+- **Onboarding analysis now fully participates in Activity streams** — the onboarding pipeline already created a `Project Analysis` stream, but most live PTY output still only existed inside the dialog/terminal. The analysis terminal output is now mirrored into the shared Activity bar, onboarding streams start heartbeat + timeout timers, and canceling from the global activity surface now aborts the live analysis instead of only changing the badge state.
+- **Dialogs now expose the shared background-work surface** — onboarding and task enhancement flows both gained explicit `View Activity` affordances so closing or backgrounding a modal no longer strands the user in a modal-local spinner with no obvious path to the live job output.
+- **Top-bar running indicator** — the main top bar now shows a compact running-work pill that reflects active Activity streams and jumps straight into the bottom Activity bar, so long AI/pipeline work is visible from both the top surface and the bottom output surface.
+- **Task enhancement stream visibility** — AI task enhancement already used `activityManager`, but it mostly left users with a local button spinner. That flow now advertises the shared Activity bar, exposes a direct action from the dialog/toast, and mirrors stdout lines into the stream so background progress is legible in real time.
+- **Follow-up audit fixes** — onboarding progress events now carry the live `activityStreamId` immediately, task enhancement switched from a long blocking invoke to a start + result-event flow, user cancellation is no longer rendered as a failure banner, Activity-bar stream focus avoids the early-stream race, and activity timeouts now abort underlying work instead of only flipping stream status.
+- **Durable task-enhancement handoff** — task enhancement completion no longer depends on the Tasks panel staying mounted. The app shell now receives the global enhance-result event, dismisses the loading toast, preserves the enhanced payload in shared UI state, and lets the Tasks dialog re-apply or reopen that result after panel/view changes.
+
 ### Remote Web Session Parity (2026-03-25)
 
 - **Remote cursor tracking** — SubFrame Server now has an optional `Remote Cursor Tracking` setting that shows web-client mouse/touch activity on the host desktop while a remote session is active.

@@ -1595,6 +1595,16 @@ The follow-up audit on that web-session work exposed a broader same-pattern issu
 
 That audit also showed that parity should not stop at host-to-browser hydration. Live UI sync now carries sidebar state, panel collapse/width, settings dialog state, and open full-view tabs, and the main process re-broadcasts those `WEB_SESSION_SYNC` updates back into Electron as well as the browser session. The practical result is that panel/dialog changes made from the remote client now appear in the desktop host too, instead of only mirroring one way.
 
+### [2026-03-26] AI background work should surface through shared activity UI
+
+Reviewing the onboarding analysis and other AI-backed flows showed that SubFrame had the right lower-level execution primitive (`activityManager`) but was not consistently using it as the user-facing surface. Onboarding analysis created a `Project Analysis` stream, but the meaningful live PTY output stayed trapped in the onboarding dialog/terminal, while task enhancement mostly left the user with a spinner in the modal that launched it.
+
+The fix direction was to treat these flows more like the live session/process model used in Agent-Forge: background work should emit real-time output into a shared surface, keep a visible top-level running indicator, and give every launching dialog a direct path back to the shared activity view. SubFrame now mirrors onboarding PTY output and task-enhancement stdout into the Activity bar, exposes `View Activity` affordances from those dialogs/banners, and adds a top-bar running pill that focuses the shared activity surface instead of forcing users to find the original modal again.
+
+The audit follow-up tightened the execution semantics, not just the chrome. Onboarding progress events now expose the live `activityStreamId` from the moment the stream is created, task enhancement now starts immediately and delivers its final payload back over an event instead of blocking the launching dialog until completion, cancellation is modeled separately from failure in onboarding, and activity timeouts now abort the real underlying process instead of merely marking the UI stream as failed.
+
+That second pass also fixed the durability problem around task enhancement results. Instead of letting the Tasks panel own the only completion listener, the app shell now receives the completion event, clears the global loading toast, and stores the enhanced payload in shared UI state. That means panel switches or dialog closes no longer strand the result or leave the UI stuck in a spinner; reopening the task surface can still recover the finished enhancement cleanly.
+
 ### [2026-03-25] Remote Access Docs and SSH Tunnel URL Clarification
 
 SubFrame Server was implemented, but the public docs and some in-app copy still treated it more like a roadmap/browser-mode idea than a current headline feature. The docs were updated to surface it as a first-class remote-access feature across the site, including a dedicated Remote Access guide, homepage/sidebar promotion, configuration details, integrations distinction, blog refresh, and troubleshooting coverage.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# @subframe-version 0.9.0-beta
+# @subframe-version 0.10.0-beta
 # @subframe-managed
 #
 # SubFrame pre-commit hook

@@ -688,20 +688,18 @@ function setupIPC(ipcMain: IpcMain): void {
       activityManager.startHeartbeat(streamId);
       activityManager.startTimeout(streamId);
 
-      try {
-        const tool = await getActiveTool();
-        if (!await checkToolInstalled(tool)) {
-          const errorMsg = `${tool.name} is not installed. Visit ${tool.installUrl ?? 'the tool website'} to install it.`;
-          activityManager.updateStatus(streamId, 'failed', errorMsg);
-          return {
-            success: false,
-            enhanced: {},
-            error: errorMsg,
-          };
-        }
-        const [aiExe, ...aiBaseFlags] = tool.command.split(/\s+/);
+      void (async () => {
+        try {
+          const tool = await getActiveTool();
+          if (!await checkToolInstalled(tool)) {
+            const errorMsg = `${tool.name} is not installed. Visit ${tool.installUrl ?? 'the tool website'} to install it.`;
+            activityManager.updateStatus(streamId, 'failed', errorMsg);
+            broadcast(IPC.TASK_ENHANCE_RESULT, { activityStreamId: streamId, success: false, enhanced: {}, error: errorMsg });
+            return;
+          }
+          const [aiExe, ...aiBaseFlags] = tool.command.split(/\s+/);
 
-        const prompt = `You are a project task scoping assistant. Given a rough task description, improve and structure it into a well-scoped sub-task.
+          const prompt = `You are a project task scoping assistant. Given a rough task description, improve and structure it into a well-scoped sub-task.
 
 Input task:
 - Title: ${task.title || '(untitled)'}
@@ -721,107 +719,113 @@ Return ONLY a valid JSON object (no markdown fences, no explanation) with these 
 
 Keep the original intent. Improve clarity, add missing acceptance criteria, suggest 3-5 concrete steps, and correct the priority/category if clearly wrong.`;
 
-        activityManager.emit(streamId, 'Spawning AI tool for task enhancement...');
+          activityManager.emit(streamId, 'Spawning AI tool for task enhancement...');
+          activityManager.emit(streamId, 'Streaming output to the Activity bar while the task draft is enhanced.');
 
-        const result = await new Promise<string>((resolve, reject) => {
-          const child = spawn(aiExe, [...aiBaseFlags, '--print', '--output-format', 'json'], {
-            cwd: projectPath,
-            stdio: ['pipe', 'pipe', 'pipe'],
-            shell: true,
-          });
+          const result = await new Promise<string>((resolve, reject) => {
+            const child = spawn(aiExe, [...aiBaseFlags, '--print', '--output-format', 'json'], {
+              cwd: projectPath,
+              stdio: ['pipe', 'pipe', 'pipe'],
+              shell: true,
+            });
 
-          child.stdin.write(prompt);
-          child.stdin.end();
+            child.stdin.write(prompt);
+            child.stdin.end();
 
-          let stdout = '';
-          let stderr = '';
-          let settled = false;
+            let stdout = '';
+            let stderr = '';
+            let settled = false;
 
-          // Kill child process if activity stream is cancelled/timed out
-          const abortSignal = activityManager.getAbortSignal(streamId);
-          if (abortSignal) {
-            abortSignal.addEventListener('abort', () => {
-              if (!settled) {
-                settled = true;
-                try { child.kill(); } catch { /* ignore */ }
-                reject(new Error('Operation cancelled or timed out'));
+            const emitLines = (chunk: string) => {
+              for (const line of chunk.split('\n').map((entry) => entry.trimEnd()).filter(Boolean)) {
+                activityManager.emit(streamId, line);
               }
-            }, { once: true });
-          }
+            };
 
-          child.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
-          child.stderr.on('data', (data: Buffer) => {
-            const chunk = data.toString();
-            stderr += chunk;
-            // Route stderr lines through activity stream
-            for (const line of chunk.split('\n').filter(Boolean)) {
-              activityManager.emit(streamId, line);
+            const abortSignal = activityManager.getAbortSignal(streamId);
+            if (abortSignal) {
+              abortSignal.addEventListener('abort', () => {
+                if (!settled) {
+                  settled = true;
+                  try { child.kill(); } catch { /* ignore */ }
+                  const reason = typeof abortSignal.reason === 'string' ? abortSignal.reason : 'Operation cancelled';
+                  reject(new Error(reason));
+                }
+              }, { once: true });
             }
-          });
-          child.on('close', (code) => {
-            if (settled) return;
-            settled = true;
-            if (code === 0) resolve(stdout.trim());
-            else reject(new Error(stderr || `AI tool exited with code ${code}`));
-          });
-          child.on('error', (err) => {
-            if (settled) return;
-            settled = true;
-            reject(err);
-          });
-        });
 
-        // Unwrap Claude CLI JSON envelope if present
-        let content = result;
-        try {
-          const envelope = JSON.parse(result);
-          if (envelope && typeof envelope === 'object' && 'result' in envelope) {
-            content = envelope.result;
-          }
-        } catch { /* not an envelope */ }
+            child.stdout.on('data', (data: Buffer) => {
+              const chunk = data.toString();
+              stdout += chunk;
+              emitLines(chunk);
+            });
+            child.stderr.on('data', (data: Buffer) => {
+              const chunk = data.toString();
+              stderr += chunk;
+              emitLines(chunk);
+            });
+            child.on('close', (code) => {
+              if (settled) return;
+              settled = true;
+              if (code === 0) resolve(stdout.trim());
+              else reject(new Error(stderr || `AI tool exited with code ${code}`));
+            });
+            child.on('error', (err) => {
+              if (settled) return;
+              settled = true;
+              reject(err);
+            });
+          });
 
-        // Parse the AI response — try direct JSON, then extract from markdown fences
-        let enhanced: Record<string, unknown>;
-        try {
-          enhanced = JSON.parse(content);
-        } catch {
-          // Try extracting JSON from markdown code fences
-          const fenceMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-          if (fenceMatch) {
-            enhanced = JSON.parse(fenceMatch[1].trim());
-          } else {
-            // Try finding first { to last }
-            const start = content.indexOf('{');
-            const end = content.lastIndexOf('}');
-            if (start >= 0 && end > start) {
-              enhanced = JSON.parse(content.slice(start, end + 1));
+          let content = result;
+          try {
+            const envelope = JSON.parse(result);
+            if (envelope && typeof envelope === 'object' && 'result' in envelope) {
+              content = envelope.result;
+            }
+          } catch { /* not an envelope */ }
+
+          let enhanced: Record<string, unknown>;
+          try {
+            enhanced = JSON.parse(content);
+          } catch {
+            const fenceMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+            if (fenceMatch) {
+              enhanced = JSON.parse(fenceMatch[1].trim());
             } else {
-              throw new Error('AI response was not valid JSON. Try again.');
+              const start = content.indexOf('{');
+              const end = content.lastIndexOf('}');
+              if (start >= 0 && end > start) {
+                enhanced = JSON.parse(content.slice(start, end + 1));
+              } else {
+                throw new Error('AI response was not valid JSON. Try again.');
+              }
             }
           }
-        }
-        const steps = Array.isArray(enhanced.steps)
-          ? enhanced.steps.map((s: string) => ({ label: s, completed: false }))
-          : undefined;
+          const steps = Array.isArray(enhanced.steps)
+            ? enhanced.steps.map((s: string) => ({ label: s, completed: false }))
+            : undefined;
 
-        activityManager.updateStatus(streamId, 'completed');
-
-        return {
-          success: true,
-          enhanced: {
+          const enhancedTask = {
             title: enhanced.title || task.title,
             description: enhanced.description || task.description,
             acceptanceCriteria: enhanced.acceptanceCriteria,
             steps,
             priority: enhanced.priority || task.priority,
             category: enhanced.category || task.category,
-          },
-        };
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        activityManager.updateStatus(streamId, 'failed', msg);
-        return { success: false, enhanced: {}, error: msg };
-      }
+          };
+
+          activityManager.emit(streamId, 'Task enhancement complete. Review the updated draft in the task dialog.');
+          activityManager.updateStatus(streamId, 'completed');
+          broadcast(IPC.TASK_ENHANCE_RESULT, { activityStreamId: streamId, success: true, enhanced: enhancedTask });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          activityManager.updateStatus(streamId, msg === 'Cancelled' ? 'cancelled' : 'failed', msg);
+          broadcast(IPC.TASK_ENHANCE_RESULT, { activityStreamId: streamId, success: false, enhanced: {}, error: msg });
+        }
+      })();
+
+      return { started: true, activityStreamId: streamId };
     }
   );
 }

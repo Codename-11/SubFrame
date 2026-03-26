@@ -6,6 +6,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import QRCode from 'qrcode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import {
@@ -56,21 +66,32 @@ interface ToolFlag {
   key: string;
   label: string;
   flag: string;
+  group?: string;
   dangerous?: boolean;
   description?: string;
 }
 
 const TOOL_FLAGS: Record<string, ToolFlag[]> = {
   claude: [
-    { key: 'dangerously-skip-permissions', label: 'YOLO Mode', flag: '--dangerously-skip-permissions', dangerous: true, description: 'Skips all permission prompts' },
+    { key: 'dangerously-skip-permissions', label: 'YOLO Mode', flag: '--dangerously-skip-permissions', group: 'permission-mode', dangerous: true, description: 'Bypasses all permission checks' },
+    { key: 'accept-edits', label: 'Accept Edits', flag: '--permission-mode acceptEdits', group: 'permission-mode', description: 'Auto-accept edits while keeping command approvals' },
+    { key: 'plan-mode', label: 'Plan Mode', flag: '--permission-mode plan', group: 'permission-mode', description: 'Use Claude planning mode instead of acting directly' },
+    { key: 'continue', label: 'Resume Last', flag: '--continue', description: 'Continue the latest conversation in this directory' },
     { key: 'verbose', label: 'Verbose', flag: '--verbose', description: 'Enable verbose output' },
   ],
   codex: [
-    { key: 'full-auto', label: 'Full Auto', flag: '--approval-mode full-auto', dangerous: true, description: 'Auto-approve all actions' },
-    { key: 'auto-edit', label: 'Auto Edit', flag: '--approval-mode auto-edit', description: 'Auto-approve file edits only' },
+    { key: 'danger-full-access', label: 'YOLO Mode', flag: '--dangerously-bypass-approvals-and-sandbox', group: 'execution-mode', dangerous: true, description: 'Skips approvals and sandboxing entirely' },
+    { key: 'full-auto', label: 'Full Auto', flag: '--full-auto', group: 'execution-mode', description: 'Low-friction automatic execution in workspace-write sandbox' },
+    { key: 'read-only', label: 'Read Only', flag: '--sandbox read-only', group: 'execution-mode', description: 'Force read-only sandbox execution' },
+    { key: 'workspace-write', label: 'Workspace Write', flag: '--sandbox workspace-write', group: 'execution-mode', description: 'Allow writes inside the workspace sandbox' },
+    { key: 'search', label: 'Web Search', flag: '--search', description: 'Enable native live web search' },
   ],
   gemini: [
-    { key: 'sandbox', label: 'Sandbox', flag: '--sandbox', description: 'Run in sandbox mode' },
+    { key: 'yolo', label: 'YOLO Mode', flag: '--yolo', group: 'approval-mode', dangerous: true, description: 'Automatically accept all actions' },
+    { key: 'auto-edit', label: 'Auto Edit', flag: '--approval-mode auto_edit', group: 'approval-mode', description: 'Auto-approve edit tools only' },
+    { key: 'plan-mode', label: 'Plan Mode', flag: '--approval-mode plan', group: 'approval-mode', description: 'Read-only planning mode' },
+    { key: 'sandbox', label: 'Sandbox', flag: '--sandbox', description: 'Run with Gemini sandboxing enabled' },
+    { key: 'debug', label: 'Debug', flag: '--debug', description: 'Open Gemini debug tools' },
   ],
 };
 
@@ -138,6 +159,8 @@ const SECTION_LABELS: Record<string, string[]> = {
   'ai-tool': [
     'AI Tools', 'Start Command', 'Custom Tools',
     'Add custom AI tools', 'Dangerous Mode', 'YOLO Mode',
+    'Accept Edits', 'Plan Mode', 'Resume Last', 'Full Auto',
+    'Read Only', 'Workspace Write', 'Web Search', 'Auto Edit', 'Debug',
   ],
   hooks: [
     'Hooks', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop',
@@ -559,6 +582,12 @@ export function SettingsPanel() {
   const [toolFlags, setToolFlags] = useState<Record<string, Record<string, boolean>>>({});
   // Per-tool custom args: { toolId: string }
   const [toolCustomArgs, setToolCustomArgs] = useState<Record<string, string>>({});
+  const [dirtyToolDrafts, setDirtyToolDrafts] = useState<Record<string, boolean>>({});
+  const [pendingDangerousFlag, setPendingDangerousFlag] = useState<{
+    toolId: string;
+    toolName: string;
+    flag: ToolFlag;
+  } | null>(null);
 
   // Hooks state
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
@@ -814,10 +843,22 @@ export function SettingsPanel() {
         newFlags[tool.id] = parsedFlags;
         newCustomArgs[tool.id] = remaining.replace(/\s+/g, ' ').trim();
       }
-      setToolFlags(newFlags);
-      setToolCustomArgs(newCustomArgs);
+      setToolFlags((prev) => {
+        const merged = { ...prev };
+        for (const [toolId, parsedFlags] of Object.entries(newFlags)) {
+          if (!dirtyToolDrafts[toolId]) merged[toolId] = parsedFlags;
+        }
+        return merged;
+      });
+      setToolCustomArgs((prev) => {
+        const merged = { ...prev };
+        for (const [toolId, customArgs] of Object.entries(newCustomArgs)) {
+          if (!dirtyToolDrafts[toolId]) merged[toolId] = customArgs;
+        }
+        return merged;
+      });
     }
-  }, [settings, aiToolConfig]);
+  }, [settings, aiToolConfig, dirtyToolDrafts]);
 
   // Fetch available shells for the terminal shell dropdown
   useEffect(() => {
@@ -851,6 +892,36 @@ export function SettingsPanel() {
     updateSetting.mutate([{ key, value }]);
   }
 
+  function markToolDraftDirty(toolId: string) {
+    setDirtyToolDrafts((prev) => (prev[toolId] ? prev : { ...prev, [toolId]: true }));
+  }
+
+  function clearToolDraftDirty(toolId: string) {
+    setDirtyToolDrafts((prev) => {
+      if (!prev[toolId]) return prev;
+      const next = { ...prev };
+      delete next[toolId];
+      return next;
+    });
+  }
+
+  function setToolFlagSelection(toolId: string, flag: ToolFlag, nextValue: boolean) {
+    markToolDraftDirty(toolId);
+    setToolFlags((prev) => {
+      const nextToolFlags = { ...(prev[toolId] || {}) };
+      if (flag.group && nextValue) {
+        for (const sibling of TOOL_FLAGS[toolId] || []) {
+          if (sibling.group === flag.group) nextToolFlags[sibling.key] = false;
+        }
+      }
+      nextToolFlags[flag.key] = nextValue;
+      return {
+        ...prev,
+        [toolId]: nextToolFlags,
+      };
+    });
+  }
+
   /** Compose the full command for a tool from its base command, toggled flags, and custom args. */
   function composeToolCommand(toolId: string, baseCommand: string): string {
     const flags = toolFlags[toolId] || {};
@@ -869,8 +940,16 @@ export function SettingsPanel() {
     const composed = composeToolCommand(toolId, baseCommand);
     // Only store a custom command if it differs from the bare base command
     const value = composed === baseCommand ? '' : composed;
-    updateSetting.mutate([{ key: `aiTools.${toolId}.customCommand`, value }]);
-    toast.success('Start command saved');
+    updateSetting.mutate(
+      [{ key: `aiTools.${toolId}.customCommand`, value }],
+      {
+        onSuccess: () => {
+          clearToolDraftDirty(toolId);
+          toast.success('Start command saved');
+        },
+        onError: () => toast.error('Failed to save start command'),
+      }
+    );
   }
 
   function saveTerminal() {
@@ -2254,14 +2333,11 @@ export function SettingsPanel() {
                                             <button
                                               key={f.key}
                                               onClick={() => {
-                                                // If turning ON a dangerous flag, confirm
                                                 if (!isOn && f.dangerous) {
-                                                  if (!window.confirm(`Enable "${f.label}"?\n\n${f.description || f.flag}\n\nThis skips safety prompts — use with caution.`)) return;
+                                                  setPendingDangerousFlag({ toolId: tool.id, toolName: tool.name, flag: f });
+                                                  return;
                                                 }
-                                                setToolFlags((prev) => ({
-                                                  ...prev,
-                                                  [tool.id]: { ...(prev[tool.id] || {}), [f.key]: !isOn },
-                                                }));
+                                                setToolFlagSelection(tool.id, f, !isOn);
                                               }}
                                               className={cn(
                                                 'inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border transition-colors cursor-pointer',
@@ -2293,7 +2369,11 @@ export function SettingsPanel() {
                                     <div className="text-[10px] text-text-muted mb-1">Custom arguments</div>
                                     <Input
                                       value={customArgs}
-                                      onChange={(e) => setToolCustomArgs((prev) => ({ ...prev, [tool.id]: e.target.value }))}
+                                      onChange={(e) => {
+                                        markToolDraftDirty(tool.id);
+                                        setToolCustomArgs((prev) => ({ ...prev, [tool.id]: e.target.value }));
+                                      }}
+                                      onKeyDown={(e) => e.stopPropagation()}
                                       placeholder="e.g. --max-turns 15"
                                       className="bg-bg-deep border-border-subtle text-xs"
                                     />
@@ -2321,14 +2401,20 @@ export function SettingsPanel() {
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => {
-                                        setToolFlags((prev) => {
-                                          const resetFlags: Record<string, boolean> = {};
-                                          for (const f of knownFlags) resetFlags[f.key] = false;
-                                          return { ...prev, [tool.id]: resetFlags };
-                                        });
+                                        const resetFlags: Record<string, boolean> = {};
+                                        for (const f of knownFlags) resetFlags[f.key] = false;
+                                        setToolFlags((prev) => ({ ...prev, [tool.id]: resetFlags }));
                                         setToolCustomArgs((prev) => ({ ...prev, [tool.id]: '' }));
-                                        updateSetting.mutate([{ key: `aiTools.${tool.id}.customCommand`, value: '' }]);
-                                        toast.info('Reset to default command');
+                                        updateSetting.mutate(
+                                          [{ key: `aiTools.${tool.id}.customCommand`, value: '' }],
+                                          {
+                                            onSuccess: () => {
+                                              clearToolDraftDirty(tool.id);
+                                              toast.info('Reset to default command');
+                                            },
+                                            onError: () => toast.error('Failed to reset command'),
+                                          }
+                                        );
                                       }}
                                       className="cursor-pointer"
                                     >
@@ -3387,6 +3473,36 @@ export function SettingsPanel() {
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!pendingDangerousFlag} onOpenChange={(open) => { if (!open) setPendingDangerousFlag(null); }}>
+      <AlertDialogContent className="bg-bg-primary border-border-subtle text-text-primary" size="sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-sm">Enable {pendingDangerousFlag?.flag.label}?</AlertDialogTitle>
+          <AlertDialogDescription className="text-xs text-text-secondary">
+            {pendingDangerousFlag?.toolName} will start with{' '}
+            <code className="text-[11px] text-warning">{pendingDangerousFlag?.flag.flag}</code>.
+            {' '}This reduces or bypasses normal safety checks, so it should only be used in a trusted sandbox.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="ghost" size="sm" className="cursor-pointer">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="default"
+            size="sm"
+            className="bg-error hover:bg-error/80 cursor-pointer text-white"
+            onClick={() => {
+              if (!pendingDangerousFlag) return;
+              setToolFlagSelection(pendingDangerousFlag.toolId, pendingDangerousFlag.flag, true);
+              setPendingDangerousFlag(null);
+            }}
+          >
+            Enable
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     {/* SubFrame Server setup wizard */}
     <WebServerSetup open={webServerSetupOpen} onOpenChange={setWebServerSetupOpen} />

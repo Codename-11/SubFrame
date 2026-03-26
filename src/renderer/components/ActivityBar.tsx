@@ -40,6 +40,7 @@ import { useUIStore } from '../stores/useUIStore';
 import type { ActivityStatus } from '../../shared/activityTypes';
 import { IPC } from '../../shared/ipcChannels';
 import { typedInvoke } from '../lib/ipc';
+import { ACTIVITY_BAR_FOCUS_EVENT, type ActivityBarFocusDetail } from '../lib/activityBarEvents';
 import { toast } from 'sonner';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -258,6 +259,7 @@ export function ActivityBar() {
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const [expanded, setExpanded] = useState(false);
   const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
+  const [pendingFocusStreamId, setPendingFocusStreamId] = useState<string | null>(null);
   const [mode, setMode] = useState<BarMode>('activity');
   const [showOutputPanel, setShowOutputPanel] = useState(false);
   const logEndRef = useRef<HTMLDivElement | null>(null);
@@ -348,6 +350,28 @@ export function ActivityBar() {
     return () => window.removeEventListener('toggle-activity-bar', handler);
   }, [streams.length]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<ActivityBarFocusDetail>).detail;
+      setExpanded(true);
+      setMode(detail?.mode ?? 'activity');
+      if ((detail?.mode ?? 'activity') === 'output') {
+        setShowOutputPanel(true);
+      }
+      if (detail?.streamId) {
+        if (streams.find((stream) => stream.id === detail.streamId)) {
+          setSelectedStreamId(detail.streamId);
+          setPendingFocusStreamId(null);
+        } else {
+          setPendingFocusStreamId(detail.streamId);
+        }
+      }
+    };
+
+    window.addEventListener(ACTIVITY_BAR_FOCUS_EVENT, handler);
+    return () => window.removeEventListener(ACTIVITY_BAR_FOCUS_EVENT, handler);
+  }, [streams]);
+
   // Auto-select the active stream when it changes
   useEffect(() => {
     if (activeStream && !selectedStreamId) {
@@ -369,6 +393,14 @@ export function ActivityBar() {
       setSelectedStreamId(null);
     }
   }, [streams, selectedStreamId]);
+
+  useEffect(() => {
+    if (!pendingFocusStreamId) return;
+    if (streams.find((stream) => stream.id === pendingFocusStreamId)) {
+      setSelectedStreamId(pendingFocusStreamId);
+      setPendingFocusStreamId(null);
+    }
+  }, [streams, pendingFocusStreamId]);
 
   // Determine the stream to display in expanded log view
   const displayStream = useMemo(() => {

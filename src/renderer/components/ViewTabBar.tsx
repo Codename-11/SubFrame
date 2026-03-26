@@ -4,6 +4,7 @@ import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { useIpcQuery } from '../hooks/useIpc';
+import { useActivity } from '../hooks/useActivity';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import {
   X,
@@ -35,12 +36,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from './ui/context-menu';
 import { Reorder, useDragControls } from 'framer-motion';
 import { toast } from 'sonner';
 import { IPC } from '../../shared/ipcChannels';
 import type { ClaudeUsageData, UsageWindow, UsageSource, WorkspaceListResult } from '../../shared/ipcChannels';
 import { SHORTCUTS } from '../lib/shortcuts';
 import { getTransport } from '../lib/transportProvider';
+import { focusActivityBar } from '../lib/activityBarEvents';
 import {
   WORKSPACE_ICON_COMPONENTS,
   normalizeWorkspacePillDisplay,
@@ -133,6 +141,7 @@ function WorkspacePillButton({
   display,
   disabled,
   onSwitch,
+  onDeactivate,
   onReorderCommit,
 }: {
   workspace: WorkspacePillInfo;
@@ -140,6 +149,7 @@ function WorkspacePillButton({
   display: ReturnType<typeof normalizeWorkspacePillDisplay>;
   disabled: boolean;
   onSwitch: (key: string) => void;
+  onDeactivate: (key: string) => void;
   onReorderCommit: () => void;
 }) {
   const dragControls = useDragControls();
@@ -180,52 +190,66 @@ function WorkspacePillButton({
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Reorder.Item
-            value={workspace.key}
-            dragListener={false}
-            dragControls={dragControls}
-            onDragEnd={() => {
-              clearHoldTimer();
-              suppressClickUntilRef.current = Date.now() + 250;
-              onReorderCommit();
-            }}
-            className="list-none"
-          >
-            <button
-              onPointerDown={handlePointerDown}
-              onPointerUp={clearHoldTimer}
-              onPointerLeave={clearHoldTimer}
-              onPointerCancel={clearHoldTimer}
-              onClick={() => {
-                if (suppressClickUntilRef.current > Date.now()) return;
-                onSwitch(workspace.key);
-              }}
-              disabled={disabled}
-              className={`relative flex items-center justify-center h-5 w-auto rounded-md text-[10px] font-semibold
-                transition-colors cursor-pointer disabled:opacity-50 mx-0.5 touch-none
-                ${usesCompactWidth ? 'min-w-[24px] px-1.5' : 'min-w-[28px] px-2 gap-1'}
-                ${presentation.indexText && !presentation.text && !WorkspaceIcon ? 'font-mono' : 'tracking-wide'}
-                ${workspace.active
-                  ? 'bg-accent/20 text-accent border border-accent/30'
-                  : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
-                }`}
-            >
-              {presentation.indexText && <span className="font-mono">{presentation.indexText}</span>}
-              {WorkspaceIcon && <WorkspaceIcon className="w-3 h-3 flex-shrink-0" />}
-              {presentation.text && <span className="truncate max-w-[48px]">{presentation.text}</span>}
-              {hasAgents && (
-                <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
-                  <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-success animate-ping opacity-40" />
-                  <span className="block w-1.5 h-1.5 rounded-full bg-success" />
-                </span>
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <Reorder.Item
+                value={workspace.key}
+                dragListener={false}
+                dragControls={dragControls}
+                onDragEnd={() => {
+                  clearHoldTimer();
+                  suppressClickUntilRef.current = Date.now() + 250;
+                  onReorderCommit();
+                }}
+                className="list-none"
+              >
+                <button
+                  onPointerDown={handlePointerDown}
+                  onPointerUp={clearHoldTimer}
+                  onPointerLeave={clearHoldTimer}
+                  onPointerCancel={clearHoldTimer}
+                  onClick={() => {
+                    if (suppressClickUntilRef.current > Date.now()) return;
+                    onSwitch(workspace.key);
+                  }}
+                  disabled={disabled}
+                  className={`relative flex items-center justify-center h-5 w-auto rounded-md text-[10px] font-semibold
+                    transition-colors cursor-pointer disabled:opacity-50 mx-0.5 touch-none
+                    ${usesCompactWidth ? 'min-w-[24px] px-1.5' : 'min-w-[28px] px-2 gap-1'}
+                    ${presentation.indexText && !presentation.text && !WorkspaceIcon ? 'font-mono' : 'tracking-wide'}
+                    ${workspace.active
+                      ? 'bg-accent/20 text-accent border border-accent/30'
+                      : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
+                    }`}
+                >
+                  {presentation.indexText && <span className="font-mono">{presentation.indexText}</span>}
+                  {WorkspaceIcon && <WorkspaceIcon className="w-3 h-3 flex-shrink-0" />}
+                  {presentation.text && <span className="truncate max-w-[48px]">{presentation.text}</span>}
+                  {hasAgents && (
+                    <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
+                      <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-success animate-ping opacity-40" />
+                      <span className="block w-1.5 h-1.5 rounded-full bg-success" />
+                    </span>
+                  )}
+                  {hasTerminals && (
+                    <span className="absolute -bottom-1 -right-1 min-w-[12px] h-3 px-0.5 rounded-full bg-info/90 text-[8px] leading-3 text-bg-deep font-bold text-center shadow-sm">
+                      {activity.terminalCount > 9 ? '9+' : activity.terminalCount}
+                    </span>
+                  )}
+                </button>
+              </Reorder.Item>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="min-w-[150px]">
+              {!workspace.active && (
+                <ContextMenuItem onClick={() => onSwitch(workspace.key)} className="text-xs cursor-default">
+                  Switch To Workspace
+                </ContextMenuItem>
               )}
-              {hasTerminals && (
-                <span className="absolute -bottom-1 -right-1 min-w-[12px] h-3 px-0.5 rounded-full bg-info/90 text-[8px] leading-3 text-bg-deep font-bold text-center shadow-sm">
-                  {activity.terminalCount > 9 ? '9+' : activity.terminalCount}
-                </span>
-              )}
-            </button>
-          </Reorder.Item>
+              <ContextMenuItem onClick={() => onDeactivate(workspace.key)} className="text-xs cursor-default">
+                Deactivate
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         </TooltipTrigger>
         <TooltipContent side="bottom">
           <p className="text-xs">
@@ -333,6 +357,47 @@ export function ViewTabBar() {
       setWsSwitching(false);
     }
   }, [wsSwitching, wsParsed, refetchWorkspaces]);
+
+  const handleWorkspaceDeactivate = useCallback(async (key: string) => {
+    if (wsSwitching || wsReordering) return;
+    const target = wsWorkspaces.find((workspace) => workspace.key === key);
+    if (!target) return;
+
+    if (target.active) {
+      const currentIndex = wsWorkspaces.findIndex((workspace) => workspace.key === key);
+      const fallbackWorkspace =
+        wsWorkspaces[currentIndex + 1]
+        ?? wsWorkspaces[currentIndex - 1]
+        ?? null;
+
+      if (!fallbackWorkspace) {
+        toast.warning('Cannot deactivate the only active workspace');
+        return;
+      }
+
+      setWsSwitching(true);
+      try {
+        await typedInvoke(IPC.WORKSPACE_SWITCH, fallbackWorkspace.key);
+        await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: true });
+        refetchWorkspaces();
+        typedSend(IPC.LOAD_WORKSPACE);
+        toast.success('Workspace deactivated');
+      } catch {
+        toast.error('Failed to deactivate workspace');
+      } finally {
+        setWsSwitching(false);
+      }
+      return;
+    }
+
+    try {
+      await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: true });
+      refetchWorkspaces();
+      toast.success('Workspace deactivated');
+    } catch {
+      toast.error('Failed to deactivate workspace');
+    }
+  }, [refetchWorkspaces, wsParsed, wsReordering, wsSwitching, wsWorkspaces]);
 
   const workspaceByKey = useMemo(
     () => new Map(wsWorkspaces.map((workspace) => [workspace.key, workspace])),
@@ -446,6 +511,19 @@ export function ViewTabBar() {
   const source = usageData?.source ?? 'none';
   const sourceMeta = SOURCE_META[source];
   const tierDisplay = formatTierName(usageData?.rateLimitTier ?? null) || formatSubType(usageData?.subscriptionType ?? null);
+  const { streams } = useActivity();
+  const runningStreams = useMemo(
+    () => streams.filter((stream) => stream.status === 'running' || stream.status === 'pending'),
+    [streams],
+  );
+  const runningSummary = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const stream of runningStreams) {
+      counts.set(stream.source, (counts.get(stream.source) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([sourceName, count]) => `${count} ${sourceName}`).join(' · ');
+  }, [runningStreams]);
+  const primaryRunningStream = runningStreams[0] ?? null;
 
   return (
     <div className="flex items-center bg-bg-secondary border-b border-border-subtle shrink-0" data-neon-bar="">
@@ -574,6 +652,7 @@ export function ViewTabBar() {
                   display={workspacePillDisplay}
                   disabled={wsSwitching || wsReordering}
                   onSwitch={handleWsSwitch}
+                  onDeactivate={handleWorkspaceDeactivate}
                   onReorderCommit={handleWorkspaceReorderCommit}
                 />
               );
@@ -648,6 +727,34 @@ export function ViewTabBar() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-xs">
                 <UsageTooltip data={usageData} fetching={usageFetching} />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {runningStreams.length > 0 && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => focusActivityBar({ mode: 'activity', streamId: primaryRunningStream?.id ?? null })}
+                  className="group/running flex items-center gap-1.5 px-2 py-0.5 bg-accent/10 border border-accent/20 rounded-md
+                    text-accent hover:bg-accent/15 hover:border-accent/30 transition-colors flex-shrink-0"
+                >
+                  <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                  <span className="text-[10px] font-medium whitespace-nowrap">
+                    {runningStreams.length} running
+                  </span>
+                  {primaryRunningStream && (
+                    <span className="max-w-[120px] truncate text-[10px] text-text-secondary group-hover/running:text-text-primary">
+                      {primaryRunningStream.name}
+                    </span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{runningSummary || `${runningStreams.length} active stream${runningStreams.length === 1 ? '' : 's'}`}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

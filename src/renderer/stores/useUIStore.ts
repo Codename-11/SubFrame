@@ -177,6 +177,14 @@ interface UIState {
   tasksFilterSetByUser: boolean;
   setTasksFilterSetByUser: (v: boolean) => void;
 
+  // Active task enhancement request (survives panel/view switches)
+  activeTaskEnhance: {
+    activityStreamId: string;
+    editingTaskId: string | null;
+  } | null;
+  setActiveTaskEnhance: (v: UIState['activeTaskEnhance']) => void;
+  clearActiveTaskEnhance: () => void;
+
   // Pending enhance result (survives dialog close / component unmount)
   pendingEnhance: {
     enhanced: Record<string, unknown>;
@@ -421,6 +429,10 @@ export const useUIStore = create<UIState>((set, get) => ({
   setTasksStatusFilter: (f) => set({ tasksStatusFilter: f }),
   tasksFilterSetByUser: false,
   setTasksFilterSetByUser: (v) => set({ tasksFilterSetByUser: v }),
+
+  activeTaskEnhance: null,
+  setActiveTaskEnhance: (v) => set({ activeTaskEnhance: v }),
+  clearActiveTaskEnhance: () => set({ activeTaskEnhance: null }),
 
   // Pending enhance — persists across dialog close / panel switch
   pendingEnhance: null,

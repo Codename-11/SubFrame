@@ -24,8 +24,10 @@ export function useOnboarding() {
   const [analysisResult, setAnalysisResult] = useState<OnboardingAnalysisResult | null>(null);
   const [progress, setProgress] = useState<OnboardingProgressEvent | null>(null);
   const [terminalId, setTerminalId] = useState<string | null>(null);
+  const [activityStreamId, setActivityStreamId] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<OnboardingImportResult | null>(null);
 
   // Stall detection state
@@ -53,6 +55,9 @@ export function useOnboarding() {
       if (data.terminalId) {
         setTerminalId(data.terminalId);
       }
+      if (data.activityStreamId) {
+        setActivityStreamId(data.activityStreamId);
+      }
 
       // Track timeout info from progress events
       if (data.timeoutMs !== undefined) setTimeoutMs(data.timeoutMs);
@@ -70,6 +75,7 @@ export function useOnboarding() {
 
       if (data.phase === 'done') {
         setIsAnalyzing(false);
+        setCancelled(null);
         // The 'done' phase message contains the stringified analysis results
         try {
           const parsed = JSON.parse(data.message) as OnboardingAnalysisResult;
@@ -77,8 +83,13 @@ export function useOnboarding() {
         } catch {
           // Message wasn't JSON — that's acceptable, results may come another way
         }
+      } else if (data.phase === 'cancelled') {
+        setIsAnalyzing(false);
+        setError(null);
+        setCancelled(data.message);
       } else if (data.phase === 'error') {
         setIsAnalyzing(false);
+        setCancelled(null);
         setError(data.message);
       }
     }, [])
@@ -103,14 +114,20 @@ export function useOnboarding() {
   );
 
   const analyze = useCallback(
-    async (projectPath: string, options?: OnboardingAnalysisOptions): Promise<{ terminalId: string }> => {
+    async (
+      projectPath: string,
+      options?: OnboardingAnalysisOptions
+    ): Promise<{ terminalId: string; activityStreamId: string }> => {
       setError(null);
       setIsAnalyzing(true);
       setAnalysisResult(null);
       setProgress(null);
+      setActivityStreamId(null);
+      setCancelled(null);
       try {
         const result = await analyzeMutation.mutateAsync([projectPath, options]);
         setTerminalId(result.terminalId);
+        setActivityStreamId(result.activityStreamId);
         return result;
       } catch (err) {
         setIsAnalyzing(false);
@@ -167,8 +184,10 @@ export function useOnboarding() {
     setAnalysisResult(null);
     setProgress(null);
     setTerminalId(null);
+    setActivityStreamId(null);
     setIsAnalyzing(false);
     setError(null);
+    setCancelled(null);
     setImportResult(null);
     setStalled(false);
     setStallDurationMs(0);
@@ -181,8 +200,10 @@ export function useOnboarding() {
     setAnalysisResult(null);
     setProgress(null);
     setTerminalId(null);
+    setActivityStreamId(null);
     setIsAnalyzing(false);
     setError(null);
+    setCancelled(null);
     setImportResult(null);
     setStalled(false);
     setStallDurationMs(0);
@@ -206,12 +227,14 @@ export function useOnboarding() {
     analysisResult,
     progress,
     terminalId,
+    activityStreamId,
     isDetecting: detectMutation.isPending,
     isAnalyzing,
     isImporting: importMutation.isPending,
     isPreviewingPrompt: previewPromptMutation.isPending,
     isBrowsingFiles: browseFilesMutation.isPending,
     error,
+    cancelled,
     importResult,
     stalled,
     stallDurationMs,

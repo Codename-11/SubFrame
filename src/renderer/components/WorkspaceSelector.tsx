@@ -86,6 +86,7 @@ export function WorkspaceSelector() {
   }, [activeWs, workspaceName, setWorkspaceName]);
 
   const [loading, setLoading] = useState(false);
+  const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
 
   // Determine agent activity for current workspace
   const allTerminals = useMemo(() => Array.from(terminals.values()), [terminals]);
@@ -116,6 +117,7 @@ export function WorkspaceSelector() {
         await typedInvoke(IPC.WORKSPACE_SWITCH, key);
         refetch();
         typedSend(IPC.LOAD_WORKSPACE);
+        setWorkspaceDropdownOpen(false);
       } catch {
         toast.error('Failed to switch workspace');
       } finally {
@@ -168,6 +170,7 @@ export function WorkspaceSelector() {
   const handleRename = useCallback(
     (key: string) => {
       const currentWs = workspaces.find((ws) => ws.key === key);
+      setWorkspaceDropdownOpen(false);
       setRenameTarget({ key, name: currentWs?.name || '' });
       setRenameValue(currentWs?.name || '');
     },
@@ -195,6 +198,7 @@ export function WorkspaceSelector() {
   const handleDelete = useCallback(
     (key: string) => {
       const currentWs = workspaces.find((ws) => ws.key === key);
+      setWorkspaceDropdownOpen(false);
       setDeleteTarget({ key, name: currentWs?.name || '' });
     },
     [workspaces]
@@ -261,7 +265,11 @@ export function WorkspaceSelector() {
     const wantDeactivate = !ws.inactive;
 
     if (wantDeactivate && ws.active) {
-      const otherActive = activeWorkspaces.find(w => w.key !== key);
+      const currentIndex = activeWorkspaces.findIndex(w => w.key === key);
+      const otherActive =
+        activeWorkspaces[currentIndex + 1]
+        ?? activeWorkspaces[currentIndex - 1]
+        ?? activeWorkspaces.find(w => w.key !== key);
       if (!otherActive) {
         toast.warning('Cannot deactivate — no other active workspace to switch to');
         return;
@@ -272,6 +280,7 @@ export function WorkspaceSelector() {
         await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: true });
         refetch();
         typedSend(IPC.LOAD_WORKSPACE);
+        setWorkspaceDropdownOpen(false);
         toast.success('Workspace deactivated');
       } catch {
         toast.error('Failed to deactivate workspace');
@@ -285,6 +294,7 @@ export function WorkspaceSelector() {
     try {
       await typedInvoke(IPC.WORKSPACE_SET_INACTIVE, { key, inactive: wantDeactivate });
       refetch();
+      setWorkspaceDropdownOpen(false);
       toast.success(wantDeactivate ? 'Workspace deactivated' : 'Workspace activated');
     } catch {
       toast.error('Failed to update workspace');
@@ -292,6 +302,60 @@ export function WorkspaceSelector() {
       setLoading(false);
     }
   }, [workspaces, activeWorkspaces, loading, refetch]);
+
+  const renderWorkspaceContextMenu = useCallback((ws: { key: string; name: string; active: boolean; inactive: boolean }, activePosition: number) => (
+    <ContextMenuContent className="min-w-[170px]">
+      {ws.inactive ? (
+        <>
+          <ContextMenuItem onClick={() => handleToggleActive(ws.key)} className="text-xs cursor-default">
+            Activate
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => handleRename(ws.key)} className="text-xs cursor-default">
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => handleDelete(ws.key)} className="text-xs text-error cursor-default">
+            Delete
+          </ContextMenuItem>
+        </>
+      ) : (
+        <>
+          {!ws.active && (
+            <ContextMenuItem onClick={() => handleSwitch(ws.key)} className="text-xs cursor-default">
+              Switch To Workspace
+            </ContextMenuItem>
+          )}
+          <ContextMenuItem onClick={() => handleRename(ws.key)} className="text-xs cursor-default">
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => handleToggleActive(ws.key)} className="text-xs cursor-default">
+            Deactivate
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => handleMoveLeft(ws.key)}
+            disabled={activePosition <= 1}
+            className="text-xs cursor-default"
+          >
+            <ChevronLeft className="w-3.5 h-3.5 mr-1.5" />
+            Move Left
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => handleMoveRight(ws.key)}
+            disabled={activePosition >= activeWorkspaces.length}
+            className="text-xs cursor-default"
+          >
+            <ChevronRight className="w-3.5 h-3.5 mr-1.5" />
+            Move Right
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => handleDelete(ws.key)} className="text-xs text-error cursor-default">
+            Delete
+          </ContextMenuItem>
+        </>
+      )}
+    </ContextMenuContent>
+  ), [activeWorkspaces.length, handleDelete, handleMoveLeft, handleMoveRight, handleRename, handleSwitch, handleToggleActive]);
 
   const currentAgentStatus = activeWs ? getAgentStatus(activeWs.key, true) : 'idle';
 
@@ -302,7 +366,7 @@ export function WorkspaceSelector() {
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div className="flex-1 min-w-0">
-              <DropdownMenu>
+              <DropdownMenu open={workspaceDropdownOpen} onOpenChange={setWorkspaceDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     disabled={loading}
@@ -329,21 +393,28 @@ export function WorkspaceSelector() {
                     const idx = i + 1;
                     const isActive = ws.active;
                     return (
-                      <DropdownMenuItem
-                        key={ws.key}
-                        disabled={loading}
-                        onClick={() => handleSwitch(ws.key)}
-                        className={`cursor-pointer text-xs py-1 ${isActive ? 'bg-accent/10 text-accent' : ''}`}
-                      >
-                        <span className="font-mono text-[10px] opacity-70 mr-1.5">#{idx}</span>
-                        <span className="truncate">{ws.name}</span>
-                        {ws.projectCount > 0 && (
-                          <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
-                        )}
-                        {isActive && (
-                          <span className="ml-auto text-[9px] text-accent">Active</span>
-                        )}
-                      </DropdownMenuItem>
+                      <ContextMenu key={ws.key}>
+                        <ContextMenuTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleSwitch(ws.key)}
+                            className={`flex w-full items-center px-2 py-1.5 text-left text-xs rounded-sm ${
+                              isActive ? 'bg-accent/10 text-accent' : 'text-text-primary hover:bg-bg-hover'
+                            } disabled:opacity-50 disabled:pointer-events-none`}
+                          >
+                            <span className="font-mono text-[10px] opacity-70 mr-1.5">#{idx}</span>
+                            <span className="truncate">{ws.name}</span>
+                            {ws.projectCount > 0 && (
+                              <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
+                            )}
+                            {isActive && (
+                              <span className="ml-auto text-[9px] text-accent">Active</span>
+                            )}
+                          </button>
+                        </ContextMenuTrigger>
+                        {renderWorkspaceContextMenu(ws, idx)}
+                      </ContextMenu>
                     );
                   })}
                   {/* Inactive workspaces */}
@@ -354,18 +425,26 @@ export function WorkspaceSelector() {
                         Inactive
                       </div>
                       {inactiveWorkspaces.map((ws) => (
-                        <DropdownMenuItem
-                          key={ws.key}
-                          disabled={loading}
-                          className="opacity-50 cursor-pointer text-xs py-1"
-                          onClick={() => handleToggleActive(ws.key)}
-                        >
-                          <span className="truncate">{ws.name}</span>
-                          {ws.projectCount > 0 && (
-                            <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
-                          )}
-                          <span className="ml-auto text-[9px] text-text-muted">Activate</span>
-                        </DropdownMenuItem>
+                        <ContextMenu key={ws.key}>
+                          <ContextMenuTrigger asChild>
+                            <button
+                              type="button"
+                              disabled={loading}
+                              className="flex w-full items-center px-2 py-1.5 text-left text-xs rounded-sm opacity-65 text-text-secondary hover:bg-bg-hover disabled:opacity-40 disabled:pointer-events-none"
+                              onClick={() => handleToggleActive(ws.key)}
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate">{ws.name}</div>
+                                <div className="text-[9px] text-text-muted">Click to reactivate</div>
+                              </div>
+                              {ws.projectCount > 0 && (
+                                <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
+                              )}
+                              <span className="ml-auto text-[9px] text-text-muted">Activate</span>
+                            </button>
+                          </ContextMenuTrigger>
+                          {renderWorkspaceContextMenu(ws, -1)}
+                        </ContextMenu>
                       ))}
                     </>
                   )}
@@ -373,46 +452,9 @@ export function WorkspaceSelector() {
               </DropdownMenu>
             </div>
           </ContextMenuTrigger>
-          {/* Right-click context menu on the active workspace name */}
+          {/* Right-click context menu on the current workspace label */}
           {activeWs && (
-            <ContextMenuContent className="min-w-[160px]">
-              <ContextMenuItem
-                onClick={() => handleRename(activeWs.key)}
-                className="text-xs cursor-default"
-              >
-                Rename
-              </ContextMenuItem>
-              <ContextMenuItem
-                onClick={() => handleToggleActive(activeWs.key)}
-                className="text-xs cursor-default"
-              >
-                Deactivate
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                onClick={() => handleMoveLeft(activeWs.key)}
-                disabled={activeIndex <= 1}
-                className="text-xs cursor-default"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 mr-1.5" />
-                Move Left
-              </ContextMenuItem>
-              <ContextMenuItem
-                onClick={() => handleMoveRight(activeWs.key)}
-                disabled={activeIndex >= activeWorkspaces.length}
-                className="text-xs cursor-default"
-              >
-                <ChevronRight className="w-3.5 h-3.5 mr-1.5" />
-                Move Right
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                onClick={() => handleDelete(activeWs.key)}
-                className="text-xs text-error cursor-default"
-              >
-                Delete
-              </ContextMenuItem>
-            </ContextMenuContent>
+            renderWorkspaceContextMenu(activeWs, activeIndex)
           )}
         </ContextMenu>
 

@@ -104,6 +104,7 @@ export const IPC = {
   WATCH_TASKS: 'watch-tasks',
   UNWATCH_TASKS: 'unwatch-tasks',
   ENHANCE_TASK: 'enhance-task',
+  TASK_ENHANCE_RESULT: 'task-enhance-result',
 
   // Plugins Panel
   LOAD_PLUGINS: 'load-plugins',
@@ -1051,11 +1052,13 @@ export interface OnboardingAnalysisResult {
 /** Progress event during onboarding analysis */
 export interface OnboardingProgressEvent {
   projectPath: string;
-  phase: 'detecting' | 'gathering' | 'analyzing' | 'parsing' | 'importing' | 'imported' | 'done' | 'error';
+  phase: 'detecting' | 'gathering' | 'analyzing' | 'parsing' | 'importing' | 'imported' | 'done' | 'error' | 'cancelled';
   message: string;
   progress: number;
   /** Set once the analysis terminal is created, so the renderer can focus it immediately */
   terminalId?: string;
+  /** Activity stream backing this onboarding analysis */
+  activityStreamId?: string;
   /** Total timeout for the analysis (ms) */
   timeoutMs?: number;
   /** Time elapsed since analysis started (ms) */
@@ -1425,7 +1428,10 @@ export interface IPCHandleMap {
 
   // Onboarding
   [IPC.DETECT_PROJECT_INTELLIGENCE]: { args: [projectPath: string]; return: OnboardingDetectionResult };
-  [IPC.RUN_ONBOARDING_ANALYSIS]: { args: [projectPath: string, options?: OnboardingAnalysisOptions]; return: { terminalId: string } };
+  [IPC.RUN_ONBOARDING_ANALYSIS]: {
+    args: [projectPath: string, options?: OnboardingAnalysisOptions];
+    return: { terminalId: string; activityStreamId: string };
+  };
   [IPC.GET_ONBOARDING_PROMPT_PREVIEW]: { args: [projectPath: string, options?: OnboardingAnalysisOptions]; return: { prompt: string; contextSize: number } };
   [IPC.BROWSE_ONBOARDING_FILES]: { args: [projectPath: string, type: 'file' | 'directory']; return: string[] };
   [IPC.IMPORT_ONBOARDING_RESULTS]: { args: [payload: { projectPath: string; results: OnboardingAnalysisResult; selections: OnboardingImportSelections }]; return: OnboardingImportResult };
@@ -1468,7 +1474,7 @@ export interface IPCHandleMap {
   // Task AI Enhance
   [IPC.ENHANCE_TASK]: {
     args: [payload: { projectPath: string; task: Partial<Task> }];
-    return: { success: boolean; enhanced: Partial<Task>; error?: string };
+    return: { started: boolean; activityStreamId: string; error?: string };
   };
 
   // Activity Streams
@@ -1695,6 +1701,7 @@ export interface IPCEventMap {
 
   // Onboarding
   [IPC.ONBOARDING_PROGRESS]: OnboardingProgressEvent;
+  [IPC.TASK_ENHANCE_RESULT]: { activityStreamId: string; success: boolean; enhanced: Partial<Task>; error?: string };
 
   // Auto-Updater
   [IPC.UPDATER_STATUS]: UpdaterStatus;

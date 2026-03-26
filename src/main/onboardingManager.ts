@@ -33,7 +33,7 @@ import { broadcast } from './eventBridge';
 let mainWindow: BrowserWindow | null = null;
 
 /** Active analysis runs keyed by projectPath */
-const activeAnalyses = new Map<string, { terminalId: string; cleanup: () => void; cancel?: () => void }>();
+const activeAnalyses = new Map<string, { terminalId: string; cleanup: () => void; cancel?: () => void; streamId?: string }>();
 
 /** Parsed results cache keyed by projectPath (for IMPORT to consume after RUN completes) */
 const analysisResultsCache = new Map<string, OnboardingAnalysisResult>();
@@ -116,7 +116,14 @@ function sendProgress(
   phase: OnboardingProgressEvent['phase'],
   message: string,
   progress: number,
-  extra?: { terminalId?: string; timeoutMs?: number; elapsedMs?: number; stalled?: boolean; stallDurationMs?: number },
+  extra?: {
+    terminalId?: string;
+    activityStreamId?: string;
+    timeoutMs?: number;
+    elapsedMs?: number;
+    stalled?: boolean;
+    stallDurationMs?: number;
+  },
 ): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     broadcast(IPC.ONBOARDING_PROGRESS, {
@@ -436,7 +443,7 @@ function getAnalysisTimeout(): number {
 async function runAnalysisInTerminal(
   projectPath: string,
   prompt: string,
-  opts?: { timeoutMs?: number; analysisStartMs?: number },
+  opts?: { timeoutMs?: number; analysisStartMs?: number; streamId?: string },
 ): Promise<{ raw: string; terminalId: string }> {
   // Write prompt to temp file
   const timestamp = Date.now();
@@ -508,6 +515,7 @@ async function runAnalysisInTerminal(
     if (mainWindow && !mainWindow.isDestroyed()) {
       broadcast(IPC.ONBOARDING_PROGRESS, {
         projectPath, phase, message, progress, terminalId,
+        activityStreamId: opts?.streamId,
         timeoutMs: effectiveTimeoutMs,
         elapsedMs: Date.now() - analysisStartMs,
         ...extra,
@@ -524,6 +532,10 @@ async function runAnalysisInTerminal(
     let resolved = false;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const trustHandlerId = 'onboarding-trust';
+    const streamHandlerId = 'onboarding-stream';
+    const activityAbortSignal = opts?.streamId ? activityManager.getAbortSignal(opts.streamId) : undefined;
+    let abortListener: (() => void) | null = null;
 
     // Cleanup — temp files, ALL timers, output handler.
     const cleanup = () => {
@@ -532,7 +544,12 @@ async function runAnalysisInTerminal(
       if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
       if (stallCheckTimer) { clearInterval(stallCheckTimer); stallCheckTimer = null; }
       activeAnalyses.delete(projectPath);
-      ptyManager.removeOutputHandler(terminalId);
+      ptyManager.removeOutputHandler(terminalId, trustHandlerId);
+      ptyManager.removeOutputHandler(terminalId, streamHandlerId);
+      if (abortListener && activityAbortSignal) {
+        activityAbortSignal.removeEventListener('abort', abortListener);
+        abortListener = null;
+      }
       try { fs.unlinkSync(promptFile); } catch { /* ignore */ }
       try { fs.unlinkSync(resultFile); } catch { /* ignore */ }
       try { fs.unlinkSync(resultFile + '.done'); } catch { /* ignore */ }
@@ -558,8 +575,20 @@ async function runAnalysisInTerminal(
     activeAnalyses.set(projectPath, {
       terminalId,
       cleanup,
+      streamId: opts?.streamId,
       cancel: () => fail(new Error('Analysis cancelled by user.')),
     });
+
+    if (activityAbortSignal) {
+      abortListener = () => {
+        try {
+          ptyManager.destroyTerminal(terminalId);
+        } catch { /* ignore */ }
+        const reason = typeof activityAbortSignal.reason === 'string' ? activityAbortSignal.reason : '';
+        fail(new Error(reason === 'Cancelled' ? 'Analysis cancelled by user.' : reason || 'Analysis aborted.'));
+      };
+      activityAbortSignal.addEventListener('abort', abortListener, { once: true });
+    }
 
     // Timeout guard
     const timeoutMs = effectiveTimeoutMs;
@@ -599,7 +628,7 @@ async function runAnalysisInTerminal(
           if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
           console.log('[Onboarding] Trust prompt accepted');
         }
-      }, 'onboarding-trust');
+      }, trustHandlerId);
     }
 
     // ── Streaming progress — count output lines and creep progress 50→79% ──
@@ -607,22 +636,28 @@ async function runAnalysisInTerminal(
     let lastProgressUpdate = 0; // 0 so first output triggers an immediate update
     let lastOutputTime = Date.now();
     const PROGRESS_INTERVAL_MS = 3000; // throttle progress events
-    const streamHandlerId = 'onboarding-stream';
-
     ptyManager.addOutputHandler(terminalId, (data) => {
       if (resolved) return;
       // eslint-disable-next-line no-control-regex
       const stripped = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
-      const newLines = stripped.split('\n').filter(l => l.trim().length > 0).length;
-      if (newLines > 0) {
+      const lines = stripped.split('\n').map(line => line.trimEnd()).filter(line => line.trim().length > 0);
+      if (opts?.streamId && lines.length > 0) {
+        for (const line of lines) {
+          activityManager.emit(opts.streamId, line);
+        }
+      }
+      if (lines.length > 0) {
         lastOutputTime = Date.now();
-        outputLineCount += newLines;
+        outputLineCount += lines.length;
         const now = Date.now();
         if (now - lastProgressUpdate >= PROGRESS_INTERVAL_MS) {
           lastProgressUpdate = now;
           // Creep from 50→79 based on output (logarithmic curve, never reaches 80)
           const creep = Math.min(29, Math.floor(15 * Math.log2(1 + outputLineCount / 10)));
           sendProgress(`Analyzing... (${outputLineCount} lines received)`, 50 + creep);
+          if (opts?.streamId) {
+            activityManager.updateProgress(opts.streamId, 50 + creep);
+          }
         }
       }
     }, streamHandlerId);
@@ -640,6 +675,9 @@ async function runAnalysisInTerminal(
           'analyzing',
           { stalled: true, stallDurationMs: stallDuration },
         );
+        if (opts?.streamId) {
+          activityManager.emit(opts.streamId, `Waiting for AI output... ${Math.floor(stallDuration / 1000)}s without new lines.`);
+        }
       }
     }, 5_000);
 
@@ -1074,16 +1112,21 @@ function setupIPC(ipcMain: IpcMain): void {
         if (options) {
           console.warn('[Onboarding] Analysis already running for this project — new options will be ignored. Cancel the current analysis first.');
         }
-        return { terminalId: existing.terminalId };
+        return { terminalId: existing.terminalId, activityStreamId: existing.streamId ?? '' };
       }
 
       // Compute effective timeout (user override or default)
       const analysisStartMs = Date.now();
       const effectiveTimeout = options?.timeoutOverride ?? getAnalysisTimeout();
-      const timeoutMeta = () => ({ timeoutMs: effectiveTimeout, elapsedMs: Date.now() - analysisStartMs });
+      let streamId = '';
+      const timeoutMeta = () => ({
+        timeoutMs: effectiveTimeout,
+        elapsedMs: Date.now() - analysisStartMs,
+        activityStreamId: streamId,
+      });
 
       // Create activity stream for onboarding analysis
-      const streamId = activityManager.createStream({
+      streamId = activityManager.createStream({
         name: 'Project Analysis',
         type: 'pty',
         source: 'onboarding',
@@ -1092,6 +1135,8 @@ function setupIPC(ipcMain: IpcMain): void {
       });
       activityStreamId = streamId;
       activityManager.updateStatus(streamId, 'running');
+      activityManager.startHeartbeat(streamId);
+      activityManager.startTimeout(streamId);
 
       // Phase: detecting
       sendProgress(projectPath, 'detecting', 'Scanning for project intelligence files...', 10, timeoutMeta());
@@ -1108,7 +1153,7 @@ function setupIPC(ipcMain: IpcMain): void {
           timeoutMeta(),
         );
         activityManager.updateStatus(streamId, 'failed', 'Not enough project files found for meaningful analysis.');
-        return { terminalId: '' };
+        return { terminalId: '', activityStreamId: streamId };
       }
 
       // Pre-flight: check AI tool is installed
@@ -1117,7 +1162,7 @@ function setupIPC(ipcMain: IpcMain): void {
         const toolError = toolCheck.error || `AI tool "${toolCheck.command}" not found.`;
         sendProgress(projectPath, 'error', toolError, 15, timeoutMeta());
         activityManager.updateStatus(streamId, 'failed', toolError);
-        return { terminalId: '' };
+        return { terminalId: '', activityStreamId: streamId };
       }
 
       // Pre-flight: check for bash shell on Windows
@@ -1128,7 +1173,7 @@ function setupIPC(ipcMain: IpcMain): void {
           const shellErrMsg = (shellErr as Error).message;
           sendProgress(projectPath, 'error', shellErrMsg, 15, timeoutMeta());
           activityManager.updateStatus(streamId, 'failed', shellErrMsg);
-          return { terminalId: '' };
+          return { terminalId: '', activityStreamId: streamId };
         }
       }
 
@@ -1141,7 +1186,7 @@ function setupIPC(ipcMain: IpcMain): void {
       if (context.trim().length === 0) {
         sendProgress(projectPath, 'error', 'No readable content found in detected files.', 30, timeoutMeta());
         activityManager.updateStatus(streamId, 'failed', 'No readable content found in detected files.');
-        return { terminalId: '' };
+        return { terminalId: '', activityStreamId: streamId };
       }
 
       // Build the prompt
@@ -1158,24 +1203,29 @@ function setupIPC(ipcMain: IpcMain): void {
         const result = await runAnalysisInTerminal(projectPath, prompt, {
           timeoutMs: options?.timeoutOverride,
           analysisStartMs,
+          streamId,
         });
         raw = result.raw;
         analysisTerminalId = result.terminalId;
       } catch (err) {
         const msg = (err as Error).message || 'Unknown error during analysis';
         const errTerminalId = (err as any).terminalId || activeAnalyses.get(projectPath)?.terminalId || '';
+        const abortReason = activityManager.getAbortSignal(streamId)?.reason;
+        const cancelled = abortReason === 'Cancelled' || /cancelled by user/i.test(msg);
         // Include terminalId so "View Terminal" button appears in error state
         if (mainWindow && !mainWindow.isDestroyed()) {
           broadcast(IPC.ONBOARDING_PROGRESS, {
             projectPath,
-            phase: 'error',
+            phase: cancelled ? 'cancelled' : 'error',
             message: msg,
             progress: 50,
             terminalId: errTerminalId,
             ...timeoutMeta(),
           } satisfies OnboardingProgressEvent);
         }
-        activityManager.updateStatus(streamId, 'failed', msg);
+        if (!cancelled) {
+          activityManager.updateStatus(streamId, 'failed', msg);
+        }
         console.error('[Onboarding] Analysis pipeline error:', err);
         // Save error log
         try {
@@ -1194,7 +1244,7 @@ function setupIPC(ipcMain: IpcMain): void {
           ].join('\n');
           fs.writeFileSync(logPath, logContent, 'utf8');
         } catch { /* ignore */ }
-        return { terminalId: errTerminalId };
+        return { terminalId: errTerminalId, activityStreamId: streamId };
       }
 
       // Phase: parsing
@@ -1239,7 +1289,7 @@ function setupIPC(ipcMain: IpcMain): void {
           } satisfies OnboardingProgressEvent);
         }
         activityManager.updateStatus(streamId, 'failed', errorMsg);
-        return { terminalId: errorTerminalId };
+        return { terminalId: errorTerminalId, activityStreamId: streamId };
       }
 
       // Cache parsed results for IMPORT_ONBOARDING_RESULTS
@@ -1252,14 +1302,14 @@ function setupIPC(ipcMain: IpcMain): void {
       activityManager.updateStatus(streamId, 'completed');
 
       // Return the terminal ID so the renderer can show the terminal tab
-      return { terminalId: analysisTerminalId };
+      return { terminalId: analysisTerminalId, activityStreamId: streamId };
     } catch (err) {
       console.error('[Onboarding] Unexpected error in analysis pipeline:', err);
       sendProgress(projectPath, 'error', `Unexpected error: ${(err as Error).message}`, 0);
       if (activityStreamId) {
         activityManager.updateStatus(activityStreamId, 'failed', `Unexpected error: ${(err as Error).message}`);
       }
-      return { terminalId: '' };
+      return { terminalId: '', activityStreamId: activityStreamId ?? '' };
     }
   });
 
@@ -1349,6 +1399,10 @@ function setupIPC(ipcMain: IpcMain): void {
     if (analysis) {
       console.log(`[Onboarding] Cancelling analysis for ${projectPath}`);
 
+      if (analysis.streamId) {
+        activityManager.cancelStream(analysis.streamId);
+      }
+
       // Kill the terminal
       try {
         ptyManager.destroyTerminal(analysis.terminalId);
@@ -1363,7 +1417,7 @@ function setupIPC(ipcMain: IpcMain): void {
         analysis.cleanup();
       }
 
-      sendProgress(projectPath, 'error', 'Analysis cancelled by user.', 0);
+      sendProgress(projectPath, 'cancelled', 'Analysis cancelled by user.', 0, { activityStreamId: analysis.streamId });
     }
   });
 }

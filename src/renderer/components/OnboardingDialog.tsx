@@ -28,6 +28,7 @@ import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '../lib/utils';
+import { focusActivityBar } from '../lib/activityBarEvents';
 import {
   Loader2,
   Search,
@@ -105,6 +106,7 @@ interface OnboardingDialogProps {
   analysisResult: OnboardingAnalysisResult | null;
   progress: { phase: string; message: string; progress: number } | null;
   terminalId: string | null;
+  activityStreamId: string | null;
   isAnalyzing: boolean;
   isImporting: boolean;
   error: string | null;
@@ -133,6 +135,7 @@ export function OnboardingDialog({
   analysisResult,
   progress,
   terminalId,
+  activityStreamId,
   isAnalyzing,
   isImporting,
   error,
@@ -816,9 +819,19 @@ export function OnboardingDialog({
               )}
 
               {/* Background hint */}
-              <p className="text-[10px] text-text-muted italic">
-                You can close this dialog — analysis continues in the background terminal.
-              </p>
+              <div className="flex items-center justify-between gap-2 rounded-md border border-border-subtle bg-bg-secondary/60 px-2.5 py-2">
+                <p className="text-[10px] text-text-muted italic">
+                  You can close this dialog. Live progress continues in the Activity bar and the analysis terminal.
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => focusActivityBar({ mode: 'activity', streamId: activityStreamId })}
+                  className="h-7 px-2 text-[11px] shrink-0"
+                >
+                  View Activity
+                </Button>
+              </div>
             </div>
           )}
 
@@ -1029,6 +1042,16 @@ export function OnboardingDialog({
             {/* Terminal output controls (step 1 during/after analysis) */}
             {activeStep === 1 && terminalId && (
               <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => focusActivityBar({ mode: 'activity', streamId: activityStreamId })}
+                  className="gap-1.5"
+                  title="Open the shared Activity bar for live progress and output"
+                >
+                  <Eye className="size-3.5" />
+                  Open Activity
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

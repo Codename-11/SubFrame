@@ -297,6 +297,9 @@ function startTimeout(streamId: string): void {
 
   internal.timeoutTimer = setTimeout(() => {
     const seconds = Math.floor(internal.timeout / 1000);
+    if (!internal.abortController.signal.aborted) {
+      internal.abortController.abort(`Timed out after ${seconds}s`);
+    }
     updateStatus(streamId, 'failed', `Timed out after ${seconds}s`);
   }, internal.timeout);
 }
@@ -316,7 +319,9 @@ function cancelStream(streamId: string): void {
   const internal = activeStreams.get(streamId);
   if (!internal) return;
 
-  internal.abortController.abort();
+  if (!internal.abortController.signal.aborted) {
+    internal.abortController.abort('Cancelled');
+  }
   updateStatus(streamId, 'cancelled');
 }
 

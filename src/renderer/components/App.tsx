@@ -28,13 +28,16 @@ import * as terminalRegistry from '../lib/terminalRegistry';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { useAIToolConfig } from '../hooks/useSettings';
 import { useIpcQuery } from '../hooks/useIpc';
+import { useIPCEvent } from '../hooks/useIPCListener';
 import { useViewport } from '../hooks/useViewport';
 import { IPC } from '../../shared/ipcChannels';
 import { typedInvoke, typedSend } from '../lib/ipc';
-import type { UninstallResult, WorkspaceListResult, WorkspaceData, WorkspaceProject } from '../../shared/ipcChannels';
+import { focusActivityBar } from '../lib/activityBarEvents';
+import type { Task, UninstallResult, WorkspaceListResult, WorkspaceData, WorkspaceProject } from '../../shared/ipcChannels';
 import { getTransport } from '../lib/transportProvider';
 import { MobileApp } from './mobile/MobileApp';
 import { TabletApp } from './mobile/TabletApp';
+import { toast } from 'sonner';
 
 /**
  * Root application layout.
@@ -56,6 +59,9 @@ export function App() {
   const toggleFullView = useUIStore((s) => s.toggleFullView);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
+  const activeTaskEnhance = useUIStore((s) => s.activeTaskEnhance);
+  const clearActiveTaskEnhance = useUIStore((s) => s.clearActiveTaskEnhance);
+  const setPendingEnhance = useUIStore((s) => s.setPendingEnhance);
   const isResizing = useUIStore((s) => s.isResizing);
   const editorFilePath = useUIStore((s) => s.editorFilePath);
   const setEditorFilePath = useUIStore((s) => s.setEditorFilePath);
@@ -96,6 +102,47 @@ export function App() {
       }
     }
   }, [currentProjectPath]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useIPCEvent<{ activityStreamId: string; success: boolean; enhanced: Partial<Task>; error?: string }>(
+    IPC.TASK_ENHANCE_RESULT,
+    useCallback((payload) => {
+      if (!payload.activityStreamId || payload.activityStreamId !== activeTaskEnhance?.activityStreamId) {
+        return;
+      }
+
+      toast.dismiss('enhance-progress');
+      clearActiveTaskEnhance();
+
+      if (payload.success) {
+        setPendingEnhance({
+          enhanced: payload.enhanced as Record<string, unknown>,
+          editingTaskId: activeTaskEnhance.editingTaskId,
+          openRequested: false,
+        });
+        toast.success('Task enhanced by AI', {
+          id: 'enhance-result',
+          action: {
+            label: 'View Results',
+            onClick: () => {
+              const store = useUIStore.getState();
+              if (store.pendingEnhance) {
+                store.setPendingEnhance({ ...store.pendingEnhance, openRequested: true });
+                store.setActivePanel('tasks');
+              }
+            },
+          },
+          duration: 10_000,
+        });
+        return;
+      }
+
+      if (payload.error === 'Cancelled') {
+        toast.info('Task enhancement cancelled');
+      } else {
+        toast.error(payload.error || 'AI enhancement failed');
+      }
+    }, [activeTaskEnhance, clearActiveTaskEnhance, setPendingEnhance])
+  );
 
   // Per-project right panel state save/restore
   const prevPanelProjectRef = useRef<string | null>(null);
@@ -577,16 +624,25 @@ export function App() {
         {/* Terminal area — always present, takes remaining space */}
         <div className="flex-1 min-w-0 flex flex-col bg-bg-deep">
           {/* Analysis banner — shown when dialog is closed but analysis is active, errored, or results are ready */}
-          {!onboardingDialogOpen && (onboarding.isAnalyzing || onboarding.error || (onboarding.analysisResult && !onboarding.importResult)) && (
+          {!onboardingDialogOpen && (onboarding.isAnalyzing || onboarding.error || onboarding.cancelled || (onboarding.analysisResult && !onboarding.importResult)) && (
             <div className={cn(
               "flex items-center gap-2 px-3 py-1.5 border-b shrink-0",
-              onboarding.error ? "bg-error/10 border-error/20" : "bg-accent/10 border-accent/20"
+              onboarding.error ? "bg-error/10 border-error/20"
+                : onboarding.cancelled ? "bg-bg-secondary border-border-subtle"
+                : "bg-accent/10 border-accent/20"
             )}>
               {onboarding.isAnalyzing ? (
                 <>
                   <div className="size-3 rounded-full border-2 border-accent border-t-transparent animate-spin" />
                   <span className="text-xs text-text-secondary">
                     AI analysis running...
+                  </span>
+                </>
+              ) : onboarding.cancelled ? (
+                <>
+                  <span className="size-2 rounded-full bg-text-muted" />
+                  <span className="text-xs text-text-secondary">
+                    Analysis cancelled
                   </span>
                 </>
               ) : onboarding.error ? (
@@ -606,10 +662,17 @@ export function App() {
               )}
               <button
                 type="button"
-                onClick={() => { userDismissedAnalysisRef.current = false; setOnboardingDialogOpen(true); }}
-                className="ml-auto text-xs text-accent hover:text-accent/80 font-medium transition-colors"
+                onClick={() => focusActivityBar({ mode: 'activity', streamId: onboarding.activityStreamId })}
+                className="ml-auto text-xs text-text-secondary hover:text-text-primary font-medium transition-colors"
               >
-                {onboarding.isAnalyzing ? 'View Progress' : onboarding.error ? 'View Error' : 'Review Results'}
+                View Activity
+              </button>
+              <button
+                type="button"
+                onClick={() => { userDismissedAnalysisRef.current = false; setOnboardingDialogOpen(true); }}
+                className="text-xs text-accent hover:text-accent/80 font-medium transition-colors"
+              >
+                {onboarding.isAnalyzing ? 'View Progress' : onboarding.error ? 'View Error' : onboarding.cancelled ? 'Start Again' : 'Review Results'}
               </button>
             </div>
           )}
@@ -685,6 +748,7 @@ export function App() {
         analysisResult={onboarding.analysisResult}
         progress={onboarding.progress}
         terminalId={onboarding.terminalId}
+        activityStreamId={onboarding.activityStreamId}
         isAnalyzing={onboarding.isAnalyzing}
         isImporting={onboarding.isImporting}
         error={onboarding.error}
