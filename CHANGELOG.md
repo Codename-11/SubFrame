@@ -7,10 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0-beta] - 2026-03-25
+
 ### Added
-- **Terminal Persistence settings UI** — `restoreOnStartup`, `restoreScrollback`, and `autoResumeAgent` are now configurable in Settings > Terminal > Persistence. Includes tooltips and search indexing
-- **Terminal shortcuts** — `Ctrl+Shift+R` (Restart Shell) and `Ctrl+Shift+F` (Freeze/Unfreeze Terminal) added to documentation and keyboard shortcuts overlay
-- **System panel shortcut** — `Ctrl+Shift+U` added to documentation and keyboard shortcuts overlay
+- **LAN hosting mode for SubFrame Server** — trusted-network hosting can now bind on the LAN with clearer warnings, local-IP detection, QR guidance, and Android-friendly access without requiring SSH tunneling
+- **Base URL pairing flow** — remote clients can now open the raw server URL, pair with a short code, or paste a token instead of depending on a long `?token=` link
+- **Preferred server port reuse** — SubFrame Server now supports a stable preferred port and auto mode reuses the last successful port when available
+- **Live remote session hydration** — web clients now hydrate from the host’s current workspace, project, terminal, and UI snapshot instead of restoring mostly from browser-local state
+- **Cross-surface UI mirroring** — remote sessions now mirror open dialogs, side panels, right-panel sizing/collapse, and full-view tabs so the browser and host stay closer to the same live state
+- **Remote cursor tracking** — optional host-side cursor/touch visualization for remote web clients with a dedicated UI setting
+- **Workspace pill customization** — workspace pills now support index, short label, icon, mixed display combinations, drag-to-reorder, and per-workspace identity metadata
+- **Workspace activity badges** — topbar workspace pills now show separate AI-active and terminal-count indicators
+- **Workspace-wide terminal mix mode** — terminal views can temporarily combine terminals across projects in the same workspace instead of only relying on per-terminal pinning
+- **Hover terminal actions** — pin and freeze controls now appear directly on terminal tabs, and grid headers now have freeze/resume parity next to pop-out
+- **Web server activity badge** — the bottom activity bar now shows web server state and exposes quick actions for start/stop and URL copy
+- **Mobile panel parity** — mobile web now exposes the fuller terminal surface plus shared panels such as GitHub, activity, and Sub-Tasks
+
+### Changed
+- **Settings information architecture** — the settings modal is larger, the internal layout is roomier, theme actions are separated from workspace-pill controls, and SubFrame Server settings present connection details more clearly
+- **Server startup model** — manual web-server start/stop is now session-scoped, while `Start Server on Launch` is a separate persistent setting
+- **Remote pairing screens** — unauthenticated web screens now hydrate the active theme and mirror context so pairing/connecting/takeover views match the desktop app
+
+### Fixed
+- **Web asset MIME failures** — browser-served JS/CSS asset paths now resolve correctly on Windows instead of falling through to the SPA HTML response
+- **Older Android browser compatibility** — live-session hydration no longer depends on `crypto.randomUUID()` being present
+- **Browser IPC routing gaps** — routed `invoke`, `send`, `reply`, and `sender.send` flows now work across browser mode for tasks, workspace data, updater actions, CLI/context-menu handlers, and terminal creation replies
+- **Remote task/panel visibility regressions** — mobile Sub-Tasks and other mirrored panels now render inside proper full-height containers instead of silently collapsing
+- **Settings modal sync flicker** — mirrored UI snapshots now suppress self-echo loops so the settings dialog no longer bounces open/closed during remote sync
+- **Preferred-port field UX** — auto mode no longer displays `0` as the visible default; it now shows effective/current-port context instead
 
 ## [0.9.0-beta] - 2026-03-24
 
@@ -485,7 +509,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.9.0-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.10.0-beta...HEAD
+[0.10.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.9.0-beta...v0.10.0-beta
 [0.9.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.8.0-beta...v0.9.0-beta
 [0.8.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.7.0-beta...v0.8.0-beta
 [0.7.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.6.0-beta...v0.7.0-beta

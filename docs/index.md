@@ -11,7 +11,7 @@ head:
         "name": "SubFrame",
         "operatingSystem": "Windows, macOS, Linux",
         "applicationCategory": "DeveloperApplication",
-        "softwareVersion": "0.9.0-beta"
+        "softwareVersion": "0.10.0-beta"
       }
 ---
 
