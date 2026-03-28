@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1-beta] - 2026-03-28
+
+### Added
+- **Update Status section in Settings** — inline Download and Restart & Install buttons in Settings > Updates
+- **YOLO badge on tool cards** — Codex and Gemini show a YOLO badge when a dangerous flag is enabled
+- **Web renderer dev watcher** — `npm run dev` now watches and rebuilds `dist/web-renderer.js` alongside Electron renderer
+
+### Fixed
+- **Session control both-sides-have-control** — web store defaulted `isElectronSide=true` when transport wasn't ready; now uses build-time `__SUBFRAME_WEB__` constant
+- **Session control WS origin detection** — IPC router routed events now carry `__wsRouted` marker for correct origin attribution
+- **Update toast disappearing on Download** — immediate loading toast on click; error toasts always shown for download/install failures
+- **Workspace pill badge clipping** — `overflow-visible` on pill containers so terminal count badges render fully
+- **StatusBar web badge** — now navigates directly to web-server settings tab
+
+### Changed
+- **Session control broadcasts debounced** — 50ms debounce prevents rapid-fire state updates
+- **WEB_SESSION_SYNC preserves origin** — rebroadcast from main process now includes the origin field
+
 ## [0.11.0-beta] - 2026-03-27
 
 ### Added
