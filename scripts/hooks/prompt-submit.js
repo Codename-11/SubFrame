@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.11.1-beta
+// @subframe-version 0.11.2-beta
 // @subframe-managed
 /**
  * SubFrame UserPromptSubmit Hook
