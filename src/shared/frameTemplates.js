@@ -42,7 +42,7 @@ var require_package = __commonJS({
     module2.exports = {
       name: "subframe",
       productName: "SubFrame",
-      version: "0.10.0-beta",
+      version: "0.11.0-beta",
       description: "SubFrame - Project Management IDE for Claude Code",
       main: "dist/main/index.js",
       scripts: {
@@ -255,6 +255,10 @@ var require_package = __commonJS({
           {
             from: "scripts/build-templates.js",
             to: "scripts/build-templates.js"
+          },
+          {
+            from: "mcp/subframe-analysis-server.mjs",
+            to: "mcp/subframe-analysis-server.mjs"
           }
         ],
         files: [
@@ -590,6 +594,7 @@ module.exports = __toCommonJS(frameTemplates_exports);
 
 // src/shared/frameConstants.ts
 var path = __toESM(require("path"));
+var IS_DEV_MODE = typeof process !== "undefined" && (process.env.NODE_ENV === "development" || process.env.ELECTRON_DEV === "1");
 var SUBFRAME_HOOKS_DIR = path.join(".subframe", "hooks");
 var FRAME_FILES = {
   AGENTS: "AGENTS.md",

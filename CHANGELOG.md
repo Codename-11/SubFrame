@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0-beta] - 2026-03-27
+
+### Added
+- **MCP-based AI onboarding analysis** — onboarding now uses Model Context Protocol for structured prompt delivery and result capture, mirroring agent-forge's proven pattern
+- **Per-tool CLI integration** — correct flags for Claude (`--dangerously-skip-permissions`), Codex (`--yolo`), and Gemini (`--yolo`) with per-tool input methods (sendKeys vs pasteFromFile)
+- **Session control system** — cooperative control handoff between Electron and web clients with activity detection, idle auto-grant, and view-only mode
+- **Session control banner** — top-of-page banner showing connection status with Request/Grant/Take/Release control actions
+- **Terminal input gating** — view-only side has input blocked with overlay; AI sessions also gated with "Enable Input" override
+- **EmbeddedTerminal component** — real terminal registry attach/detach for dialog embedding (used in onboarding modal)
+- **MCP server** (`mcp/subframe-analysis-server.mjs`) — standalone MCP server with `get_analysis_prompt` and `submit_analysis` tools
+- **Settings > Project tab** — granular uninstall UI with per-component checkboxes, dry-run preview, and modified file detection
+- **"Run AI Analysis" sidebar button** — re-run onboarding analysis for already-initialized projects
+- **Web server status in StatusBar** — persistent bottom bar shows Web Live/Ready/Error with control state
+- **Workspace pill bar improvements** — smart ordering (active-first), section-level hover expand, configurable collapsed count and max visible
+- **Onboarding review enhancements** — expandable detail previews for Structure, Project Notes, and Suggested Tasks with tech stack chips, module lists, and decision cards
+
+### Changed
+- **Default theme** — Neon Traces and Logo Glow now enabled by default for SubFrame Classic
+- **Workspace pills position** — moved to left side of top bar (before open tabs) so hover expand grows rightward
+- **Analysis timeout** — reduced default from 10 minutes to 5 minutes (300s)
+- **Onboarding dialog** — only closable via X button (not clicking outside), prevents accidental dismissal during analysis
+
+### Fixed
+- **ConPTY output delay on Windows** — `conptyInheritCursor: false` for all background AI terminals, matching agent-forge's approach
+- **Rollback state retention** — uninstall now clears main process session cache so re-init starts fresh
+- **React error #185 in web mode** — Dialog components use forwardRef, SettingsPanel unmounts when closed, dialog states never synced across clients
+- **Sidebar flashing on web connect** — live sync suppressed for 1.5s during initial hydration
+- **Duplicate `--dangerously-skip-permissions` flag** — command construction checks for existing flags
+- **"Open Terminal" losing context** — EmbeddedTerminal detach checks if xterm was already moved by Terminal tab (race condition fix)
+- **Activity stream noise** — debounced TUI character-by-character output into 1.5s batches
+- **MCP permission prompts** — auto-approval handler for Codex's MCP tool permission dialogs
+
 ## [0.10.0-beta] - 2026-03-25
 
 ### Added

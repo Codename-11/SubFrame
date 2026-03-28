@@ -9000,355 +9000,219 @@
       "functions": {}
     },
     "shared/frameTemplates": {
-      "file": "src\\shared\\frameTemplates.ts",
+      "file": "src/shared/frameTemplates.js",
       "description": "SubFrame Templates Templates for auto-generated SubFrame project files Each template includes instructions header for Claude Code",
       "exports": [
+        "AGENTS_TEMPLATE_VERSION",
+        "SUBFRAME_MANAGED_REGEX",
+        "SUBFRAME_VERSION_REGEX",
         "getAgentsTemplate",
-        "getStructureTemplate",
-        "getNotesTemplate",
-        "getTasksTemplate",
-        "getTaskMarkdownTemplate",
-        "getQuickstartTemplate",
+        "getClaudeSettingsHooksTemplate",
+        "getCodexWrapperTemplate",
+        "getDefaultReviewWorkflow",
+        "getDocsAuditWorkflow",
         "getDocsInternalReadme",
         "getFrameConfigTemplate",
-        "getCodexWrapperTemplate",
         "getGenericWrapperTemplate",
+        "getHealthCheckWorkflow",
+        "getHookUpdaterScript",
         "getNativeFileTemplate",
+        "getNotesTemplate",
+        "getOnboardSkillTemplate",
+        "getPostToolUseHookTemplate",
         "getPreCommitHookTemplate",
         "getPrePushHookTemplate",
-        "getHookUpdaterScript",
-        "getSessionStartHookTemplate",
-        "getPromptSubmitHookTemplate",
-        "getStopHookTemplate",
         "getPreToolUseHookTemplate",
-        "getPostToolUseHookTemplate",
-        "getClaudeSettingsHooksTemplate",
-        "getSubTasksSkillTemplate",
-        "getSubDocsSkillTemplate",
-        "getSubAuditSkillTemplate",
-        "getOnboardSkillTemplate",
-        "getDefaultReviewWorkflow",
-        "getTaskVerifyWorkflow",
-        "getHealthCheckWorkflow",
-        "getDocsAuditWorkflow",
+        "getPromptSubmitHookTemplate",
+        "getQuickstartTemplate",
         "getSecurityScanWorkflow",
-        "SUBFRAME_VERSION_REGEX",
-        "SUBFRAME_MANAGED_REGEX",
-        "AGENTS_TEMPLATE_VERSION"
+        "getSessionStartHookTemplate",
+        "getStopHookTemplate",
+        "getStructureTemplate",
+        "getSubAuditSkillTemplate",
+        "getSubDocsSkillTemplate",
+        "getSubTasksSkillTemplate",
+        "getTaskMarkdownTemplate",
+        "getTaskVerifyWorkflow",
+        "getTasksTemplate"
       ],
       "depends": [
-        "backlinkUtils",
         "fs",
         "path",
         "child_process",
         "${script}",
-        "package.json",
-        "frameConstants"
+        "package.json"
       ],
       "functions": {
+        "getBacklinkBlock": {
+          "line": 298
+        },
+        "hasBacklink": {
+          "line": 310
+        },
+        "injectBacklink": {
+          "line": 320
+        },
+        "updateBacklink": {
+          "line": 338
+        },
+        "removeBacklink": {
+          "line": 362
+        },
+        "isSymlinkFile": {
+          "line": 383
+        },
+        "getNativeFileStatus": {
+          "line": 392
+        },
+        "getClaudeNativeStatus": {
+          "line": 423
+        },
+        "getBacklinkTarget": {
+          "line": 444
+        },
+        "verifyNativeFile": {
+          "line": 459
+        },
+        "collectNativeFileIssues": {
+          "line": 488
+        },
+        "verifyBacklinks": {
+          "line": 525
+        },
         "getDateString": {
-          "line": 84,
-          "purpose": "Get current date in YYYY-MM-DD format"
+          "line": 630
         },
         "getISOTimestamp": {
-          "line": 91,
-          "purpose": "Get current ISO timestamp"
+          "line": 633
         },
         "getAgentsTemplate": {
-          "line": 98,
-          "params": [
-            "projectName"
-          ],
-          "purpose": "AGENTS.md template - Main instructions file for AI assistants",
-          "calls": [
-            "getDateString"
-          ]
+          "line": 636
         },
         "getStructureTemplate": {
-          "line": 492,
-          "params": [
-            "projectName"
-          ],
-          "purpose": "STRUCTURE.json template",
-          "calls": [
-            "getDateString"
-          ]
+          "line": 1026
         },
         "getNotesTemplate": {
-          "line": 516,
-          "params": [
-            "projectName"
-          ],
-          "purpose": "PROJECT_NOTES.md template",
-          "calls": [
-            "getDateString"
-          ]
+          "line": 1046
         },
         "getTasksTemplate": {
-          "line": 536,
-          "params": [
-            "projectName"
-          ],
-          "purpose": "tasks.json template",
-          "calls": [
-            "getDateString",
-            "getISOTimestamp"
-          ]
+          "line": 1062
         },
         "getTaskMarkdownTemplate": {
-          "line": 590,
-          "params": [
-            "task"
-          ],
-          "purpose": "Generate a blank task markdown template for a new task."
+          "line": 1112
         },
         "getQuickstartTemplate": {
-          "line": 624,
-          "params": [
-            "projectName"
-          ],
-          "purpose": "QUICKSTART.md template",
-          "calls": [
-            "getDateString"
-          ]
+          "line": 1142
         },
         "getDocsInternalReadme": {
-          "line": 702,
-          "params": [
-            "projectName"
-          ],
-          "purpose": "docs-internal/README.md template"
+          "line": 1216
         },
         "getFrameConfigTemplate": {
-          "line": 744,
-          "params": [
-            "projectName"
-          ],
-          "purpose": ".subframe/config.json template",
-          "calls": [
-            "getISOTimestamp"
-          ]
+          "line": 1254
         },
         "getCodexWrapperTemplate": {
-          "line": 776,
-          "purpose": "Codex CLI wrapper script"
+          "line": 1282
         },
         "getGenericWrapperTemplate": {
-          "line": 812,
-          "params": [
-            "toolCommand",
-            "promptFlag"
-          ],
-          "purpose": "Generic AI tool wrapper template"
+          "line": 1314
         },
         "getNativeFileTemplate": {
-          "line": 848,
-          "purpose": "Returns just the backlink block that references AGENTS.md",
-          "calls": [
-            "getBacklinkBlock"
-          ]
+          "line": 1345
         },
         "getPreCommitHookTemplate": {
-          "line": 857,
-          "purpose": "Pre-commit hook template for user projects"
+          "line": 1349
         },
         "getPrePushHookTemplate": {
-          "line": 905,
-          "purpose": "Triggers pipeline workflows configured with \"on: { push: true }\"."
+          "line": 1392
         },
         "getHookUpdaterScript": {
-          "line": 934,
-          "purpose": "Pre-commit hook updater script (Node.js)",
-          "calls": [
-            "stripExt"
-          ]
+          "line": 1417
         },
         "stripExt": {
-          "line": 952,
-          "params": [
-            "p"
-          ],
-          "purpose": "Strip any JS/TS extension for module key"
+          "line": 1435
         },
         "getSessionStartHookTemplate": {
-          "line": 1069,
-          "purpose": "Injects pending/in-progress sub-tasks into Claude's context at session start.",
-          "calls": [
-            "findProjectRoot",
-            "main",
-            "readPrivateTasks"
-          ]
+          "line": 1547
         },
         "findProjectRoot": {
-          "line": 1778,
-          "params": [
-            "startDir"
-          ],
-          "purpose": "── Helpers ─────────────────────────────────────────────────────────────────"
+          "line": 2236
         },
         "readPrivateTasks": {
-          "line": 1101,
-          "params": [
-            "root"
-          ],
-          "purpose": "Minimal parser — extracts id, title, status, priority, private flag from frontmatter."
+          "line": 1579
         },
         "main": {
-          "line": 1831,
-          "purpose": "── Main ────────────────────────────────────────────────────────────────────",
-          "calls": [
-            "cleanStaleSessions",
-            "findProjectRoot",
-            "loadState",
-            "writeState"
-          ]
+          "line": 2289
         },
         "getPromptSubmitHookTemplate": {
-          "line": 1208,
-          "purpose": "Fuzzy-matches user prompts against pending sub-task titles.",
-          "calls": [
-            "findProjectRoot",
-            "findTasksFile",
-            "main",
-            "matchScore",
-            "readPrivatePending",
-            "writeUserMessageSignal"
-          ]
+          "line": 1681
         },
         "findTasksFile": {
-          "line": 1406,
-          "params": [
-            "startDir"
-          ],
-          "calls": [
-            "findProjectRoot"
-          ]
+          "line": 1874
         },
         "readPrivatePending": {
-          "line": 1241,
-          "params": [
-            "root"
-          ]
+          "line": 1714
         },
         "matchScore": {
-          "line": 1274,
-          "params": [
-            "prompt",
-            "title"
-          ]
+          "line": 1747
         },
         "writeUserMessageSignal": {
-          "line": 1286,
-          "params": [
-            "root",
-            "terminalId",
-            "prompt"
-          ]
+          "line": 1759
         },
         "getStopHookTemplate": {
-          "line": 1379,
-          "purpose": "Reminds about in-progress sub-tasks and detects untracked work.",
-          "calls": [
-            "findProjectRoot",
-            "findTasksFile",
-            "getModifiedSourceFiles",
-            "main"
-          ]
+          "line": 1847
         },
         "getModifiedSourceFiles": {
-          "line": 1413,
-          "params": [
-            "projectRoot"
-          ]
+          "line": 1881
         },
         "getPreToolUseHookTemplate": {
-          "line": 1510,
-          "purpose": "Writes a \"running\" step to agent-state.json for real-time agent visualization.",
-          "calls": [
-            "buildLabel",
-            "cleanStaleSessions",
-            "findProjectRoot",
-            "loadState",
-            "main",
-            "writeState"
-          ]
+          "line": 1973
         },
         "buildLabel": {
-          "line": 1560,
-          "params": [
-            "toolName",
-            "toolInput"
-          ]
+          "line": 2023
         },
         "loadState": {
-          "line": 1787,
-          "params": [
-            "statePath"
-          ]
+          "line": 2245
         },
         "writeState": {
-          "line": 1796,
-          "params": [
-            "statePath",
-            "state"
-          ]
+          "line": 2254
         },
         "cleanStaleSessions": {
-          "line": 1813,
-          "params": [
-            "state",
-            "now"
-          ]
+          "line": 2271
         },
         "getPostToolUseHookTemplate": {
-          "line": 1756,
-          "purpose": "Marks matching running step as \"completed\" in agent-state.json.",
-          "calls": [
-            "cleanStaleSessions",
-            "findProjectRoot",
-            "loadState",
-            "main",
-            "writeState"
-          ]
+          "line": 2214
         },
         "getClaudeSettingsHooksTemplate": {
-          "line": 1926,
-          "purpose": "Returns the hooks portion of .claude/settings.json pointing to .subframe/hooks/"
+          "line": 2379
         },
         "getSubTasksSkillTemplate": {
-          "line": 1973,
-          "purpose": "instead of the SubFrame-app-specific scripts/task.js CLI"
+          "line": 2416
         },
         "getSubDocsSkillTemplate": {
-          "line": 2086,
-          "purpose": "/sub-docs skill template — generalized for any SubFrame-managed project"
+          "line": 2525
         },
         "getSubAuditSkillTemplate": {
-          "line": 2184,
-          "purpose": "/sub-audit skill template — generalized for any SubFrame-managed project"
+          "line": 2619
         },
         "getOnboardSkillTemplate": {
-          "line": 2274,
-          "purpose": "/onboard skill template — analyze project intelligence and bootstrap SubFrame files"
+          "line": 2705
         },
         "getDefaultReviewWorkflow": {
-          "line": 2493,
-          "purpose": "─── Pipeline Workflow Templates ──────────────────────────────────────────────"
+          "line": 2921
         },
         "getTaskVerifyWorkflow": {
-          "line": 2537
+          "line": 2964
         },
         "getHealthCheckWorkflow": {
-          "line": 2560
+          "line": 2986
         },
         "getDocsAuditWorkflow": {
-          "line": 2593
+          "line": 3018
         },
         "getSecurityScanWorkflow": {
-          "line": 2618
+          "line": 3042
         }
-      },
-      "loc": 2642
+      }
     },
     "shared/ipcChannels": {
       "file": "src/shared/ipcChannels.ts",
@@ -9383,68 +9247,177 @@
       "loc": 95
     },
     "shared/projectInit": {
-      "file": "src\\shared\\projectInit.ts",
+      "file": "src/shared/projectInit.js",
       "description": "SubFrame Project Initialization (Pure Node.js) Core init logic shared between the Electron app and the CLI. No Electron dependencies — safe to require from plain Node.js.",
       "exports": [
+        "checkExistingFiles",
         "createFileIfNotExists",
         "createOrMigrateNativeFile",
-        "checkExistingFiles",
-        "migrateRootFiles",
-        "initializeProject"
+        "initializeProject",
+        "migrateRootFiles"
       ],
       "depends": [
         "fs",
         "path",
         "child_process",
-        "frameConstants",
-        "frameTemplates",
-        "backlinkUtils",
-        "claudeSettingsUtils"
+        "${script}",
+        "package.json"
       ],
       "functions": {
+        "getBacklinkBlock": {
+          "line": 282
+        },
+        "injectBacklink": {
+          "line": 294
+        },
+        "isSymlinkFile": {
+          "line": 312
+        },
+        "getDateString": {
+          "line": 383
+        },
+        "getISOTimestamp": {
+          "line": 386
+        },
+        "getAgentsTemplate": {
+          "line": 389
+        },
+        "getStructureTemplate": {
+          "line": 779
+        },
+        "getNotesTemplate": {
+          "line": 799
+        },
+        "getTasksTemplate": {
+          "line": 815
+        },
+        "getQuickstartTemplate": {
+          "line": 865
+        },
+        "getDocsInternalReadme": {
+          "line": 939
+        },
+        "getFrameConfigTemplate": {
+          "line": 977
+        },
+        "getCodexWrapperTemplate": {
+          "line": 1005
+        },
+        "getPreCommitHookTemplate": {
+          "line": 1037
+        },
+        "getPrePushHookTemplate": {
+          "line": 1080
+        },
+        "getHookUpdaterScript": {
+          "line": 1105
+        },
+        "stripExt": {
+          "line": 1123
+        },
+        "getSessionStartHookTemplate": {
+          "line": 1235
+        },
+        "findProjectRoot": {
+          "line": 1924
+        },
+        "readPrivateTasks": {
+          "line": 1267
+        },
+        "main": {
+          "line": 1977
+        },
+        "getPromptSubmitHookTemplate": {
+          "line": 1369
+        },
+        "findTasksFile": {
+          "line": 1562
+        },
+        "readPrivatePending": {
+          "line": 1402
+        },
+        "matchScore": {
+          "line": 1435
+        },
+        "writeUserMessageSignal": {
+          "line": 1447
+        },
+        "getStopHookTemplate": {
+          "line": 1535
+        },
+        "getModifiedSourceFiles": {
+          "line": 1569
+        },
+        "getPreToolUseHookTemplate": {
+          "line": 1661
+        },
+        "buildLabel": {
+          "line": 1711
+        },
+        "loadState": {
+          "line": 1933
+        },
+        "writeState": {
+          "line": 1942
+        },
+        "cleanStaleSessions": {
+          "line": 1959
+        },
+        "getPostToolUseHookTemplate": {
+          "line": 1902
+        },
+        "getClaudeSettingsHooksTemplate": {
+          "line": 2067
+        },
+        "getSubTasksSkillTemplate": {
+          "line": 2104
+        },
+        "getSubDocsSkillTemplate": {
+          "line": 2213
+        },
+        "getSubAuditSkillTemplate": {
+          "line": 2307
+        },
+        "getOnboardSkillTemplate": {
+          "line": 2393
+        },
+        "getDefaultReviewWorkflow": {
+          "line": 2609
+        },
+        "getTaskVerifyWorkflow": {
+          "line": 2652
+        },
+        "getHealthCheckWorkflow": {
+          "line": 2674
+        },
+        "readClaudeSettings": {
+          "line": 2714
+        },
+        "writeClaudeSettings": {
+          "line": 2724
+        },
+        "isSubFrameHook": {
+          "line": 2732
+        },
+        "mergeSubFrameHooks": {
+          "line": 2735
+        },
         "createFileIfNotExists": {
-          "line": 31,
-          "params": [
-            "filePath",
-            "content"
-          ],
-          "purpose": "Create file if it doesn't exist"
+          "line": 2755
         },
         "createOrMigrateNativeFile": {
-          "line": 45,
-          "params": [
-            "filePath"
-          ],
-          "purpose": "Create or migrate a native AI file with backlink injection",
-          "calls": [
-            "injectBacklink",
-            "isSymlinkFile"
-          ]
+          "line": 2763
         },
         "checkExistingFiles": {
-          "line": 60,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Check which SubFrame files already exist in the project"
+          "line": 2774
         },
         "migrateRootFiles": {
-          "line": 91,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Migrate legacy root-level files into .subframe/ directory"
+          "line": 2799
         },
         "initializeProject": {
-          "line": 119,
-          "params": [
-            "projectPath",
-            "options"
-          ],
-          "purpose": "Initialize a project as a SubFrame project."
+          "line": 2819
         }
-      },
-      "loc": 356
+      }
     },
     "shared/subframeHealth": {
       "file": "src\\shared\\subframeHealth.ts",
