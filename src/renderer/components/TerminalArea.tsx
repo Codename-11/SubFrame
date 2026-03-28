@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, ArrowLeft, ExternalLink } from 'lucide-react';
+import { X, ArrowLeft, ExternalLink, Sparkles } from 'lucide-react';
 import { TerminalTabBar } from './TerminalTabBar';
 import { generateTerminalName, getUsedTerminalNames } from '../lib/terminalNames';
 import { TerminalGrid } from './TerminalGrid';
@@ -183,6 +183,7 @@ export function TerminalArea() {
   const switchToProject = useTerminalStore((s) => s.switchToProject);
 
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
+  const isFrameProject = useProjectStore((s) => s.isFrameProject);
   const workspaceName = useProjectStore((s) => s.workspaceName);
   const workspaceProjects = useProjectStore((s) => s.projects);
   const fullViewContent = useUIStore((s) => s.fullViewContent);
@@ -1063,24 +1064,35 @@ export function TerminalArea() {
                   : 'Select a project to get started'}
               </p>
 
-              <div className="flex items-center gap-3 mt-4">
-                <button
-                  onClick={() => window.dispatchEvent(new Event('start-ai-tool'))}
-                  disabled={!currentProjectPath}
-                  className={`px-5 py-2.5 rounded-md text-sm font-semibold transition-colors shadow-sm ${
-                    currentProjectPath
-                      ? 'bg-success/20 text-success border border-success/30 hover:bg-success/30 cursor-pointer shadow-success/10'
-                      : 'bg-bg-elevated text-text-muted border border-border-subtle cursor-not-allowed'
-                  }`}
-                >
-                  Start {aiToolName}
-                </button>
-                <button
-                  onClick={() => createTerminal()}
-                  className="bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors shadow-sm"
-                >
-                  New Terminal
-                </button>
+              <div className="mt-4 w-full space-y-2.5">
+                {currentProjectPath && !isFrameProject && (
+                  <button
+                    onClick={() => window.dispatchEvent(new Event('open-frame-init'))}
+                    className="w-full bg-accent-subtle text-accent border border-accent/20 hover:bg-accent/20 px-4 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors shadow-sm inline-flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="size-4" />
+                    Initialize with SubFrame
+                  </button>
+                )}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    onClick={() => window.dispatchEvent(new Event('start-ai-tool'))}
+                    disabled={!currentProjectPath}
+                    className={`w-full px-4 py-2.5 rounded-md text-sm font-semibold transition-colors shadow-sm ${
+                      currentProjectPath
+                        ? 'bg-success/20 text-success border border-success/30 hover:bg-success/30 cursor-pointer shadow-success/10'
+                        : 'bg-bg-elevated text-text-muted border border-border-subtle cursor-not-allowed'
+                    }`}
+                  >
+                    Start {aiToolName}
+                  </button>
+                  <button
+                    onClick={() => createTerminal()}
+                    className="w-full bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 px-4 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors shadow-sm"
+                  >
+                    New Terminal
+                  </button>
+                </div>
               </div>
 
               {/* Keyboard shortcuts section */}

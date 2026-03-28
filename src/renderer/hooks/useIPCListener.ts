@@ -7,6 +7,46 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getTransport } from '../lib/transportProvider';
 
+type SharedListener = (event: unknown, data: unknown) => void;
+
+interface ChannelSubscription {
+  handlers: Set<SharedListener>;
+  unsubscribe: () => void;
+}
+
+const channelSubscriptions = new Map<string, ChannelSubscription>();
+
+function subscribeShared(channel: string, handler: SharedListener): () => void {
+  let subscription = channelSubscriptions.get(channel);
+
+  if (!subscription) {
+    const handlers = new Set<SharedListener>();
+    const unsubscribe = getTransport().on(channel, (event: unknown, data: unknown) => {
+      const current = channelSubscriptions.get(channel);
+      if (!current) return;
+      for (const registeredHandler of current.handlers) {
+        registeredHandler(event, data);
+      }
+    });
+
+    subscription = { handlers, unsubscribe };
+    channelSubscriptions.set(channel, subscription);
+  }
+
+  subscription.handlers.add(handler);
+
+  return () => {
+    const current = channelSubscriptions.get(channel);
+    if (!current) return;
+
+    current.handlers.delete(handler);
+    if (current.handlers.size === 0) {
+      current.unsubscribe();
+      channelSubscriptions.delete(channel);
+    }
+  };
+}
+
 /**
  * Listen for an IPC event from the main process.
  * When the event fires, invalidates the specified React Query keys.
@@ -40,7 +80,7 @@ export function useIPCListener(
       });
     };
 
-    return getTransport().on(channel, handler);
+    return subscribeShared(channel, handler);
   }, [channel, queryClient]);
 }
 
@@ -68,6 +108,6 @@ export function useIPCEvent<T = unknown>(
       handlerRef.current(data);
     };
 
-    return getTransport().on(channel, wrappedHandler);
+    return subscribeShared(channel, wrappedHandler as SharedListener);
   }, [channel]);
 }

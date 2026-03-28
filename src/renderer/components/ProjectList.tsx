@@ -58,6 +58,7 @@ export function ProjectList() {
   const [inlineRenamePath, setInlineRenamePath] = useState<string | null>(null);
   const [inlineRenameValue, setInlineRenameValue] = useState('');
   const inlineRenameRef = useRef<HTMLInputElement>(null);
+  const lastWorkspaceKeyRef = useRef<string | null>(null);
 
   // Focus the inline rename input when it appears
   useEffect(() => {
@@ -69,16 +70,30 @@ export function ProjectList() {
 
   // Sync project list to store — only show manual (workspace) projects in the list.
   // Scanned/discovered projects appear in the "+" dropdown instead.
-  const updateProjects = useCallback((list: WorkspaceProject[]) => {
+  const updateProjects = useCallback((data: WorkspaceData | WorkspaceProject[]) => {
+    const workspaceData = data && !Array.isArray(data) && 'projects' in data ? data : null;
+    const list = workspaceData?.projects ?? (data as WorkspaceProject[]);
+    const workspaceKey = workspaceData?.workspaceKey ?? null;
+    const defaultProjectPath = workspaceData?.defaultProjectPath ?? null;
     const manual = (list || []).filter((p: any) => p.source !== 'scanned');
     const sorted = sortProjects(manual);
     setProjects(sorted as ProjectWithSource[]);
     setProjectsInStore(sorted.map((p) => ({ path: p.path, name: p.name, isFrameProject: p.isFrameProject ?? false, aiTool: p.aiTool })));
 
-    // Auto-select first project when current selection is not in the new list
+    const workspaceChanged = workspaceKey !== null && workspaceKey !== lastWorkspaceKeyRef.current;
+    if (workspaceKey !== null) {
+      lastWorkspaceKeyRef.current = workspaceKey;
+    }
+
+    const defaultProject = defaultProjectPath
+      ? sorted.find((project) => project.path === defaultProjectPath)
+      : undefined;
+
     const current = useProjectStore.getState().currentProjectPath;
     const inList = sorted.some((p) => p.path === current);
-    if (!inList) {
+    if (workspaceChanged && defaultProject) {
+      setProject(defaultProject.path, defaultProject.isFrameProject ?? false);
+    } else if (!inList) {
       if (sorted.length > 0) {
         setProject(sorted[0].path, sorted[0].isFrameProject ?? false);
       } else {
@@ -90,17 +105,15 @@ export function ProjectList() {
   // Listen for workspace data from main process
   // The main process sends { projects: [...], workspaceName: "..." }
   useIPCEvent<WorkspaceData | WorkspaceProject[]>(IPC.WORKSPACE_DATA, (data) => {
-    const list = data && 'projects' in data ? data.projects : (data as WorkspaceProject[]);
-    updateProjects(list);
+    updateProjects(data);
     // Extract workspace name if present
     if (data && 'workspaceName' in data && typeof (data as any).workspaceName === 'string') {
       setWorkspaceName((data as any).workspaceName);
     }
   });
 
-  useIPCEvent<{ projects: WorkspaceProject[]; workspaceName: string }>(IPC.WORKSPACE_UPDATED, (data) => {
-    const list = data && 'projects' in data ? data.projects : (data as unknown as WorkspaceProject[]);
-    updateProjects(list);
+  useIPCEvent<WorkspaceData | WorkspaceProject[]>(IPC.WORKSPACE_UPDATED, (data) => {
+    updateProjects(data);
     if (data && 'workspaceName' in data && typeof data.workspaceName === 'string') {
       setWorkspaceName(data.workspaceName);
     }

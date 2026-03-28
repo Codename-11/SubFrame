@@ -343,6 +343,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
   }
 
   const aiTool = await aiToolManager.getStartCommand();
+  const aiToolId = activeTool.id;
   let frozen = false;
 
   try {
@@ -396,7 +397,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
         const isAgentMode = step?.with?.mode === 'agent';
         const streamId = activityManager.createStream({
           name: `Pipeline: ${stage.name}`,
-          type: isAgentMode ? 'agent' : 'spawn',
+          type: isAgentMode ? 'agent' : 'pty',
           source: 'pipeline',
           timeout: stageTimeoutMs,
           heartbeatInterval: isAgentMode ? 15_000 : 10_000,
@@ -412,6 +413,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
           baseSha: run.baseSha,
           headSha: run.headSha,
           artifacts: [...run.artifacts],
+          aiToolId,
           aiTool,
           abortSignal: abortController.signal,
           emit: (log: string) => {

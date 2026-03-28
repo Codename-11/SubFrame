@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { IPC } from '../shared/ipcChannels';
+import { IS_DEV_MODE, WORKSPACE_DIR, WORKSPACE_DIR_PROD, WORKSPACE_FILE } from '../shared/frameConstants';
 
 // Import modules
 import * as pty from './pty';
@@ -32,6 +33,7 @@ import * as aiFilesManager from './aiFilesManager';
 import * as agentStateManager from './agentStateManager';
 import * as skillsManager from './skillsManager';
 import * as promptsManager from './promptsManager';
+import * as aiSessionManager from './aiSessionManager';
 import * as onboardingManager from './onboardingManager';
 import * as updaterManager from './updaterManager';
 import * as pipelineManager from './pipelineManager';
@@ -550,6 +552,7 @@ function setupAllIPC(): void {
   agentStateManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   skillsManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   promptsManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  aiSessionManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   onboardingManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   pipelineManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   activityManager.setupIPC(routedIpc as unknown as typeof ipcMain);
@@ -765,6 +768,58 @@ function setupAllIPC(): void {
     pty.writeToPTY(data);
     promptLogger.logInput('legacy', data);
   });
+
+  // ─── Dev: Sync from Production ──────────────────────────────────────────────
+  // Copies production userData and workspace files into the dev-isolated paths.
+  routedIpc.handle(IPC.DEV_SYNC_FROM_PRODUCTION, async () => {
+    if (!IS_DEV_MODE) {
+      return { success: false, copied: [], message: 'Sync is only available in dev mode.' };
+    }
+    const copied: string[] = [];
+    try {
+      // 1. Sync userData files (settings, AI tool config, window state, etc.)
+      const devUserData = app.getPath('userData'); // already points to -dev dir
+      const prodUserData = devUserData.replace(/-dev$/, '');
+      const userDataFiles = [
+        'frame-settings.json',
+        'ai-tool-config.json',
+        'window-state.json',
+        'popout-state.json',
+        'prompts-history.txt',
+      ];
+      for (const file of userDataFiles) {
+        const src = path.join(prodUserData, file);
+        const dest = path.join(devUserData, file);
+        if (fs.existsSync(src)) {
+          fs.copyFileSync(src, dest);
+          copied.push(`userData/${file}`);
+        }
+      }
+
+      // 2. Sync workspace file (~/.subframe/ → ~/.subframe-dev/)
+      const home = os.homedir();
+      const prodWsDir = path.join(home, WORKSPACE_DIR_PROD);
+      const devWsDir = path.join(home, WORKSPACE_DIR);
+      if (!fs.existsSync(devWsDir)) fs.mkdirSync(devWsDir, { recursive: true });
+      const wsFile = path.join(prodWsDir, WORKSPACE_FILE);
+      if (fs.existsSync(wsFile)) {
+        fs.copyFileSync(wsFile, path.join(devWsDir, WORKSPACE_FILE));
+        copied.push(`${WORKSPACE_DIR}/${WORKSPACE_FILE}`);
+      }
+
+      // Reload settings + workspace in-memory so the app reflects the sync immediately
+      settingsManager.reload?.();
+      workspace.reload?.();
+
+      return {
+        success: true,
+        copied,
+        message: `Synced ${copied.length} file(s) from production.`,
+      };
+    } catch (err) {
+      return { success: false, copied, message: (err as Error).message };
+    }
+  });
 }
 
 /**
@@ -840,6 +895,16 @@ if (!gotTheLock) {
   // App lifecycle
   app.whenReady().then(() => {
     app.setName('SubFrame');
+
+    // Dev mode: isolate userData so dev doesn't clobber the installed app's state.
+    // Must be set before any module calls app.getPath('userData').
+    if (IS_DEV_MODE) {
+      const prodUserData = app.getPath('userData');
+      const devUserData = prodUserData + '-dev';
+      if (!fs.existsSync(devUserData)) fs.mkdirSync(devUserData, { recursive: true });
+      app.setPath('userData', devUserData);
+      console.log(`[dev] userData isolated: ${devUserData}`);
+    }
 
     init();
     createWindow();

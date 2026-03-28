@@ -5,14 +5,21 @@
 
 import * as path from 'path';
 
+/** True when running via `npm run dev` (unpackaged Electron). */
+export const IS_DEV_MODE: boolean = typeof process !== 'undefined'
+  && (process.env.NODE_ENV === 'development' || process.env.ELECTRON_DEV === '1');
+
 /** SubFrame project folder name (inside each project) */
 export const FRAME_DIR: string = '.subframe';
 
 /** SubFrame config file name */
 export const FRAME_CONFIG_FILE: string = 'config.json';
 
-/** Workspace directory name (in user home: ~/.subframe/) */
-export const WORKSPACE_DIR: string = '.subframe';
+/** Workspace directory name (in user home: ~/.subframe/ or ~/.subframe-dev/) */
+export const WORKSPACE_DIR: string = IS_DEV_MODE ? '.subframe-dev' : '.subframe';
+
+/** Production workspace directory (always ~/.subframe/, used for dev sync) */
+export const WORKSPACE_DIR_PROD: string = '.subframe';
 
 /** Workspace file name */
 export const WORKSPACE_FILE: string = 'workspaces.json';

@@ -60,16 +60,6 @@ const history: InternalStream[] = [];
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Format elapsed seconds into a human-readable string.
- */
-function formatElapsed(seconds: number): string {
-  if (seconds < 60) return `${seconds}`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
-}
-
-/**
  * Check if a status is terminal (no more updates expected).
  */
 function isTerminalStatus(status: ActivityStatus): boolean {
@@ -90,6 +80,7 @@ function toActivityStream(internal: InternalStream): ActivityStream {
     name: internal.name,
     type: internal.type,
     source: internal.source,
+    terminalId: internal.terminalId,
     status: internal.status,
     createdAt: internal.createdAt,
     startedAt: internal.startedAt,
@@ -187,6 +178,7 @@ function createStream(options: CreateStreamOptions): string {
     name: options.name,
     type: options.type,
     source: options.source,
+    terminalId: options.terminalId,
     status: 'pending',
     createdAt: now,
     outputTail: [],
@@ -264,7 +256,8 @@ function updateProgress(streamId: string, progress: number): void {
 }
 
 /**
- * Start a heartbeat timer that emits elapsed time at the configured interval.
+ * Start a heartbeat timer for liveness tracking.
+ * Heartbeats no longer emit synthetic log lines into the user-facing output.
  */
 function startHeartbeat(streamId: string): void {
   const internal = activeStreams.get(streamId);
@@ -275,12 +268,19 @@ function startHeartbeat(streamId: string): void {
     clearInterval(internal.heartbeatTimer);
   }
 
-  const startTime = Date.now();
-
   internal.heartbeatTimer = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    emit(streamId, `[Heartbeat] ${formatElapsed(elapsed)}s elapsed`);
+    if (!activeStreams.has(streamId) && internal.heartbeatTimer) {
+      clearInterval(internal.heartbeatTimer);
+      internal.heartbeatTimer = null;
+    }
   }, internal.heartbeatInterval);
+}
+
+function attachTerminal(streamId: string, terminalId: string): void {
+  const internal = activeStreams.get(streamId);
+  if (!internal) return;
+  internal.terminalId = terminalId;
+  broadcastStatus(internal);
 }
 
 /**
@@ -388,6 +388,7 @@ export {
   emit,
   updateStatus,
   updateProgress,
+  attachTerminal,
   startHeartbeat,
   startTimeout,
   getAbortSignal,

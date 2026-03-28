@@ -20,6 +20,7 @@ export interface ActivityStream {
   name: string;
   type: ActivityType;
   source: ActivitySource;
+  terminalId?: string;
   status: ActivityStatus;
   createdAt: string;
   startedAt?: string;
@@ -84,6 +85,7 @@ export interface CreateStreamOptions {
   name: string;
   type: ActivityType;
   source: ActivitySource;
+  terminalId?: string;
   /** Timeout in ms (0 = no timeout) */
   timeout?: number;
   /** Heartbeat interval in ms (0 = no heartbeat). Default: 10000 */

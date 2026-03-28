@@ -11,6 +11,10 @@ import { typedInvoke, typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import type { ActivityListPayload, ActivityStatusEvent, ActivityOutputEvent, ActivityStream } from '../../shared/activityTypes';
 
+function isDiagnosticLine(line: string): boolean {
+  return /^\[Heartbeat\]\b/.test(line) || /^Waiting for AI output\.\.\./.test(line);
+}
+
 /**
  * Hook that provides activity stream state, real-time output logs, and cancel mutation.
  */
@@ -54,10 +58,14 @@ export function useActivity() {
 
   const handleOutput = useCallback((event: ActivityOutputEvent) => {
     const { streamId, lines } = event;
+    const visibleLines = lines.filter((line) => !isDiagnosticLine(line));
+    if (visibleLines.length === 0) {
+      return;
+    }
     if (!logsRef.current[streamId]) {
       logsRef.current[streamId] = [];
     }
-    logsRef.current[streamId].push(...lines);
+    logsRef.current[streamId].push(...visibleLines);
     setRevision((r) => r + 1);
   }, []);
 

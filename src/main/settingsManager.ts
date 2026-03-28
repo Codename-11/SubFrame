@@ -308,4 +308,9 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
   });
 }
 
-export { init, setupIPC, loadSettings, saveSettings, updateSetting, getSetting, onSettingChange };
+/** Re-read settings from disk (used by dev sync). */
+function reload(): void {
+  loadSettings();
+}
+
+export { init, setupIPC, loadSettings, saveSettings, updateSetting, getSetting, onSettingChange, reload };

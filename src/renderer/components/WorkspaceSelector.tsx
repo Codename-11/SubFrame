@@ -39,6 +39,7 @@ import { typedInvoke, typedSend } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 import type { WorkspaceListEntry, WorkspaceListResult } from '../../shared/ipcChannels';
+import { normalizeWorkspaceAccentColor } from '../lib/workspacePills';
 
 /**
  * Compact workspace selector — single-line dropdown showing active workspace.
@@ -59,13 +60,14 @@ export function WorkspaceSelector() {
 
   // Parse the workspace list response
   const parsed = workspaceList as WorkspaceListResult | undefined;
-  const workspaces = useMemo<(WorkspaceListEntry & { projectCount: number; inactive: boolean })[]>(() =>
+  const workspaces = useMemo<(WorkspaceListEntry & { projectCount: number; inactive: boolean; accentColor?: string })[]>(() =>
     parsed?.workspaces?.map((ws) => ({
       key: ws.key,
       name: ws.name,
       active: ws.key === parsed.active,
       projectCount: ws.projectCount ?? 0,
       inactive: ws.inactive ?? false,
+      accentColor: normalizeWorkspaceAccentColor(ws.accentColor) ?? undefined,
     })) ?? [],
     [parsed]
   );
@@ -303,6 +305,27 @@ export function WorkspaceSelector() {
     }
   }, [workspaces, activeWorkspaces, loading, refetch]);
 
+  const openWorkspaceSettings = useCallback((key: string) => {
+    setWorkspaceDropdownOpen(false);
+    window.dispatchEvent(new CustomEvent('open-workspace-settings', { detail: { key } }));
+  }, []);
+
+  const handleDuplicate = useCallback(async (key: string) => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await typedInvoke(IPC.WORKSPACE_DUPLICATE, key);
+      refetch();
+      typedSend(IPC.LOAD_WORKSPACE);
+      setWorkspaceDropdownOpen(false);
+      toast.success('Workspace duplicated');
+    } catch {
+      toast.error('Failed to duplicate workspace');
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, refetch]);
+
   const renderWorkspaceContextMenu = useCallback((ws: { key: string; name: string; active: boolean; inactive: boolean }, activePosition: number) => (
     <ContextMenuContent className="min-w-[170px]">
       {ws.inactive ? (
@@ -311,6 +334,12 @@ export function WorkspaceSelector() {
             Activate
           </ContextMenuItem>
           <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => handleDuplicate(ws.key)} className="text-xs cursor-default">
+            Duplicate Workspace
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => openWorkspaceSettings(ws.key)} className="text-xs cursor-default">
+            Manage Identity
+          </ContextMenuItem>
           <ContextMenuItem onClick={() => handleRename(ws.key)} className="text-xs cursor-default">
             Rename
           </ContextMenuItem>
@@ -325,6 +354,12 @@ export function WorkspaceSelector() {
               Switch To Workspace
             </ContextMenuItem>
           )}
+          <ContextMenuItem onClick={() => handleDuplicate(ws.key)} className="text-xs cursor-default">
+            Duplicate Workspace
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => openWorkspaceSettings(ws.key)} className="text-xs cursor-default">
+            Manage Identity
+          </ContextMenuItem>
           <ContextMenuItem onClick={() => handleRename(ws.key)} className="text-xs cursor-default">
             Rename
           </ContextMenuItem>
@@ -355,7 +390,7 @@ export function WorkspaceSelector() {
         </>
       )}
     </ContextMenuContent>
-  ), [activeWorkspaces.length, handleDelete, handleMoveLeft, handleMoveRight, handleRename, handleSwitch, handleToggleActive]);
+  ), [activeWorkspaces.length, handleDelete, handleDuplicate, handleMoveLeft, handleMoveRight, handleRename, handleSwitch, handleToggleActive, openWorkspaceSettings]);
 
   const currentAgentStatus = activeWs ? getAgentStatus(activeWs.key, true) : 'idle';
 
@@ -376,6 +411,12 @@ export function WorkspaceSelector() {
                   >
                     {loading && <Loader2 className="w-3 h-3 animate-spin flex-shrink-0 text-text-muted" />}
                     <span className="font-mono text-[10px] text-accent flex-shrink-0">#{activeIndex}</span>
+                    {activeWs?.accentColor && (
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0 border border-black/20"
+                        style={{ backgroundColor: activeWs.accentColor }}
+                      />
+                    )}
                     <span className="truncate">{activeWs?.name ?? 'Workspace'}</span>
                     {/* Agent status dot */}
                     {currentAgentStatus === 'active' && (
@@ -404,6 +445,12 @@ export function WorkspaceSelector() {
                             } disabled:opacity-50 disabled:pointer-events-none`}
                           >
                             <span className="font-mono text-[10px] opacity-70 mr-1.5">#{idx}</span>
+                            {ws.accentColor && (
+                              <span
+                                className="w-2 h-2 rounded-full mr-1.5 flex-shrink-0 border border-black/20"
+                                style={{ backgroundColor: ws.accentColor }}
+                              />
+                            )}
                             <span className="truncate">{ws.name}</span>
                             {ws.projectCount > 0 && (
                               <span className="text-text-muted text-[10px] ml-1">({ws.projectCount})</span>
@@ -433,6 +480,12 @@ export function WorkspaceSelector() {
                               className="flex w-full items-center px-2 py-1.5 text-left text-xs rounded-sm opacity-65 text-text-secondary hover:bg-bg-hover disabled:opacity-40 disabled:pointer-events-none"
                               onClick={() => handleToggleActive(ws.key)}
                             >
+                              {ws.accentColor && (
+                                <span
+                                  className="w-2 h-2 rounded-full mr-2 mt-0.5 flex-shrink-0 border border-black/20"
+                                  style={{ backgroundColor: ws.accentColor }}
+                                />
+                              )}
                               <div className="min-w-0">
                                 <div className="truncate">{ws.name}</div>
                                 <div className="text-[9px] text-text-muted">Click to reactivate</div>
@@ -473,6 +526,9 @@ export function WorkspaceSelector() {
               <>
                 <DropdownMenuItem onClick={() => handleRename(activeWs.key)} disabled={loading} className="text-xs cursor-pointer">
                   Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDuplicate(activeWs.key)} disabled={loading} className="text-xs cursor-pointer">
+                  Duplicate Workspace
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleToggleActive(activeWs.key)} disabled={loading} className="text-xs cursor-pointer">
                   Deactivate

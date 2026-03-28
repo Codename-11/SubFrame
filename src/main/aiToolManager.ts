@@ -243,8 +243,11 @@ async function getAvailableTools(): Promise<Record<string, AITool>> {
 /**
  * Get the currently active tool
  */
-async function getActiveTool(): Promise<AITool> {
+async function getActiveTool(toolId?: string): Promise<AITool> {
   const tools = await getAvailableTools();
+  if (toolId && tools[toolId]) {
+    return tools[toolId];
+  }
   return tools[config.activeTool] || tools.claude;
 }
 
@@ -431,8 +434,8 @@ function getCustomCommand(toolId: string): string | null {
 /**
  * Get the start command for active tool
  */
-async function getStartCommand(): Promise<string> {
-  const tool = await getActiveTool();
+async function getStartCommand(toolId?: string): Promise<string> {
+  const tool = await getActiveTool(toolId);
   const custom = getCustomCommand(tool.id);
   return custom || tool.command;
 }

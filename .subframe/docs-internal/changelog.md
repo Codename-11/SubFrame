@@ -6,6 +6,18 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### AI Session Runtime Parity (2026-03-26)
+
+- **Shared AI sessions now complete on explicit structured-result markers** — task enhancement and pipeline AI stages no longer wait for a shell prompt that interactive tools may never return to. Their prompts are wrapped with per-run start/end markers, and the live session runner completes as soon as that marked result arrives.
+- **Prompt-echo JSON parsing is hardened** — task/pipeline parsing no longer scans the full noisy transcript and accidentally succeeds on example schemas echoed from the prompt. Structured results are now extracted only from the marked assistant result block after a prompt-boundary marker.
+- **Background AI terminals now clean up consistently** — task and pipeline runs destroy their backing PTY/terminal when the live session finishes, fails, or is cancelled instead of leaving orphaned terminal tabs and lingering tool processes behind.
+- **Passive session mirrors stop resizing the live PTY** — the onboarding dialog, Activity `Session` view, and AI Sessions panel still mirror the raw session stream, but they no longer fight the main terminal view by sending resize events from narrow read-only mirrors.
+- **Onboarding session viewer now auto-opens and nudges PTY geometry once** — the Analyze step no longer starts with the live session hidden. The onboarding dialog opens its session pane automatically during analysis and sends a one-time size sync so interactive AI tools start painting without needing the real terminal tab opened first.
+- **Successful onboarding now tears down the live PTY cleanly** — the analysis session no longer leaves an orphaned terminal behind after completion. The onboarding session record clears its terminal reference on success, and the finished PTY is destroyed instead of being left around after the AI session record drops out of the registry.
+- **Onboarding transcript emission keeps advancing past the visible window cap** — progress/activity output now tracks raw transcript growth instead of relying on the rendered line count, so the shared activity stream does not stall once the rendered transcript window reaches its cap.
+- **Generic AI-session readiness now waits for actual tool markers** — task enhancement and pipeline runs no longer treat any quiet output as “ready” when a tool-specific ready marker exists. Prompt injection now waits for Codex/Claude/Gemini readiness signals instead of falling through early.
+- **Onboarding mirror gets a settle-time geometry sync** — the modal session viewer still stays passive after mount, but it now performs one delayed follow-up size sync so animated dialog layout does not leave the live PTY at the wrong initial geometry until the full terminal tab opens.
+
 ### AI Background Work UX (2026-03-26)
 
 - **Onboarding analysis now fully participates in Activity streams** — the onboarding pipeline already created a `Project Analysis` stream, but most live PTY output still only existed inside the dialog/terminal. The analysis terminal output is now mirrored into the shared Activity bar, onboarding streams start heartbeat + timeout timers, and canceling from the global activity surface now aborts the live analysis instead of only changing the badge state.

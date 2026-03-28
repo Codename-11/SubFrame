@@ -86,6 +86,8 @@ export function refreshTerminalThemes(): void {
   }
 }
 
+export { getTerminalTheme };
+
 export interface TerminalInstance {
   terminal: Terminal;
   fitAddon: FitAddon;
@@ -143,6 +145,7 @@ interface RegistryEntry extends TerminalInstance {
 }
 
 const registry = new Map<string, RegistryEntry>();
+const INITIAL_BACKLOG_MAX_CHARS = 256 * 1024;
 
 // ---------------------------------------------------------------------------
 // Freeze/unfreeze — buffer output while frozen, flush on unfreeze
@@ -319,6 +322,13 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
 
   const entry: RegistryEntry = { terminal, fitAddon, searchAddon, holderDiv, ipcCleanup, userMessageMarkers: [], lastActiveTimestamp: 0 };
   registry.set(id, entry);
+  void getTransport().invoke(IPC.GET_TERMINAL_BACKLOG, { terminalId: id }).then((result: { data: string }) => {
+    const current = registry.get(id);
+    if (!current || !result.data) return;
+    writeOrBuffer(id, result.data.slice(-INITIAL_BACKLOG_MAX_CHARS));
+  }).catch(() => {
+    /* backlog hydration is best-effort */
+  });
   return entry;
 }
 

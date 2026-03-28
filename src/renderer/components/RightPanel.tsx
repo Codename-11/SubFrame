@@ -35,6 +35,7 @@ import {
   ChevronRight,
   ChevronDown,
   Maximize2,
+  TerminalSquare,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -42,11 +43,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { useUIStore } from '../stores/useUIStore';
 import { cn } from '../lib/utils';
 import { ErrorBoundary } from './ErrorBoundary';
 import { TasksPanel } from './TasksPanel';
 import { SessionsPanel } from './SessionsPanel';
+import { AISessionsPanel } from './AISessionsPanel';
 import { PluginsPanel } from './PluginsPanel';
 import { GithubIssuesPanel, GithubPRsPanel, GithubBranchesPanel, GithubWorktreesPanel, GithubChangesPanel, GithubWorkflowsPanel, GithubNotificationsPanel } from './GithubPanel';
 import { HistoryPanel } from './HistoryPanel';
@@ -59,7 +67,7 @@ import { PromptsPanel } from './PromptsPanel';
 import { PipelinePanel } from './PipelinePanel';
 import { SystemPanel } from './SystemPanel';
 
-type PanelId = 'tasks' | 'sessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system';
+type PanelId = 'tasks' | 'sessions' | 'aiSessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system';
 
 interface PanelDef {
   id: PanelId;
@@ -72,6 +80,7 @@ interface PanelDef {
 const ALL_PANELS: Record<PanelId, PanelDef> = {
   tasks:           { id: 'tasks',           label: 'Sub-Tasks',  icon: ListTodo,       shortcut: 'Ctrl+Shift+S' },
   sessions:        { id: 'sessions',        label: 'Sessions',   icon: MessageSquare },
+  aiSessions:      { id: 'aiSessions',      label: 'AI Sessions', icon: TerminalSquare },
   plugins:         { id: 'plugins',         label: 'Plugins',    icon: Puzzle,         shortcut: 'Ctrl+Shift+X' },
   gitChanges:      { id: 'gitChanges',      label: 'Changes',    icon: FileDiff,       shortcut: 'Ctrl+Shift+G' },
   githubIssues:    { id: 'githubIssues',    label: 'Issues',     icon: CircleDot },
@@ -104,7 +113,7 @@ interface PanelGroup {
 const PANEL_GROUPS: PanelGroup[] = [
   { panels: ['tasks'],                                                                      label: 'Sub-Tasks' },
   { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees', 'githubWorkflows', 'githubNotifications'], label: 'GitHub' },
-  { panels: ['agentState', 'sessions', 'history', 'skills', 'plugins'],                     label: 'Agent' },
+  { panels: ['agentState', 'aiSessions', 'sessions', 'history', 'skills', 'plugins'],       label: 'Agent' },
   { panels: ['prompts'],                                                                    label: 'Prompts' },
   { panels: ['pipeline'],                                                                   label: 'Pipeline' },
   { panels: ['overview', 'aiFiles', 'subframeHealth', 'system'],                              label: 'Project' },
@@ -122,6 +131,7 @@ function getGroupIndex(panelId: PanelId): number {
 
 const panelComponents: Record<PanelId, React.ComponentType> = {
   tasks: TasksPanel,
+  aiSessions: AISessionsPanel,
   sessions: SessionsPanel,
   plugins: PluginsPanel,
   gitChanges: GithubChangesPanel,
@@ -177,6 +187,7 @@ export function RightPanel() {
   const isSolo = group.length === 1;
   const activeDef = ALL_PANELS[activePanel];
   const activeGroupIdx = getGroupIndex(activePanel);
+  const activeGroup = PANEL_GROUPS[activeGroupIdx];
 
   // ── Collapsed: vertical icon strip with drawer groups ──────────────────
   if (rightPanelCollapsed) {
@@ -359,31 +370,45 @@ export function RightPanel() {
             <span className="text-xs font-semibold text-text-primary">{activeDef.label}</span>
           </div>
         ) : (
-          /* Grouped panel — show group's tab buttons (scrollable for large groups) */
-          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            <div className="flex items-center gap-0.5">
-              {group.map((panelId) => {
-                const def = ALL_PANELS[panelId];
-                const Icon = def.icon;
-                const isActive = activePanel === panelId;
-                return (
+          /* Grouped panel — active subview doubles as the selector trigger */
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="inline-flex items-center rounded-full border border-border-subtle bg-bg-deep/70 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-text-secondary flex-shrink-0">
+                {activeGroup?.label ?? 'Panel'}
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
-                    key={panelId}
-                    onClick={() => setActivePanel(panelId)}
-                    className={cn(
-                      'flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap cursor-pointer flex-shrink-0',
-                      isActive
-                        ? 'bg-bg-hover text-accent'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/50'
-                    )}
-                    title={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
-                    aria-label={def.shortcut ? `${def.label} (${def.shortcut})` : def.label}
+                    className="min-w-0 flex items-center gap-1.5 px-2 py-1 rounded-md bg-bg-hover/70 text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                    title={`Switch ${activeGroup?.label ?? 'panel'} view`}
+                    aria-label={`Switch ${activeGroup?.label ?? 'panel'} view`}
                   >
-                    <Icon size={13} />
-                    <span>{def.label}</span>
+                    <ActiveIcon size={13} className="text-accent flex-shrink-0" />
+                    <span className="text-xs font-medium truncate">{activeDef.label}</span>
                   </button>
-                );
-              })}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[220px]">
+                  {group.map((panelId) => {
+                    const def = ALL_PANELS[panelId];
+                    const Icon = def.icon;
+                    const isActive = activePanel === panelId;
+
+                    return (
+                      <DropdownMenuItem
+                        key={panelId}
+                        onClick={() => setActivePanel(panelId)}
+                        className="cursor-pointer gap-2 text-xs"
+                      >
+                        <Icon size={13} className={cn('flex-shrink-0', isActive ? 'text-accent' : 'text-text-tertiary')} />
+                        <span className={cn('flex-1 truncate', isActive ? 'text-accent font-medium' : '')}>
+                          {def.label}
+                        </span>
+                        {isActive && <span className="text-[10px] uppercase tracking-wide text-accent">Active</span>}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         )}

@@ -4,11 +4,13 @@
  * Supports dynamic menu based on active AI tool
  */
 
-import { Menu, shell, app as _electronApp } from 'electron';
+import { Menu, shell, dialog, app as _electronApp } from 'electron';
 import type { BrowserWindow, App, MenuItemConstructorOptions } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { IPC } from '../shared/ipcChannels';
+import { IS_DEV_MODE, WORKSPACE_DIR, WORKSPACE_DIR_PROD, WORKSPACE_FILE } from '../shared/frameConstants';
 import { checkForUpdates } from './updaterManager';
 import { broadcast } from './eventBridge';
 
@@ -179,7 +181,66 @@ async function getMenuTemplate(): Promise<MenuItemConstructorOptions[]> {
           { role: 'about' as const }
         ] : [])
       ]
-    }
+    },
+    // ── Dev menu (only in dev mode) ──
+    ...(IS_DEV_MODE ? [{
+      label: 'Dev',
+      submenu: [
+        {
+          label: 'Sync from Production Data',
+          accelerator: 'CmdOrCtrl+Shift+F5',
+          click: async () => {
+            if (!mainWindow || mainWindow.isDestroyed()) return;
+            const { response } = await dialog.showMessageBox(mainWindow, {
+              type: 'question',
+              buttons: ['Sync', 'Cancel'],
+              defaultId: 0,
+              title: 'Sync Dev Data',
+              message: 'Copy settings, workspaces, and AI config from the installed (production) app into this dev instance?',
+              detail: 'This will overwrite your current dev settings. The app will reload afterwards.',
+            });
+            if (response !== 0) return;
+            try {
+              const copied: string[] = [];
+              // Sync userData files
+              const devUserData = _electronApp.getPath('userData');
+              const prodUserData = devUserData.replace(/-dev$/, '');
+              for (const file of ['frame-settings.json', 'ai-tool-config.json', 'window-state.json', 'popout-state.json']) {
+                const src = path.join(prodUserData, file);
+                const dest = path.join(devUserData, file);
+                if (fs.existsSync(src)) { fs.copyFileSync(src, dest); copied.push(file); }
+              }
+              // Sync workspace file
+              const home = os.homedir();
+              const prodWs = path.join(home, WORKSPACE_DIR_PROD, WORKSPACE_FILE);
+              const devWsDir = path.join(home, WORKSPACE_DIR);
+              if (!fs.existsSync(devWsDir)) fs.mkdirSync(devWsDir, { recursive: true });
+              if (fs.existsSync(prodWs)) {
+                fs.copyFileSync(prodWs, path.join(devWsDir, WORKSPACE_FILE));
+                copied.push('workspaces.json');
+              }
+              console.log(`[dev] Synced ${copied.length} files from production: ${copied.join(', ')}`);
+              mainWindow?.webContents.reloadIgnoringCache();
+            } catch (err) {
+              dialog.showErrorBox('Sync Failed', (err as Error).message);
+            }
+          }
+        },
+        { type: 'separator' as const },
+        {
+          label: 'Open Dev userData Folder',
+          click: () => shell.openPath(_electronApp.getPath('userData'))
+        },
+        {
+          label: 'Open Production userData Folder',
+          click: () => {
+            const devPath = _electronApp.getPath('userData');
+            const prodPath = devPath.replace(/-dev$/, '');
+            shell.openPath(prodPath);
+          }
+        },
+      ] as MenuItemConstructorOptions[]
+    }] as MenuItemConstructorOptions[] : [])
   ];
 
   // macOS app menu

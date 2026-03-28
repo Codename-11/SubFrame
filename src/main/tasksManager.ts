@@ -9,13 +9,15 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn } from 'child_process';
+import * as crypto from 'crypto';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC, type Task } from '../shared/ipcChannels';
 import { FRAME_FILES, FRAME_TASKS_DIR, FRAME_TASKS_PRIVATE_DIR } from '../shared/frameConstants';
 import { parseTaskMarkdown, serializeTaskMarkdown } from './taskMarkdownParser';
-import { getActiveTool, checkToolInstalled } from './aiToolManager';
+import { getActiveTool, checkToolInstalled, getStartCommand } from './aiToolManager';
 import * as activityManager from './activityManager';
+import * as aiSessionManager from './aiSessionManager';
+import { createStructuredJsonPrompt, parseJsonFromMixedOutput } from './aiOutputParser';
 import { broadcast } from './eventBridge';
 
 interface TasksData {
@@ -679,7 +681,7 @@ function setupIPC(ipcMain: IpcMain): void {
       // Create activity stream for enhance task operation
       const streamId = activityManager.createStream({
         name: `Enhance: ${task.title || 'Task'}`,
-        type: 'spawn',
+        type: 'pty',
         source: 'tasks',
         timeout: 120_000,
         heartbeatInterval: 10_000,
@@ -697,7 +699,7 @@ function setupIPC(ipcMain: IpcMain): void {
             broadcast(IPC.TASK_ENHANCE_RESULT, { activityStreamId: streamId, success: false, enhanced: {}, error: errorMsg });
             return;
           }
-          const [aiExe, ...aiBaseFlags] = tool.command.split(/\s+/);
+          const command = await getStartCommand(tool.id);
 
           const prompt = `You are a project task scoping assistant. Given a rough task description, improve and structure it into a well-scoped sub-task.
 
@@ -718,90 +720,31 @@ Return ONLY a valid JSON object (no markdown fences, no explanation) with these 
 }
 
 Keep the original intent. Improve clarity, add missing acceptance criteria, suggest 3-5 concrete steps, and correct the priority/category if clearly wrong.`;
+          const structuredPrompt = createStructuredJsonPrompt(
+            prompt,
+            `task-${crypto.randomUUID().slice(0, 8)}`,
+          );
 
-          activityManager.emit(streamId, 'Spawning AI tool for task enhancement...');
-          activityManager.emit(streamId, 'Streaming output to the Activity bar while the task draft is enhanced.');
+          activityManager.emit(streamId, 'Launching interactive AI session for task enhancement...');
+          activityManager.emit(streamId, 'Live terminal output is available in the Activity bar session view and the AI Sessions panel.');
 
-          const result = await new Promise<string>((resolve, reject) => {
-            const child = spawn(aiExe, [...aiBaseFlags, '--print', '--output-format', 'json'], {
-              cwd: projectPath,
-              stdio: ['pipe', 'pipe', 'pipe'],
-              shell: true,
-            });
-
-            child.stdin.write(prompt);
-            child.stdin.end();
-
-            let stdout = '';
-            let stderr = '';
-            let settled = false;
-
-            const emitLines = (chunk: string) => {
-              for (const line of chunk.split('\n').map((entry) => entry.trimEnd()).filter(Boolean)) {
-                activityManager.emit(streamId, line);
-              }
-            };
-
-            const abortSignal = activityManager.getAbortSignal(streamId);
-            if (abortSignal) {
-              abortSignal.addEventListener('abort', () => {
-                if (!settled) {
-                  settled = true;
-                  try { child.kill(); } catch { /* ignore */ }
-                  const reason = typeof abortSignal.reason === 'string' ? abortSignal.reason : 'Operation cancelled';
-                  reject(new Error(reason));
-                }
-              }, { once: true });
-            }
-
-            child.stdout.on('data', (data: Buffer) => {
-              const chunk = data.toString();
-              stdout += chunk;
-              emitLines(chunk);
-            });
-            child.stderr.on('data', (data: Buffer) => {
-              const chunk = data.toString();
-              stderr += chunk;
-              emitLines(chunk);
-            });
-            child.on('close', (code) => {
-              if (settled) return;
-              settled = true;
-              if (code === 0) resolve(stdout.trim());
-              else reject(new Error(stderr || `AI tool exited with code ${code}`));
-            });
-            child.on('error', (err) => {
-              if (settled) return;
-              settled = true;
-              reject(err);
-            });
+          const result = await aiSessionManager.runInteractivePrompt({
+            name: `Enhance: ${task.title || 'Task'}`,
+            toolId: tool.id,
+            source: 'tasks',
+            command,
+            prompt: structuredPrompt.prompt,
+            projectPath,
+            activityStreamId: streamId,
+            resultMarkers: structuredPrompt.markers,
+            abortSignal: activityManager.getAbortSignal(streamId) ?? undefined,
           });
 
-          let content = result;
-          try {
-            const envelope = JSON.parse(result);
-            if (envelope && typeof envelope === 'object' && 'result' in envelope) {
-              content = envelope.result;
-            }
-          } catch { /* not an envelope */ }
-
-          let enhanced: Record<string, unknown>;
-          try {
-            enhanced = JSON.parse(content);
-          } catch {
-            const fenceMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-            if (fenceMatch) {
-              enhanced = JSON.parse(fenceMatch[1].trim());
-            } else {
-              const start = content.indexOf('{');
-              const end = content.lastIndexOf('}');
-              if (start >= 0 && end > start) {
-                enhanced = JSON.parse(content.slice(start, end + 1));
-              } else {
-                throw new Error('AI response was not valid JSON. Try again.');
-              }
-            }
+          const enhanced = parseJsonFromMixedOutput(result.resultText ?? '') as Record<string, unknown> | null;
+          if (!enhanced || typeof enhanced !== 'object') {
+            throw new Error('AI response was not valid JSON. Open the session view to inspect the raw transcript.');
           }
+
           const steps = Array.isArray(enhanced.steps)
             ? enhanced.steps.map((s: string) => ({ label: s, completed: false }))
             : undefined;

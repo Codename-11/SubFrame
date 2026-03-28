@@ -1605,6 +1605,25 @@ The audit follow-up tightened the execution semantics, not just the chrome. Onbo
 
 That second pass also fixed the durability problem around task enhancement results. Instead of letting the Tasks panel own the only completion listener, the app shell now receives the completion event, clears the global loading toast, and stores the enhanced payload in shared UI state. That means panel switches or dialog closes no longer strand the result or leave the UI stuck in a spinner; reopening the task surface can still recover the finished enhancement cleanly.
 
+### [2026-03-26] Shared AI sessions need explicit result boundaries and passive viewers
+
+Moving onboarding, task enhancement, and pipeline stages onto the same PTY-backed session model exposed a difference between “live session parity” and “tool completion.” Agent-style tools can stay inside their own UI long after the useful structured answer is ready, so waiting for a shell prompt is the wrong completion condition for task/pipeline runs even if the transcript is fully live.
+
+The fix was to keep the live PTY session/viewer model but separate result extraction from raw transcript rendering. Task and pipeline prompts now carry per-run structured-result start/end markers plus a prompt-boundary marker, and the shared session runner completes on that marked result block instead of parsing the whole echoed transcript or waiting for the shell to come back.
+
+That same pass also clarified viewer ownership: small mirrors in the onboarding dialog, Activity bar, and AI Sessions panel should observe the live session without owning PTY geometry. Only the primary terminal surface should resize the live PTY; passive mirrors can stay attached to the raw stream and backlog without redrawing the underlying TUI for every narrow sidebar viewer.
+
+One onboarding-specific follow-up was still needed after that refactor: if no live viewer was mounted yet, some interactive tools behaved as if they only really woke up once the main terminal tab attached and sent a resize. The onboarding dialog now auto-opens its live session pane while analysis is running and sends a one-time PTY size sync up front, which preserves passive-mirror behavior while still giving the background session the same initial kick that the real terminal tab was implicitly providing.
+
+That viewer fix exposed two more same-pattern issues in the shared runtime. First, line-based activity emission was still counting only the truncated visible transcript window, which meant long runs could look “stuck” in Activity/output even while the raw PTY kept streaming. The shared AI-session and onboarding emitters now track transcript growth against the full rendered transcript and only apply window caps for presentation.
+
+Second, the generic live-session launcher for task enhancement and pipeline stages was still weaker than onboarding because it allowed “quiet output” to count as readiness even when a tool-specific ready marker existed. The shared wait-for-ready path now requires an actual ready marker whenever one is configured, so prompt injection for Codex/Claude/Gemini is aligned more closely with the working Agent-Forge-style launch contract.
+
+### [2026-03-26] Successful onboarding should not leave a stray terminal behind
+Successful onboarding now clears the terminal reference from the onboarding session and destroys the backing PTY instead of keeping a terminal alive after the AI session record disappears. That keeps the session registry honest and avoids orphaned terminals after a completed analysis run.
+
+The onboarding activity emission path also stopped keying progress on the rendered line window. It now tracks raw transcript growth so the activity stream continues to advance even after the visible transcript cap is reached, which avoids the appearance of a stalled session on long runs.
+
 ### [2026-03-25] Remote Access Docs and SSH Tunnel URL Clarification
 
 SubFrame Server was implemented, but the public docs and some in-app copy still treated it more like a roadmap/browser-mode idea than a current headline feature. The docs were updated to surface it as a first-class remote-access feature across the site, including a dedicated Remote Access guide, homepage/sidebar promotion, configuration details, integrations distinction, blog refresh, and troubleshooting coverage.

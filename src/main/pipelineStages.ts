@@ -3,12 +3,15 @@
  * Built-in stage implementations for the pipeline system.
  */
 
-import { exec, spawn } from 'child_process';
+import { exec, type ChildProcess } from 'child_process';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { FRAME_PIPELINES_DIR } from '../shared/frameConstants';
 import * as activityManager from './activityManager';
+import * as aiSessionManager from './aiSessionManager';
+import { buildInteractiveAICommand } from './aiExecutionManager';
+import { createStructuredJsonPrompt, parseJsonFromMixedOutput } from './aiOutputParser';
 import type {
   PipelineArtifact,
   PipelineRun,
@@ -29,6 +32,7 @@ export interface StageContext {
   baseSha: string;
   headSha: string;
   artifacts: PipelineArtifact[];
+  aiToolId: string;
   aiTool: string;
   abortSignal: AbortSignal;
   emit: (log: string) => void;
@@ -61,7 +65,7 @@ const DEFAULT_AGENT_MAX_TURNS = 25;
  * when spawned with `shell: true`, leaving the actual process running.
  * This uses `taskkill /F /T` on Windows to kill the entire tree.
  */
-function killProcessTree(child: ReturnType<typeof spawn>): void {
+function killProcessTree(child: ChildProcess): void {
   if (!child.pid) return;
   if (process.platform === 'win32') {
     // exec() is async — errors go to callback, not thrown synchronously
@@ -293,77 +297,39 @@ function spawnAIToolRaw(
   prompt: string,
   streamId?: string
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const cwd = ctx.worktreePath || ctx.projectPath;
-    // Deliver prompt via stdin (no positional arg) to avoid shell mangling
-    // of backticks, quotes, and special characters in the prompt text.
-    // Split command string to handle custom flags (e.g. "claude --dangerously-skip-permissions")
-    const [aiExe, ...aiBaseFlags] = ctx.aiTool.split(/\s+/);
-    const child = spawn(aiExe, [...aiBaseFlags, '--print', '--output-format', 'json'], {
-      cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: true,
-    });
+  const cwd = ctx.worktreePath || ctx.projectPath;
+  const shellCommand = buildInteractiveAICommand(ctx.aiToolId, ctx.aiTool);
+  const structuredPrompt = createStructuredJsonPrompt(
+    prompt,
+    `pipeline-${ctx.stage.id}-${crypto.randomUUID().slice(0, 8)}`,
+  );
+  ctx.emit(`$ ${shellCommand}`);
+  if (streamId) {
+    activityManager.emit(streamId, `$ ${shellCommand}`);
+  }
 
-    // Write prompt to stdin and close — CLI reads from stdin when no positional prompt given
-    child.stdin.write(prompt);
-    child.stdin.end();
-
-    let stdout = '';
-    let stderr = '';
-    const startTime = Date.now();
-    let stdoutChunks = 0;
-
-    // Heartbeat timer — only used when no streamId (activityManager handles heartbeat otherwise)
-    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-    if (!streamId) {
-      heartbeatTimer = setInterval(() => {
-        if (ctx.abortSignal.aborted) return;
-        const elapsed = Date.now() - startTime;
-        const parts = [`Waiting for AI response... ${formatElapsed(elapsed)}`];
-        if (stdoutChunks > 0) parts.push(`${stdoutChunks} chunks received`);
-        ctx.emit(parts.join(' | '));
-      }, 10_000);
-    }
-
-    child.stdout.on('data', (data: Buffer) => {
-      const chunk = data.toString();
-      stdout += chunk;
-      stdoutChunks++;
-    });
-
-    child.stderr.on('data', (data: Buffer) => {
-      const chunk = data.toString();
-      stderr += chunk;
-      // Stream stderr lines as logs
-      for (const line of chunk.split('\n').filter(Boolean)) {
+  return aiSessionManager.runInteractivePrompt({
+    name: `Pipeline: ${ctx.stage.name}`,
+    toolId: ctx.aiToolId,
+    source: 'pipeline',
+    command: ctx.aiTool,
+    shellCommand,
+    prompt: structuredPrompt.prompt,
+    projectPath: ctx.projectPath,
+    workingDirectory: cwd,
+    activityStreamId: streamId,
+    resultMarkers: structuredPrompt.markers,
+    abortSignal: ctx.abortSignal,
+    onVisibleLines: (lines) => {
+      for (const line of lines) {
         ctx.emit(line);
-        if (streamId) {
-          activityManager.emit(streamId, line);
-        }
       }
-    });
-
-    child.on('close', (code) => {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      if (ctx.abortSignal.aborted) {
-        reject(new Error('Aborted'));
-      } else if (code !== 0) {
-        reject(new Error(`AI tool exited with code ${code}: ${stderr}`));
-      } else {
-        resolve(stdout);
-      }
-    });
-
-    child.on('error', (err) => {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      reject(err);
-    });
-
-    ctx.abortSignal.addEventListener('abort', () => {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      killProcessTree(child);
-    }, { once: true });
+    },
+  }).then((result) => {
+    if (!result.resultText) {
+      throw new Error('AI session finished without a structured result block.');
+    }
+    return result.resultText;
   });
 }
 
@@ -385,144 +351,79 @@ async function spawnAIToolAgent(
   prompt: string,
   streamId?: string
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const cwd = ctx.worktreePath || ctx.projectPath;
+  const cwd = ctx.worktreePath || ctx.projectPath;
 
-    // Resolve max-turns: stepConfig value > default (25). '0' or '' = unlimited.
-    const configMaxTurns = ctx.stepConfig['max-turns'];
-    const maxTurns = configMaxTurns === '0' || configMaxTurns === 'unlimited'
-      ? 0
-      : configMaxTurns
-        ? parseInt(configMaxTurns, 10) || DEFAULT_AGENT_MAX_TURNS
-        : DEFAULT_AGENT_MAX_TURNS;
+  const configMaxTurns = ctx.stepConfig['max-turns'];
+  const maxTurns = configMaxTurns === '0' || configMaxTurns === 'unlimited'
+    ? 0
+    : configMaxTurns
+      ? parseInt(configMaxTurns, 10) || DEFAULT_AGENT_MAX_TURNS
+      : DEFAULT_AGENT_MAX_TURNS;
 
-    const turnsLabel = maxTurns > 0 ? `max ${maxTurns} turns` : 'unlimited turns';
-    ctx.emit(`Spawning AI agent (autonomous mode, ${turnsLabel})...`);
-    if (streamId) {
-      activityManager.emit(streamId, `Spawning AI agent (autonomous mode, ${turnsLabel})...`);
-    }
+  const turnsLabel = maxTurns > 0 ? `max ${maxTurns} turns` : 'unlimited turns';
+  ctx.emit(`Spawning AI agent (autonomous mode, ${turnsLabel})...`);
+  if (streamId) {
+    activityManager.emit(streamId, `Spawning AI agent (autonomous mode, ${turnsLabel})...`);
+  }
 
-    // Agent mode: no --print, uses --output-format json for structured output.
-    // The AI can use all its built-in tools (Read, Grep, Glob, Bash, etc.)
-    // Split command string to handle custom flags (e.g. "claude --dangerously-skip-permissions")
-    const [aiExe, ...aiBaseFlags] = ctx.aiTool.split(/\s+/);
-    const args = [...aiBaseFlags, '--output-format', 'json', '--verbose'];
-    if (maxTurns > 0) {
-      args.push('--max-turns', String(maxTurns));
-    }
-    const child = spawn(aiExe, args, {
-      cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: true,
-    });
+  let shellCommand = buildInteractiveAICommand(ctx.aiToolId, ctx.aiTool);
+  if (ctx.aiToolId === 'claude' && maxTurns > 0 && !/(^|\s)--max-turns(\s|$)/.test(shellCommand)) {
+    shellCommand = `${shellCommand} --max-turns ${maxTurns}`.trim();
+  }
+  const structuredPrompt = createStructuredJsonPrompt(
+    prompt,
+    `pipeline-agent-${ctx.stage.id}-${crypto.randomUUID().slice(0, 8)}`,
+  );
 
-    // Deliver prompt via stdin
-    child.stdin.write(prompt);
-    child.stdin.end();
+  ctx.emit(`$ ${shellCommand}`);
+  if (streamId) {
+    activityManager.emit(streamId, `$ ${shellCommand}`);
+  }
 
-    let stdout = '';
-    let stderr = '';
-    const startTime = Date.now();
-    let turnCount = 0;
-    let lastActivityTime = Date.now();
+  const startTime = Date.now();
+  let turnCount = 0;
 
-    // Heartbeat timer — only used when no streamId (activityManager handles heartbeat otherwise)
-    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-    if (!streamId) {
-      heartbeatTimer = setInterval(() => {
-        if (ctx.abortSignal.aborted) return;
-        const elapsed = Date.now() - startTime;
-        const idle = Date.now() - lastActivityTime;
-        const parts = [`[Agent] ${formatElapsed(elapsed)} elapsed`];
-        if (turnCount > 0) parts.push(`~${turnCount} turns`);
-        if (idle > 30_000) parts.push('waiting...');
-        ctx.emit(parts.join(' | '));
-      }, 15_000);
-    }
-
-    // Guard: if signal was already aborted before we got here, clean up immediately
-    if (ctx.abortSignal.aborted) {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      killProcessTree(child);
-      reject(new Error('Aborted'));
-      return;
-    }
-
-    child.stdout.on('data', (data: Buffer) => {
-      const chunk = data.toString();
-      stdout += chunk;
-      lastActivityTime = Date.now();
-    });
-
-    child.stderr.on('data', (data: Buffer) => {
-      const chunk = data.toString();
-      stderr += chunk;
-      lastActivityTime = Date.now();
-      for (const line of chunk.split('\n').filter(Boolean)) {
-        // Detect turn boundaries from verbose output
+  const result = await aiSessionManager.runInteractivePrompt({
+    name: `Pipeline: ${ctx.stage.name}`,
+    toolId: ctx.aiToolId,
+    source: 'pipeline',
+    command: ctx.aiTool,
+    shellCommand,
+    prompt: structuredPrompt.prompt,
+    projectPath: ctx.projectPath,
+    workingDirectory: cwd,
+    activityStreamId: streamId,
+    resultMarkers: structuredPrompt.markers,
+    abortSignal: ctx.abortSignal,
+    hardTimeoutMs: Math.max(20 * 60_000, maxTurns > 0 ? maxTurns * 90_000 : 20 * 60_000),
+    onVisibleLines: (lines) => {
+      for (const line of lines) {
         if (line.includes('tool_use') || line.includes('Tool:') || /\bturn\b/i.test(line)) {
-          turnCount++;
+          turnCount += 1;
         }
         ctx.emit(line);
-        if (streamId) {
-          activityManager.emit(streamId, line);
-        }
       }
-    });
-
-    child.on('close', (code) => {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      const elapsed = Date.now() - startTime;
-      const finishMsg = `[Agent] Finished in ${formatElapsed(elapsed)} (~${turnCount} turns)`;
-      ctx.emit(finishMsg);
-      if (streamId) {
-        activityManager.emit(streamId, finishMsg);
-      }
-
-      if (ctx.abortSignal.aborted) {
-        reject(new Error('Aborted'));
-      } else if (code !== 0) {
-        const errMsg = `AI agent exited with code ${code}: ${stderr}`;
-        // Check if this was a max-turns exhaustion
-        if (isMaxTurnsError(stderr) || isMaxTurnsError(stdout)) {
-          const err = new Error(errMsg);
-          (err as Error & { failureReason: string }).failureReason = 'max-turns';
-          reject(err);
-        } else {
-          reject(new Error(errMsg));
-        }
-      } else {
-        // Unwrap envelope if present
-        try {
-          const envelope = JSON.parse(stdout);
-          if (envelope && typeof envelope === 'object' && 'result' in envelope && typeof envelope.result === 'string') {
-            // Check for max-turns in the envelope metadata
-            if (envelope.subtype === 'max_turns_reached' || isMaxTurnsError(JSON.stringify(envelope))) {
-              const err = new Error('AI agent reached max turns limit');
-              (err as Error & { failureReason: string }).failureReason = 'max-turns';
-              reject(err);
-              return;
-            }
-            resolve(envelope.result);
-            return;
-          }
-        } catch {
-          // Not JSON envelope
-        }
-        resolve(stdout);
-      }
-    });
-
-    child.on('error', (err) => {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      reject(err);
-    });
-
-    ctx.abortSignal.addEventListener('abort', () => {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
-      killProcessTree(child);
-    }, { once: true });
+    },
   });
+
+  const elapsed = Date.now() - startTime;
+  const finishMsg = `[Agent] Finished in ${formatElapsed(elapsed)} (~${turnCount} turns)`;
+  ctx.emit(finishMsg);
+  if (streamId) {
+    activityManager.emit(streamId, finishMsg);
+  }
+
+  if (isMaxTurnsError(result.renderedText)) {
+    const err = new Error('AI agent reached max turns limit');
+    (err as Error & { failureReason: string }).failureReason = 'max-turns';
+    throw err;
+  }
+
+  if (!result.resultText) {
+    throw new Error('AI agent finished without a structured result block.');
+  }
+
+  return result.resultText;
 }
 
 /**
@@ -562,37 +463,7 @@ async function getContextForScope(ctx: StageContext): Promise<{ context: string;
  * The output may contain markdown fences or other wrapping.
  */
 function parseJSONFromOutput(output: string): unknown {
-  // Try direct parse first
-  try {
-    return JSON.parse(output);
-  } catch {
-    // noop
-  }
-
-  // Try extracting from markdown code fences
-  const fenceMatch = output.match(/```(?:json)?\s*\n([\s\S]*?)\n\s*```/);
-  if (fenceMatch) {
-    try {
-      return JSON.parse(fenceMatch[1]);
-    } catch {
-      // noop
-    }
-  }
-
-  // Try finding first { or [ to last } or ]
-  const start = output.search(/[{[]/);
-  const endBrace = output.lastIndexOf('}');
-  const endBracket = output.lastIndexOf(']');
-  const end = Math.max(endBrace, endBracket);
-  if (start >= 0 && end > start) {
-    try {
-      return JSON.parse(output.slice(start, end + 1));
-    } catch {
-      // noop
-    }
-  }
-
-  return null;
+  return parseJsonFromMixedOutput(output);
 }
 
 // ─── Stage Handlers ──────────────────────────────────────────────────────────

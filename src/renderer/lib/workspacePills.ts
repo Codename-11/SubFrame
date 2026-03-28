@@ -27,6 +27,19 @@ export const WORKSPACE_ICON_OPTIONS = [
   { value: 'home', label: 'Home', icon: House },
 ] as const;
 
+export const WORKSPACE_ACCENT_OPTIONS = [
+  { value: null, label: 'Theme Default' },
+  { value: '#D4A574', label: 'Amber' },
+  { value: '#E56B6F', label: 'Rose' },
+  { value: '#F4A261', label: 'Orange' },
+  { value: '#E9C46A', label: 'Gold' },
+  { value: '#67C587', label: 'Green' },
+  { value: '#4CC9F0', label: 'Cyan' },
+  { value: '#5E81F4', label: 'Blue' },
+  { value: '#A78BFA', label: 'Indigo' },
+  { value: '#F78FB3', label: 'Pink' },
+] as const;
+
 export type WorkspaceIconId = (typeof WORKSPACE_ICON_OPTIONS)[number]['value'];
 
 export interface WorkspacePillDisplaySettings {
@@ -59,6 +72,19 @@ export function normalizeWorkspaceShortLabel(value: unknown): string | null {
 export function normalizeWorkspaceIcon(value: unknown): WorkspaceIconId | null {
   if (typeof value !== 'string') return null;
   return (WORKSPACE_ICON_OPTIONS.find((option) => option.value === value)?.value ?? null) as WorkspaceIconId | null;
+}
+
+export function normalizeWorkspaceAccentColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(trimmed)) return null;
+  return trimmed.toUpperCase();
+}
+
+export function withWorkspaceAccentAlpha(value: unknown, alphaHex: string): string | null {
+  const normalized = normalizeWorkspaceAccentColor(value);
+  if (!normalized || !/^[0-9a-fA-F]{2}$/.test(alphaHex)) return null;
+  return `${normalized}${alphaHex.toUpperCase()}`;
 }
 
 export function deriveWorkspaceMonogram(name: string): string {

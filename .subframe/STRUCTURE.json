@@ -10,216 +10,76 @@
   },
   "modules": {
     "main/activityManager": {
-      "file": "src\\main\\activityManager.ts",
-      "description": "Activity Manager — Centralized execution/output manager for SubFrame. Every long-running operation creates an ActivityStream that routes output through a unified channel with throttled IPC broadcasts.",
-      "exports": [
-        "init",
-        "setupIPC",
-        "createStream",
-        "emit",
-        "updateStatus",
-        "updateProgress",
-        "attachTerminal",
-        "startHeartbeat",
-        "startTimeout",
-        "getAbortSignal",
-        "cancelStream",
-        "clearStream",
-        "hasActiveStreams"
-      ],
+      "file": "src/main/activityManager.ts",
+      "description": "Activity Manager — Centralized execution/output manager for SubFrame.",
+      "exports": [],
       "depends": [
         "crypto",
+        "electron",
         "shared/ipcChannels",
         "eventBridge"
       ],
       "functions": {
         "isTerminalStatus": {
-          "line": 65,
-          "params": [
-            "status"
-          ],
-          "purpose": "Check if a status is terminal (no more updates expected)."
+          "line": 65
         },
         "toActivityStream": {
-          "line": 73,
-          "params": [
-            "internal"
-          ],
-          "purpose": "Only includes the last N lines as outputTail instead of full buffer."
+          "line": 73
         },
         "send": {
-          "line": 98,
-          "params": [
-            "channel",
-            "data"
-          ],
-          "purpose": "Send an event to the renderer if the window is available."
+          "line": 98
         },
         "broadcastStatus": {
-          "line": 107,
-          "params": [
-            "internal"
-          ],
-          "purpose": "Broadcast the current status of a stream to the renderer.",
-          "calls": [
-            "send",
-            "toActivityStream"
-          ]
+          "line": 107
         },
         "flushBatch": {
-          "line": 115,
-          "params": [
-            "internal"
-          ],
-          "purpose": "Flush pending output batch for a stream.",
-          "calls": [
-            "send"
-          ]
+          "line": 115
         },
         "clearTimers": {
-          "line": 128,
-          "params": [
-            "internal"
-          ],
-          "purpose": "Clear all timers for a stream.",
-          "calls": [
-            "flushBatch"
-          ]
+          "line": 128
         },
         "moveToHistory": {
-          "line": 148,
-          "params": [
-            "internal"
-          ],
-          "purpose": "Move a stream from active to history (ring buffer)."
+          "line": 148
         },
         "init": {
-          "line": 165,
-          "params": [
-            "window"
-          ],
-          "purpose": "Initialize the activity manager with the main window reference."
+          "line": 165
         },
         "createStream": {
-          "line": 172,
-          "params": [
-            "options"
-          ],
-          "purpose": "Create a new activity stream. Returns the stream ID.",
-          "calls": [
-            "broadcastStatus"
-          ]
+          "line": 172
         },
         "emit": {
-          "line": 206,
-          "params": [
-            "streamId",
-            "line"
-          ],
-          "purpose": "Append an output line to a stream. Broadcasts in throttled batches.",
-          "calls": [
-            "flushBatch"
-          ]
+          "line": 206
         },
         "updateStatus": {
-          "line": 223,
-          "params": [
-            "streamId",
-            "status",
-            "error"
-          ],
-          "purpose": "Update the status of a stream and broadcast the change.",
-          "calls": [
-            "broadcastStatus",
-            "clearTimers",
-            "isTerminalStatus",
-            "moveToHistory"
-          ]
+          "line": 223
         },
         "updateProgress": {
-          "line": 250,
-          "params": [
-            "streamId",
-            "progress"
-          ],
-          "purpose": "Update progress percentage for a stream and broadcast the change.",
-          "calls": [
-            "broadcastStatus"
-          ]
+          "line": 250
         },
         "startHeartbeat": {
-          "line": 262,
-          "params": [
-            "streamId"
-          ],
-          "purpose": "Heartbeats no longer emit synthetic log lines into the user-facing output."
+          "line": 262
         },
         "attachTerminal": {
-          "line": 279,
-          "params": [
-            "streamId",
-            "terminalId"
-          ],
-          "calls": [
-            "broadcastStatus"
-          ]
+          "line": 279
         },
         "startTimeout": {
-          "line": 289,
-          "params": [
-            "streamId"
-          ],
-          "purpose": "Start a timeout timer. When it fires, the stream fails with a timeout error.",
-          "calls": [
-            "updateStatus"
-          ]
+          "line": 289
         },
         "getAbortSignal": {
-          "line": 310,
-          "params": [
-            "streamId"
-          ],
-          "purpose": "Get the AbortSignal for a stream so executors can listen for cancellation."
+          "line": 310
         },
         "cancelStream": {
-          "line": 318,
-          "params": [
-            "streamId"
-          ],
-          "purpose": "Cancel a stream — aborts the AbortController and sets status to cancelled.",
-          "calls": [
-            "updateStatus"
-          ]
+          "line": 318
         },
         "clearStream": {
-          "line": 331,
-          "params": [
-            "streamId"
-          ],
-          "purpose": "Remove a completed stream from history."
+          "line": 331
         },
         "setupIPC": {
-          "line": 343,
-          "params": [
-            "ipc"
-          ],
-          "purpose": "Setup IPC handlers for activity stream operations.",
-          "calls": [
-            "cancelStream",
-            "clearStream",
-            "toActivityStream"
-          ]
+          "line": 343
         },
         "hasActiveStreams": {
           "line": 377
         }
-      },
-      "loc": 399,
-      "ipc": {
-        "listens": [
-          "ACTIVITY_CLEAR"
-        ],
-        "emits": []
       }
     },
     "main/agentStateManager": {
@@ -659,23 +519,9 @@
       }
     },
     "main/aiToolManager": {
-      "file": "src\\main\\aiToolManager.ts",
-      "description": "AI Tool Manager Manages switching between different AI coding tools (Claude Code, Codex CLI, etc.)",
-      "exports": [
-        "init",
-        "setupIPC",
-        "getAvailableTools",
-        "getActiveTool",
-        "setActiveTool",
-        "getConfig",
-        "getCommand",
-        "getStartCommand",
-        "checkToolInstalled",
-        "addCustomTool",
-        "removeCustomTool",
-        "onActiveToolChanged",
-        "AI_TOOLS"
-      ],
+      "file": "src/main/aiToolManager.ts",
+      "description": "AI Tool Manager",
+      "exports": [],
       "depends": [
         "settingsManager",
         "os",
@@ -684,155 +530,59 @@
         "fs",
         "path",
         "shared/ipcChannels",
-        "eventBridge"
+        "eventBridge",
+        "ipcRouter"
       ],
       "functions": {
         "init": {
-          "line": 105,
-          "params": [
-            "window",
-            "app"
-          ],
-          "purpose": "Initialize the AI Tool Manager",
-          "calls": [
-            "loadConfig"
-          ]
+          "line": 105
         },
         "loadConfig": {
-          "line": 114,
-          "purpose": "Load configuration from file"
+          "line": 114
         },
         "saveConfig": {
-          "line": 129,
-          "purpose": "Save configuration to file"
+          "line": 129
         },
         "isCommandInstalledAsync": {
-          "line": 157,
-          "params": [
-            "command"
-          ],
-          "purpose": "whether the file exists and is executable.",
-          "calls": [
-            "getSetting"
-          ]
+          "line": 157
         },
         "checkToolInstalled": {
-          "line": 220,
-          "params": [
-            "tool"
-          ],
-          "purpose": "Check install status for a single tool (considers fallbackCommand)",
-          "calls": [
-            "isCommandInstalledAsync"
-          ]
+          "line": 220
         },
         "getAvailableTools": {
-          "line": 229,
-          "purpose": "Get all available AI tools (with install status)",
-          "calls": [
-            "checkToolInstalled"
-          ]
+          "line": 229
         },
         "getActiveTool": {
-          "line": 246,
-          "params": [
-            "toolId"
-          ],
-          "purpose": "Get the currently active tool",
-          "calls": [
-            "getAvailableTools"
-          ]
+          "line": 246
         },
         "setActiveTool": {
-          "line": 257,
-          "params": [
-            "toolId"
-          ],
-          "purpose": "Set the active AI tool",
-          "calls": [
-            "broadcast",
-            "getActiveTool",
-            "getAvailableTools",
-            "saveConfig"
-          ]
+          "line": 257
         },
         "onActiveToolChanged": {
-          "line": 280,
-          "params": [
-            "callback"
-          ],
-          "purpose": "Used by index.ts to rebuild the application menu."
+          "line": 280
         },
         "getConfig": {
-          "line": 287,
-          "purpose": "Get full configuration for renderer",
-          "calls": [
-            "getActiveTool",
-            "getAvailableTools"
-          ]
+          "line": 287
         },
         "addCustomTool": {
-          "line": 297,
-          "params": [
-            "tool"
-          ],
-          "purpose": "Add a custom AI tool"
+          "line": 297
         },
         "removeCustomTool": {
-          "line": 315,
-          "params": [
-            "toolId"
-          ],
-          "purpose": "Remove a custom AI tool",
-          "calls": [
-            "saveConfig"
-          ]
+          "line": 315
         },
         "setupIPC": {
-          "line": 330,
-          "params": [
-            "ipc"
-          ],
-          "purpose": "Setup IPC handlers",
-          "calls": [
-            "addCustomTool",
-            "broadcast",
-            "getActiveTool",
-            "getConfig",
-            "removeCustomTool",
-            "setActiveTool"
-          ]
+          "line": 330
         },
         "getCommand": {
-          "line": 415,
-          "params": [
-            "action"
-          ],
-          "purpose": "Get command for specific action",
-          "calls": [
-            "getActiveTool"
-          ]
+          "line": 415
         },
         "getCustomCommand": {
-          "line": 423,
-          "params": [
-            "toolId"
-          ],
-          "purpose": "Get custom command override from settings for a tool"
+          "line": 423
         },
         "getStartCommand": {
-          "line": 437,
-          "params": [
-            "toolId"
-          ],
-          "purpose": "Get the start command for active tool",
-          "calls": [
-            "getActiveTool",
-            "getCustomCommand"
-          ]
+          "line": 437
         }
-      },
-      "loc": 448
+      }
     },
     "main/apiServerManager": {
       "file": "src\\main\\apiServerManager.ts",
@@ -2237,11 +1987,9 @@
       }
     },
     "main/index": {
-      "file": "src\\main\\index.ts",
-      "description": "Main Process Entry Point Initializes Electron app, creates window, loads modules",
-      "exports": [
-        "createWindow"
-      ],
+      "file": "src/main/index.ts",
+      "description": "Main Process Entry Point",
+      "exports": [],
       "depends": [
         "../package.json",
         "child_process",
@@ -2288,103 +2036,38 @@
       ],
       "functions": {
         "handleCLIArgs": {
-          "line": 75,
-          "params": [
-            "argv"
-          ],
-          "purpose": "subframe .              — open current directory as project",
-          "calls": [
-            "sendCLIOpenFile",
-            "sendCLIOpenProject"
-          ]
+          "line": 75
         },
         "sendCLIOpenFile": {
-          "line": 111,
-          "params": [
-            "filePath"
-          ]
+          "line": 111
         },
         "sendCLIOpenProject": {
-          "line": 128,
-          "params": [
-            "dirPath"
-          ],
-          "calls": [
-            "broadcast"
-          ]
+          "line": 128
         },
         "getWindowStatePath": {
-          "line": 143,
-          "purpose": "Get path for persisted window state"
+          "line": 143
         },
         "loadWindowState": {
-          "line": 150,
-          "purpose": "Load saved window state (bounds + maximized)",
-          "calls": [
-            "getWindowStatePath"
-          ]
+          "line": 150
         },
         "saveWindowState": {
-          "line": 162,
-          "purpose": "Save current window state",
-          "calls": [
-            "getWindowStatePath"
-          ]
+          "line": 162
         },
         "createSplash": {
-          "line": 175,
-          "params": [
-            "bounds",
-            "isMaximized"
-          ],
-          "purpose": "Create a lightweight splash window that appears instantly.",
-          "calls": [
-            "getLogoSVG"
-          ]
+          "line": 175
         },
         "createWindow": {
-          "line": 225,
-          "purpose": "Create main application window",
-          "calls": [
-            "broadcast",
-            "createSplash",
-            "initEventBridge",
-            "initModulesWithWindow",
-            "loadWindowState",
-            "saveWindowState"
-          ]
+          "line": 225
         },
         "setupAllIPC": {
-          "line": 530,
-          "purpose": "Setup all IPC handlers",
-          "calls": [
-            "createRoutableIPC"
-          ]
+          "line": 530
         },
         "init": {
-          "line": 828,
-          "purpose": "Initialize application",
-          "calls": [
-            "setupAllIPC"
-          ]
+          "line": 828
         },
         "initModulesWithWindow": {
-          "line": 839,
-          "params": [
-            "window"
-          ],
-          "purpose": "Initialize modules that need window reference"
+          "line": 839
         }
-      },
-      "loc": 945,
-      "ipc": {
-        "listens": [
-          "GRACEFUL_SHUTDOWN_CONFIRM",
-          "GRACEFUL_SHUTDOWN_CANCEL",
-          "GRACEFUL_SHUTDOWN_FORCE",
-          "TERMINAL_INPUT"
-        ],
-        "emits": []
       }
     },
     "main/ipcRouter": {
@@ -2452,13 +2135,9 @@
       }
     },
     "main/menu": {
-      "file": "src\\main\\menu.ts",
-      "description": "Application Menu Module Defines menu structure and handlers Supports dynamic menu based on active AI tool",
-      "exports": [
-        "init",
-        "createMenu",
-        "getMenuTemplate"
-      ],
+      "file": "src/main/menu.ts",
+      "description": "Application Menu Module",
+      "exports": [],
       "depends": [
         "electron",
         "path",
@@ -2471,84 +2150,33 @@
       ],
       "functions": {
         "init": {
-          "line": 47,
-          "params": [
-            "window",
-            "app",
-            "toolManager"
-          ],
-          "purpose": "Initialize menu module"
+          "line": 47
         },
         "sendToRenderer": {
-          "line": 56,
-          "params": [
-            "channel",
-            "...args"
-          ],
-          "purpose": "Send an IPC event to the renderer",
-          "calls": [
-            "broadcast"
-          ]
+          "line": 56
         },
         "getMenuTemplate": {
-          "line": 65,
-          "purpose": "Get menu template based on active AI tool",
-          "calls": [
-            "buildAICommandsSubmenu",
-            "checkForUpdates",
-            "sendToRenderer"
-          ]
+          "line": 65
         },
         "buildAICommandsSubmenu": {
-          "line": 289,
-          "params": [
-            "tool"
-          ],
-          "purpose": "Build AI commands submenu based on active tool",
-          "calls": [
-            "buildToolSwitcherSubmenu",
-            "openHistoryFile",
-            "sendCommand",
-            "toggleHistoryPanel"
-          ]
+          "line": 289
         },
         "buildToolSwitcherSubmenu": {
-          "line": 405,
-          "purpose": "Build tool switcher submenu",
-          "calls": [
-            "createMenu"
-          ]
+          "line": 405
         },
         "sendCommand": {
-          "line": 426,
-          "params": [
-            "command"
-          ],
-          "purpose": "Send command to terminal",
-          "calls": [
-            "sendToRenderer"
-          ]
+          "line": 426
         },
         "toggleHistoryPanel": {
-          "line": 433,
-          "purpose": "Toggle history panel",
-          "calls": [
-            "sendToRenderer"
-          ]
+          "line": 433
         },
         "openHistoryFile": {
-          "line": 440,
-          "purpose": "Open history file in default editor"
+          "line": 440
         },
         "createMenu": {
-          "line": 455,
-          "purpose": "Create and set application menu",
-          "calls": [
-            "getMenuTemplate"
-          ]
+          "line": 455
         }
-      },
-      "loc": 463
+      }
     },
     "main/onboardingManager": {
       "file": "src/main/onboardingManager.ts",
@@ -2945,22 +2573,15 @@
       }
     },
     "main/pipelineManager": {
-      "file": "src\\main\\pipelineManager.ts",
-      "description": "Pipeline Manager Module Orchestrates pipeline runs: parses workflows, executes jobs/stages, handles approval gates, and pushes progress events to the renderer.",
-      "exports": [
-        "init",
-        "setupIPC",
-        "watchWorkflows",
-        "unwatchWorkflows",
-        "watchPrePushTrigger",
-        "unwatchPrePushTrigger",
-        "hasActiveRuns"
-      ],
+      "file": "src/main/pipelineManager.ts",
+      "description": "Pipeline Manager Module",
+      "exports": [],
       "depends": [
         "fs",
         "path",
         "crypto",
         "child_process",
+        "electron",
         "shared/ipcChannels",
         "shared/frameConstants",
         "pipelineWorkflowParser",
@@ -2970,262 +2591,85 @@
       ],
       "functions": {
         "uid": {
-          "line": 54,
-          "purpose": "─── Helpers ─────────────────────────────────────────────────────────────────"
+          "line": 54
         },
         "now": {
           "line": 58
         },
         "send": {
-          "line": 62,
-          "params": [
-            "channel",
-            "data"
-          ]
+          "line": 62
         },
         "emitProgress": {
-          "line": 68,
-          "params": [
-            "runId",
-            "stageId",
-            "log"
-          ],
-          "calls": [
-            "send"
-          ]
+          "line": 68
         },
         "broadcastRunUpdate": {
-          "line": 73,
-          "params": [
-            "run"
-          ],
-          "calls": [
-            "send"
-          ]
+          "line": 73
         },
         "broadcastRunsList": {
-          "line": 77,
-          "params": [
-            "projectPath"
-          ],
-          "calls": [
-            "send"
-          ]
+          "line": 77
         },
         "ensurePipelinesDir": {
-          "line": 87,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Get the pipelines directory, creating it if needed."
+          "line": 87
         },
         "ensureWorkflowsDir": {
-          "line": 98,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Ensure the workflows directory exists, seeding with default workflow if empty."
+          "line": 98
         },
         "persistRuns": {
-          "line": 123,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Persist runs to .subframe/pipelines/runs.json",
-          "calls": [
-            "ensurePipelinesDir"
-          ]
+          "line": 123
         },
         "loadPersistedRuns": {
-          "line": 145,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Load persisted runs from disk.",
-          "calls": [
-            "now"
-          ]
+          "line": 145
         },
         "execAsync": {
-          "line": 170,
-          "params": [
-            "cmd",
-            "cwd: string"
-          ],
-          "purpose": "Run a shell command and return stdout."
+          "line": 170
         },
         "topologicalSortJobs": {
-          "line": 188,
-          "params": [
-            "jobs",
-            "{ name?: string; needs?: string[]; steps: WorkflowStep[] }>"
-          ],
-          "purpose": "Returns an ordered array of [jobId, WorkflowJob] pairs."
+          "line": 188
         },
         "stepToStageType": {
-          "line": 239,
-          "params": [
-            "step"
-          ],
-          "purpose": "Map a workflow step's `uses` value to a StageType."
+          "line": 239
         },
         "buildRun": {
-          "line": 252,
-          "params": [
-            "workflow",
-            "projectPath",
-            "trigger",
-            "branch",
-            "baseSha",
-            "headSha",
-            "overrides",
-            "string>"
-          ],
-          "purpose": "Build a PipelineRun from a workflow definition.",
-          "calls": [
-            "now",
-            "stepToStageType",
-            "topologicalSortJobs",
-            "uid"
-          ]
+          "line": 252
         },
         "executeRun": {
-          "line": 316,
-          "params": [
-            "runCtx",
-            "workflow"
-          ],
-          "purpose": "Execute a full pipeline run.",
-          "calls": [
-            "broadcastRunUpdate",
-            "emitProgress",
-            "getStageHandler",
-            "now",
-            "persistRuns",
-            "runCustomStage",
-            "shouldRequireApproval",
-            "waitForApproval"
-          ]
+          "line": 316
         },
         "shouldRequireApproval": {
-          "line": 582,
-          "params": [
-            "stage",
-            "artifacts"
-          ],
-          "purpose": "Determine if a stage should pause for approval."
+          "line": 582
         },
         "waitForApproval": {
-          "line": 594,
-          "params": [
-            "runCtx"
-          ],
-          "purpose": "Returns true if approved, false if rejected."
+          "line": 594
         },
         "init": {
-          "line": 617,
-          "params": [
-            "window"
-          ],
-          "purpose": "Initialize the pipeline manager."
+          "line": 617
         },
         "setupIPC": {
-          "line": 624,
-          "params": [
-            "ipcMain"
-          ],
-          "purpose": "Setup all IPC handlers for the pipeline system.",
-          "calls": [
-            "broadcastRunUpdate",
-            "broadcastRunsList",
-            "buildRun",
-            "ensureWorkflowsDir",
-            "execAsync",
-            "executeRun",
-            "listWorkflows",
-            "loadPersistedRuns",
-            "now",
-            "parseWorkflow",
-            "persistRuns",
-            "unwatchPrePushTrigger",
-            "unwatchWorkflows",
-            "watchPrePushTrigger",
-            "watchWorkflows"
-          ]
+          "line": 624
         },
         "watchWorkflows": {
-          "line": 883,
-          "params": [
-            "projectPath"
-          ],
-          "calls": [
-            "broadcastRunsList",
-            "unwatchWorkflows"
-          ]
+          "line": 883
         },
         "unwatchWorkflows": {
           "line": 908
         },
         "startPipelineFromTrigger": {
-          "line": 923,
-          "params": [
-            "projectPath",
-            "workflowId",
-            "trigger: PipelineTrigger"
-          ],
-          "purpose": "the IPC handler and the file watcher.",
-          "calls": [
-            "broadcastRunUpdate",
-            "broadcastRunsList",
-            "buildRun",
-            "ensureWorkflowsDir",
-            "execAsync",
-            "executeRun",
-            "listWorkflows"
-          ]
+          "line": 923
         },
         "watchPrePushTrigger": {
-          "line": 981,
-          "params": [
-            "projectPath"
-          ],
-          "calls": [
-            "listWorkflows",
-            "startPipelineFromTrigger",
-            "unwatchPrePushTrigger"
-          ]
+          "line": 981
         },
         "unwatchPrePushTrigger": {
           "line": 1020
         },
         "hasActiveRuns": {
-          "line": 1030,
-          "purpose": "─── Exports ─────────────────────────────────────────────────────────────────"
+          "line": 1030
         }
-      },
-      "loc": 1043,
-      "ipc": {
-        "listens": [
-          "PIPELINE_LIST_WORKFLOWS",
-          "PIPELINE_START",
-          "PIPELINE_CANCEL",
-          "PIPELINE_APPROVE_STAGE",
-          "PIPELINE_REJECT_STAGE",
-          "PIPELINE_APPLY_PATCH",
-          "PIPELINE_DELETE_RUN",
-          "PIPELINE_SAVE_WORKFLOW",
-          "PIPELINE_DELETE_WORKFLOW",
-          "PIPELINE_LIST_RUNS",
-          "PIPELINE_GET_RUN",
-          "WATCH_PIPELINE",
-          "UNWATCH_PIPELINE"
-        ],
-        "emits": []
       }
     },
     "main/pipelineStages": {
-      "file": "src\\main\\pipelineStages.ts",
-      "description": "Pipeline Stage Handlers Built-in stage implementations for the pipeline system.",
+      "file": "src/main/pipelineStages.ts",
+      "description": "Pipeline Stage Handlers",
       "exports": [
         "runLintStage",
         "runTestStage",
@@ -3250,273 +2694,84 @@
       ],
       "functions": {
         "uid": {
-          "line": 56,
-          "purpose": "─── Utilities ───────────────────────────────────────────────────────────────"
+          "line": 56
         },
         "killProcessTree": {
-          "line": 68,
-          "params": [
-            "child"
-          ],
-          "purpose": "This uses `taskkill /F /T` on Windows to kill the entire tree."
+          "line": 68
         },
         "formatElapsed": {
-          "line": 81,
-          "params": [
-            "ms"
-          ]
+          "line": 81
         },
         "isMaxTurnsError": {
-          "line": 90,
-          "params": [
-            "message"
-          ]
+          "line": 90
         },
         "now": {
           "line": 98
         },
         "execAsyncWithEnv": {
-          "line": 105,
-          "params": [
-            "cmd",
-            "opts",
-            "string | undefined> }"
-          ],
-          "purpose": "Run a shell command with custom env and return stdout/stderr."
+          "line": 105
         },
         "execAsync": {
-          "line": 133,
-          "params": [
-            "cmd",
-            "opts: { cwd: string; signal?: AbortSignal }"
-          ],
-          "purpose": "Run a shell command and return stdout/stderr."
+          "line": 133
         },
         "getDiff": {
-          "line": 164,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Returns empty string if no diff available (callers should handle this).",
-          "calls": [
-            "execAsync"
-          ]
+          "line": 164
         },
         "getProjectContext": {
-          "line": 195,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Returns a structured markdown string with file tree, structure, package info, etc.",
-          "calls": [
-            "execAsync"
-          ]
+          "line": 195
         },
         "spawnAITool": {
-          "line": 263,
-          "params": [
-            "ctx",
-            "prompt",
-            "streamId?: string"
-          ],
-          "purpose": "so callers receive the actual AI response text.",
-          "calls": [
-            "spawnAIToolRaw"
-          ]
+          "line": 263
         },
         "spawnAIToolRaw": {
-          "line": 295,
-          "params": [
-            "ctx",
-            "prompt",
-            "streamId?: string"
-          ],
-          "purpose": "activityManager handles heartbeat.",
-          "calls": [
-            "buildInteractiveAICommand",
-            "createStructuredJsonPrompt"
-          ]
+          "line": 295
         },
         "spawnAIToolAgent": {
-          "line": 349,
-          "params": [
-            "ctx",
-            "prompt",
-            "streamId?: string"
-          ],
-          "purpose": "activityManager handles heartbeat.",
-          "calls": [
-            "buildInteractiveAICommand",
-            "createStructuredJsonPrompt",
-            "formatElapsed",
-            "isMaxTurnsError"
-          ]
+          "line": 349
         },
         "dispatchAITool": {
-          "line": 437,
-          "params": [
-            "ctx",
-            "prompt",
-            "streamId"
-          ],
-          "purpose": "When streamId is provided, output is also routed through activityManager.",
-          "calls": [
-            "spawnAITool",
-            "spawnAIToolAgent"
-          ]
+          "line": 437
         },
         "getContextForScope": {
-          "line": 451,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Returns empty string if no context available."
+          "line": 451
         },
         "parseJSONFromOutput": {
-          "line": 465,
-          "params": [
-            "output"
-          ],
-          "purpose": "The output may contain markdown fences or other wrapping.",
-          "calls": [
-            "parseJsonFromMixedOutput"
-          ]
+          "line": 465
         },
         "runLintStage": {
-          "line": 477,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Runs the lint command and parses output.",
-          "calls": [
-            "execAsync",
-            "now",
-            "parseJSONFromOutput",
-            "parseLintOutput",
-            "spawnAITool",
-            "uid"
-          ]
+          "line": 477
         },
         "parseLintOutput": {
-          "line": 567,
-          "params": [
-            "output",
-            "stageId"
-          ],
-          "purpose": "Handles patterns like: file.ts:10:5: error message",
-          "calls": [
-            "now",
-            "uid"
-          ]
+          "line": 567
         },
         "buildFocusInstruction": {
-          "line": 594,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Supported values: security, documentation, architecture, performance, testing, or custom text."
+          "line": 594
         },
         "runTestStage": {
-          "line": 614,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Respects stepConfig: scope, mode, focus, prompt.",
-          "calls": [
-            "buildFocusInstruction",
-            "dispatchAITool",
-            "getContextForScope",
-            "isMaxTurnsError",
-            "now",
-            "parseJSONFromOutput",
-            "uid"
-          ]
+          "line": 614
         },
         "runDescribeStage": {
-          "line": 692,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Respects stepConfig: scope, mode, focus, prompt.",
-          "calls": [
-            "buildFocusInstruction",
-            "dispatchAITool",
-            "getContextForScope",
-            "isMaxTurnsError",
-            "now",
-            "parseJSONFromOutput",
-            "uid"
-          ]
+          "line": 692
         },
         "runCritiqueStage": {
-          "line": 792,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Respects stepConfig: scope, mode, focus, prompt.",
-          "calls": [
-            "buildFocusInstruction",
-            "dispatchAITool",
-            "getContextForScope",
-            "isMaxTurnsError",
-            "now",
-            "parseJSONFromOutput",
-            "uid"
-          ]
+          "line": 792
         },
         "runFreezeStage": {
-          "line": 956,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Marks frozen=true on subsequent stages and produces a summary artifact.",
-          "calls": [
-            "now",
-            "uid"
-          ]
+          "line": 956
         },
         "runPushStage": {
-          "line": 984,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Executes `git push` with safety checks.",
-          "calls": [
-            "execAsync",
-            "now",
-            "uid"
-          ]
+          "line": 984
         },
         "runCreatePrStage": {
-          "line": 1055,
-          "params": [
-            "ctx"
-          ],
-          "purpose": "Uses `gh pr create` with accumulated describe artifacts for the PR body.",
-          "calls": [
-            "execAsync",
-            "now",
-            "uid"
-          ]
+          "line": 1055
         },
         "runCustomStage": {
-          "line": 1148,
-          "params": [
-            "ctx",
-            "step",
-            "string> }"
-          ],
-          "purpose": "Executes the `run:` shell command or `uses:` script from a workflow step."
+          "line": 1148
         },
         "getStageHandler": {
-          "line": 1249,
-          "params": [
-            "stageType"
-          ],
-          "purpose": "Resolve a stage type string to its handler function."
+          "line": 1249
         }
-      },
-      "loc": 1261
+      }
     },
     "main/pipelineWorkflowParser": {
       "file": "src\\main\\pipelineWorkflowParser.ts",
@@ -4279,102 +3534,46 @@
       }
     },
     "main/settingsManager": {
-      "file": "src\\main\\settingsManager.ts",
-      "description": "Settings Manager Manages application settings stored in frame-settings.json",
-      "exports": [
-        "init",
-        "setupIPC",
-        "loadSettings",
-        "saveSettings",
-        "updateSetting",
-        "getSetting",
-        "onSettingChange",
-        "reload"
-      ],
+      "file": "src/main/settingsManager.ts",
+      "description": "Settings Manager",
+      "exports": [],
       "depends": [
         "electron",
         "fs",
         "path",
         "shared/ipcChannels",
-        "eventBridge"
+        "eventBridge",
+        "ipcRouter"
       ],
       "functions": {
         "init": {
-          "line": 175,
-          "params": [
-            "window",
-            "app"
-          ],
-          "purpose": "Initialize the settings manager",
-          "calls": [
-            "loadSettings"
-          ]
+          "line": 175
         },
         "loadSettings": {
-          "line": 184,
-          "purpose": "Load settings from file",
-          "calls": [
-            "deepMerge"
-          ]
+          "line": 184
         },
         "saveSettings": {
-          "line": 211,
-          "purpose": "Save settings to file"
+          "line": 211
         },
         "updateSetting": {
-          "line": 224,
-          "params": [
-            "keyPath",
-            "value"
-          ],
-          "purpose": "Update a setting by key path (e.g. 'aiTools.claude.customCommand')",
-          "calls": [
-            "broadcast",
-            "saveSettings"
-          ]
+          "line": 224
         },
         "onSettingChange": {
-          "line": 254,
-          "params": [
-            "listener"
-          ],
-          "purpose": "Register a listener for setting changes (main-process only)"
+          "line": 254
         },
         "getSetting": {
-          "line": 265,
-          "params": [
-            "keyPath"
-          ],
-          "purpose": "Get a setting by key path"
+          "line": 265
         },
         "deepMerge": {
-          "line": 280,
-          "params": [
-            "target",
-            "unknown>",
-            "source",
-            "unknown>"
-          ],
-          "purpose": "Deep merge two objects"
+          "line": 280
         },
         "setupIPC": {
-          "line": 301,
-          "params": [
-            "ipc"
-          ],
-          "purpose": "Setup IPC handlers",
-          "calls": [
-            "updateSetting"
-          ]
+          "line": 301
         },
         "reload": {
-          "line": 312,
-          "calls": [
-            "loadSettings"
-          ]
+          "line": 312
         }
-      },
-      "loc": 317
+      }
     },
     "main/skillsManager": {
       "file": "src\\main\\skillsManager.ts",
@@ -4482,23 +3681,14 @@
       "loc": 220
     },
     "main/tasksManager": {
-      "file": "src\\main\\tasksManager.ts",
-      "description": "Tasks Manager Module Handles task CRUD operations for SubFrame projects.",
-      "exports": [
-        "init",
-        "setProjectPath",
-        "loadTasks",
-        "addTask",
-        "updateTask",
-        "deleteTask",
-        "watchTasksFile",
-        "unwatchTasksFile",
-        "setupIPC"
-      ],
+      "file": "src/main/tasksManager.ts",
+      "description": "Tasks Manager Module",
+      "exports": [],
       "depends": [
         "fs",
         "path",
         "crypto",
+        "electron",
         "shared/ipcChannels",
         "shared/frameConstants",
         "taskMarkdownParser",
@@ -4510,243 +3700,71 @@
       ],
       "functions": {
         "init": {
-          "line": 56,
-          "params": [
-            "window"
-          ],
-          "purpose": "Initialize tasks manager"
+          "line": 56
         },
         "setProjectPath": {
-          "line": 63,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Set current project path"
+          "line": 63
         },
         "getTasksDir": {
-          "line": 70,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Get the .subframe/tasks/ directory for a project"
+          "line": 70
         },
         "getPrivateTasksDir": {
-          "line": 77,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Get the .subframe/tasks/private/ directory for a project"
+          "line": 77
         },
         "getTaskFilePath": {
-          "line": 85,
-          "params": [
-            "projectPath",
-            "taskId",
-            "isPrivate"
-          ],
-          "purpose": "Private tasks are stored in .subframe/tasks/private/."
+          "line": 85
         },
         "findTaskFile": {
-          "line": 96,
-          "params": [
-            "projectPath",
-            "taskId"
-          ],
-          "purpose": "Returns the file path if found, null otherwise."
+          "line": 96
         },
         "getTasksJsonPath": {
-          "line": 107,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Get tasks.json file path for a project (for index / backward compat)"
+          "line": 107
         },
         "ensureTasksDir": {
-          "line": 115,
-          "params": [
-            "projectPath",
-            "isPrivate"
-          ],
-          "purpose": "If isPrivate, also ensures the private subdirectory exists.",
-          "calls": [
-            "getPrivateTasksDir",
-            "getTasksDir"
-          ]
+          "line": 115
         },
         "statusToGroupKey": {
-          "line": 125,
-          "params": [
-            "status"
-          ],
-          "purpose": "Map task status to the grouped key used in TasksData"
+          "line": 125
         },
         "generateTaskId": {
-          "line": 134,
-          "purpose": "Generate unique task ID"
+          "line": 134
         },
         "computeTasksFingerprint": {
-          "line": 143,
-          "params": [
-            "tasksData"
-          ],
-          "purpose": "(which come from .md files and are stable unless the task actually changes)."
+          "line": 143
         },
         "stripInternalFields": {
-          "line": 158,
-          "params": [
-            "tasks"
-          ],
-          "purpose": "`filePath` leaks absolute local paths; `_unknownSections` is parser-internal."
+          "line": 158
         },
         "getProjectName": {
-          "line": 173,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Derive the project name from the project path"
+          "line": 173
         },
         "buildTasksData": {
-          "line": 180,
-          "params": [
-            "projectPath",
-            "allTasks"
-          ],
-          "purpose": "Build the TasksData structure from an array of tasks",
-          "calls": [
-            "getProjectName",
-            "statusToGroupKey"
-          ]
+          "line": 180
         },
         "loadTasks": {
-          "line": 237,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Falls back to tasks.json if the directory doesn't exist (backward compat).",
-          "calls": [
-            "buildTasksData",
-            "getPrivateTasksDir",
-            "getTasksDir",
-            "getTasksJsonPath",
-            "parseTaskMarkdown"
-          ]
+          "line": 237
         },
         "regenerateIndex": {
-          "line": 329,
-          "params": [
-            "projectPath",
-            "tasksData"
-          ],
-          "purpose": "Regenerate the tasks.json index file from the current in-memory data.",
-          "calls": [
-            "getProjectName",
-            "getTasksJsonPath",
-            "stripInternalFields"
-          ]
+          "line": 329
         },
         "addTask": {
-          "line": 383,
-          "params": [
-            "projectPath",
-            "task"
-          ],
-          "purpose": "Add a new task — writes a .md file, then regenerates the index.",
-          "calls": [
-            "ensureTasksDir",
-            "generateTaskId",
-            "getTaskFilePath",
-            "loadTasks",
-            "regenerateIndex",
-            "serializeTaskMarkdown"
-          ]
+          "line": 383
         },
         "updateTask": {
-          "line": 429,
-          "params": [
-            "projectPath",
-            "taskId",
-            "updates: Partial<Task>"
-          ],
-          "purpose": "then regenerates the index.",
-          "calls": [
-            "ensureTasksDir",
-            "findTaskFile",
-            "getTaskFilePath",
-            "loadTasks",
-            "parseTaskMarkdown",
-            "regenerateIndex",
-            "serializeTaskMarkdown"
-          ]
+          "line": 429
         },
         "deleteTask": {
-          "line": 497,
-          "params": [
-            "projectPath",
-            "taskId"
-          ],
-          "purpose": "Delete a task — removes the .md file, then regenerates the index.",
-          "calls": [
-            "findTaskFile",
-            "loadTasks",
-            "regenerateIndex"
-          ]
+          "line": 497
         },
         "watchTasksFile": {
-          "line": 522,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Keeps the exported name `watchTasksFile` for IPC compat.",
-          "calls": [
-            "broadcast",
-            "computeTasksFingerprint",
-            "getPrivateTasksDir",
-            "getTasksDir",
-            "loadTasks",
-            "unwatchTasksFile"
-          ]
+          "line": 522
         },
         "unwatchTasksFile": {
-          "line": 583,
-          "purpose": "Stop watching tasks directory"
+          "line": 583
         },
         "setupIPC": {
-          "line": 598,
-          "params": [
-            "ipcMain"
-          ],
-          "purpose": "Setup IPC handlers",
-          "calls": [
-            "addTask",
-            "broadcast",
-            "checkToolInstalled",
-            "createStructuredJsonPrompt",
-            "deleteTask",
-            "getActiveTool",
-            "getStartCommand",
-            "loadTasks",
-            "parseJsonFromMixedOutput",
-            "unwatchTasksFile",
-            "updateTask",
-            "watchTasksFile"
-          ]
+          "line": 598
         }
-      },
-      "loc": 787,
-      "ipc": {
-        "listens": [
-          "LOAD_TASKS",
-          "WATCH_TASKS",
-          "UNWATCH_TASKS",
-          "ADD_TASK",
-          "UPDATE_TASK",
-          "DELETE_TASK",
-          "ENHANCE_TASK"
-        ],
-        "emits": [
-          "TASKS_DATA",
-          "TASK_UPDATED"
-        ]
       }
     },
     "main/updaterManager": {
@@ -4960,346 +3978,105 @@
       }
     },
     "main/workspace": {
-      "file": "src\\main\\workspace.ts",
-      "description": "Workspace Module Manages workspace configuration in ~/.subframe/workspaces.json",
-      "exports": [
-        "init",
-        "loadWorkspace",
-        "getProjects",
-        "getProjectsWithScanned",
-        "scanProjectDir",
-        "addProject",
-        "removeProject",
-        "renameProject",
-        "updateProjectLastOpened",
-        "updateProjectFrameStatus",
-        "getWorkspaceList",
-        "switchWorkspace",
-        "createWorkspace",
-        "duplicateWorkspace",
-        "renameWorkspace",
-        "deleteWorkspace",
-        "reorderWorkspaces",
-        "setWorkspaceInactive",
-        "setProjectAITool",
-        "getProjectAITool",
-        "setupIPC",
-        "reload"
-      ],
+      "file": "src/main/workspace.ts",
+      "description": "Workspace Module",
+      "exports": [],
       "depends": [
         "fs",
         "path",
         "os",
+        "electron",
         "shared/ipcChannels",
         "shared/frameConstants"
       ],
       "functions": {
         "init": {
-          "line": 78,
-          "params": [
-            "app",
-            "_window",
-            "settings"
-          ],
-          "purpose": "Initialize workspace module",
-          "calls": [
-            "ensureWorkspaceDir"
-          ]
+          "line": 78
         },
         "ensureWorkspaceDir": {
-          "line": 88,
-          "purpose": "Ensure workspace directory and file exist",
-          "calls": [
-            "createDefaultWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 88
         },
         "createDefaultWorkspace": {
-          "line": 102,
-          "purpose": "Create default workspace structure"
+          "line": 102
         },
         "loadWorkspace": {
-          "line": 119,
-          "purpose": "Load workspace from file",
-          "calls": [
-            "createDefaultWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 119
         },
         "saveWorkspace": {
-          "line": 149,
-          "params": [
-            "data"
-          ],
-          "purpose": "Save workspace to file"
+          "line": 149
         },
         "getProjects": {
-          "line": 162,
-          "purpose": "Get projects from active workspace",
-          "calls": [
-            "loadWorkspace"
-          ]
+          "line": 162
         },
         "addProject": {
-          "line": 171,
-          "params": [
-            "projectPath",
-            "name",
-            "isFrameProject"
-          ],
-          "purpose": "Add project to workspace",
-          "calls": [
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 171
         },
         "removeProject": {
-          "line": 196,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Remove project from workspace",
-          "calls": [
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 196
         },
         "updateProjectLastOpened": {
-          "line": 212,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Update project's last opened timestamp",
-          "calls": [
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 212
         },
         "renameProject": {
-          "line": 228,
-          "params": [
-            "projectPath",
-            "newName"
-          ],
-          "purpose": "Rename a project in the workspace",
-          "calls": [
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 228
         },
         "scanProjectDir": {
-          "line": 248,
-          "params": [
-            "dirPath"
-          ],
-          "purpose": "Scan a directory for projects"
+          "line": 248
         },
         "recheckFrameStatus": {
-          "line": 280,
-          "params": [
-            "project"
-          ],
-          "purpose": "Re-check isFrameProject by looking for .subframe/config.json on disk."
+          "line": 280
         },
         "getProjectsWithScanned": {
-          "line": 293,
-          "purpose": "Get projects merged with scanned results from default project dir",
-          "calls": [
-            "getProjects",
-            "loadWorkspace",
-            "recheckFrameStatus",
-            "scanProjectDir"
-          ]
+          "line": 293
         },
         "updateProjectFrameStatus": {
-          "line": 323,
-          "params": [
-            "projectPath",
-            "isFrame"
-          ],
-          "purpose": "Update project's SubFrame status",
-          "calls": [
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 323
         },
         "setProjectAITool": {
-          "line": 339,
-          "params": [
-            "projectPath",
-            "aiTool"
-          ],
-          "purpose": "Set or clear per-project AI tool binding",
-          "calls": [
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 339
         },
         "getProjectAITool": {
-          "line": 360,
-          "params": [
-            "projectPath"
-          ],
-          "purpose": "Get per-project AI tool binding (if any)",
-          "calls": [
-            "loadWorkspace"
-          ]
+          "line": 360
         },
         "getOrderedKeys": {
-          "line": 371,
-          "params": [
-            "data"
-          ]
+          "line": 371
         },
         "slugify": {
-          "line": 385,
-          "params": [
-            "name"
-          ],
-          "purpose": "Convert workspace name to slug key"
+          "line": 385
         },
         "getWorkspaceList": {
-          "line": 398,
-          "purpose": "Get workspace list for the renderer selector",
-          "calls": [
-            "getOrderedKeys",
-            "loadWorkspace"
-          ]
+          "line": 398
         },
         "normalizeAccentColor": {
-          "line": 420,
-          "params": [
-            "value"
-          ]
+          "line": 420
         },
         "switchWorkspace": {
-          "line": 429,
-          "params": [
-            "key"
-          ],
-          "purpose": "Switch to a different workspace",
-          "calls": [
-            "getProjectsWithScanned",
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 429
         },
         "createWorkspace": {
-          "line": 445,
-          "params": [
-            "name"
-          ],
-          "purpose": "Create a new workspace",
-          "calls": [
-            "getWorkspaceList",
-            "loadWorkspace",
-            "saveWorkspace",
-            "slugify"
-          ]
+          "line": 445
         },
         "duplicateWorkspace": {
-          "line": 477,
-          "params": [
-            "key"
-          ],
-          "calls": [
-            "getOrderedKeys",
-            "getWorkspaceList",
-            "loadWorkspace",
-            "saveWorkspace",
-            "slugify"
-          ]
+          "line": 477
         },
         "renameWorkspace": {
-          "line": 527,
-          "params": [
-            "key",
-            "updates: {\r\n    newName?: string;\r\n    shortLabel?: string | null;\r\n    icon?: string | null;\r\n    accentColor?: string | null;\r\n    defaultProjectPath?: string | null;\r\n  }"
-          ],
-          "purpose": "Rename a workspace (cannot change the slug key)"
+          "line": 527
         },
         "deleteWorkspace": {
-          "line": 585,
-          "params": [
-            "key"
-          ],
-          "purpose": "Delete a workspace"
+          "line": 585
         },
         "reorderWorkspaces": {
-          "line": 620,
-          "params": [
-            "orderedKeys"
-          ],
-          "purpose": "Keys not in the provided array are appended at the end.",
-          "calls": [
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 620
         },
         "setWorkspaceInactive": {
-          "line": 641,
-          "params": [
-            "key",
-            "inactive"
-          ],
-          "purpose": "The currently active workspace cannot be set to inactive.",
-          "calls": [
-            "loadWorkspace",
-            "saveWorkspace"
-          ]
+          "line": 641
         },
         "setupIPC": {
-          "line": 661,
-          "params": [
-            "ipcMain"
-          ],
-          "purpose": "Setup IPC handlers",
-          "calls": [
-            "addProject",
-            "createWorkspace",
-            "deleteWorkspace",
-            "duplicateWorkspace",
-            "getProjectsWithScanned",
-            "getWorkspaceList",
-            "removeProject",
-            "renameProject",
-            "renameWorkspace",
-            "reorderWorkspaces",
-            "scanProjectDir",
-            "setProjectAITool",
-            "setWorkspaceInactive",
-            "switchWorkspace"
-          ]
+          "line": 661
         },
         "reload": {
-          "line": 729,
-          "calls": [
-            "loadWorkspace"
-          ]
+          "line": 729
         }
-      },
-      "loc": 740,
-      "ipc": {
-        "listens": [
-          "LOAD_WORKSPACE",
-          "ADD_PROJECT_TO_WORKSPACE",
-          "REMOVE_PROJECT_FROM_WORKSPACE",
-          "RENAME_PROJECT",
-          "SET_PROJECT_AI_TOOL",
-          "SCAN_PROJECT_DIR",
-          "WORKSPACE_LIST",
-          "WORKSPACE_SWITCH",
-          "WORKSPACE_CREATE",
-          "WORKSPACE_DUPLICATE",
-          "WORKSPACE_RENAME",
-          "WORKSPACE_DELETE",
-          "WORKSPACE_REORDER",
-          "WORKSPACE_SET_INACTIVE"
-        ],
-        "emits": [
-          "WORKSPACE_DATA",
-          "WORKSPACE_UPDATED"
-        ]
       }
     },
     "renderer/components/ActivityBar": {
@@ -5479,7 +4256,7 @@
       "loc": 467
     },
     "renderer/components/AISessionsPanel": {
-      "file": "src\\renderer\\components\\AISessionsPanel.tsx",
+      "file": "src/renderer/components/AISessionsPanel.tsx",
       "description": "",
       "exports": [
         "AISessionsPanel"
@@ -5496,27 +4273,17 @@
         "stores/useTerminalStore",
         "stores/useUIStore",
         "lib/activityBarEvents",
-        "lib/terminalRegistry"
+        "lib/terminalRegistry",
+        "../shared/ipcChannels"
       ],
       "functions": {
         "SessionRow": {
-          "line": 23,
-          "params": [
-            "{\n  session",
-            "selected",
-            "onSelect",
-            "}: {\n  session: AISessionSummary;\n  selected: boolean;\n  onSelect"
-          ]
+          "line": 23
         },
         "AISessionsPanel": {
-          "line": 65,
-          "calls": [
-            "focusActivityBar",
-            "useAISessions"
-          ]
+          "line": 65
         }
-      },
-      "loc": 186
+      }
     },
     "renderer/components/AIToolPalette": {
       "file": "src\\renderer\\components\\AIToolPalette.tsx",
@@ -6197,7 +4964,7 @@
       "loc": 58
     },
     "renderer/components/mobile/MobilePanelsView": {
-      "file": "src\\renderer\\components\\mobile\\MobilePanelsView.tsx",
+      "file": "src/renderer/components/mobile/MobilePanelsView.tsx",
       "description": "",
       "exports": [
         "MobilePanelsView"
@@ -6223,19 +4990,12 @@
       ],
       "functions": {
         "PanelBody": {
-          "line": 114,
-          "params": [
-            "{ panel }"
-          ]
+          "line": 114
         },
         "MobilePanelsView": {
-          "line": 161,
-          "calls": [
-            "cn"
-          ]
+          "line": 161
         }
-      },
-      "loc": 234
+      }
     },
     "renderer/components/mobile/MobileTerminalWrapper": {
       "file": "src\\renderer\\components\\mobile\\MobileTerminalWrapper.tsx",
@@ -6773,7 +5533,7 @@
       "loc": 179
     },
     "renderer/components/ProjectList": {
-      "file": "src\\renderer\\components\\ProjectList.tsx",
+      "file": "src/renderer/components/ProjectList.tsx",
       "description": "",
       "exports": [
         "ProjectList"
@@ -6789,47 +5549,14 @@
       ],
       "functions": {
         "ProjectList": {
-          "line": 41,
-          "purpose": "Supports keyboard navigation (Arrow Up/Down, Enter, F2, Escape) and inline rename.",
-          "calls": [
-            "getTransport",
-            "sortProjects",
-            "typedSend"
-          ]
+          "line": 41
         },
         "ProjectCard": {
-          "line": 301,
-          "params": [
-            "{\r\n  project",
-            "isActive",
-            "isFocused",
-            "onSelect",
-            "onRemove",
-            "onRename",
-            "onAddToWorkspace",
-            "isInlineRenaming",
-            "inlineRenameValue",
-            "onInlineRenameChange",
-            "onInlineRenameFinish",
-            "onInlineRenameCancel",
-            "inlineRenameRef",
-            "}: {\r\n  project: ProjectWithSource;\r\n  isActive: boolean;\r\n  isFocused: boolean;\r\n  onSelect"
-          ]
+          "line": 301
         },
         "sortProjects": {
-          "line": 441,
-          "params": [
-            "list"
-          ]
+          "line": 441
         }
-      },
-      "loc": 451,
-      "ipc": {
-        "listens": [],
-        "emits": [
-          "CHECK_IS_FRAME_PROJECT",
-          "RENAME_PROJECT"
-        ]
       }
     },
     "renderer/components/PromptLibrary": {
@@ -6988,8 +5715,8 @@
       }
     },
     "renderer/components/RightPanel": {
-      "file": "src\\renderer\\components\\RightPanel.tsx",
-      "description": "RightPanel — Container for all right-side panels. Panels are grouped: solo panels show a title header, grouped panels show only their group's tabs. Terminal bar buttons map to groups: - Sub-Tasks → solo - Agent → activity, sessions, history, prompts, skills, plugins (tabbed) - GitHub → issues, PRs, branches, worktrees (tabbed) - Overview → full-view (handled by TerminalArea, not here)",
+      "file": "src/renderer/components/RightPanel.tsx",
+      "description": "RightPanel — Container for all right-side panels.",
       "exports": [
         "RightPanel"
       ],
@@ -7016,27 +5743,15 @@
       ],
       "functions": {
         "getGroup": {
-          "line": 123,
-          "params": [
-            "panelId"
-          ]
+          "line": 123
         },
         "getGroupIndex": {
-          "line": 128,
-          "params": [
-            "panelId"
-          ]
+          "line": 128
         },
         "RightPanel": {
-          "line": 163,
-          "calls": [
-            "cn",
-            "getGroup",
-            "getGroupIndex"
-          ]
+          "line": 163
         }
-      },
-      "loc": 460
+      }
     },
     "renderer/components/SessionsPanel": {
       "file": "src\\renderer\\components\\SessionsPanel.tsx",
@@ -7930,8 +6645,8 @@
       }
     },
     "renderer/components/TerminalArea": {
-      "file": "src\\renderer\\components\\TerminalArea.tsx",
-      "description": "Terminal area orchestrator. Renders the tab bar and either a single terminal (tabs mode) or the terminal grid (grid mode). Manages terminal creation/destruction via IPC and keyboard shortcuts. Scopes terminals per-project with hot-swap.",
+      "file": "src/renderer/components/TerminalArea.tsx",
+      "description": "Terminal area orchestrator.",
       "exports": [
         "TerminalArea"
       ],
@@ -7967,86 +6682,23 @@
       ],
       "functions": {
         "buildSessionData": {
-          "line": 71,
-          "params": [
-            "projectPath",
-            "store",
-            "terminalState"
-          ]
+          "line": 71
         },
         "syncLiveWebSession": {
-          "line": 121,
-          "params": [
-            "projectPath",
-            "data"
-          ],
-          "calls": [
-            "getTransport"
-          ]
+          "line": 121
         },
         "saveSession": {
-          "line": 129,
-          "params": [
-            "projectPath",
-            "store",
-            "terminalState"
-          ],
-          "calls": [
-            "buildSessionData",
-            "syncLiveWebSession"
-          ]
+          "line": 129
         },
         "saveSessionWithState": {
-          "line": 149,
-          "params": [
-            "projectPath",
-            "store"
-          ],
-          "calls": [
-            "saveSession",
-            "typedInvoke"
-          ]
+          "line": 149
         },
         "loadSession": {
-          "line": 162,
-          "params": [
-            "projectPath"
-          ]
+          "line": 162
         },
         "TerminalArea": {
-          "line": 172,
-          "calls": [
-            "buildSessionData",
-            "createTerminal",
-            "generateTerminalName",
-            "getLogoSVG",
-            "getTabIdForContent",
-            "getTransport",
-            "getUsedTerminalNames",
-            "loadSession",
-            "saveSession",
-            "saveSessionWithState",
-            "syncLiveWebSession",
-            "typedInvoke",
-            "typedSend",
-            "useAIToolConfig",
-            "useSettings"
-          ]
+          "line": 172
         }
-      },
-      "loc": 1201,
-      "ipc": {
-        "listens": [
-          "TERMINAL_POPOUT_STATUS",
-          "TERMINAL_CREATED",
-          "TERMINAL_DESTROYED",
-          "CLAUDE_ACTIVE_STATUS",
-          "RUN_COMMAND"
-        ],
-        "emits": [
-          "WEB_SESSION_SYNC",
-          "TERMINAL_INPUT_ID"
-        ]
       }
     },
     "renderer/components/TerminalGrid": {
@@ -8428,7 +7080,7 @@
       "loc": 1297
     },
     "renderer/components/WorkspaceSelector": {
-      "file": "src\\renderer\\components\\WorkspaceSelector.tsx",
+      "file": "src/renderer/components/WorkspaceSelector.tsx",
       "description": "",
       "exports": [
         "WorkspaceSelector"
@@ -8446,24 +7098,12 @@
       ],
       "functions": {
         "WorkspaceSelector": {
-          "line": 50,
-          "purpose": "Right-click the workspace name for a context menu.",
-          "calls": [
-            "normalizeWorkspaceAccentColor",
-            "typedInvoke",
-            "typedSend",
-            "useIpcQuery"
-          ]
+          "line": 50
         },
         "AddProjectButton": {
-          "line": 663,
-          "calls": [
-            "typedInvoke",
-            "typedSend"
-          ]
+          "line": 663
         }
-      },
-      "loc": 740
+      }
     },
     "renderer/global.d": {
       "file": "src\\renderer\\global.d.ts",
@@ -8474,8 +7114,8 @@
       "loc": 7
     },
     "renderer/hooks/useActivity": {
-      "file": "src\\renderer\\hooks\\useActivity.ts",
-      "description": "TanStack Query hook for activity streams. Wraps ACTIVITY_LIST (invoke) + ACTIVITY_STATUS / ACTIVITY_OUTPUT (events).",
+      "file": "src/renderer/hooks/useActivity.ts",
+      "description": "TanStack Query hook for activity streams.",
       "exports": [
         "useActivity"
       ],
@@ -8485,27 +7125,17 @@
         "useIpc",
         "useIPCListener",
         "lib/ipc",
-        "../shared/ipcChannels"
+        "../shared/ipcChannels",
+        "../shared/activityTypes"
       ],
       "functions": {
         "isDiagnosticLine": {
-          "line": 14,
-          "params": [
-            "line"
-          ]
+          "line": 14
         },
         "useActivity": {
-          "line": 21,
-          "purpose": "Hook that provides activity stream state, real-time output logs, and cancel mutation.",
-          "calls": [
-            "isDiagnosticLine",
-            "typedInvoke",
-            "typedSend",
-            "useIpcQuery"
-          ]
+          "line": 21
         }
-      },
-      "loc": 131
+      }
     },
     "renderer/hooks/useAgentState": {
       "file": "src\\renderer\\hooks\\useAgentState.ts",
@@ -8579,7 +7209,7 @@
       }
     },
     "renderer/hooks/useAISessions": {
-      "file": "src\\renderer\\hooks\\useAISessions.ts",
+      "file": "src/renderer/hooks/useAISessions.ts",
       "description": "",
       "exports": [
         "useAISessions"
@@ -8595,13 +7225,9 @@
       ],
       "functions": {
         "useAISessions": {
-          "line": 9,
-          "calls": [
-            "useIpcQuery"
-          ]
+          "line": 9
         }
-      },
-      "loc": 44
+      }
     },
     "renderer/hooks/useFileTree": {
       "file": "src\\renderer\\hooks\\useFileTree.ts",
@@ -8806,8 +7432,8 @@
       "loc": 39
     },
     "renderer/hooks/useIPCListener": {
-      "file": "src\\renderer\\hooks\\useIPCListener.ts",
-      "description": "React hook that listens for main->renderer IPC events and optionally invalidates React Query caches.",
+      "file": "src/renderer/hooks/useIPCListener.ts",
+      "description": "React hook that listens for main->renderer IPC events",
       "exports": [
         "useIPCListener",
         "useIPCEvent"
@@ -8819,39 +7445,12 @@
       ],
       "functions": {
         "subscribeShared": {
-          "line": 19,
-          "params": [
-            "channel",
-            "handler"
-          ],
-          "calls": [
-            "getTransport"
-          ]
+          "line": 19
         },
         "useIPCListener": {
-          "line": 67,
-          "params": [
-            "channel",
-            "queryKeysToInvalidate: string[][]"
-          ],
-          "purpose": "```",
-          "calls": [
-            "subscribeShared"
-          ]
-        },
-        "useIPCEvent": {
-          "line": 98,
-          "params": [
-            "channel",
-            "handler"
-          ],
-          "purpose": "every render.",
-          "calls": [
-            "subscribeShared"
-          ]
+          "line": 67
         }
-      },
-      "loc": 114
+      }
     },
     "renderer/hooks/useOnboarding": {
       "file": "src/renderer/hooks/useOnboarding.ts",
@@ -9718,8 +8317,8 @@
       "loc": 64
     },
     "renderer/lib/terminalRegistry": {
-      "file": "src\\renderer\\lib\\terminalRegistry.ts",
-      "description": "Persistent terminal instance registry. Decouples xterm.js Terminal lifecycle from React component mount/unmount.",
+      "file": "src/renderer/lib/terminalRegistry.ts",
+      "description": "Persistent terminal instance registry.",
       "exports": [
         "refreshTerminalThemes",
         "onMarkerChange",
@@ -9744,8 +8343,7 @@
         "registerWebLinkProvider",
         "registerFilePathLinkProvider",
         "initAPIBridge",
-        "registerSelectionSync",
-        "getTerminalTheme"
+        "registerSelectionSync"
       ],
       "depends": [
         "xterm",
@@ -9764,249 +8362,98 @@
           "line": 67
         },
         "refreshTerminalThemes": {
-          "line": 82,
-          "calls": [
-            "getTerminalTheme"
-          ]
+          "line": 82
         },
         "onMarkerChange": {
-          "line": 117,
-          "params": [
-            "id",
-            "cb"
-          ]
+          "line": 117
         },
         "notifyMarkerChange": {
-          "line": 124,
-          "params": [
-            "id"
-          ]
+          "line": 124
         },
         "freeze": {
-          "line": 157,
-          "params": [
-            "id"
-          ]
+          "line": 157
         },
         "unfreeze": {
-          "line": 164,
-          "params": [
-            "id"
-          ]
+          "line": 164
         },
         "isFrozen": {
-          "line": 176,
-          "params": [
-            "id"
-          ]
+          "line": 176
         },
         "getFrozenBufferSize": {
-          "line": 181,
-          "params": [
-            "id"
-          ]
+          "line": 181
         },
         "writeOrBuffer": {
-          "line": 189,
-          "params": [
-            "id",
-            "data"
-          ],
-          "purpose": "Use this instead of direct terminal.write() for PTY output."
+          "line": 189
         },
         "getHolderRoot": {
           "line": 200
         },
         "loadGpuRenderer": {
-          "line": 211,
-          "params": [
-            "terminal"
-          ]
+          "line": 211
         },
         "getOrCreate": {
-          "line": 248,
-          "params": [
-            "id",
-            "options"
-          ],
-          "purpose": "Instances persist across React component mount/unmount cycles.",
-          "calls": [
-            "getHolderRoot",
-            "getTerminalTheme",
-            "getTransport",
-            "loadGpuRenderer",
-            "registerWebLinkProvider",
-            "writeOrBuffer"
-          ]
+          "line": 248
         },
         "attach": {
-          "line": 340,
-          "params": [
-            "id",
-            "container"
-          ],
-          "purpose": "Returns the instance plus any saved scroll state from the last detach (consumed once)."
+          "line": 340
         },
         "detach": {
-          "line": 359,
-          "params": [
-            "id"
-          ],
-          "purpose": "Instance and scrollback remain alive. Saves scroll state for restoration on next attach.",
-          "calls": [
-            "getHolderRoot"
-          ]
+          "line": 359
         },
         "dispose": {
-          "line": 376,
-          "params": [
-            "id"
-          ],
-          "purpose": "Only call when the user explicitly closes a terminal."
+          "line": 376
         },
         "exportScrollback": {
-          "line": 404,
-          "params": [
-            "id",
-            "maxLines"
-          ],
-          "purpose": "Used for scrollback persistence on close."
+          "line": 404
         },
         "importScrollback": {
-          "line": 430,
-          "params": [
-            "id",
-            "lines"
-          ],
-          "purpose": "Writes lines as plain text — no escape sequence processing."
+          "line": 430
         },
         "has": {
-          "line": 445,
-          "params": [
-            "id"
-          ]
+          "line": 445
         },
         "get": {
-          "line": 450,
-          "params": [
-            "id"
-          ]
+          "line": 450
         },
         "addUserMessageMarker": {
-          "line": 458,
-          "params": [
-            "id",
-            "showDecoration",
-            "color"
-          ],
-          "purpose": "Creates an xterm marker + optional left-border decoration.",
-          "calls": [
-            "notifyMarkerChange"
-          ]
+          "line": 458
         },
         "getUserMessageMarkers": {
-          "line": 508,
-          "params": [
-            "id"
-          ]
+          "line": 508
         },
         "clearUserMessageMarkers": {
-          "line": 513,
-          "params": [
-            "id"
-          ]
+          "line": 513
         },
         "setLastActive": {
-          "line": 524,
-          "params": [
-            "id"
-          ]
+          "line": 524
         },
         "wasRecentlyActive": {
-          "line": 530,
-          "params": [
-            "id",
-            "windowMs"
-          ]
+          "line": 530
         },
         "getTooltip": {
           "line": 542
         },
         "showLinkTooltip": {
-          "line": 560,
-          "params": [
-            "event",
-            "text"
-          ],
-          "calls": [
-            "getTooltip"
-          ]
+          "line": 560
         },
         "hideLinkTooltip": {
           "line": 569
         },
         "getCtrlLabel": {
-          "line": 574,
-          "calls": [
-            "getTransport"
-          ]
+          "line": 574
         },
         "registerWebLinkProvider": {
-          "line": 589,
-          "params": [
-            "terminal"
-          ],
-          "purpose": "Detects URLs and opens them on Ctrl+Click with hover tooltip.",
-          "calls": [
-            "getCtrlLabel",
-            "getTransport",
-            "hideLinkTooltip",
-            "showLinkTooltip"
-          ]
+          "line": 589
         },
         "registerFilePathLinkProvider": {
-          "line": 687,
-          "params": [
-            "terminal",
-            "getProjectPath"
-          ],
-          "calls": [
-            "getCtrlLabel",
-            "getProjectPath",
-            "hideLinkTooltip",
-            "showLinkTooltip"
-          ]
+          "line": 687
         },
         "initAPIBridge": {
-          "line": 769,
-          "calls": [
-            "getTransport"
-          ]
+          "line": 769
         },
         "registerSelectionSync": {
-          "line": 848,
-          "params": [
-            "terminalId"
-          ],
-          "purpose": "Debounced to 50ms to avoid IPC spam during drag selections. */",
-          "calls": [
-            "getTransport"
-          ]
+          "line": 848
         }
-      },
-      "loc": 861,
-      "ipc": {
-        "listens": [
-          "TERMINAL_OUTPUT_ID",
-          "API_GET_TERMINALS",
-          "API_GET_BUFFER",
-          "API_GET_ACTIVE_SELECTION",
-          "API_GET_CONTEXT"
-        ],
-        "emits": [
-          "API_RENDERER_RESPONSE",
-          "API_SELECTION_SYNC"
-        ]
       }
     },
     "renderer/lib/transportProvider": {
@@ -10066,9 +8513,13 @@
       "loc": 326
     },
     "renderer/lib/workspacePills": {
-      "file": "src\\renderer\\lib\\workspacePills.ts",
+      "file": "src/renderer/lib/workspacePills.ts",
       "description": "",
       "exports": [
+        "WORKSPACE_ICON_OPTIONS",
+        "WORKSPACE_ACCENT_OPTIONS",
+        "DEFAULT_WORKSPACE_PILL_DISPLAY",
+        "WORKSPACE_ICON_COMPONENTS",
         "normalizeWorkspaceShortLabel",
         "normalizeWorkspaceIcon",
         "normalizeWorkspaceAccentColor",
@@ -10076,87 +8527,40 @@
         "deriveWorkspaceMonogram",
         "getWorkspacePillText",
         "normalizeWorkspacePillDisplay",
-        "getWorkspacePillPresentation",
-        "WORKSPACE_ICON_OPTIONS",
-        "WORKSPACE_ACCENT_OPTIONS",
-        "DEFAULT_WORKSPACE_PILL_DISPLAY",
-        "WORKSPACE_ICON_COMPONENTS"
+        "getWorkspacePillPresentation"
       ],
-      "depends": [],
+      "depends": [
+        "lucide-react"
+      ],
       "functions": {
         "normalizeWorkspaceShortLabel": {
-          "line": 65,
-          "params": [
-            "value"
-          ]
+          "line": 65
         },
         "normalizeWorkspaceIcon": {
-          "line": 72,
-          "params": [
-            "value"
-          ]
+          "line": 72
         },
         "normalizeWorkspaceAccentColor": {
-          "line": 77,
-          "params": [
-            "value"
-          ]
+          "line": 77
         },
         "withWorkspaceAccentAlpha": {
-          "line": 84,
-          "params": [
-            "value",
-            "alphaHex"
-          ],
-          "calls": [
-            "normalizeWorkspaceAccentColor"
-          ]
+          "line": 84
         },
         "deriveWorkspaceMonogram": {
-          "line": 90,
-          "params": [
-            "name"
-          ]
+          "line": 90
         },
         "getWorkspacePillText": {
-          "line": 103,
-          "params": [
-            "name",
-            "shortLabel"
-          ],
-          "calls": [
-            "deriveWorkspaceMonogram",
-            "normalizeWorkspaceShortLabel"
-          ]
+          "line": 103
         },
         "getLegacyWorkspacePillDisplay": {
-          "line": 107,
-          "params": [
-            "value"
-          ]
+          "line": 107
         },
         "normalizeWorkspacePillDisplay": {
-          "line": 122,
-          "params": [
-            "value"
-          ],
-          "calls": [
-            "getLegacyWorkspacePillDisplay"
-          ]
+          "line": 122
         },
         "getWorkspacePillPresentation": {
-          "line": 144,
-          "params": [
-            "{\n  display",
-            "index",
-            "name",
-            "shortLabel",
-            "icon",
-            "}: {\n  display: WorkspacePillDisplaySettings;\n  index: number;\n  name: string;\n  shortLabel?: string | null;\n  icon?: string | null;\n}"
-          ]
+          "line": 144
         }
-      },
-      "loc": 169
+      }
     },
     "renderer/stores/useProjectStore": {
       "file": "src\\renderer\\stores\\useProjectStore.ts",
@@ -10344,12 +8748,11 @@
       }
     },
     "shared/activityTypes": {
-      "file": "src\\shared\\activityTypes.ts",
-      "description": "Activity Streams — Shared types for the centralized execution/output system. Every long-running operation (AI tool, pipeline stage, onboarding, script) creates an ActivityStream that routes output through a unified channel.",
+      "file": "src/shared/activityTypes.ts",
+      "description": "Activity Streams — Shared types for the centralized execution/output system.",
       "exports": [],
       "depends": [],
-      "functions": {},
-      "loc": 96
+      "functions": {}
     },
     "shared/agentStateTypes": {
       "file": "src\\shared\\agentStateTypes.ts",
@@ -10570,8 +8973,8 @@
       "loc": 191
     },
     "shared/frameConstants": {
-      "file": "src\\shared\\frameConstants.ts",
-      "description": "SubFrame Constants Configuration constants for SubFrame project management",
+      "file": "src/shared/frameConstants.ts",
+      "description": "SubFrame Constants",
       "exports": [
         "IS_DEV_MODE",
         "FRAME_DIR",
@@ -10594,8 +8997,7 @@
         "../package.json",
         "path"
       ],
-      "functions": {},
-      "loc": 106
+      "functions": {}
     },
     "shared/frameTemplates": {
       "file": "src\\shared\\frameTemplates.ts",

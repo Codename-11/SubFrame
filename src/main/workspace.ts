@@ -27,6 +27,8 @@ interface WorkspaceEntry {
   projects: WorkspaceProject[];
   shortLabel?: string;
   icon?: string;
+  accentColor?: string;
+  defaultProjectPath?: string | null;
   inactive?: boolean; // Defaults to false (active) for backward compat
 }
 
@@ -42,8 +44,11 @@ interface WorkspaceListItem {
   name: string;
   projectCount: number;
   projectPaths: string[];
+  projects?: WorkspaceProject[];
   shortLabel?: string;
   icon?: string;
+  accentColor?: string;
+  defaultProjectPath?: string | null;
   inactive?: boolean;
 }
 
@@ -54,7 +59,9 @@ interface WorkspaceListResult {
 
 interface ProjectsWithScannedResult {
   projects: WorkspaceProject[];
+  workspaceKey: string;
   workspaceName: string;
+  defaultProjectPath?: string | null;
 }
 
 interface SettingsManagerLike {
@@ -192,6 +199,9 @@ function removeProject(projectPath: string): void {
 
   workspace.workspaces[active].projects =
     workspace.workspaces[active].projects.filter(p => p.path !== projectPath);
+  if (workspace.workspaces[active].defaultProjectPath === projectPath) {
+    workspace.workspaces[active].defaultProjectPath = null;
+  }
 
   saveWorkspace(workspace);
 }
@@ -283,12 +293,14 @@ function recheckFrameStatus(project: WorkspaceProject): WorkspaceProject {
 function getProjectsWithScanned(): ProjectsWithScannedResult {
   const workspace = loadWorkspace();
   const active = workspace.activeWorkspace;
-  const workspaceName = workspace.workspaces[active]?.name || 'Default Workspace';
+  const activeWorkspace = workspace.workspaces[active];
+  const workspaceName = activeWorkspace?.name || 'Default Workspace';
+  const defaultProjectPath = activeWorkspace?.defaultProjectPath ?? null;
 
   const manualProjects = getProjects().map(p => recheckFrameStatus({ ...p, source: 'manual' as const }));
 
   const defaultDir = settingsManager ? settingsManager.getSetting('general.defaultProjectDir') as string : '';
-  if (!defaultDir) return { projects: manualProjects, workspaceName };
+  if (!defaultDir) return { projects: manualProjects, workspaceKey: active, workspaceName, defaultProjectPath };
 
   const scannedProjects = scanProjectDir(defaultDir);
 
@@ -302,7 +314,7 @@ function getProjectsWithScanned(): ProjectsWithScannedResult {
     }
   }
 
-  return { projects: merged, workspaceName };
+  return { projects: merged, workspaceKey: active, workspaceName, defaultProjectPath };
 }
 
 /**
@@ -395,11 +407,20 @@ function getWorkspaceList(): WorkspaceListResult {
         name: workspace.workspaces[key].name,
         projectCount: workspace.workspaces[key].projects ? workspace.workspaces[key].projects.length : 0,
         projectPaths: workspace.workspaces[key].projects ? workspace.workspaces[key].projects.map((project) => project.path) : [],
+        projects: workspace.workspaces[key].projects ? workspace.workspaces[key].projects.map((project) => ({ ...project })) : [],
         shortLabel: workspace.workspaces[key].shortLabel,
         icon: workspace.workspaces[key].icon,
+        accentColor: workspace.workspaces[key].accentColor,
+        defaultProjectPath: workspace.workspaces[key].defaultProjectPath ?? null,
         inactive: workspace.workspaces[key].inactive ?? false,
       })),
   };
+}
+
+function normalizeAccentColor(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) return null;
+  return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed.toUpperCase() : null;
 }
 
 /**
@@ -440,6 +461,7 @@ function createWorkspace(name: string): WorkspaceListResult | null {
     name: name.trim(),
     createdAt: new Date().toISOString(),
     projects: [],
+    defaultProjectPath: null,
   };
   workspace.activeWorkspace = slug;
 
@@ -452,10 +474,66 @@ function createWorkspace(name: string): WorkspaceListResult | null {
   return getWorkspaceList();
 }
 
+function duplicateWorkspace(key: string): WorkspaceListResult | null {
+  const workspace = loadWorkspace();
+  const source = workspace.workspaces[key];
+  if (!source) return null;
+
+  const baseName = `${source.name} Copy`;
+  const baseSlug = slugify(baseName);
+  if (!baseSlug) return null;
+
+  let slug = baseSlug;
+  let counter = 2;
+  while (workspace.workspaces[slug]) {
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+
+  let nextName = baseName;
+  let nameCounter = 2;
+  const existingNames = new Set(Object.values(workspace.workspaces).map((entry) => entry.name.toLowerCase()));
+  while (existingNames.has(nextName.toLowerCase())) {
+    nextName = `${baseName} ${nameCounter}`;
+    nameCounter++;
+  }
+
+  workspace.workspaces[slug] = {
+    ...source,
+    name: nextName,
+    createdAt: new Date().toISOString(),
+    inactive: false,
+    projects: source.projects.map((project) => ({ ...project })),
+  };
+  workspace.activeWorkspace = slug;
+
+  const orderedKeys = getOrderedKeys(workspace);
+  const sourceIndex = orderedKeys.indexOf(key);
+  const withoutNew = orderedKeys.filter((orderedKey) => orderedKey !== slug);
+  if (sourceIndex >= 0) {
+    withoutNew.splice(sourceIndex + 1, 0, slug);
+    workspace.workspaceOrder = withoutNew;
+  } else {
+    workspace.workspaceOrder = [...withoutNew, slug];
+  }
+
+  saveWorkspace(workspace);
+  return getWorkspaceList();
+}
+
 /**
  * Rename a workspace (cannot change the slug key)
  */
-function renameWorkspace(key: string, updates: { newName?: string; shortLabel?: string | null; icon?: string | null }): boolean {
+function renameWorkspace(
+  key: string,
+  updates: {
+    newName?: string;
+    shortLabel?: string | null;
+    icon?: string | null;
+    accentColor?: string | null;
+    defaultProjectPath?: string | null;
+  }
+): boolean {
   const workspace = loadWorkspace();
   if (!workspace.workspaces[key]) return false;
 
@@ -480,6 +558,21 @@ function renameWorkspace(key: string, updates: { newName?: string; shortLabel?: 
     } else {
       delete workspace.workspaces[key].icon;
     }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'accentColor')) {
+    const accentColor = normalizeAccentColor(updates.accentColor);
+    if (accentColor) {
+      workspace.workspaces[key].accentColor = accentColor;
+    } else {
+      delete workspace.workspaces[key].accentColor;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'defaultProjectPath')) {
+    const defaultProjectPath = updates.defaultProjectPath?.trim() ?? '';
+    const hasProject = workspace.workspaces[key].projects.some((project) => project.path === defaultProjectPath);
+    workspace.workspaces[key].defaultProjectPath = defaultProjectPath && hasProject ? defaultProjectPath : null;
   }
 
   saveWorkspace(workspace);
@@ -603,13 +696,23 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.WORKSPACE_LIST, () => getWorkspaceList());
   ipcMain.handle(IPC.WORKSPACE_SWITCH, (_e, key: string) => switchWorkspace(key));
   ipcMain.handle(IPC.WORKSPACE_CREATE, (_e, name: string) => createWorkspace(name));
+  ipcMain.handle(IPC.WORKSPACE_DUPLICATE, (_e, key: string) => duplicateWorkspace(key));
   ipcMain.handle(
     IPC.WORKSPACE_RENAME,
-    (_e, payload: { key: string; newName?: string; shortLabel?: string | null; icon?: string | null }) => (
+    (_e, payload: {
+      key: string;
+      newName?: string;
+      shortLabel?: string | null;
+      icon?: string | null;
+      accentColor?: string | null;
+      defaultProjectPath?: string | null;
+    }) => (
       renameWorkspace(payload.key, {
         newName: payload.newName,
         shortLabel: payload.shortLabel,
         icon: payload.icon,
+        accentColor: payload.accentColor,
+        defaultProjectPath: payload.defaultProjectPath,
       })
     )
   );
@@ -622,10 +725,15 @@ function setupIPC(ipcMain: IpcMain): void {
   });
 }
 
+/** Re-read workspace file from disk (used by dev sync). */
+function reload(): void {
+  loadWorkspace();
+}
+
 export {
   init, loadWorkspace, getProjects, getProjectsWithScanned, scanProjectDir,
   addProject, removeProject, renameProject, updateProjectLastOpened,
   updateProjectFrameStatus, getWorkspaceList, switchWorkspace,
-  createWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspaces,
-  setWorkspaceInactive, setProjectAITool, getProjectAITool, setupIPC
+  createWorkspace, duplicateWorkspace, renameWorkspace, deleteWorkspace, reorderWorkspaces,
+  setWorkspaceInactive, setProjectAITool, getProjectAITool, setupIPC, reload
 };

@@ -17,6 +17,7 @@ import {
   MessageSquare,
   PlayCircle,
   Puzzle,
+  TerminalSquare,
   Workflow,
   Zap,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ import { SystemPanel } from '../SystemPanel';
 import { TasksPanel } from '../TasksPanel';
 import { GithubBranchesPanel, GithubChangesPanel, GithubIssuesPanel, GithubNotificationsPanel, GithubPRsPanel, GithubWorkflowsPanel, GithubWorktreesPanel } from '../GithubPanel';
 import { AgentStateView } from '../AgentStateView';
+import { AISessionsPanel } from '../AISessionsPanel';
 import { SessionsPanel } from '../SessionsPanel';
 import { HistoryPanel } from '../HistoryPanel';
 import { SkillsPanel } from '../SkillsPanel';
@@ -50,6 +52,7 @@ type MobilePanelId =
   | 'githubWorkflows'
   | 'githubNotifications'
   | 'agentState'
+  | 'aiSessions'
   | 'sessions'
   | 'history'
   | 'skills'
@@ -92,6 +95,7 @@ const PANEL_SECTIONS: Array<{
     title: 'Agent',
     panels: [
       { id: 'agentState', label: 'Activity', icon: Activity },
+      { id: 'aiSessions', label: 'AI Sessions', icon: TerminalSquare },
       { id: 'sessions', label: 'Sessions', icon: MessageSquare },
       { id: 'history', label: 'History', icon: Clock },
       { id: 'skills', label: 'Skills', icon: Zap },
@@ -135,6 +139,8 @@ function PanelBody({ panel }: { panel: MobilePanelId }) {
       return <GithubNotificationsPanel />;
     case 'agentState':
       return <AgentStateView isFullView />;
+    case 'aiSessions':
+      return <AISessionsPanel />;
     case 'sessions':
       return <SessionsPanel />;
     case 'history':
