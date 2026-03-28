@@ -7136,28 +7136,28 @@
           "line": 112
         },
         "SettingGroup": {
-          "line": 268
+          "line": 269
         },
         "ProjectUninstallSection": {
-          "line": 293
+          "line": 294
         },
         "SettingToggle": {
-          "line": 542
+          "line": 543
         },
         "SettingSelect": {
-          "line": 569
+          "line": 570
         },
         "SettingInput": {
-          "line": 600
+          "line": 601
         },
         "SettingSlider": {
-          "line": 633
+          "line": 634
         },
         "WorkspacePillAppearanceRow": {
-          "line": 656
+          "line": 657
         },
         "SettingsPanel": {
-          "line": 895
+          "line": 896
         }
       }
     },
@@ -8216,7 +8216,7 @@
       "loc": 161
     },
     "renderer/components/ViewTabBar": {
-      "file": "src\\renderer\\components\\ViewTabBar.tsx",
+      "file": "src/renderer/components/ViewTabBar.tsx",
       "description": "",
       "exports": [
         "ViewTabBar"
@@ -8239,92 +8239,29 @@
       ],
       "functions": {
         "formatTierName": {
-          "line": 113,
-          "params": [
-            "tier"
-          ]
+          "line": 113
         },
         "formatSubType": {
-          "line": 124,
-          "params": [
-            "subType"
-          ]
+          "line": 124
         },
         "WorkspacePillButton": {
-          "line": 141,
-          "params": [
-            "{\n  workspace",
-            "activity",
-            "display",
-            "disabled",
-            "onSwitch",
-            "onDuplicate",
-            "onManageIdentity",
-            "onDeactivate",
-            "onReorderCommit",
-            "}: {\n  workspace: WorkspacePillInfo;\n  activity: { terminalCount: number; agentCount: number };\n  display: ReturnType<typeof normalizeWorkspacePillDisplay>;\n  disabled: boolean;\n  onSwitch"
-          ]
+          "line": 141
         },
         "ViewTabBar": {
-          "line": 299,
-          "calls": [
-            "focusActivityBar",
-            "formatSubType",
-            "formatTierName",
-            "getTabIdForContent",
-            "getTransport",
-            "normalizeWorkspaceAccentColor",
-            "normalizeWorkspacePillDisplay",
-            "typedInvoke",
-            "typedSend",
-            "useAIToolConfig",
-            "useActivity",
-            "useIpcQuery",
-            "useSettings"
-          ]
+          "line": 299
         },
         "UsageTooltip": {
-          "line": 880,
-          "params": [
-            "{ data",
-            "fetching }"
-          ],
-          "purpose": "── Rich tooltip ────────────────────────────────────────────────────────────"
+          "line": 917
         },
         "TooltipUsageRow": {
-          "line": 954,
-          "params": [
-            "{ label",
-            "utilization",
-            "resetsAt }"
-          ]
+          "line": 991
         },
         "UsageItem": {
-          "line": 980,
-          "params": [
-            "{ label",
-            "utilization",
-            "resetsAt }"
-          ],
-          "purpose": "── Shared sub-components ───────────────────────────────────────────────────"
+          "line": 1017
         },
         "ResetTime": {
-          "line": 1003,
-          "params": [
-            "{ resetsAt",
-            "showAbsolute"
-          ]
+          "line": 1040
         }
-      },
-      "loc": 1044,
-      "ipc": {
-        "listens": [
-          "CLAUDE_USAGE_DATA"
-        ],
-        "emits": [
-          "LOAD_CLAUDE_USAGE",
-          "REFRESH_CLAUDE_USAGE"
-        ]
       }
     },
     "renderer/components/WebServerSetup": {
@@ -11188,29 +11125,24 @@
       }
     },
     "shared/themeTypes": {
-      "file": "src\\shared\\themeTypes.ts",
+      "file": "src/shared/themeTypes.ts",
       "description": "SubFrame Theme System — Type definitions and built-in presets.",
       "exports": [
-        "getThemeById",
         "DEFAULT_APPEARANCE",
         "THEME_CLASSIC_AMBER",
         "THEME_SYNTHWAVE_TRACES",
         "THEME_MIDNIGHT_PURPLE",
         "THEME_TERMINAL_GREEN",
         "BUILTIN_THEMES",
+        "getThemeById",
         "TOKEN_TO_CSS"
       ],
       "depends": [],
       "functions": {
         "getThemeById": {
-          "line": 246,
-          "params": [
-            "id",
-            "customThemes"
-          ]
+          "line": 246
         }
-      },
-      "loc": 283
+      }
     },
     "shared/transport": {
       "file": "src\\shared\\transport.ts",

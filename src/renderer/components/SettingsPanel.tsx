@@ -146,6 +146,7 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Auto-poll usage', 'Grid overflow auto-switch',
     'Highlight user messages', 'Default Project Directory',
     'Startup', 'Behavior', 'Paths', 'Git', 'Auto-fetch', 'Install CLI', 'CLI',
+    'Collapsed Workspace Count', 'Max Visible Workspaces', 'Workspace Bar', 'Collapsed Pill Count',
   ],
   terminal: [
     'Font Size', 'Font Family', 'Line Height', 'Scrollback Lines',
@@ -2275,6 +2276,43 @@ export function SettingsPanel() {
                         Uninstall
                       </Button>
                     </div>
+                  </SettingGroup>
+                )}
+
+                {/* Workspace Bar */}
+                {(matchesSearch('Collapsed Workspace Count') || matchesSearch('Max Visible Workspaces') || matchesSearch('Workspace Bar')) && (
+                  <SettingGroup label="Workspace Bar">
+                    {matchesSearch('Collapsed Workspace Count') && (
+                      <SettingSelect
+                        label="Collapsed pill count"
+                        description="Workspace pills visible before hovering to expand (active workspaces shown first)"
+                        value={String((settings?.general as Record<string, unknown>)?.collapsedWorkspaceCount ?? 3)}
+                        onChange={(v) => updateSetting('general.collapsedWorkspaceCount', parseInt(v, 10))}
+                        options={[
+                          { value: '2', label: '2' },
+                          { value: '3', label: '3 (default)' },
+                          { value: '4', label: '4' },
+                          { value: '5', label: '5' },
+                          { value: '6', label: '6' },
+                        ]}
+                      />
+                    )}
+                    {matchesSearch('Max Visible Workspaces') && (
+                      <SettingSelect
+                        label="Max expanded workspaces"
+                        description="Maximum workspace pills visible on hover before horizontal scroll"
+                        value={String((settings?.general as Record<string, unknown>)?.maxVisibleWorkspaces ?? 12)}
+                        onChange={(v) => updateSetting('general.maxVisibleWorkspaces', parseInt(v, 10))}
+                        options={[
+                          { value: '6', label: '6' },
+                          { value: '8', label: '8' },
+                          { value: '10', label: '10' },
+                          { value: '12', label: '12 (default)' },
+                          { value: '15', label: '15' },
+                          { value: '20', label: '20' },
+                        ]}
+                      />
+                    )}
                   </SettingGroup>
                 )}
               </>

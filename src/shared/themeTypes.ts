@@ -108,9 +108,9 @@ export const THEME_CLASSIC_AMBER: ThemeDefinition = {
     borderSubtle: 'rgba(255, 255, 255, 0.06)',
     borderDefault: 'rgba(255, 255, 255, 0.08)',
     borderStrong: 'rgba(255, 255, 255, 0.12)',
-    enableNeonTraces: false,
+    enableNeonTraces: true,
     enableScanlines: false,
-    enableLogoGlow: false,
+    enableLogoGlow: true,
   },
 };
 

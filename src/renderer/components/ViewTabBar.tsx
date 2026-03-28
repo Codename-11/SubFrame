@@ -52,7 +52,9 @@ import { focusActivityBar } from '../lib/activityBarEvents';
 import {
   WORKSPACE_ICON_COMPONENTS,
   normalizeWorkspacePillDisplay,
+  normalizeWorkspaceAccentColor,
   getWorkspacePillPresentation,
+  withWorkspaceAccentAlpha,
 } from '../lib/workspacePills';
 
 const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -132,6 +134,7 @@ interface WorkspacePillInfo {
   projectPaths: string[];
   shortLabel: string | null;
   icon: string | null;
+  accentColor: string | null;
   index: number;
 }
 
@@ -141,6 +144,8 @@ function WorkspacePillButton({
   display,
   disabled,
   onSwitch,
+  onDuplicate,
+  onManageIdentity,
   onDeactivate,
   onReorderCommit,
 }: {
@@ -149,6 +154,8 @@ function WorkspacePillButton({
   display: ReturnType<typeof normalizeWorkspacePillDisplay>;
   disabled: boolean;
   onSwitch: (key: string) => void;
+  onDuplicate: (key: string) => void;
+  onManageIdentity: (key: string) => void;
   onDeactivate: (key: string) => void;
   onReorderCommit: () => void;
 }) {
@@ -167,6 +174,15 @@ function WorkspacePillButton({
   });
   const WorkspaceIcon = presentation.icon ? WORKSPACE_ICON_COMPONENTS[presentation.icon] : null;
   const usesCompactWidth = !presentation.indexText && !presentation.text && !!WorkspaceIcon;
+  const accentColor = normalizeWorkspaceAccentColor(workspace.accentColor) ?? null;
+  const activeAccentStyle = accentColor ? {
+    backgroundColor: withWorkspaceAccentAlpha(accentColor, '22') ?? undefined,
+    borderColor: withWorkspaceAccentAlpha(accentColor, '66') ?? accentColor,
+    color: accentColor,
+  } : undefined;
+  const inactiveAccentStyle = accentColor ? {
+    borderColor: withWorkspaceAccentAlpha(accentColor, '33') ?? undefined,
+  } : undefined;
 
   const clearHoldTimer = useCallback(() => {
     if (holdTimerRef.current != null) {
@@ -213,16 +229,23 @@ function WorkspacePillButton({
                     onSwitch(workspace.key);
                   }}
                   disabled={disabled}
-                  className={`relative flex items-center justify-center h-5 w-auto rounded-md text-[10px] font-semibold
-                    transition-colors cursor-pointer disabled:opacity-50 mx-0.5 touch-none
+                  className={`group/pill relative flex items-center h-5 rounded-md text-[10px] font-semibold
+                    transition-all duration-200 cursor-pointer disabled:opacity-50 mx-0.5 touch-none
                     ${usesCompactWidth ? 'min-w-[24px] px-1.5' : 'min-w-[28px] px-2 gap-1'}
                     ${presentation.indexText && !presentation.text && !WorkspaceIcon ? 'font-mono' : 'tracking-wide'}
                     ${workspace.active
                       ? 'bg-accent/20 text-accent border border-accent/30'
                       : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
                     }`}
+                  style={workspace.active ? activeAccentStyle ?? undefined : inactiveAccentStyle ?? undefined}
                 >
-                  {presentation.indexText && <span className="font-mono">{presentation.indexText}</span>}
+                  {presentation.indexText && <span className="font-mono shrink-0">{presentation.indexText}</span>}
+                  {!workspace.active && accentColor && (
+                    <span
+                      className="h-1.5 w-1.5 rounded-full flex-shrink-0 border border-black/20"
+                      style={{ backgroundColor: accentColor }}
+                    />
+                  )}
                   {WorkspaceIcon && <WorkspaceIcon className="w-3 h-3 flex-shrink-0" />}
                   {presentation.text && <span className="truncate max-w-[48px]">{presentation.text}</span>}
                   {hasAgents && (
@@ -245,6 +268,12 @@ function WorkspacePillButton({
                   Switch To Workspace
                 </ContextMenuItem>
               )}
+              <ContextMenuItem onClick={() => onDuplicate(workspace.key)} className="text-xs cursor-default">
+                Duplicate Workspace
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => onManageIdentity(workspace.key)} className="text-xs cursor-default">
+                Manage Identity
+              </ContextMenuItem>
               <ContextMenuItem onClick={() => onDeactivate(workspace.key)} className="text-xs cursor-default">
                 Deactivate
               </ContextMenuItem>
@@ -299,11 +328,15 @@ export function ViewTabBar() {
       projectPaths: ws.projectPaths ?? [],
       shortLabel: ws.shortLabel ?? null,
       icon: ws.icon ?? null,
+      accentColor: normalizeWorkspaceAccentColor(ws.accentColor) ?? null,
       index: i + 1,
     })) ?? [],
     [wsParsed]
   );
   const workspacePillDisplay = normalizeWorkspacePillDisplay((settings?.appearance as Record<string, unknown>)?.workspacePillDisplay ?? (settings?.appearance as Record<string, unknown>)?.workspacePillStyle);
+  const generalSettings = (settings?.general as Record<string, unknown>) || {};
+  const maxVisibleWorkspaces = typeof generalSettings.maxVisibleWorkspaces === 'number' ? generalSettings.maxVisibleWorkspaces : 12;
+  const collapsedWorkspaceCount = typeof generalSettings.collapsedWorkspaceCount === 'number' ? generalSettings.collapsedWorkspaceCount : 3;
   const inactiveWorkspaceKeys = useMemo(
     () => wsParsed?.workspaces?.filter(ws => ws.inactive)?.map(ws => ws.key) ?? [],
     [wsParsed]
@@ -335,13 +368,8 @@ export function ViewTabBar() {
 
   useEffect(() => {
     const nextKeys = wsWorkspaces.map((workspace) => workspace.key);
-    setWorkspaceOrderKeys((prev) => {
-      const preserved = prev.filter((key) => nextKeys.includes(key));
-      const appended = nextKeys.filter((key) => !preserved.includes(key));
-      const merged = [...preserved, ...appended];
-      workspaceOrderKeysRef.current = merged;
-      return merged;
-    });
+    workspaceOrderKeysRef.current = nextKeys;
+    setWorkspaceOrderKeys(nextKeys);
   }, [wsWorkspaces]);
 
   const handleWsSwitch = useCallback(async (key: string) => {
@@ -398,6 +426,25 @@ export function ViewTabBar() {
       toast.error('Failed to deactivate workspace');
     }
   }, [refetchWorkspaces, wsParsed, wsReordering, wsSwitching, wsWorkspaces]);
+
+  const openWorkspaceSettings = useCallback((key: string) => {
+    window.dispatchEvent(new CustomEvent('open-workspace-settings', { detail: { key } }));
+  }, []);
+
+  const handleWorkspaceDuplicate = useCallback(async (key: string) => {
+    if (wsSwitching || wsReordering) return;
+    setWsSwitching(true);
+    try {
+      await typedInvoke(IPC.WORKSPACE_DUPLICATE, key);
+      refetchWorkspaces();
+      typedSend(IPC.LOAD_WORKSPACE);
+      toast.success('Workspace duplicated');
+    } catch {
+      toast.error('Failed to duplicate workspace');
+    } finally {
+      setWsSwitching(false);
+    }
+  }, [refetchWorkspaces, wsReordering, wsSwitching]);
 
   const workspaceByKey = useMemo(
     () => new Map(wsWorkspaces.map((workspace) => [workspace.key, workspace])),
@@ -587,7 +634,95 @@ export function ViewTabBar() {
         </Tooltip>
       </TooltipProvider>
 
-      {/* Open tabs */}
+      {/* ── Workspace pills (left side, expands rightward on hover) ── */}
+      {wsWorkspaces.length > 0 && (() => {
+        // Smart ordering: active workspaces (current + those with terminals) sort to front
+        const activeKeySet = new Set<string>();
+        for (const key of workspaceOrderKeys) {
+          const ws = workspaceByKey.get(key);
+          if (!ws) continue;
+          if (ws.active) { activeKeySet.add(key); continue; }
+          const act = workspaceActivity.get(ws.key);
+          if (act && act.terminalCount > 0) activeKeySet.add(key);
+        }
+        const smartOrder = [
+          ...workspaceOrderKeys.filter((k) => activeKeySet.has(k)),
+          ...workspaceOrderKeys.filter((k) => !activeKeySet.has(k)),
+        ];
+
+        // Collapsed: render only first `collapsedWorkspaceCount` pills (active-first)
+        // Hovered: section expands to show all (up to maxVisibleWorkspaces), hoz scroll
+        const collapsedKeys = smartOrder.slice(0, collapsedWorkspaceCount);
+        const needsExpand = smartOrder.length > collapsedWorkspaceCount;
+
+        return (
+        <div
+          className={`group/ws-pills flex items-center border-r border-border-subtle mr-1 pr-1 shrink-0 transition-all duration-300 ${
+            wsPulse ? 'ring-1 ring-accent/40 rounded-md bg-accent/5' : ''
+          }`}
+        >
+          <div className="flex items-center overflow-x-auto overflow-y-hidden scrollbar-none">
+            {/* Collapsed pills — always visible */}
+          <Reorder.Group
+            axis="x"
+            values={smartOrder}
+            onReorder={(nextOrder) => {
+              workspaceOrderKeysRef.current = nextOrder;
+              setWorkspaceOrderKeys(nextOrder);
+            }}
+            className="flex items-center"
+          >
+            {smartOrder.map((workspaceKey, i) => {
+              const ws = workspaceByKey.get(workspaceKey);
+              if (!ws) return null;
+              const activity = workspaceActivity.get(ws.key) ?? { terminalCount: 0, agentCount: 0 };
+              const isOverflow = i >= collapsedWorkspaceCount;
+              return (
+                <div
+                  key={ws.key}
+                  className={isOverflow && needsExpand
+                    ? 'max-w-0 opacity-0 overflow-hidden transition-all duration-300 ease-in-out group-hover/ws-pills:max-w-[60px] group-hover/ws-pills:opacity-100'
+                    : ''
+                  }
+                >
+                  <WorkspacePillButton
+                    workspace={{ ...ws, index: workspaceOrderKeys.indexOf(workspaceKey) + 1 }}
+                    activity={activity}
+                    display={workspacePillDisplay}
+                    disabled={wsSwitching || wsReordering}
+                    onSwitch={handleWsSwitch}
+                    onDuplicate={handleWorkspaceDuplicate}
+                    onManageIdentity={openWorkspaceSettings}
+                    onDeactivate={handleWorkspaceDeactivate}
+                    onReorderCommit={handleWorkspaceReorderCommit}
+                  />
+                </div>
+              );
+            })}
+          </Reorder.Group>
+          </div>
+          {/* Add workspace button */}
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleWsCreate}
+                  className="flex items-center justify-center h-5 w-5 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-hover/50
+                    transition-colors cursor-pointer mx-0.5 border border-transparent"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>New workspace</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        );
+      })()}
+
+      {/* Open tabs (flex-1 fills remaining space) */}
       <div className="flex items-center overflow-x-auto scrollbar-none flex-1 min-w-0">
         {openTabs.map(tab => {
           const isActive = tab.id === activeTabId;
@@ -625,58 +760,6 @@ export function ViewTabBar() {
           );
         })}
       </div>
-
-      {/* ── Workspace pills ────────────────────────────────────────────── */}
-      {wsWorkspaces.length > 0 && (
-        <div className={`flex items-center border-l border-border-subtle ml-2 pl-2 flex-shrink-0 transition-all duration-300 ${
-          wsPulse ? 'ring-1 ring-accent/40 rounded-md bg-accent/5' : ''
-        }`}>
-          <Reorder.Group
-            axis="x"
-            values={workspaceOrderKeys}
-            onReorder={(nextOrder) => {
-              workspaceOrderKeysRef.current = nextOrder;
-              setWorkspaceOrderKeys(nextOrder);
-            }}
-            className="flex items-center"
-          >
-            {workspaceOrderKeys.map((workspaceKey, renderIndex) => {
-              const ws = workspaceByKey.get(workspaceKey);
-              if (!ws) return null;
-              const activity = workspaceActivity.get(ws.key) ?? { terminalCount: 0, agentCount: 0 };
-              return (
-                <WorkspacePillButton
-                  key={ws.key}
-                  workspace={{ ...ws, index: renderIndex + 1 }}
-                  activity={activity}
-                  display={workspacePillDisplay}
-                  disabled={wsSwitching || wsReordering}
-                  onSwitch={handleWsSwitch}
-                  onDeactivate={handleWorkspaceDeactivate}
-                  onReorderCommit={handleWorkspaceReorderCommit}
-                />
-              );
-            })}
-          </Reorder.Group>
-          {/* Add workspace button */}
-          <TooltipProvider delayDuration={400}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleWsCreate}
-                  className="flex items-center justify-center h-5 w-5 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-hover/50
-                    transition-colors cursor-pointer mx-0.5 border border-transparent"
-                >
-                  <Plus className="w-2.5 h-2.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>New workspace</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      )}
 
       {/* Usage pill + view shortcuts + sidebar toggle on the right */}
       <div className="flex items-center gap-1 px-1.5 flex-shrink-0">
