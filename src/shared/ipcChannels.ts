@@ -45,6 +45,7 @@ export const IPC = {
   WORKSPACE_LIST_DATA: 'workspace-list-data',
   WORKSPACE_SWITCH: 'workspace-switch',
   WORKSPACE_CREATE: 'workspace-create',
+  WORKSPACE_DUPLICATE: 'workspace-duplicate',
   WORKSPACE_RENAME: 'workspace-rename',
   WORKSPACE_DELETE: 'workspace-delete',
   WORKSPACE_REORDER: 'workspace-reorder',
@@ -85,6 +86,7 @@ export const IPC = {
   IS_TERMINAL_CLAUDE_ACTIVE: 'is-terminal-claude-active',
   GET_TERMINAL_SESSION_NAME: 'get-terminal-session-name',
   GET_TERMINAL_STATE: 'get-terminal-state',
+  GET_TERMINAL_BACKLOG: 'get-terminal-backlog',
   SAVE_TERMINAL_SCROLLBACK: 'save-terminal-scrollback',
   LOAD_TERMINAL_SCROLLBACK: 'load-terminal-scrollback',
   USER_MESSAGE_SIGNAL: 'user-message-signal',
@@ -121,6 +123,8 @@ export const IPC = {
   RENAME_CLAUDE_SESSION: 'rename-claude-session',
   DELETE_CLAUDE_SESSION: 'delete-claude-session',
   DELETE_ALL_CLAUDE_SESSIONS: 'delete-all-claude-sessions',
+  LIST_AI_SESSIONS: 'list-ai-sessions',
+  AI_SESSIONS_UPDATED: 'ai-sessions-updated',
 
   // GitHub Panel
   LOAD_GITHUB_ISSUES: 'load-github-issues',
@@ -217,6 +221,8 @@ export const IPC = {
   IMPORT_ONBOARDING_RESULTS: 'import-onboarding-results',
   CANCEL_ONBOARDING_ANALYSIS: 'cancel-onboarding-analysis',
   ONBOARDING_PROGRESS: 'onboarding-progress',
+  GET_ONBOARDING_SESSION: 'get-onboarding-session',
+  CLEAR_ONBOARDING_SESSION: 'clear-onboarding-session',
   GET_ONBOARDING_PROMPT_PREVIEW: 'get-onboarding-prompt-preview',
   BROWSE_ONBOARDING_FILES: 'browse-onboarding-files',
 
@@ -324,6 +330,13 @@ export const IPC = {
   WEB_CLIENT_CONNECTED: 'web-client-connected',
   WEB_CLIENT_DISCONNECTED: 'web-client-disconnected',
 
+  // Session Control (cooperative control handoff between Electron and web client)
+  SESSION_CONTROL_STATE: 'session-control-state',
+  SESSION_CONTROL_REQUEST: 'session-control-request',
+  SESSION_CONTROL_GRANT: 'session-control-grant',
+  SESSION_CONTROL_TAKE: 'session-control-take',
+  SESSION_CONTROL_RELEASE: 'session-control-release',
+
   // Menu Actions (main → renderer)
   MENU_TOGGLE_SIDEBAR: 'menu-toggle-sidebar',
   MENU_TOGGLE_RIGHT_PANEL: 'menu-toggle-right-panel',
@@ -331,6 +344,9 @@ export const IPC = {
   MENU_CLOSE_TERMINAL: 'menu-close-terminal',
   MENU_OPEN_SETTINGS: 'menu-open-settings',
   MENU_NEW_TERMINAL: 'menu-new-terminal',
+
+  // Dev tools
+  DEV_SYNC_FROM_PRODUCTION: 'dev-sync-from-production',
 } as const;
 
 export type IPCChannel = (typeof IPC)[keyof typeof IPC];
@@ -350,6 +366,9 @@ export interface WorkspaceProject {
 export interface WorkspaceData {
   projects: WorkspaceProject[];
   activeProject?: string;
+  workspaceKey?: string;
+  workspaceName?: string;
+  defaultProjectPath?: string | null;
   settings?: Record<string, unknown>;
 }
 
@@ -378,6 +397,7 @@ export interface WebSessionState {
       | 'tasks'
       | 'sessions'
       | 'plugins'
+      | 'aiSessions'
       | 'gitChanges'
       | 'githubIssues'
       | 'githubPRs'
@@ -437,6 +457,18 @@ export interface WebRemotePointerState {
   timestamp: number;
 }
 
+/** Session control state — cooperative control handoff between Electron and web client */
+export interface SessionControlState {
+  controller: 'electron' | 'web' | null;
+  webClientConnected: boolean;
+  webClientDevice: string | null;
+  controlRequestPending: boolean;
+  controlRequestFrom: 'electron' | 'web' | null;
+  lastElectronActivity: number;
+  lastWebActivity: number;
+  idleTimeoutMs: number;
+}
+
 /** Workspace list entry */
 export interface WorkspaceListEntry {
   key: string;
@@ -444,8 +476,11 @@ export interface WorkspaceListEntry {
   active: boolean;
   projectCount?: number;
   projectPaths?: string[];
+  projects?: WorkspaceProject[];
   shortLabel?: string;
   icon?: string;
+  accentColor?: string;
+  defaultProjectPath?: string | null;
   inactive?: boolean;
 }
 
@@ -457,8 +492,11 @@ export interface WorkspaceListResult {
     name: string;
     projectCount: number;
     projectPaths: string[];
+    projects?: WorkspaceProject[];
     shortLabel?: string;
     icon?: string;
+    accentColor?: string;
+    defaultProjectPath?: string | null;
     inactive?: boolean;
   }>;
 }
@@ -548,6 +586,27 @@ export interface ClaudeSession {
   friendlyName?: string;
   /** Individual segments, only included when segmentCount > 1 */
   segments?: SessionSegment[];
+}
+
+/** Live PTY-backed AI session summary */
+export interface AISessionSummary {
+  id: string;
+  name: string;
+  toolId: string;
+  source: 'onboarding' | 'pipeline' | 'tasks' | 'plugin' | 'system';
+  projectPath: string;
+  terminalId: string;
+  activityStreamId?: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  status: 'starting' | 'running' | 'completed' | 'failed' | 'cancelled';
+  startCommand: string | null;
+  error: string | null;
+}
+
+export interface AISessionsPayload {
+  sessions: AISessionSummary[];
 }
 
 /** Git branch info (matches BranchInfo from gitBranchesManager) */
@@ -1069,6 +1128,21 @@ export interface OnboardingProgressEvent {
   stallDurationMs?: number;
 }
 
+/** Durable onboarding session state for a single project. */
+export interface OnboardingSessionState {
+  projectPath: string;
+  detection: OnboardingDetectionResult | null;
+  analysisResult: OnboardingAnalysisResult | null;
+  progress: OnboardingProgressEvent | null;
+  terminalId: string | null;
+  activityStreamId: string | null;
+  error: string | null;
+  cancelled: string | null;
+  importResult: OnboardingImportResult | null;
+  status: 'idle' | 'detecting' | 'gathering' | 'analyzing' | 'parsing' | 'importing' | 'imported' | 'done' | 'error' | 'cancelled';
+  updatedAt: string;
+}
+
 /** Result of importing onboarding analysis */
 export interface OnboardingImportResult {
   imported: string[];
@@ -1085,6 +1159,8 @@ export interface OnboardingImportSelections {
 
 /** Options for customizing the AI analysis */
 export interface OnboardingAnalysisOptions {
+  /** Optional per-run AI tool override (defaults to the globally active tool) */
+  toolId?: string;
   /** Additional user-provided instructions appended to the prompt */
   customContext?: string;
   /** Extra file/directory paths to include in the context (absolute paths) */
@@ -1296,10 +1372,11 @@ export interface IPCHandleMap {
   // Workspace (handle)
   [IPC.SCAN_PROJECT_DIR]: { args: [dirPath: string]; return: WorkspaceProject[] };
   [IPC.WORKSPACE_LIST]: { args: []; return: WorkspaceListResult };
-  [IPC.WORKSPACE_SWITCH]: { args: [key: string]; return: { projects: WorkspaceProject[]; workspaceName: string } | null };
+  [IPC.WORKSPACE_SWITCH]: { args: [key: string]; return: { projects: WorkspaceProject[]; workspaceName: string; workspaceKey: string; defaultProjectPath?: string | null } | null };
   [IPC.WORKSPACE_CREATE]: { args: [name: string]; return: unknown };
+  [IPC.WORKSPACE_DUPLICATE]: { args: [key: string]; return: WorkspaceListResult | null };
   [IPC.WORKSPACE_RENAME]: {
-    args: [payload: { key: string; newName?: string; shortLabel?: string | null; icon?: string | null }];
+    args: [payload: { key: string; newName?: string; shortLabel?: string | null; icon?: string | null; accentColor?: string | null; defaultProjectPath?: string | null }];
     return: unknown;
   };
   [IPC.WORKSPACE_DELETE]: { args: [key: string]; return: unknown };
@@ -1334,6 +1411,10 @@ export interface IPCHandleMap {
   [IPC.WEB_SESSION_STATE]: {
     args: [];
     return: WebSessionState;
+  };
+  [IPC.SESSION_CONTROL_STATE]: {
+    args: [];
+    return: SessionControlState;
   };
   [IPC.WEB_SERVER_TOGGLE]: {
     args: [enable: boolean];
@@ -1401,6 +1482,7 @@ export interface IPCHandleMap {
   [IPC.RENAME_CLAUDE_SESSION]: { args: [payload: { projectPath: string; sessionId: string; name: string }]; return: boolean };
   [IPC.DELETE_CLAUDE_SESSION]: { args: [payload: { projectPath: string; sessionId: string; slug: string }]; return: boolean };
   [IPC.DELETE_ALL_CLAUDE_SESSIONS]: { args: [projectPath: string]; return: { deleted: number } };
+  [IPC.LIST_AI_SESSIONS]: { args: [projectPath: string | null]; return: AISessionsPayload };
 
   // Terminal Agent Status
   [IPC.IS_TERMINAL_CLAUDE_ACTIVE]: { args: [terminalId: string]; return: boolean };
@@ -1414,6 +1496,7 @@ export interface IPCHandleMap {
 
   // Terminal State (cwd, shell, session per terminal)
   [IPC.GET_TERMINAL_STATE]: { args: []; return: { terminals: Array<{ id: string; cwd: string; shell: string; claudeActive: boolean; sessionId: string | null; projectPath: string | null }> } };
+  [IPC.GET_TERMINAL_BACKLOG]: { args: [payload: { terminalId: string }]; return: { data: string } };
   [IPC.SAVE_TERMINAL_SCROLLBACK]: { args: [payload: { projectPath: string; terminalId: string; lines: string[] }]; return: { success: boolean } };
   [IPC.LOAD_TERMINAL_SCROLLBACK]: { args: [payload: { projectPath: string; terminalId: string }]; return: { lines: string[] } };
 
@@ -1432,6 +1515,8 @@ export interface IPCHandleMap {
     args: [projectPath: string, options?: OnboardingAnalysisOptions];
     return: { terminalId: string; activityStreamId: string };
   };
+  [IPC.GET_ONBOARDING_SESSION]: { args: [projectPath: string]; return: OnboardingSessionState | null };
+  [IPC.CLEAR_ONBOARDING_SESSION]: { args: [projectPath: string]; return: { success: boolean } };
   [IPC.GET_ONBOARDING_PROMPT_PREVIEW]: { args: [projectPath: string, options?: OnboardingAnalysisOptions]; return: { prompt: string; contextSize: number } };
   [IPC.BROWSE_ONBOARDING_FILES]: { args: [projectPath: string, type: 'file' | 'directory']; return: string[] };
   [IPC.IMPORT_ONBOARDING_RESULTS]: { args: [payload: { projectPath: string; results: OnboardingAnalysisResult; selections: OnboardingImportSelections }]; return: OnboardingImportResult };
@@ -1523,6 +1608,12 @@ export interface IPCHandleMap {
   [IPC.CHECK_CONTEXT_MENU]: {
     args: [];
     return: { installed: boolean };
+  };
+
+  // Dev tools
+  [IPC.DEV_SYNC_FROM_PRODUCTION]: {
+    args: [];
+    return: { success: boolean; copied: string[]; message: string };
   };
 }
 
@@ -1656,8 +1747,8 @@ export interface IPCEventMap {
   [IPC.PROMPT_HISTORY_DATA]: unknown;
   [IPC.TOGGLE_HISTORY_PANEL]: void;
   [IPC.RUN_COMMAND]: string; // command
-  [IPC.WORKSPACE_DATA]: WorkspaceData;
-  [IPC.WORKSPACE_UPDATED]: { projects: WorkspaceProject[]; workspaceName: string };
+  [IPC.WORKSPACE_DATA]: WorkspaceData | WorkspaceProject[];
+  [IPC.WORKSPACE_UPDATED]: WorkspaceData | WorkspaceProject[];
   [IPC.TERMINAL_OUTPUT]: string; // data
   [IPC.TERMINAL_CREATED]: { terminalId?: string; success: boolean; error?: string };
   [IPC.TERMINAL_DESTROYED]: { terminalId: string; exitCode: number };
@@ -1702,6 +1793,7 @@ export interface IPCEventMap {
   // Onboarding
   [IPC.ONBOARDING_PROGRESS]: OnboardingProgressEvent;
   [IPC.TASK_ENHANCE_RESULT]: { activityStreamId: string; success: boolean; enhanced: Partial<Task>; error?: string };
+  [IPC.AI_SESSIONS_UPDATED]: AISessionsPayload;
 
   // Auto-Updater
   [IPC.UPDATER_STATUS]: UpdaterStatus;
@@ -1744,6 +1836,13 @@ export interface IPCEventMap {
   // Web Server
   [IPC.WEB_CLIENT_CONNECTED]: { userAgent: string; connectedAt: string };
   [IPC.WEB_CLIENT_DISCONNECTED]: void;
+
+  // Session Control
+  [IPC.SESSION_CONTROL_REQUEST]: void;
+  [IPC.SESSION_CONTROL_GRANT]: void;
+  [IPC.SESSION_CONTROL_TAKE]: void;
+  [IPC.SESSION_CONTROL_RELEASE]: void;
+  [IPC.SESSION_CONTROL_STATE]: SessionControlState;
 }
 
 // ─── CommonJS compat (keep old require('...ipcChannels') working) ────────────

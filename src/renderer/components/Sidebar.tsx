@@ -108,7 +108,6 @@ export function Sidebar() {
         if (data.success) {
           setIsFrameProject(true);
           toast.success('Project initialized as SubFrame project');
-          // Trigger the onboarding dialog to analyze the project with AI
           window.dispatchEvent(new CustomEvent('start-onboarding', { detail: { projectPath: data.projectPath } }));
         } else {
           toast.error('Failed to initialize project');
@@ -122,6 +121,16 @@ export function Sidebar() {
       unsubInit();
     };
   }, [currentProjectPath, setIsFrameProject]);
+
+  useEffect(() => {
+    const openInitDialog = () => {
+      if (currentProjectPath && !isFrameProject) {
+        setInitDialogOpen(true);
+      }
+    };
+    window.addEventListener('open-frame-init', openInitDialog);
+    return () => window.removeEventListener('open-frame-init', openInitDialog);
+  }, [currentProjectPath, isFrameProject]);
 
   // Respond to focus requests from keyboard shortcuts (Ctrl+E / Ctrl+Shift+E)
   useEffect(() => {
@@ -481,6 +490,20 @@ export function Sidebar() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+              {currentProjectPath && isFrameProject && (
+                <button
+                  className="w-full px-3 py-1.5 text-xs font-medium rounded-md
+                             bg-bg-secondary text-text-secondary border border-border-subtle
+                             hover:bg-bg-hover hover:text-text-primary transition-colors cursor-pointer"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('start-onboarding', {
+                      detail: { projectPath: currentProjectPath },
+                    }));
+                  }}
+                >
+                  Run AI Analysis
+                </button>
+              )}
               {currentProjectPath && !isFrameProject && (
                 <>
                   <button

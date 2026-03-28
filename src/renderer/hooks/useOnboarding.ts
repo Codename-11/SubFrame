@@ -4,11 +4,11 @@
  * using TanStack Query mutations and IPC event listeners.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useIpcMutation } from './useIpc';
 import { useIPCEvent } from './useIPCListener';
 import { IPC } from '../../shared/ipcChannels';
-import { typedSend } from '../lib/ipc';
+import { typedInvoke, typedSend } from '../lib/ipc';
 import type {
   OnboardingDetectionResult,
   OnboardingAnalysisResult,
@@ -16,9 +16,10 @@ import type {
   OnboardingImportResult,
   OnboardingImportSelections,
   OnboardingAnalysisOptions,
+  OnboardingSessionState,
 } from '../../shared/ipcChannels';
 
-export function useOnboarding() {
+export function useOnboarding(projectPath: string | null) {
   // ── Local state ──────────────────────────────────────────────────────────
   const [detection, setDetection] = useState<OnboardingDetectionResult | null>(null);
   const [analysisResult, setAnalysisResult] = useState<OnboardingAnalysisResult | null>(null);
@@ -45,10 +46,65 @@ export function useOnboarding() {
   const previewPromptMutation = useIpcMutation(IPC.GET_ONBOARDING_PROMPT_PREVIEW);
   const browseFilesMutation = useIpcMutation(IPC.BROWSE_ONBOARDING_FILES);
 
+  const applySession = useCallback((session: OnboardingSessionState | null) => {
+    if (!session) {
+      setDetection(null);
+      setAnalysisResult(null);
+      setProgress(null);
+      setTerminalId(null);
+      setActivityStreamId(null);
+      setIsAnalyzing(false);
+      setError(null);
+      setCancelled(null);
+      setImportResult(null);
+      setStalled(false);
+      setStallDurationMs(0);
+      setTimeoutMs(null);
+      setElapsedMs(null);
+      return;
+    }
+
+    setDetection(session.detection);
+    setAnalysisResult(session.analysisResult);
+    setProgress(session.progress);
+    setTerminalId(session.terminalId);
+    setActivityStreamId(session.activityStreamId);
+    setError(session.error);
+    setCancelled(session.cancelled);
+    setImportResult(session.importResult);
+    setIsAnalyzing(['detecting', 'gathering', 'analyzing', 'parsing', 'importing'].includes(session.status));
+    setStalled(session.progress?.stalled ?? false);
+    setStallDurationMs(session.progress?.stallDurationMs ?? 0);
+    setTimeoutMs(session.progress?.timeoutMs ?? null);
+    setElapsedMs(session.progress?.elapsedMs ?? null);
+  }, []);
+
+  const hydrate = useCallback(async (targetProjectPath: string): Promise<OnboardingSessionState | null> => {
+    const session = await typedInvoke(IPC.GET_ONBOARDING_SESSION, targetProjectPath);
+    applySession(session);
+    return session;
+  }, [applySession]);
+
+  const clear = useCallback(async (targetProjectPath: string): Promise<void> => {
+    await typedInvoke(IPC.CLEAR_ONBOARDING_SESSION, targetProjectPath);
+    applySession(null);
+  }, [applySession]);
+
+  useEffect(() => {
+    if (!projectPath) {
+      applySession(null);
+      return;
+    }
+    hydrate(projectPath).catch(() => {
+      // Ignore hydration errors and preserve local mutation-driven flow.
+    });
+  }, [applySession, hydrate, projectPath]);
+
   // ── Progress event listener ──────────────────────────────────────────────
   useIPCEvent<OnboardingProgressEvent>(
     IPC.ONBOARDING_PROGRESS,
     useCallback((data: OnboardingProgressEvent) => {
+      if (projectPath && data.projectPath !== projectPath) return;
       setProgress(data);
 
       // Capture terminalId as soon as it arrives (sent during 'analyzing' phase)
@@ -92,7 +148,7 @@ export function useOnboarding() {
         setCancelled(null);
         setError(data.message);
       }
-    }, [])
+    }, [projectPath])
   );
 
   // ── Actions ──────────────────────────────────────────────────────────────
@@ -221,6 +277,8 @@ export function useOnboarding() {
     browseFiles,
     retry,
     reset,
+    hydrate,
+    clear,
 
     // State
     detection,

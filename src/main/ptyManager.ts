@@ -61,11 +61,13 @@ function parseOSC7(data: string): string | null {
 const CLAUDE_OUTPUT_BUFFERS = new Map<string, string>();
 const CLAUDE_TIMEOUT_HANDLES = new Map<string, ReturnType<typeof setTimeout>>();
 const CLAUDE_BUFFER_MAX = 2048;
+const TERMINAL_BACKLOG_MAX_CHARS = 256 * 1024;
 
 // ─── Output Capture ──────────────────────────────────────────────────────────
 // Allows other main-process modules (e.g. onboardingManager) to accumulate
 // raw PTY output for a specific terminal without piping.
 const captureBuffers = new Map<string, string[]>();
+const terminalBacklogs = new Map<string, string>();
 
 // ─── Output Handlers ─────────────────────────────────────────────────────────
 // Per-terminal callbacks for real-time output monitoring (e.g. trust prompt detection).
@@ -311,6 +313,73 @@ function detectClaudeOutput(terminalId: string, data: string): void {
   }
 }
 
+function appendTerminalBacklog(terminalId: string, data: string): void {
+  const next = (terminalBacklogs.get(terminalId) || '') + data;
+  terminalBacklogs.set(
+    terminalId,
+    next.length > TERMINAL_BACKLOG_MAX_CHARS ? next.slice(-TERMINAL_BACKLOG_MAX_CHARS) : next,
+  );
+}
+
+function handleTerminalOutput(terminalId: string, data: string): void {
+  appendTerminalBacklog(terminalId, data);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    broadcast(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
+  }
+  detectClaudeOutput(terminalId, data);
+
+  const instForStall = ptyInstances.get(terminalId);
+  if (instForStall) {
+    instForStall.lastOutputTimestamp = Date.now();
+    if (instForStall.claudeActive && mainWindow && !mainWindow.isDestroyed()) {
+      broadcast(IPC.TERMINAL_STALL_CLEARED, { terminalId });
+    }
+  }
+
+  const osc7Path = parseOSC7(data);
+  if (osc7Path) {
+    const inst = ptyInstances.get(terminalId);
+    if (inst) inst.cwd = osc7Path;
+  }
+
+  const captureBuf = captureBuffers.get(terminalId);
+  if (captureBuf) captureBuf.push(data);
+
+  const handlers = outputHandlers.get(terminalId);
+  if (handlers) handlers.forEach(handler => handler(data));
+}
+
+function handleTerminalExit(terminalId: string, exitCode: number | undefined): void {
+  console.log(`Terminal ${terminalId} exited:`, exitCode);
+  ptyInstances.delete(terminalId);
+  CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+  captureBuffers.delete(terminalId);
+  outputHandlers.delete(terminalId);
+  terminalBacklogs.delete(terminalId);
+  terminalSessionMap.delete(terminalId);
+  claudeActiveFlags.delete(terminalId);
+  const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
+  if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    broadcast(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
+  }
+  const popoutWC = popoutWebContents.get(terminalId);
+  if (popoutWC && !popoutWC.isDestroyed()) {
+    popoutWC.send(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
+  }
+  popoutWebContents.delete(terminalId);
+}
+
+function bindPtyLifecycle(terminalId: string, ptyProcess: IPty): void {
+  ptyProcess.onData((data: string) => {
+    handleTerminalOutput(terminalId, data);
+  });
+
+  ptyProcess.onExit(({ exitCode }) => {
+    handleTerminalExit(terminalId, exitCode);
+  });
+}
+
 interface ShellInfo {
   id: string;
   name: string;
@@ -484,7 +553,14 @@ function getAvailableShells(): ShellInfo[] {
 /**
  * Create a new terminal instance
  */
-function createTerminal(workingDir: string | null = null, projectPath: string | null = null, shellPath: string | null = null): string {
+function createTerminal(
+  workingDir: string | null = null,
+  projectPath: string | null = null,
+  shellPath: string | null = null,
+  initialCols = 80,
+  initialRows = 24,
+  options?: { conptyInheritCursor?: boolean },
+): string {
   const maxTerminals = getMaxTerminals();
   if (ptyInstances.size >= maxTerminals) {
     throw new Error(`Maximum terminal limit (${maxTerminals}) reached`);
@@ -499,14 +575,16 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
   const shellArgs = getShellArgs(shell);
 
   const isWindows = process.platform === 'win32';
+  // conptyInheritCursor: true is needed for oh-my-posh/starship prompts in
+  // normal terminals, but causes ConPTY to defer output in background terminals
+  // (like AI analysis sessions) where no renderer is immediately attached.
+  const inheritCursor = options?.conptyInheritCursor ?? true;
   const ptyProcess = pty.spawn(shell, shellArgs, {
     name: 'xterm-256color',
-    cols: 80,
-    rows: 24,
+    cols: initialCols,
+    rows: initialRows,
     cwd: cwd,
-    // ConPTY settings for Windows — required for oh-my-posh, starship, and other
-    // modern prompts that use cursor repositioning and shell integration sequences
-    ...(isWindows ? { useConpty: true, conptyInheritCursor: true } : {}),
+    ...(isWindows ? { useConpty: true, conptyInheritCursor: inheritCursor } : {}),
     env: {
       ...process.env,
       TERM: 'xterm-256color',
@@ -516,61 +594,68 @@ function createTerminal(workingDir: string | null = null, projectPath: string | 
       SUBFRAME_TERMINAL_ID: terminalId,
     } as Record<string, string>
   });
+  terminalBacklogs.set(terminalId, '');
 
-  // Handle PTY output - send with terminal ID + detect Claude activity + track cwd via OSC 7
-  ptyProcess.onData((data: string) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      broadcast(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
-    }
-    detectClaudeOutput(terminalId, data);
-    // Update last output timestamp for stall detection
-    const instForStall = ptyInstances.get(terminalId);
-    if (instForStall) {
-      instForStall.lastOutputTimestamp = Date.now();
-      // If this terminal was flagged as stalled, clear it
-      if (instForStall.claudeActive && mainWindow && !mainWindow.isDestroyed()) {
-        broadcast(IPC.TERMINAL_STALL_CLEARED, { terminalId });
-      }
-    }
-    // Track working directory changes via OSC 7 escape sequences
-    const osc7Path = parseOSC7(data);
-    if (osc7Path) {
-      const inst = ptyInstances.get(terminalId);
-      if (inst) inst.cwd = osc7Path;
-    }
-    // Accumulate output if this terminal is being captured
-    const captureBuf = captureBuffers.get(terminalId);
-    if (captureBuf) captureBuf.push(data);
-    // Invoke per-terminal output handlers if registered
-    const handlers = outputHandlers.get(terminalId);
-    if (handlers) handlers.forEach(handler => handler(data));
-  });
-
-  // Handle PTY exit
-  ptyProcess.onExit(({ exitCode }) => {
-    console.log(`Terminal ${terminalId} exited:`, exitCode);
-    ptyInstances.delete(terminalId);
-    // Clean up Claude detection + session correlation state
-    CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
-    captureBuffers.delete(terminalId);
-    outputHandlers.delete(terminalId);
-    terminalSessionMap.delete(terminalId);
-    claudeActiveFlags.delete(terminalId);
-    const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-    if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      broadcast(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
-    }
-    // Also notify pop-out window and clean up
-    const popoutWC = popoutWebContents.get(terminalId);
-    if (popoutWC && !popoutWC.isDestroyed()) {
-      popoutWC.send(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
-    }
-    popoutWebContents.delete(terminalId);
-  });
+  bindPtyLifecycle(terminalId, ptyProcess);
 
   ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false, shell, lastOutputTimestamp: Date.now() });
   console.log(`Created terminal ${terminalId} in ${cwd} (shell: ${shell}, project: ${projectPath || 'global'})`);
+
+  return terminalId;
+}
+
+/**
+ * Create a terminal that runs a specific command directly — no interactive shell.
+ * On Windows: uses `cmd.exe /c <command> <args>` for PATH resolution of .cmd/.exe wrappers.
+ * On Unix: spawns the command directly.
+ *
+ * Unlike createTerminal (which opens an interactive shell), this executes the
+ * command immediately — avoiding the ConPTY buffering caused by typing a command
+ * into an interactive shell and waiting for it to echo/execute.
+ */
+function spawnDirect(
+  command: string,
+  args: string[],
+  workingDir: string,
+  projectPath: string | null = null,
+  initialCols = 80,
+  initialRows = 24,
+): string {
+  const maxTerminals = getMaxTerminals();
+  if (ptyInstances.size >= maxTerminals) {
+    throw new Error(`Maximum terminal limit (${maxTerminals}) reached`);
+  }
+
+  const terminalId = `term-${++terminalCounter}`;
+  const cwd = workingDir || process.env.HOME || process.env.USERPROFILE || '';
+  const isWindows = process.platform === 'win32';
+
+  // On Windows, wrap in cmd.exe /c for PATH resolution (.cmd, .exe, .bat wrappers).
+  // On Unix, spawn directly.
+  const spawnCmd = isWindows ? (process.env.COMSPEC || 'cmd.exe') : command;
+  const spawnArgs = isWindows ? ['/c', command, ...args] : args;
+
+  const ptyProcess = pty.spawn(spawnCmd, spawnArgs, {
+    name: 'xterm-256color',
+    cols: initialCols,
+    rows: initialRows,
+    cwd,
+    ...(isWindows ? { useConpty: true, conptyInheritCursor: true } : {}),
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      TERM_PROGRAM: 'SubFrame',
+      TERM_PROGRAM_VERSION: require('../../package.json').version,
+      SUBFRAME_TERMINAL_ID: terminalId,
+    } as Record<string, string>,
+  });
+  terminalBacklogs.set(terminalId, '');
+
+  bindPtyLifecycle(terminalId, ptyProcess);
+
+  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false, shell: spawnCmd, lastOutputTimestamp: Date.now() });
+  console.log(`Spawned direct terminal ${terminalId} in ${cwd} (command: ${command} ${args.join(' ')}, project: ${projectPath || 'global'})`);
 
   return terminalId;
 }
@@ -630,54 +715,7 @@ function restartTerminal(terminalId: string): { success: boolean; error?: string
     } as Record<string, string>
   });
 
-  // Reconnect output handler
-  newPty.onData((data: string) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      broadcast(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
-    }
-    detectClaudeOutput(terminalId, data);
-    // Update last output timestamp for stall detection
-    const instForStall = ptyInstances.get(terminalId);
-    if (instForStall) {
-      instForStall.lastOutputTimestamp = Date.now();
-      if (instForStall.claudeActive && mainWindow && !mainWindow.isDestroyed()) {
-        broadcast(IPC.TERMINAL_STALL_CLEARED, { terminalId });
-      }
-    }
-    // Track working directory changes via OSC 7
-    const osc7Path = parseOSC7(data);
-    if (osc7Path) {
-      const inst = ptyInstances.get(terminalId);
-      if (inst) inst.cwd = osc7Path;
-    }
-    // Accumulate output if this terminal is being captured
-    const captureBuf = captureBuffers.get(terminalId);
-    if (captureBuf) captureBuf.push(data);
-    // Invoke per-terminal output handlers if registered
-    const handlers = outputHandlers.get(terminalId);
-    if (handlers) handlers.forEach(handler => handler(data));
-  });
-
-  // Reconnect exit handler
-  newPty.onExit(({ exitCode }) => {
-    console.log(`Terminal ${terminalId} exited:`, exitCode);
-    ptyInstances.delete(terminalId);
-    CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
-    captureBuffers.delete(terminalId);
-    outputHandlers.delete(terminalId);
-    terminalSessionMap.delete(terminalId);
-    claudeActiveFlags.delete(terminalId);
-    const t = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-    if (t) { clearTimeout(t); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      broadcast(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
-    }
-    const popoutWC = popoutWebContents.get(terminalId);
-    if (popoutWC && !popoutWC.isDestroyed()) {
-      popoutWC.send(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
-    }
-    popoutWebContents.delete(terminalId);
-  });
+  bindPtyLifecycle(terminalId, newPty);
 
   // Update the instance in-place
   instance.pty = newPty;
@@ -723,6 +761,16 @@ function writeToTerminal(terminalId: string, data: string): void {
 }
 
 /**
+ * Inject synthetic output into a terminal stream.
+ * Used when SubFrame needs the shared transcript to reflect a command launch
+ * before the shell has echoed anything back.
+ */
+function injectTerminalOutput(terminalId: string, data: string): void {
+  if (!ptyInstances.has(terminalId)) return;
+  handleTerminalOutput(terminalId, data);
+}
+
+/**
  * Resize specific terminal
  */
 function resizeTerminal(terminalId: string, cols: number, rows: number): void {
@@ -744,6 +792,7 @@ function destroyTerminal(terminalId: string): void {
     CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
     captureBuffers.delete(terminalId);
     outputHandlers.delete(terminalId);
+    terminalBacklogs.delete(terminalId);
     terminalSessionMap.delete(terminalId);
     claudeActiveFlags.delete(terminalId);
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
@@ -765,6 +814,7 @@ function destroyAll(): void {
   CLAUDE_OUTPUT_BUFFERS.clear();
   captureBuffers.clear();
   outputHandlers.clear();
+  terminalBacklogs.clear();
   terminalSessionMap.clear();
   claudeActiveFlags.clear();
   for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
@@ -900,6 +950,10 @@ function setupIPC(ipcMain: IpcMain): void {
     return { terminals };
   });
 
+  ipcMain.handle(IPC.GET_TERMINAL_BACKLOG, (_event, { terminalId }: { terminalId: string }) => {
+    return { data: terminalBacklogs.get(terminalId) || '' };
+  });
+
   // Save scrollback to .subframe/scrollback/<terminalId>.txt
   ipcMain.handle(IPC.SAVE_TERMINAL_SCROLLBACK, (_event, { projectPath, terminalId, lines }: { projectPath: string; terminalId: string; lines: string[] }) => {
     try {
@@ -995,12 +1049,20 @@ function removeOutputHandler(terminalId: string, handlerId?: string): void {
   }
 }
 
+/**
+ * Get the raw backlog for a terminal (used by onboardingManager for MCP analysis output).
+ */
+function getTerminalBacklog(terminalId: string): string {
+  return terminalBacklogs.get(terminalId) || '';
+}
+
 export {
-  init, createTerminal, restartTerminal, writeToTerminal, resizeTerminal,
+  init, createTerminal, spawnDirect, restartTerminal, writeToTerminal, injectTerminalOutput, resizeTerminal,
   destroyTerminal, destroyAll, getTerminalCount, getTerminalIds,
   hasTerminal, isClaudeActive, getTerminalsByProject, getTerminalInfo,
   getAvailableShells, setupIPC, waitForExit,
   startCapturing, stopCapturing,
   addOutputHandler, removeOutputHandler,
-  registerPopoutWebContents, unregisterPopoutWebContents
+  registerPopoutWebContents, unregisterPopoutWebContents,
+  getTerminalBacklog
 };

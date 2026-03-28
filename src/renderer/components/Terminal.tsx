@@ -21,6 +21,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useUIStore } from '../stores/useUIStore';
+import { useSessionControlStore } from '../stores/useSessionControlStore';
 import * as terminalRegistry from '../lib/terminalRegistry';
 import { getTransport } from '../lib/transportProvider';
 
@@ -81,9 +82,18 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const userMessageColor = (generalSettings.userMessageColor as string) || '#ff6eb4';
   const showFreezeOverlay = terminalSettings.showFreezeOverlay !== false;
   const claudeActive = useTerminalStore((s) => s.terminals.get(terminalId)?.claudeActive ?? false);
+  const terminalName = useTerminalStore((s) => s.terminals.get(terminalId)?.name ?? '');
   const isFrozen = useTerminalStore((s) => s.frozenTerminals.has(terminalId));
   const unfreezeTerminal = useTerminalStore((s) => s.unfreezeTerminal);
   const [stallInfo, setStallInfo] = useState<{ duration: number } | null>(null);
+  // Input gate: block keyboard input for background AI sessions (user can toggle)
+  const isAISession = claudeActive && /AI Analysis|Pipeline/i.test(terminalName);
+  const [inputGateOverride, setInputGateOverride] = useState(false);
+  // Session control: view-only when remote side has control
+  const sessionViewOnly = useSessionControlStore((s) => s.isViewOnly);
+  const inputGated = (isAISession && !inputGateOverride) || sessionViewOnly;
+  const inputGatedRef = useRef(inputGated);
+  inputGatedRef.current = inputGated;
   const [userMessageCount, setUserMessageCount] = useState(0);
   const [hasMessageAbove, setHasMessageAbove] = useState(false);
   const [hasMessageBelow, setHasMessageBelow] = useState(false);
@@ -238,6 +248,8 @@ export function Terminal({ terminalId, className }: TerminalProps) {
     if (!terminal) return;
 
     const dataDisposable = terminal.onData((data: string) => {
+      // Block input when an AI session is running (unless user overrode the gate)
+      if (inputGatedRef.current) return;
       typedSend(IPC.TERMINAL_INPUT_ID, { terminalId, data });
     });
 
@@ -718,6 +730,38 @@ export function Terminal({ terminalId, className }: TerminalProps) {
                 >
                   Resume
                 </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Input Gate Overlay (AI session or session control view-only) */}
+          <AnimatePresence>
+            {inputGated && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-md
+                           bg-bg-deep/90 border border-accent/30 text-[10px] backdrop-blur-sm"
+              >
+                {sessionViewOnly ? (
+                  <>
+                    <span className="text-info font-medium">View only</span>
+                    <span className="text-text-muted">Remote has control</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-accent font-medium">AI session running</span>
+                    <span className="text-text-muted">Input blocked</span>
+                    <button
+                      onClick={() => setInputGateOverride(true)}
+                      className="px-1.5 py-0.5 rounded bg-bg-tertiary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                    >
+                      Enable Input
+                    </button>
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

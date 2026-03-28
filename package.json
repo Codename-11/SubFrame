@@ -214,6 +214,10 @@
       {
         "from": "scripts/build-templates.js",
         "to": "scripts/build-templates.js"
+      },
+      {
+        "from": "mcp/subframe-analysis-server.mjs",
+        "to": "mcp/subframe-analysis-server.mjs"
       }
     ],
     "files": [

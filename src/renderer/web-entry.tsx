@@ -841,7 +841,12 @@ function WebClientRoot() {
 
     transportRef.current?.dispose();
     transportRef.current = transport;
+    // Suppress live sync for the first 1.5s after connect to avoid sidebar/panel flashing
+    // during initial hydration. The full state is loaded via hydrateLiveSession instead.
+    let syncReady = false;
+    const syncReadyTimer = setTimeout(() => { syncReady = true; }, 1500);
     const unsubscribeSessionSync = transport.on(IPC.WEB_SESSION_SYNC, (_event, payload) => {
+      if (!syncReady) return;
       if (!payload || typeof payload !== 'object') return;
       const data = payload as {
         origin?: 'electron' | 'web';
@@ -895,6 +900,7 @@ function WebClientRoot() {
     return () => {
       cancelled = true;
       connectedRef.current = false;
+      clearTimeout(syncReadyTimer);
       unsubscribeSessionSync();
       if (transportRef.current === transport) {
         transportRef.current = null;

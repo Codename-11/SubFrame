@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { SortingState } from '@tanstack/react-table';
 
-type PanelId = 'tasks' | 'plugins' | 'sessions' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system' | null;
+type PanelId = 'tasks' | 'plugins' | 'sessions' | 'aiSessions' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system' | null;
 type SidebarState = 'expanded' | 'collapsed' | 'hidden';
 export type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts' | 'system' | null;
 
@@ -471,6 +471,9 @@ export function applyLiveUIStateSnapshot(snapshot: LiveUIStateSnapshot): void {
     // ignore
   }
 
+  // Never sync dialog states (settingsOpen, shortcutsHelpOpen) across clients.
+  // Dialogs are per-client — force-opening another client's dialog is disruptive,
+  // and Radix Dialog portals crash on first mount in web mode (React error #185).
   useUIStore.setState({
     sidebarState: snapshot.sidebarState,
     sidebarWidth: snapshot.sidebarWidth,
@@ -480,8 +483,7 @@ export function applyLiveUIStateSnapshot(snapshot: LiveUIStateSnapshot): void {
     rightPanelWidth: snapshot.rightPanelWidth,
     fullViewContent: snapshot.fullViewContent,
     openTabs: cloneTabs(snapshot.openTabs),
-    settingsOpen: snapshot.settingsOpen,
-    shortcutsHelpOpen: snapshot.shortcutsHelpOpen,
+    // settingsOpen and shortcutsHelpOpen intentionally omitted
   });
 }
 

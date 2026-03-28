@@ -26,6 +26,8 @@ import { useTerminalStore } from '../stores/useTerminalStore';
 import { cn } from '../lib/utils';
 import * as terminalRegistry from '../lib/terminalRegistry';
 import { useOnboarding } from '../hooks/useOnboarding';
+import { useSessionControl } from '../hooks/useSessionControl';
+import { SessionControlBanner } from './SessionControlBanner';
 import { useAIToolConfig } from '../hooks/useSettings';
 import { useIpcQuery } from '../hooks/useIpc';
 import { useIPCEvent } from '../hooks/useIPCListener';
@@ -33,7 +35,7 @@ import { useViewport } from '../hooks/useViewport';
 import { IPC } from '../../shared/ipcChannels';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import { focusActivityBar } from '../lib/activityBarEvents';
-import type { Task, UninstallResult, WorkspaceListResult, WorkspaceData, WorkspaceProject } from '../../shared/ipcChannels';
+import type { AIToolConfig, Task, UninstallResult, WorkspaceListResult, WorkspaceData, WorkspaceProject } from '../../shared/ipcChannels';
 import { getTransport } from '../lib/transportProvider';
 import { MobileApp } from './mobile/MobileApp';
 import { TabletApp } from './mobile/TabletApp';
@@ -68,13 +70,17 @@ export function App() {
   const requestSidebarFocus = useUIStore((s) => s.requestSidebarFocus);
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
   const selectAdjacentProject = useProjectStore((s) => s.selectAdjacentProject);
-  const onboarding = useOnboarding();
+  const onboarding = useOnboarding(currentProjectPath);
+  useSessionControl();
   const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const { config: aiToolConfig, setAITool } = useAIToolConfig();
   const projects = useProjectStore((s) => s.projects);
-  // Guard: prevents auto-reopen from fighting with user's explicit close
-  const userDismissedAnalysisRef = useRef(false);
+  // Separate "dismissed while running" from "dismissed after results" so a
+  // backgrounded analysis can reopen once on completion without causing
+  // unrelated projects or already-reviewed results to pop back open.
+  const dismissedRunningOnboardingProjectsRef = useRef<Record<string, boolean>>({});
+  const dismissedCompletedOnboardingProjectsRef = useRef<Record<string, boolean>>({});
 
   // Initialize API server bridge (renderer-side IPC handlers for terminal data requests)
   useEffect(() => { terminalRegistry.initAPIBridge(); }, []);
@@ -203,17 +209,34 @@ export function App() {
   // When ProjectList IS mounted it also handles these events; the duplicate
   // store update is harmless (idempotent).
   useEffect(() => {
-    const applyWorkspaceProjects = (projects: WorkspaceProject[], workspaceName?: string) => {
+    const lastWorkspaceKeyRef = { current: null as string | null };
+
+    const applyWorkspaceProjects = (data: WorkspaceData | WorkspaceProject[]) => {
       const store = useProjectStore.getState();
+      const workspaceData = data && !Array.isArray(data) && 'projects' in data ? data : null;
+      const projects = workspaceData?.projects ?? (data as WorkspaceProject[]);
+      const workspaceName = workspaceData?.workspaceName;
+      const workspaceKey = workspaceData?.workspaceKey ?? null;
+      const defaultProjectPath = workspaceData?.defaultProjectPath ?? null;
       // Filter out scanned (discovered) projects — only show workspace projects
       const manual = (projects || []).filter((p) => (p as WorkspaceProject & { source?: string }).source !== 'scanned');
       store.setProjects(manual.map((p) => ({ path: p.path, name: p.name, isFrameProject: p.isFrameProject ?? false, aiTool: p.aiTool })));
       if (workspaceName) store.setWorkspaceName(workspaceName);
 
-      // Auto-select first project if current selection is not in the new list
+      const workspaceChanged = workspaceKey !== null && workspaceKey !== lastWorkspaceKeyRef.current;
+      if (workspaceKey !== null) {
+        lastWorkspaceKeyRef.current = workspaceKey;
+      }
+
+      const defaultProject = defaultProjectPath
+        ? manual.find((project) => project.path === defaultProjectPath)
+        : undefined;
+
       const current = store.currentProjectPath;
       const inList = manual.some((p) => p.path === current);
-      if (!inList) {
+      if (workspaceChanged && defaultProject) {
+        store.setProject(defaultProject.path, defaultProject.isFrameProject ?? false);
+      } else if (!inList) {
         if (manual.length > 0) {
           store.setProject(manual[0].path, manual[0].isFrameProject ?? false);
         } else {
@@ -223,14 +246,11 @@ export function App() {
     };
 
     const handleData = (_event: unknown, data: WorkspaceData | WorkspaceProject[]) => {
-      const list = data && 'projects' in data ? (data as WorkspaceData).projects : (data as WorkspaceProject[]);
-      const wsName = data && 'workspaceName' in data ? (data as WorkspaceData & { workspaceName?: string }).workspaceName : undefined;
-      applyWorkspaceProjects(list, wsName);
+      applyWorkspaceProjects(data);
     };
 
-    const handleUpdated = (_event: unknown, data: { projects: WorkspaceProject[]; workspaceName: string }) => {
-      const list = data && 'projects' in data ? data.projects : (data as unknown as WorkspaceProject[]);
-      applyWorkspaceProjects(list, data?.workspaceName);
+    const handleUpdated = (_event: unknown, data: WorkspaceData | WorkspaceProject[]) => {
+      applyWorkspaceProjects(data);
     };
 
     const unsubData = getTransport().on(IPC.WORKSPACE_DATA, handleData);
@@ -251,10 +271,16 @@ export function App() {
       if (data.result?.success) {
         setOnboardingDialogOpen(false);
         onboardingResetRef.current();
+        // Immediately reflect that this is no longer a SubFrame project
+        useProjectStore.getState().setIsFrameProject(false);
+        // Clear the main process session cache so re-init doesn't show stale results
+        if (data.projectPath) {
+          onboarding.clear(data.projectPath).catch(() => {});
+        }
       }
     };
     return getTransport().on(IPC.SUBFRAME_UNINSTALLED, handler);
-  }, []);
+  }, [onboarding]);
 
   // Keyboard shortcuts — matching original src/renderer/index.js
   const handleKeyDown = useCallback(
@@ -541,9 +567,19 @@ export function App() {
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (detail?.projectPath) {
-        onboarding.detect(detail.projectPath).catch(() => {
-          // Error already captured in hook state
+        if (detail?.projectPath) {
+          dismissedRunningOnboardingProjectsRef.current[detail.projectPath] = false;
+          dismissedCompletedOnboardingProjectsRef.current[detail.projectPath] = false;
+          onboarding.hydrate(detail.projectPath).then((session) => {
+            if (!session?.detection && !session?.analysisResult && !session?.progress) {
+              onboarding.detect(detail.projectPath).catch(() => {
+              // Error already captured in hook state
+            });
+          }
+        }).catch(() => {
+          onboarding.detect(detail.projectPath).catch(() => {
+            // Error already captured in hook state
+          });
         });
         setOnboardingDialogOpen(true);
       }
@@ -552,18 +588,38 @@ export function App() {
     return () => window.removeEventListener('start-onboarding', handler);
   }, [onboarding]);
 
-  // Auto-open dialog when detection completes (e.g. from SubFrame Health "AI Analysis" button)
+  // Re-open the dialog for active onboarding sessions unless the user
+  // explicitly backgrounded that run. Completed/failed/cancelled sessions
+  // reopen once even if they were backgrounded during execution.
   useEffect(() => {
-    if (onboarding.detection) setOnboardingDialogOpen(true);
-  }, [onboarding.detection]);
+    if (!currentProjectPath || onboardingDialogOpen) {
+      return;
+    }
 
-  // Re-open dialog when analysis results arrive (e.g. after user clicked "Open Terminal")
-  // Only auto-reopens if the user hasn't explicitly dismissed it
-  useEffect(() => {
-    if (onboarding.analysisResult && !onboardingDialogOpen && !userDismissedAnalysisRef.current) {
+    const dismissedWhileRunning = dismissedRunningOnboardingProjectsRef.current[currentProjectPath];
+    const dismissedAfterCompletion = dismissedCompletedOnboardingProjectsRef.current[currentProjectPath];
+    const needsReview = !!(onboarding.error || onboarding.cancelled || (onboarding.analysisResult && !onboarding.importResult));
+
+    if (onboarding.isAnalyzing) {
+      if (!dismissedWhileRunning) {
+        setOnboardingDialogOpen(true);
+      }
+      return;
+    }
+
+    if (needsReview && !dismissedAfterCompletion) {
+      dismissedRunningOnboardingProjectsRef.current[currentProjectPath] = false;
       setOnboardingDialogOpen(true);
     }
-  }, [onboarding.analysisResult, onboardingDialogOpen]);
+  }, [
+    currentProjectPath,
+    onboarding.analysisResult,
+    onboarding.cancelled,
+    onboarding.error,
+    onboarding.importResult,
+    onboarding.isAnalyzing,
+    onboardingDialogOpen,
+  ]);
 
   // Responsive viewport — web mobile gets a different layout
   const { isMobile, isTablet, isWeb } = useViewport();
@@ -623,6 +679,8 @@ export function App() {
       <div className="flex flex-1 min-w-0">
         {/* Terminal area — always present, takes remaining space */}
         <div className="flex-1 min-w-0 flex flex-col bg-bg-deep">
+          {/* Session control banner — shown when web client is connected */}
+          <SessionControlBanner />
           {/* Analysis banner — shown when dialog is closed but analysis is active, errored, or results are ready */}
           {!onboardingDialogOpen && (onboarding.isAnalyzing || onboarding.error || onboarding.cancelled || (onboarding.analysisResult && !onboarding.importResult)) && (
             <div className={cn(
@@ -669,7 +727,13 @@ export function App() {
               </button>
               <button
                 type="button"
-                onClick={() => { userDismissedAnalysisRef.current = false; setOnboardingDialogOpen(true); }}
+                onClick={() => {
+                  if (currentProjectPath) {
+                    dismissedRunningOnboardingProjectsRef.current[currentProjectPath] = false;
+                    dismissedCompletedOnboardingProjectsRef.current[currentProjectPath] = false;
+                  }
+                  setOnboardingDialogOpen(true);
+                }}
                 className="text-xs text-accent hover:text-accent/80 font-medium transition-colors"
               >
                 {onboarding.isAnalyzing ? 'View Progress' : onboarding.error ? 'View Error' : onboarding.cancelled ? 'Start Again' : 'Review Results'}
@@ -739,10 +803,28 @@ export function App() {
         open={onboardingDialogOpen}
         onOpenChange={(open) => {
           setOnboardingDialogOpen(open);
-          // Track explicit user dismissal to prevent auto-reopen bounce
-          if (!open && onboarding.analysisResult) userDismissedAnalysisRef.current = true;
-          // Full-reset only when closing and analysis isn't running
-          if (!open && !onboarding.isAnalyzing) onboarding.reset();
+          if (currentProjectPath) {
+            if (open) {
+              dismissedRunningOnboardingProjectsRef.current[currentProjectPath] = false;
+              dismissedCompletedOnboardingProjectsRef.current[currentProjectPath] = false;
+            } else if (onboarding.isAnalyzing) {
+              dismissedRunningOnboardingProjectsRef.current[currentProjectPath] = true;
+              dismissedCompletedOnboardingProjectsRef.current[currentProjectPath] = false;
+            } else if (
+              onboarding.analysisResult ||
+              onboarding.error ||
+              onboarding.cancelled
+            ) {
+              dismissedRunningOnboardingProjectsRef.current[currentProjectPath] = false;
+              dismissedCompletedOnboardingProjectsRef.current[currentProjectPath] = true;
+            }
+          }
+          // Imported sessions can be cleared once the user is done reviewing the import outcome.
+          if (!open && !onboarding.isAnalyzing && onboarding.importResult && currentProjectPath) {
+            delete dismissedRunningOnboardingProjectsRef.current[currentProjectPath];
+            delete dismissedCompletedOnboardingProjectsRef.current[currentProjectPath];
+            onboarding.clear(currentProjectPath).catch(() => {});
+          }
         }}
         detection={onboarding.detection}
         analysisResult={onboarding.analysisResult}
@@ -753,8 +835,14 @@ export function App() {
         isImporting={onboarding.isImporting}
         error={onboarding.error}
         importResult={onboarding.importResult}
-        aiToolName={aiToolConfig?.activeTool.name || 'Claude Code'}
-        onAnalyze={(options) => { if (currentProjectPath) { userDismissedAnalysisRef.current = false; onboarding.analyze(currentProjectPath, options); } }}
+        aiToolConfig={(aiToolConfig as AIToolConfig | null) ?? null}
+        onAnalyze={(options) => {
+          if (currentProjectPath) {
+            dismissedRunningOnboardingProjectsRef.current[currentProjectPath] = false;
+            dismissedCompletedOnboardingProjectsRef.current[currentProjectPath] = false;
+            onboarding.analyze(currentProjectPath, options);
+          }
+        }}
         onPreviewPrompt={(options) => currentProjectPath ? onboarding.previewPrompt(currentProjectPath, options) : Promise.resolve({ prompt: '', contextSize: 0 })}
         onBrowseFiles={(type) => currentProjectPath ? onboarding.browseFiles(currentProjectPath, type) : Promise.resolve([])}
         onRetry={() => onboarding.retry()}

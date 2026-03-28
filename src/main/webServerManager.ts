@@ -37,6 +37,43 @@ let removeBridgeListener: (() => void) | null = null;
 let liveSessionState: Pick<WebSessionState, 'currentProjectPath' | 'session' | 'ui'> | null = null;
 let lastStartError: string | null = null;
 
+// ── Session Control ─────────────────────────────────────────────────────────
+const sessionControl = {
+  controller: 'electron' as 'electron' | 'web' | null,
+  controlRequestPending: false,
+  controlRequestFrom: null as 'electron' | 'web' | null,
+  lastElectronActivity: Date.now(),
+  lastWebActivity: 0,
+  idleTimeoutMs: 30_000,
+};
+
+function getSessionControlState(): import('../shared/ipcChannels').SessionControlState {
+  return {
+    controller: sessionControl.controller,
+    webClientConnected: !!activeSession,
+    webClientDevice: activeSession ? buildDeviceLabel(activeSession.userAgent) : null,
+    controlRequestPending: sessionControl.controlRequestPending,
+    controlRequestFrom: sessionControl.controlRequestFrom,
+    lastElectronActivity: sessionControl.lastElectronActivity,
+    lastWebActivity: sessionControl.lastWebActivity,
+    idleTimeoutMs: sessionControl.idleTimeoutMs,
+  };
+}
+
+function broadcastControlState(): void {
+  broadcastIPC(IPC.SESSION_CONTROL_STATE, getSessionControlState());
+}
+
+function buildDeviceLabel(userAgent: string): string {
+  if (/android/i.test(userAgent)) return 'Android';
+  if (/iphone/i.test(userAgent)) return 'iPhone';
+  if (/ipad/i.test(userAgent)) return 'iPad';
+  if (/macintosh/i.test(userAgent)) return 'Mac';
+  if (/windows/i.test(userAgent)) return 'Windows';
+  if (/linux/i.test(userAgent)) return 'Linux';
+  return 'Remote';
+}
+
 // ── Network Utilities ──────────────────────────────────────────────────────
 
 function isPrivateIpv4(address: string): boolean {
@@ -461,6 +498,12 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
       activeSession = session;
       wsSend(ws, { type: 'auth-ok', sessionId: session.id });
       broadcastIPC(IPC.WEB_CLIENT_CONNECTED, { userAgent, connectedAt: session.connectedAt });
+      // Reset control: Electron has control by default
+      sessionControl.controller = 'electron';
+      sessionControl.controlRequestPending = false;
+      sessionControl.controlRequestFrom = null;
+      sessionControl.lastWebActivity = 0;
+      broadcastControlState();
       return;
     }
 
@@ -520,6 +563,10 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
             sendToSender: sendToRequester,
             reply,
           });
+          // Track web-side terminal input activity
+          if (msg.channel === IPC.TERMINAL_INPUT_ID) {
+            sessionControl.lastWebActivity = Date.now();
+          }
         } catch (err) {
           console.warn(`[Web Server] Send error on ${msg.channel}:`, (err as Error).message);
         }
@@ -550,6 +597,11 @@ function handleWsConnection(ws: WebSocket, req: http.IncomingMessage): void {
       activeSession = null;
       clearRemotePointer();
       broadcastIPC(IPC.WEB_CLIENT_DISCONNECTED, undefined);
+      // Reset control: Electron regains control
+      sessionControl.controller = 'electron';
+      sessionControl.controlRequestPending = false;
+      sessionControl.controlRequestFrom = null;
+      broadcastControlState();
     }
     if (pendingTakeoverWs === ws) {
       pendingTakeoverWs = null;
@@ -874,6 +926,66 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
     };
   });
 
+  // ── Session Control ────────────────────────────────────────────────────
+  router.handle(IPC.SESSION_CONTROL_STATE, () => getSessionControlState());
+
+  router.on(IPC.SESSION_CONTROL_REQUEST, (_event: unknown) => {
+    const requester: 'electron' | 'web' = _event !== null ? 'electron' : 'web';
+    if (sessionControl.controller === requester) return;
+
+    const lastActivity = sessionControl.controller === 'electron'
+      ? sessionControl.lastElectronActivity
+      : sessionControl.lastWebActivity;
+    const idle = Date.now() - lastActivity > sessionControl.idleTimeoutMs;
+
+    if (idle || sessionControl.controller === null) {
+      sessionControl.controller = requester;
+      sessionControl.controlRequestPending = false;
+      sessionControl.controlRequestFrom = null;
+    } else {
+      sessionControl.controlRequestPending = true;
+      sessionControl.controlRequestFrom = requester;
+    }
+    broadcastControlState();
+  });
+
+  router.on(IPC.SESSION_CONTROL_GRANT, (_event: unknown) => {
+    if (!sessionControl.controlRequestPending || !sessionControl.controlRequestFrom) return;
+    const granter: 'electron' | 'web' = _event !== null ? 'electron' : 'web';
+    if (sessionControl.controller !== granter) return;
+
+    sessionControl.controller = sessionControl.controlRequestFrom;
+    sessionControl.controlRequestPending = false;
+    sessionControl.controlRequestFrom = null;
+    broadcastControlState();
+  });
+
+  router.on(IPC.SESSION_CONTROL_TAKE, (_event: unknown) => {
+    const taker: 'electron' | 'web' = _event !== null ? 'electron' : 'web';
+    sessionControl.controller = taker;
+    sessionControl.controlRequestPending = false;
+    sessionControl.controlRequestFrom = null;
+    broadcastControlState();
+  });
+
+  router.on(IPC.SESSION_CONTROL_RELEASE, (_event: unknown) => {
+    const releaser: 'electron' | 'web' = _event !== null ? 'electron' : 'web';
+    if (sessionControl.controller === releaser) {
+      sessionControl.controller = null;
+      sessionControl.controlRequestPending = false;
+      sessionControl.controlRequestFrom = null;
+      broadcastControlState();
+    }
+  });
+
+  // Track Electron terminal input activity
+  router.on(IPC.TERMINAL_INPUT_ID, (_event: unknown) => {
+    if (_event !== null) {
+      sessionControl.lastElectronActivity = Date.now();
+    }
+  });
+
+  // ── Web Session ────────────────────────────────────────────────────────
   router.handle(IPC.WEB_SESSION_STATE, async () => {
     const workspace = require('./workspace') as typeof import('./workspace');
     const workspaceData = workspace.getProjectsWithScanned();

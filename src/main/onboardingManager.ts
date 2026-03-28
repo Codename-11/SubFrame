@@ -20,12 +20,15 @@ import type {
   OnboardingImportResult,
   OnboardingImportSelections,
   OnboardingAnalysisOptions,
+  OnboardingSessionState,
 } from '../shared/ipcChannels';
-import { INTELLIGENCE_FILES, FRAME_FILES, FRAME_TASKS_DIR } from '../shared/frameConstants';
-import { execSync } from 'child_process';
+import { INTELLIGENCE_FILES, FRAME_FILES, FRAME_TASKS_DIR, IS_DEV_MODE } from '../shared/frameConstants';
 import * as ptyManager from './ptyManager';
+import * as aiSessionManager from './aiSessionManager';
 import * as aiToolManager from './aiToolManager';
 import * as activityManager from './activityManager';
+import { getInteractiveToolConfig } from './aiExecutionManager';
+import { renderTerminalTranscript } from '../shared/terminalTranscript';
 import { broadcast } from './eventBridge';
 
 // ─── Module State ────────────────────────────────────────────────────────────
@@ -33,10 +36,54 @@ import { broadcast } from './eventBridge';
 let mainWindow: BrowserWindow | null = null;
 
 /** Active analysis runs keyed by projectPath */
-const activeAnalyses = new Map<string, { terminalId: string; cleanup: () => void; cancel?: () => void; streamId?: string }>();
+const activeAnalyses = new Map<string, { terminalId: string; sessionId: string; cleanup: () => void; cancel?: () => void; streamId?: string }>();
 
 /** Parsed results cache keyed by projectPath (for IMPORT to consume after RUN completes) */
 const analysisResultsCache = new Map<string, OnboardingAnalysisResult>();
+const onboardingSessions = new Map<string, OnboardingSessionState>();
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createEmptySession(projectPath: string): OnboardingSessionState {
+  return {
+    projectPath,
+    detection: null,
+    analysisResult: null,
+    progress: null,
+    terminalId: null,
+    activityStreamId: null,
+    error: null,
+    cancelled: null,
+    importResult: null,
+    status: 'idle',
+    updatedAt: nowIso(),
+  };
+}
+
+function getOrCreateSession(projectPath: string): OnboardingSessionState {
+  const existing = onboardingSessions.get(projectPath);
+  if (existing) return existing;
+  const created = createEmptySession(projectPath);
+  onboardingSessions.set(projectPath, created);
+  return created;
+}
+
+function patchSession(projectPath: string, patch: Partial<OnboardingSessionState>): OnboardingSessionState {
+  const current = getOrCreateSession(projectPath);
+  const next: OnboardingSessionState = {
+    ...current,
+    ...patch,
+    updatedAt: nowIso(),
+  };
+  onboardingSessions.set(projectPath, next);
+  return next;
+}
 
 // ─── Source File Counting ────────────────────────────────────────────────────
 
@@ -125,14 +172,26 @@ function sendProgress(
     stallDurationMs?: number;
   },
 ): void {
+  const progressEvent = {
+    projectPath,
+    phase,
+    message,
+    progress,
+    ...extra,
+  } satisfies OnboardingProgressEvent;
+
+  const current = getOrCreateSession(projectPath);
+  patchSession(projectPath, {
+    progress: progressEvent,
+    status: phase,
+    terminalId: extra?.terminalId ?? current.terminalId,
+    activityStreamId: extra?.activityStreamId ?? current.activityStreamId,
+    error: phase === 'error' ? message : (phase === 'cancelled' ? null : current.error),
+    cancelled: phase === 'cancelled' ? message : (phase === 'error' ? null : current.cancelled),
+  });
+
   if (mainWindow && !mainWindow.isDestroyed()) {
-    broadcast(IPC.ONBOARDING_PROGRESS, {
-      projectPath,
-      phase,
-      message,
-      progress,
-      ...extra,
-    } satisfies OnboardingProgressEvent);
+    broadcast(IPC.ONBOARDING_PROGRESS, progressEvent);
   }
 }
 
@@ -332,64 +391,10 @@ IMPORTANT: Do NOT create, modify, or delete any files. Do NOT run any commands. 
 
 Output ONLY a single JSON code block wrapped in \`\`\`json ... \`\`\` fences. No other text before or after the JSON block.
 
-\`\`\`json
-{
-  "structure": {
-    "description": "...",
-    "architecture": "...",
-    "conventions": ["..."],
-    "dataFlow": "...",
-    "modules": {
-      "module-name": { "purpose": "...", "exports": ["..."] }
-    }
-  },
-  "projectNotes": {
-    "vision": "...",
-    "decisions": [{ "date": "YYYY-MM-DD", "title": "...", "detail": "..." }],
-    "techStack": ["..."]
-  },
-  "suggestedTasks": [
-    { "title": "...", "description": "...", "priority": "medium", "category": "feature" }
-  ]
-}
-\`\`\`${customContext ? `\n## Additional Instructions\n\n${customContext}` : ''}`;
-}
-
-// ─── Shell Detection ──────────────────────────────────────────────────────────
-
-/**
- * Find a bash-compatible shell for the analysis pipeline.
- * The pipeline uses Unix commands (cat, tee, pipe) so we need bash on Windows.
- * On Unix, the default shell works fine.
- * Throws if on Windows and no bash-compatible shell is found.
- */
-function findBashShell(): string | null {
-  if (process.platform !== 'win32') {
-    return null; // Use default shell on Unix
-  }
-
-  // Try Git Bash paths on Windows
-  const gitBashPaths = [
-    'C:\\Program Files\\Git\\bin\\bash.exe',
-    'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
-  ];
-  for (const bashPath of gitBashPaths) {
-    if (fs.existsSync(bashPath)) {
-      return bashPath;
-    }
-  }
-
-  // Try WSL bash or any bash on PATH
-  try {
-    execSync('where bash', { stdio: 'ignore' });
-    return 'bash.exe';
-  } catch { /* not available */ }
-
-  throw new Error(
-    'No bash-compatible shell found on Windows. ' +
-    'The analysis pipeline requires Git Bash (or WSL bash). ' +
-    'Install Git for Windows from https://git-scm.com and try again.',
-  );
+The JSON must contain exactly these top-level keys: "structure", "projectNotes", and "suggestedTasks".
+Inside "structure", include "description", "architecture", "conventions", "dataFlow", and "modules".
+Inside "projectNotes", include "vision", "decisions", and "techStack".
+Each item in "suggestedTasks" must include "title", "description", "priority", and "category".${customContext ? `\n\n## Additional Instructions\n\n${customContext}` : ''}`;
 }
 
 // ─── AI Tool Pre-flight Check ────────────────────────────────────────────────
@@ -398,9 +403,9 @@ function findBashShell(): string | null {
  * Verify that the active AI tool command is available on the system.
  * Delegates to aiToolManager which caches install checks for 1 minute.
  */
-async function checkAIToolAvailable(): Promise<{ available: boolean; command: string; error?: string }> {
-  const tool = await aiToolManager.getActiveTool();
-  const command = await aiToolManager.getStartCommand();
+async function checkAIToolAvailable(toolId?: string): Promise<{ available: boolean; command: string; error?: string }> {
+  const tool = await aiToolManager.getActiveTool(toolId);
+  const command = await aiToolManager.getStartCommand(toolId);
   const available = tool.installed ?? false;
 
   if (available) {
@@ -413,13 +418,126 @@ async function checkAIToolAvailable(): Promise<{ available: boolean; command: st
   };
 }
 
+// ─── MCP Config Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Resolve the absolute path to the SubFrame MCP analysis server.
+ * In dev mode: relative to the project source tree.
+ * In production: inside the packaged app's extraResources.
+ */
+function getMcpServerPath(): string {
+  if (IS_DEV_MODE) {
+    // Dev mode: resolve relative to the compiled main process output
+    return path.join(__dirname, '..', '..', 'mcp', 'subframe-analysis-server.mjs');
+  }
+  // Production: extraResources are placed at process.resourcesPath
+  return path.join(process.resourcesPath!, 'mcp', 'subframe-analysis-server.mjs');
+}
+
+/**
+ * Write an MCP config JSON file for the analysis session.
+ * Creates a temp JSON file that tells Claude how to connect to our MCP server.
+ * Mirrors agent-forge's writeMcpConfig() pattern.
+ */
+function writeMcpConfig(options: {
+  promptFile: string;
+  resultFile: string;
+  sessionId: string;
+}): string {
+  const mcpConfig = {
+    mcpServers: {
+      'subframe-analysis': {
+        command: 'node',
+        args: [getMcpServerPath()],
+        env: {
+          SUBFRAME_PROMPT_FILE: options.promptFile,
+          SUBFRAME_RESULT_FILE: options.resultFile,
+          SUBFRAME_SESSION_ID: options.sessionId,
+        },
+      },
+    },
+  };
+
+  const configDir = path.join(os.tmpdir(), 'subframe-mcp');
+  fs.mkdirSync(configDir, { recursive: true });
+  const configPath = path.join(configDir, `analysis-${options.sessionId}-mcp.json`);
+  fs.writeFileSync(configPath, JSON.stringify(mcpConfig, null, 2));
+  console.log(`[Onboarding] MCP config written to ${configPath}`);
+  return configPath;
+}
+
+/**
+ * Build the correct CLI command for onboarding analysis per AI tool.
+ * Each tool has different flags for permission bypass, MCP config, and verbosity.
+ * Mirrors agent-forge's per-tool command construction.
+ */
+function buildOnboardingCommand(toolId: string, baseCommand: string, mcpConfigPath: string): string {
+  // Normalize path for config args (forward slashes for cross-platform compatibility)
+  const configPathNorm = mcpConfigPath.replace(/\\/g, '/');
+
+  switch (toolId) {
+    case 'claude': {
+      const flags: string[] = [];
+      if (!baseCommand.includes('--dangerously-skip-permissions')) flags.push('--dangerously-skip-permissions');
+      if (!baseCommand.includes('--verbose')) flags.push('--verbose');
+      flags.push('--mcp-config', `"${mcpConfigPath}"`);
+      return `${baseCommand} ${flags.join(' ')}`;
+    }
+    case 'codex': {
+      // Codex: --yolo for permissions, -c for MCP config (TOML-style overrides)
+      // Uses single quotes inside TOML values to avoid cmd.exe double-quote conflicts
+      const mcpServerPath = getMcpServerPath().replace(/\\/g, '/');
+      const flags: string[] = [];
+      if (!baseCommand.includes('--yolo')) flags.push('--yolo');
+      // Codex MCP config uses -c flag with dotted key=value pairs
+      flags.push(`-c "mcp_servers.subframe-analysis.command=node"`);
+      flags.push(`-c "mcp_servers.subframe-analysis.args=['${mcpServerPath}']"`);
+      // Read env vars from the MCP config we already wrote
+      try {
+        const mcpConfig = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8'));
+        const env = mcpConfig.mcpServers?.['subframe-analysis']?.env || {};
+        for (const [key, value] of Object.entries(env)) {
+          // Use forward slashes in paths for TOML compatibility
+          const val = String(value).replace(/\\/g, '/');
+          flags.push(`-c "mcp_servers.subframe-analysis.env.${key}=${val}"`);
+        }
+      } catch {
+        console.warn('[Onboarding] Could not read MCP config for Codex env injection');
+      }
+      return `${baseCommand} ${flags.join(' ')}`;
+    }
+    case 'gemini': {
+      // Gemini: --yolo for permissions, MCP via pre-command `gemini mcp add`
+      // The MCP server must be registered before launching Gemini
+      const mcpServerPath = getMcpServerPath().replace(/\\/g, '/');
+      const flags: string[] = [];
+      if (!baseCommand.includes('--yolo')) flags.push('--yolo');
+
+      // Build the pre-command that registers the MCP server, then launch Gemini
+      try {
+        const mcpConfig = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8'));
+        const env = mcpConfig.mcpServers?.['subframe-analysis']?.env || {};
+        const envFlags = Object.entries(env).map(([k, v]) => `-e ${k}="${v}"`).join(' ');
+        const preCmd = `gemini mcp add --scope project subframe-analysis ${envFlags} -- node "${mcpServerPath}"`;
+        return `${preCmd} && ${baseCommand} ${flags.join(' ')}`;
+      } catch {
+        // Fallback: just run Gemini without MCP
+        return `${baseCommand} ${flags.join(' ')}`;
+      }
+    }
+    default: {
+      // Unknown tool: try Claude-style flags as best effort
+      const flags: string[] = [];
+      flags.push('--mcp-config', `"${mcpConfigPath}"`);
+      return `${baseCommand} ${flags.join(' ')}`;
+    }
+  }
+}
+
 // ─── Terminal Analysis Pipeline ──────────────────────────────────────────────
 
-/** Marker written to terminal output when AI command completes */
-const DONE_MARKER = '__SF_ANALYSIS_DONE__';
-
-/** Default analysis timeout in milliseconds (10 minutes — large projects need time for API processing) */
-const DEFAULT_ANALYSIS_TIMEOUT_MS = 600_000;
+/** Default analysis timeout in milliseconds (5 minutes) */
+const DEFAULT_ANALYSIS_TIMEOUT_MS = 300_000;
 
 /**
  * Get the configured analysis timeout, falling back to the default.
@@ -436,168 +554,182 @@ function getAnalysisTimeout(): number {
 }
 
 /**
- * Run an AI analysis in a terminal tab.
- * This is the reusable pipeline core — it writes a prompt to a temp file,
- * pipes it through the active AI tool, captures output, and returns the raw result.
+ * MCP instruction prompt — tells Claude to use the MCP tools for input/output.
+ * Kept short so it doesn't need pasting — piped via echo.
+ */
+const MCP_INSTRUCTION = [
+  'Call the get_analysis_prompt tool to receive the full analysis instructions and project context.',
+  'Follow the instructions in the prompt exactly.',
+  'When done, call the submit_analysis tool with the structured JSON result.',
+  'Do NOT create, modify, or delete any files. Only analyze and report.',
+].join(' ');
+
+/**
+ * Run an AI analysis in a terminal tab using MCP for structured I/O.
+ *
+ * Uses the proven interactive launch path (aiSessionManager) but with MCP:
+ * instead of pasting the 50KB prompt into the TUI, Claude receives it via
+ * the get_analysis_prompt MCP tool. Results come back via submit_analysis.
+ *
+ * Flow (agent-forge MCP pattern adapted for interactive mode):
+ * 1. Write prompt to temp file + write MCP config
+ * 2. Launch Claude interactively with --mcp-config (TUI visible in terminal)
+ * 3. Wait for ready marker (trust prompt handling, etc.)
+ * 4. Send SHORT instruction: "call get_analysis_prompt, analyze, call submit_analysis"
+ * 5. Claude calls MCP tools for input/output — no 50KB paste needed
+ * 6. Watch for MCP result file (primary) or terminal JSON (fallback)
  */
 async function runAnalysisInTerminal(
   projectPath: string,
   prompt: string,
-  opts?: { timeoutMs?: number; analysisStartMs?: number; streamId?: string },
+  opts?: { timeoutMs?: number; analysisStartMs?: number; streamId?: string; toolId?: string },
 ): Promise<{ raw: string; terminalId: string }> {
-  // Write prompt to temp file
   const timestamp = Date.now();
   const promptFile = path.join(os.tmpdir(), `sf-onboard-prompt-${timestamp}.txt`);
-  const resultFile = path.join(os.tmpdir(), `sf-onboard-result-${timestamp}.txt`);
-
+  const resultFile = path.join(os.tmpdir(), `sf-onboard-result-${timestamp}.json`);
   fs.writeFileSync(promptFile, prompt, 'utf8');
-  fs.writeFileSync(resultFile, '', 'utf8');
 
-  const toUnixPath = (p: string) => p.replace(/\\/g, '/');
+  const tool = await aiToolManager.getActiveTool(opts?.toolId);
+  const command = await aiToolManager.getStartCommand(opts?.toolId);
 
-  // Build the AI command
-  const tool = await aiToolManager.getActiveTool();
-  const command = await aiToolManager.getStartCommand();
-  const shellPromptFile = toUnixPath(promptFile);
-  const shellResultFile = toUnixPath(resultFile);
+  // Write MCP config (agent-forge pattern)
+  const mcpConfigPath = writeMcpConfig({
+    promptFile,
+    resultFile,
+    sessionId: `analysis-${timestamp}`,
+  });
 
-  // All tools use print/pipe mode — output captured by tee to a result file,
-  // completion detected by sentinel file polling.
-  // Claude uses -p (print mode) for clean text output and automatic exit.
-  const isClaudeTool = tool.id === 'claude';
-  let shellCommand: string;
+  // Build tool-specific shell command with MCP config (matches agent-forge patterns)
+  const interactiveConfig = getInteractiveToolConfig(tool.id);
+  const shellCommand = buildOnboardingCommand(tool.id, command, mcpConfigPath);
+  console.log(`[Onboarding] MCP interactive command: ${shellCommand}`);
 
-  switch (tool.id) {
-    case 'claude': {
-      const skipFlag = '--dangerously-skip-permissions';
-      let claudeCmd = command;
-      // Use word-boundary checks to avoid matching substrings (e.g. --api-provider containing -p)
-      const hasFlag = (cmd: string, flag: string) => new RegExp(`(^|\\s)${flag.replace(/-/g, '\\-')}(\\s|$)`).test(cmd);
-      if (!hasFlag(claudeCmd, skipFlag)) claudeCmd += ` ${skipFlag}`;
-      if (!hasFlag(claudeCmd, '-p') && !hasFlag(claudeCmd, '--print')) claudeCmd += ` -p`;
-      shellCommand = `${claudeCmd} "Read the analysis prompt from ${shellPromptFile} and follow ALL instructions in it exactly. Output ONLY the JSON code block as specified in the prompt file. Do NOT create, edit, or delete any files." 2>&1 | tee "${shellResultFile}"; echo "${DONE_MARKER}"`;
-      break;
-    }
-    case 'codex':
-      shellCommand = `cat "${shellPromptFile}" | ${command} --quiet 2>&1 | tee "${shellResultFile}"; echo "${DONE_MARKER}"`;
-      break;
-    case 'gemini':
-      shellCommand = `cat "${shellPromptFile}" | ${command} 2>&1 | tee "${shellResultFile}"; echo "${DONE_MARKER}"`;
-      break;
-    default:
-      shellCommand = `cat "${shellPromptFile}" | ${command} 2>&1 | tee "${shellResultFile}"; echo "${DONE_MARKER}"`;
-      break;
+  // Create AI session with interactive shell.
+  // conptyInheritCursor: false — matches agent-forge's approach and prevents
+  // ConPTY from deferring output until a renderer attaches.
+  const aiSession = aiSessionManager.createSession({
+    name: 'AI Analysis',
+    toolId: tool.id,
+    source: 'onboarding',
+    projectPath,
+    activityStreamId: opts?.streamId ?? null,
+    workingDirectory: projectPath,
+    conptyInheritCursor: false,
+  });
+  const { id: sessionId, terminalId } = aiSession;
+  console.log(`[Onboarding] Created analysis terminal ${terminalId} for ${projectPath}`);
+
+  if (opts?.streamId) {
+    activityManager.attachTerminal(opts.streamId, terminalId);
   }
 
-  // Create a terminal for the analysis — force bash on Windows for Unix command compat
-  const bashShell = findBashShell();
-  const terminalId = ptyManager.createTerminal(projectPath, projectPath, bashShell);
-  console.log(`[Onboarding] Created analysis terminal ${terminalId} for ${projectPath} (shell: ${bashShell || 'default'})`);
-
-  // Notify renderer — background terminal (doesn't steal focus)
   if (mainWindow && !mainWindow.isDestroyed()) {
     broadcast(IPC.TERMINAL_CREATED, {
       terminalId, success: true, projectPath, name: 'AI Analysis', background: true,
     });
   }
 
-  // Track analysis timing for timeout metadata and stall detection
   const analysisStartMs = opts?.analysisStartMs ?? Date.now();
   const effectiveTimeoutMs = opts?.timeoutMs ?? getAnalysisTimeout();
-
-  // Notify renderer of the terminalId so "View Terminal" works during analysis
-  const sendProgress = (
+  const pushProgress = (
     message: string,
     progress: number,
     phase: OnboardingProgressEvent['phase'] = 'analyzing',
     extra?: { stalled?: boolean; stallDurationMs?: number },
   ) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      broadcast(IPC.ONBOARDING_PROGRESS, {
-        projectPath, phase, message, progress, terminalId,
-        activityStreamId: opts?.streamId,
-        timeoutMs: effectiveTimeoutMs,
-        elapsedMs: Date.now() - analysisStartMs,
-        ...extra,
-      } satisfies OnboardingProgressEvent);
-    }
+    sendProgress(projectPath, phase, message, progress, {
+      terminalId,
+      activityStreamId: opts?.streamId,
+      timeoutMs: effectiveTimeoutMs,
+      elapsedMs: Date.now() - analysisStartMs,
+      ...extra,
+    });
   };
-  sendProgress('AI analysis started', 50);
-
-  // Hoisted timer refs so cleanup() can clear them
-  let claudeRetryTimer: ReturnType<typeof setInterval> | null = null;
-  let stallCheckTimer: ReturnType<typeof setInterval> | null = null;
+  pushProgress('AI analysis started (MCP mode)', 50);
 
   return new Promise<{ raw: string; terminalId: string }>((resolve, reject) => {
     let resolved = false;
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let claudeRetryTimer: ReturnType<typeof setInterval> | null = null;
+    let stallCheckTimer: ReturnType<typeof setInterval> | null = null;
+    let resultWatchTimer: ReturnType<typeof setInterval> | null = null;
     const trustHandlerId = 'onboarding-trust';
     const streamHandlerId = 'onboarding-stream';
     const activityAbortSignal = opts?.streamId ? activityManager.getAbortSignal(opts.streamId) : undefined;
     let abortListener: (() => void) | null = null;
+    let emittedTranscriptLength = 0;
+    let lastOutputTime = Date.now();
+    const isClaudeTool = tool.id === 'claude';
+    const STALL_WARN_THRESHOLD_MS = 30_000;
+    const INACTIVITY_TIMEOUT_MS = Math.max(effectiveTimeoutMs, 3 * 60_000);
+    const HARD_TIMEOUT_MS = Math.max(INACTIVITY_TIMEOUT_MS * 4, 10 * 60_000);
 
-    // Cleanup — temp files, ALL timers, output handler.
-    const cleanup = () => {
-      if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    const cleanupFiles = () => {
+      for (const file of [promptFile, resultFile, mcpConfigPath]) {
+        try { fs.unlinkSync(file); } catch { /* ignore */ }
+      }
+    };
+
+    const cleanup = (destroyTerminal = false) => {
+      if (streamFlushTimer) { clearTimeout(streamFlushTimer); streamFlushTimer = null; }
       if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
       if (stallCheckTimer) { clearInterval(stallCheckTimer); stallCheckTimer = null; }
+      if (resultWatchTimer) { clearInterval(resultWatchTimer); resultWatchTimer = null; }
       activeAnalyses.delete(projectPath);
       ptyManager.removeOutputHandler(terminalId, trustHandlerId);
+      ptyManager.removeOutputHandler(terminalId, mcpPermHandlerId);
       ptyManager.removeOutputHandler(terminalId, streamHandlerId);
       if (abortListener && activityAbortSignal) {
         activityAbortSignal.removeEventListener('abort', abortListener);
         abortListener = null;
       }
-      try { fs.unlinkSync(promptFile); } catch { /* ignore */ }
-      try { fs.unlinkSync(resultFile); } catch { /* ignore */ }
-      try { fs.unlinkSync(resultFile + '.done'); } catch { /* ignore */ }
+      aiSessionManager.destroySession(sessionId, { destroyTerminal });
+      cleanupFiles();
     };
 
     const finish = (result: string) => {
       if (resolved) return;
       resolved = true;
-      cleanup();
+      aiSessionManager.markSessionStatus(sessionId, 'completed');
+      patchSession(projectPath, {
+        terminalId: null,
+        status: 'done',
+      });
+      cleanup(true);
       console.log(`[Onboarding] Analysis complete for ${projectPath} (${result.length} chars)`);
-      resolve({ raw: result, terminalId });
+      resolve({ raw: result, terminalId: '' });
     };
 
-    const fail = (err: Error) => {
+    const fail = (err: Error, status: 'failed' | 'cancelled' = 'failed', destroyTerminal = false) => {
       if (resolved) return;
       resolved = true;
-      cleanup();
+      aiSessionManager.markSessionStatus(sessionId, status, err.message);
+      cleanup(destroyTerminal);
       (err as any).terminalId = terminalId;
       reject(err);
     };
 
-    // Store cancel-aware entry so CANCEL handler can reject the promise properly
     activeAnalyses.set(projectPath, {
       terminalId,
-      cleanup,
+      sessionId,
+      cleanup: () => cleanup(true),
       streamId: opts?.streamId,
-      cancel: () => fail(new Error('Analysis cancelled by user.')),
+      cancel: () => fail(new Error('Analysis cancelled by user.'), 'cancelled', true),
     });
 
     if (activityAbortSignal) {
       abortListener = () => {
-        try {
-          ptyManager.destroyTerminal(terminalId);
-        } catch { /* ignore */ }
         const reason = typeof activityAbortSignal.reason === 'string' ? activityAbortSignal.reason : '';
-        fail(new Error(reason === 'Cancelled' ? 'Analysis cancelled by user.' : reason || 'Analysis aborted.'));
+        const isCancelled = reason === 'Cancelled' || /cancelled/i.test(reason);
+        fail(
+          new Error(isCancelled ? 'Analysis cancelled by user.' : reason || 'Analysis aborted.'),
+          isCancelled ? 'cancelled' : 'failed',
+          true,
+        );
       };
       activityAbortSignal.addEventListener('abort', abortListener, { once: true });
     }
 
-    // Timeout guard
-    const timeoutMs = effectiveTimeoutMs;
-    timeoutId = setTimeout(() => {
-      fail(new Error(`Analysis timed out after ${timeoutMs / 1000} seconds`));
-    }, timeoutMs);
-
-    // ── Claude: trust prompt handler (safety net) ────────────────────
-    // In -p mode the trust prompt may not appear, but handle it just in case.
+    // Trust prompt handling for Claude (same as before)
     if (isClaudeTool) {
       let trustConfirmed = false;
       let menuReady = false;
@@ -609,9 +741,9 @@ async function runAnalysisInTerminal(
 
         if (!menuReady && /enter to confirm/i.test(stripped)) {
           menuReady = true;
-          lastOutputTime = Date.now(); // Reset stall timer during trust prompt handling
+          lastOutputTime = Date.now();
           console.log('[Onboarding] Trust prompt menu detected, sending Enter');
-          sendProgress('Accepting directory trust prompt...', 52);
+          pushProgress('Accepting directory trust prompt...', 52);
           let attempts = 0;
           claudeRetryTimer = setInterval(() => {
             if (trustConfirmed || attempts >= 10) {
@@ -624,93 +756,207 @@ async function runAnalysisInTerminal(
         }
         if (menuReady && !/trust|folder|directory|security|confirm|cancel|exit/i.test(stripped) && stripped.trim().length > 5) {
           trustConfirmed = true;
-          lastOutputTime = Date.now(); // Reset stall timer after trust prompt accepted
+          lastOutputTime = Date.now();
           if (claudeRetryTimer) { clearInterval(claudeRetryTimer); claudeRetryTimer = null; }
           console.log('[Onboarding] Trust prompt accepted');
         }
       }, trustHandlerId);
     }
 
-    // ── Streaming progress — count output lines and creep progress 50→79% ──
-    let outputLineCount = 0;
-    let lastProgressUpdate = 0; // 0 so first output triggers an immediate update
-    let lastOutputTime = Date.now();
-    const PROGRESS_INTERVAL_MS = 3000; // throttle progress events
+    // MCP tool permission prompt handling (Codex shows "Allow the ... MCP server to run tool")
+    // Auto-approve by selecting option 2 ("Allow for this session") then Enter.
+    const mcpPermHandlerId = 'onboarding-mcp-perm';
+    let mcpPermBuffer = '';
     ptyManager.addOutputHandler(terminalId, (data) => {
       if (resolved) return;
+      mcpPermBuffer += data;
+      // Keep buffer manageable
+      if (mcpPermBuffer.length > 4000) mcpPermBuffer = mcpPermBuffer.slice(-2000);
       // eslint-disable-next-line no-control-regex
-      const stripped = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
-      const lines = stripped.split('\n').map(line => line.trimEnd()).filter(line => line.trim().length > 0);
-      if (opts?.streamId && lines.length > 0) {
-        for (const line of lines) {
+      const stripped = mcpPermBuffer.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+      if (/Allow the .* MCP server to run tool/i.test(stripped) && /enter to submit/i.test(stripped)) {
+        console.log('[Onboarding] MCP permission prompt detected, auto-approving (option 2)');
+        mcpPermBuffer = '';
+        // Select option 2 (Allow for this session) then submit
+        ptyManager.writeToTerminal(terminalId, '2');
+        setTimeout(() => {
+          if (!resolved) ptyManager.writeToTerminal(terminalId, '\r');
+        }, 200);
+      }
+    }, mcpPermHandlerId);
+
+    // Stream output to activity feed + update progress.
+    // Debounced: TUI tools redraw character-by-character (e.g., "W", "Wo", "Wor", "Working")
+    // which floods the activity stream with noise. Batch into 1.5s windows.
+    let outputLineCount = 0;
+    let lastProgressUpdate = 0;
+    const PROGRESS_INTERVAL_MS = 3000;
+    let streamFlushTimer: ReturnType<typeof setTimeout> | null = null;
+    const STREAM_DEBOUNCE_MS = 1500;
+
+    const flushStreamOutput = () => {
+      streamFlushTimer = null;
+      if (resolved) return;
+      const transcriptRaw = aiSessionManager.getTranscript(sessionId);
+      if (transcriptRaw.length < emittedTranscriptLength) {
+        emittedTranscriptLength = 0;
+      }
+      const deltaRaw = transcriptRaw.slice(emittedTranscriptLength);
+      if (deltaRaw.length === 0) return;
+      const freshLines = renderTerminalTranscript(deltaRaw, { maxLines: 0 })
+        .lines
+        .filter((line) => line.trim().length > 0);
+      if (opts?.streamId && freshLines.length > 0) {
+        for (const line of freshLines) {
           activityManager.emit(opts.streamId, line);
         }
       }
-      if (lines.length > 0) {
+      emittedTranscriptLength = transcriptRaw.length;
+      outputLineCount += freshLines.length;
+    };
+
+    ptyManager.addOutputHandler(terminalId, (data) => {
+      if (resolved) return;
+      if (data.trim().length > 0) {
         lastOutputTime = Date.now();
-        outputLineCount += lines.length;
-        const now = Date.now();
-        if (now - lastProgressUpdate >= PROGRESS_INTERVAL_MS) {
-          lastProgressUpdate = now;
-          // Creep from 50→79 based on output (logarithmic curve, never reaches 80)
-          const creep = Math.min(29, Math.floor(15 * Math.log2(1 + outputLineCount / 10)));
-          sendProgress(`Analyzing... (${outputLineCount} lines received)`, 50 + creep);
-          if (opts?.streamId) {
-            activityManager.updateProgress(opts.streamId, 50 + creep);
-          }
+      }
+      // Debounce: reset timer on each chunk, flush after quiet period
+      if (streamFlushTimer) clearTimeout(streamFlushTimer);
+      streamFlushTimer = setTimeout(flushStreamOutput, STREAM_DEBOUNCE_MS);
+
+      // Progress updates based on cumulative output
+      const now = Date.now();
+      if (now - lastProgressUpdate >= PROGRESS_INTERVAL_MS && outputLineCount > 0) {
+        lastProgressUpdate = now;
+        const creep = Math.min(29, Math.floor(15 * Math.log2(1 + outputLineCount / 10)));
+        pushProgress(`Analyzing... (${outputLineCount} lines received)`, 50 + creep);
+        if (opts?.streamId) {
+          activityManager.updateProgress(opts.streamId, 50 + creep);
         }
       }
     }, streamHandlerId);
 
-    // ── Stall detection — warn if no output received for 30+ seconds ──
-    const STALL_THRESHOLD_MS = 30_000;
+    // Stall/timeout detection
     stallCheckTimer = setInterval(() => {
       if (resolved) return;
+      const elapsed = Date.now() - analysisStartMs;
       const stallDuration = Date.now() - lastOutputTime;
-      if (stallDuration >= STALL_THRESHOLD_MS) {
+      if (stallDuration >= INACTIVITY_TIMEOUT_MS) {
+        fail(new Error(`Analysis timed out after ${Math.floor(INACTIVITY_TIMEOUT_MS / 1000)} seconds without agent output.`));
+        return;
+      }
+      if (elapsed >= HARD_TIMEOUT_MS) {
+        fail(new Error(`Analysis timed out after ${Math.floor(HARD_TIMEOUT_MS / 1000)} seconds total runtime.`));
+        return;
+      }
+      if (stallDuration >= STALL_WARN_THRESHOLD_MS) {
         const creep = Math.min(29, Math.floor(15 * Math.log2(1 + outputLineCount / 10)));
-        sendProgress(
+        pushProgress(
           `No output received for ${Math.floor(stallDuration / 1000)}s \u2014 AI tool may be processing a large response...`,
           50 + creep,
           'analyzing',
           { stalled: true, stallDurationMs: stallDuration },
         );
-        if (opts?.streamId) {
-          activityManager.emit(opts.streamId, `Waiting for AI output... ${Math.floor(stallDuration / 1000)}s without new lines.`);
-        }
       }
     }, 5_000);
 
-    // ── Sentinel file polling (all tools) ──────────────────────────
-    const sentinelFile = resultFile + '.done';
-    const shellSentinelFile = toUnixPath(sentinelFile);
-
-    const sentinelCommand = shellCommand.replace(
-      `echo "${DONE_MARKER}"`,
-      `echo "${DONE_MARKER}" && echo done > "${shellSentinelFile}"`,
-    );
-    if (sentinelCommand === shellCommand) {
-      fail(new Error('Internal error: sentinel injection failed — DONE_MARKER not found in command template.'));
-      return;
-    }
-    shellCommand = sentinelCommand;
-
-    pollTimer = setInterval(() => {
+    // Watch for MCP result file (primary completion signal)
+    // Also falls back to parsing terminal output for JSON
+    resultWatchTimer = setInterval(() => {
       if (resolved) return;
-      try {
-        if (fs.existsSync(sentinelFile)) {
-          let result = '';
-          try { result = fs.readFileSync(resultFile, 'utf8'); } catch { result = ''; }
-          try { fs.unlinkSync(sentinelFile); } catch { /* ignore */ }
-          sendProgress('AI response received, reading output...', 80);
-          finish(result);
-        }
-      } catch { /* ignore polling errors */ }
-    }, 500);
 
-    // Send the command to the terminal
-    console.log(`[Onboarding] Sending analysis command to terminal ${terminalId}`);
-    ptyManager.writeToTerminal(terminalId, shellCommand + '\r');
+      // Primary: check MCP result file
+      try {
+        if (fs.existsSync(resultFile)) {
+          const content = fs.readFileSync(resultFile, 'utf8').trim();
+          if (content.length > 0) {
+            const wrapped = '```json\n' + content + '\n```';
+            pushProgress('AI response received via MCP, reading output...', 80);
+            finish(wrapped);
+            return;
+          }
+        }
+      } catch { /* ignore partial writes */ }
+
+      // Fallback: check terminal transcript for JSON
+      const transcriptRaw = aiSessionManager.getTranscript(sessionId);
+      const renderedTranscript = renderTerminalTranscript(transcriptRaw);
+      if (renderedTranscript.text.trim().length > 0) {
+        const parsed = parseAnalysisResponse(renderedTranscript.text);
+        if (parsed.result) {
+          pushProgress('AI response received, reading output...', 80);
+          finish(renderedTranscript.text);
+          return;
+        }
+      }
+
+      // Check if terminal exited
+      if (!ptyManager.hasTerminal(terminalId)) {
+        if (renderedTranscript.text.trim().length > 0) {
+          pushProgress('AI session ended, reading captured output...', 80);
+          finish(renderedTranscript.text);
+        } else {
+          fail(new Error('Analysis terminal exited before producing output.'));
+        }
+      }
+    }, 2_000);
+
+    // Interactive shell: start command, wait for ready, then send MCP instruction
+    console.log(`[Onboarding] Starting interactive MCP session in terminal ${terminalId}`);
+    void (async () => {
+      // Let the shell initialize
+      await delay(interactiveConfig.startupDelayMs);
+
+      // Type the claude command into the interactive shell
+      console.log(`[Onboarding] Sending command to terminal ${terminalId}: ${shellCommand.substring(0, 80)}...`);
+      aiSessionManager.startSessionCommand(sessionId, shellCommand);
+
+      // Wait for Claude's TUI to become ready
+      const readyStart = Date.now();
+      let ready = false;
+      let readyPollCount = 0;
+      while (Date.now() - readyStart < interactiveConfig.readyTimeoutMs) {
+        if (resolved) return;
+        if (!ptyManager.hasTerminal(terminalId)) {
+          throw new Error('Terminal exited before Claude became ready.');
+        }
+        const output = aiSessionManager.capturePane(sessionId);
+        readyPollCount++;
+        if (readyPollCount <= 5 || readyPollCount % 10 === 0) {
+          console.log(`[Onboarding] Ready poll #${readyPollCount} for ${terminalId}: transcript=${output.length} chars`);
+        }
+        if (interactiveConfig.readyMarkers.some((marker) => output.includes(marker))) {
+          console.log(`[Onboarding] Ready marker detected in terminal ${terminalId}`);
+          ready = true;
+          break;
+        }
+        await delay(1000);
+      }
+
+      if (!ready) {
+        throw new Error(`Claude did not become ready within ${Math.floor(interactiveConfig.readyTimeoutMs / 1000)}s. The MCP server may have failed to start.`);
+      }
+
+      // Inject MCP instruction using per-tool input method (matches agent-forge exactly).
+      // Claude: sendKeys (literal text + enter)
+      // Codex/Gemini: pasteFromFile pattern (write text → 1s delay → enter → 300ms → enter)
+      await delay(2000);
+      console.log(`[Onboarding] Sending MCP instruction to terminal ${terminalId} (inputMethod=${interactiveConfig.inputMethod})`);
+
+      if (interactiveConfig.inputMethod === 'pasteFromFile') {
+        // Agent-forge pasteFromFile: write content, delay, then TWO enters
+        ptyManager.writeToTerminal(terminalId, MCP_INSTRUCTION);
+        await delay(1000);
+        ptyManager.writeToTerminal(terminalId, '\r');
+        await delay(300);
+        ptyManager.writeToTerminal(terminalId, '\r');
+      } else {
+        // Claude-style: sendKeys with literal + enter
+        aiSessionManager.sendKeys(sessionId, MCP_INSTRUCTION, { literal: true, enter: true });
+      }
+    })().catch((err) => {
+      fail(new Error(`Failed to send onboarding prompt to AI session: ${(err as Error).message}`), 'failed', true);
+    });
   });
 }
 
@@ -736,18 +982,59 @@ function parseAnalysisResponse(raw: string): { result: OnboardingAnalysisResult 
       '',
     );
 
+    const extractBalancedObject = (text: string, startPattern: RegExp): string | null => {
+      const match = text.match(startPattern);
+      if (!match || match.index === undefined) return null;
+      const candidate = text.slice(match.index);
+      let depth = 0;
+      let end = -1;
+      let inString = false;
+      let escaped = false;
+
+      for (let i = 0; i < candidate.length; i++) {
+        const ch = candidate[i];
+        if (escaped) { escaped = false; continue; }
+        if (ch === '\\' && inString) { escaped = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            end = i + 1;
+            break;
+          }
+        }
+      }
+
+      return end > 0 ? candidate.slice(0, end) : null;
+    };
+
+    let sourceText = cleaned;
+    const envelopeText = extractBalancedObject(cleaned, /\{\s*"type"\s*:\s*"result"/);
+    if (envelopeText) {
+      try {
+        const envelope = JSON.parse(envelopeText) as { result?: unknown };
+        if (typeof envelope.result === 'string' && envelope.result.trim().length > 0) {
+          sourceText = envelope.result;
+        }
+      } catch {
+        // Fall back to raw cleaned output.
+      }
+    }
+
     // Try to extract JSON: first from ```json fences, then raw JSON object
     let jsonText: string | null = null;
 
     // Strategy 1: Markdown-fenced JSON block
-    const fenceMatch = cleaned.match(/```json\s*([\s\S]*?)```/);
+    const fenceMatch = sourceText.match(/```json\s*([\s\S]*?)```/);
     if (fenceMatch) {
       jsonText = fenceMatch[1].trim();
     }
 
     // Strategy 2: Raw JSON object starting with { "structure": (no fences)
     if (!jsonText) {
-      const rawMatch = cleaned.match(/(\{\s*"structure"\s*:\s*\{[\s\S]*)/);
+      const rawMatch = sourceText.match(/(\{\s*"structure"\s*:\s*\{[\s\S]*)/);
       if (rawMatch) {
         // Find the balanced closing brace, skipping braces inside JSON strings
         const text = rawMatch[1];
@@ -775,7 +1062,7 @@ function parseAnalysisResponse(raw: string): { result: OnboardingAnalysisResult 
 
     if (!jsonText) {
       // Check for common error patterns only when no JSON was found
-      const lowerCleaned = cleaned.toLowerCase();
+      const lowerCleaned = sourceText.toLowerCase();
       const errorPatterns: Array<{ pattern: RegExp; label: string }> = [
         { pattern: /rate limit(ed| exceeded| error)/i, label: 'Rate limit exceeded' },
         { pattern: /permission denied/i, label: 'Permission denied' },
@@ -787,7 +1074,7 @@ function parseAnalysisResponse(raw: string): { result: OnboardingAnalysisResult 
       ];
       const detectedError = errorPatterns.find((ep) => ep.pattern.test(lowerCleaned));
 
-      const preview = cleaned.trim().substring(0, 300);
+      const preview = sourceText.trim().substring(0, 300);
       let error = 'No JSON found in AI response.';
       if (detectedError) {
         error += ` ${detectedError.label} — check the terminal for details.`;
@@ -1087,9 +1374,23 @@ function setupIPC(ipcMain: IpcMain): void {
   // ── DETECT_PROJECT_INTELLIGENCE (handle) ─────────────────────────────────
   ipcMain.handle(IPC.DETECT_PROJECT_INTELLIGENCE, (_event, projectPath: string) => {
     try {
-      return detectProjectIntelligence(projectPath);
+      const detection = detectProjectIntelligence(projectPath);
+      patchSession(projectPath, {
+        detection,
+        status: 'idle',
+        error: null,
+        cancelled: null,
+        importResult: null,
+      });
+      return detection;
     } catch (err) {
       console.error('[Onboarding] Detection error:', err);
+      patchSession(projectPath, {
+        detection: null,
+        status: 'error',
+        error: (err as Error).message,
+        cancelled: null,
+      });
       return {
         projectPath,
         projectName: path.basename(projectPath),
@@ -1106,6 +1407,17 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.RUN_ONBOARDING_ANALYSIS, async (_event, projectPath: string, options?: OnboardingAnalysisOptions) => {
     let activityStreamId: string | undefined;
     try {
+      patchSession(projectPath, {
+        analysisResult: null,
+        progress: null,
+        terminalId: null,
+        activityStreamId: null,
+        error: null,
+        cancelled: null,
+        importResult: null,
+        status: 'detecting',
+      });
+
       // Re-entrancy guard — prevent duplicate analyses for the same project
       if (activeAnalyses.has(projectPath)) {
         const existing = activeAnalyses.get(projectPath)!;
@@ -1130,19 +1442,20 @@ function setupIPC(ipcMain: IpcMain): void {
         name: 'Project Analysis',
         type: 'pty',
         source: 'onboarding',
-        timeout: effectiveTimeout,
+        timeout: 0,
         heartbeatInterval: 3_000,
       });
       activityStreamId = streamId;
       activityManager.updateStatus(streamId, 'running');
       activityManager.startHeartbeat(streamId);
-      activityManager.startTimeout(streamId);
+      patchSession(projectPath, { activityStreamId: streamId, status: 'detecting' });
 
       // Phase: detecting
       sendProgress(projectPath, 'detecting', 'Scanning for project intelligence files...', 10, timeoutMeta());
       activityManager.emit(streamId, 'Scanning for project intelligence files...');
       activityManager.updateProgress(streamId, 10);
       const detection = detectProjectIntelligence(projectPath);
+      patchSession(projectPath, { detection });
 
       if (!detection.worthAnalyzing) {
         sendProgress(
@@ -1157,24 +1470,12 @@ function setupIPC(ipcMain: IpcMain): void {
       }
 
       // Pre-flight: check AI tool is installed
-      const toolCheck = await checkAIToolAvailable();
+      const toolCheck = await checkAIToolAvailable(options?.toolId);
       if (!toolCheck.available) {
         const toolError = toolCheck.error || `AI tool "${toolCheck.command}" not found.`;
         sendProgress(projectPath, 'error', toolError, 15, timeoutMeta());
         activityManager.updateStatus(streamId, 'failed', toolError);
         return { terminalId: '', activityStreamId: streamId };
-      }
-
-      // Pre-flight: check for bash shell on Windows
-      if (process.platform === 'win32') {
-        try {
-          findBashShell();
-        } catch (shellErr) {
-          const shellErrMsg = (shellErr as Error).message;
-          sendProgress(projectPath, 'error', shellErrMsg, 15, timeoutMeta());
-          activityManager.updateStatus(streamId, 'failed', shellErrMsg);
-          return { terminalId: '', activityStreamId: streamId };
-        }
       }
 
       // Phase: gathering
@@ -1204,6 +1505,7 @@ function setupIPC(ipcMain: IpcMain): void {
           timeoutMs: options?.timeoutOverride,
           analysisStartMs,
           streamId,
+          toolId: options?.toolId,
         });
         raw = result.raw;
         analysisTerminalId = result.terminalId;
@@ -1213,16 +1515,10 @@ function setupIPC(ipcMain: IpcMain): void {
         const abortReason = activityManager.getAbortSignal(streamId)?.reason;
         const cancelled = abortReason === 'Cancelled' || /cancelled by user/i.test(msg);
         // Include terminalId so "View Terminal" button appears in error state
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          broadcast(IPC.ONBOARDING_PROGRESS, {
-            projectPath,
-            phase: cancelled ? 'cancelled' : 'error',
-            message: msg,
-            progress: 50,
-            terminalId: errTerminalId,
-            ...timeoutMeta(),
-          } satisfies OnboardingProgressEvent);
-        }
+        sendProgress(projectPath, cancelled ? 'cancelled' : 'error', msg, 50, {
+          terminalId: errTerminalId,
+          ...timeoutMeta(),
+        });
         if (!cancelled) {
           activityManager.updateStatus(streamId, 'failed', msg);
         }
@@ -1232,7 +1528,7 @@ function setupIPC(ipcMain: IpcMain): void {
           const logDir = path.join(projectPath, '.subframe');
           fs.mkdirSync(logDir, { recursive: true });
           const logPath = path.join(projectPath, '.subframe', 'analysis.log');
-          const aiToolCmd = await aiToolManager.getStartCommand();
+          const aiToolCmd = await aiToolManager.getStartCommand(options?.toolId);
           const logContent = [
             `# SubFrame AI Analysis Log`,
             `# Date: ${new Date().toISOString()}`,
@@ -1258,7 +1554,7 @@ function setupIPC(ipcMain: IpcMain): void {
         const logDir = path.join(projectPath, '.subframe');
         fs.mkdirSync(logDir, { recursive: true });
         const logPath = path.join(projectPath, '.subframe', 'analysis.log');
-        const aiToolCmd2 = await aiToolManager.getStartCommand();
+        const aiToolCmd2 = await aiToolManager.getStartCommand(options?.toolId);
         const logContent = [
           `# SubFrame AI Analysis Log`,
           `# Date: ${new Date().toISOString()}`,
@@ -1278,22 +1574,24 @@ function setupIPC(ipcMain: IpcMain): void {
         const errorMsg = parseError || 'Failed to parse AI response. Check the terminal output.';
         // Include terminalId so "View Terminal" button appears in error state
         const errorTerminalId = activeAnalyses.get(projectPath)?.terminalId || analysisTerminalId;
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          broadcast(IPC.ONBOARDING_PROGRESS, {
-            projectPath,
-            phase: 'error',
-            message: errorMsg,
-            progress: 80,
-            terminalId: errorTerminalId,
-            ...timeoutMeta(),
-          } satisfies OnboardingProgressEvent);
-        }
+        sendProgress(projectPath, 'error', errorMsg, 80, {
+          terminalId: errorTerminalId,
+          ...timeoutMeta(),
+        });
         activityManager.updateStatus(streamId, 'failed', errorMsg);
         return { terminalId: errorTerminalId, activityStreamId: streamId };
       }
 
       // Cache parsed results for IMPORT_ONBOARDING_RESULTS
       analysisResultsCache.set(projectPath, parsed);
+      patchSession(projectPath, {
+        analysisResult: parsed,
+        error: null,
+        cancelled: null,
+        status: 'done',
+        terminalId: analysisTerminalId,
+        activityStreamId: streamId,
+      });
 
       // Phase: done — include serialized results so the renderer hook can parse them
       sendProgress(projectPath, 'done', JSON.stringify(parsed), 100, timeoutMeta());
@@ -1306,6 +1604,10 @@ function setupIPC(ipcMain: IpcMain): void {
     } catch (err) {
       console.error('[Onboarding] Unexpected error in analysis pipeline:', err);
       sendProgress(projectPath, 'error', `Unexpected error: ${(err as Error).message}`, 0);
+      patchSession(projectPath, {
+        status: 'error',
+        error: `Unexpected error: ${(err as Error).message}`,
+      });
       if (activityStreamId) {
         activityManager.updateStatus(activityStreamId, 'failed', `Unexpected error: ${(err as Error).message}`);
       }
@@ -1327,6 +1629,16 @@ function setupIPC(ipcMain: IpcMain): void {
       console.error('[Onboarding] Prompt preview error:', err);
       return { prompt: 'Error generating prompt preview', contextSize: 0 };
     }
+  });
+
+  ipcMain.handle(IPC.GET_ONBOARDING_SESSION, (_event, projectPath: string) => {
+    return onboardingSessions.get(projectPath) ?? null;
+  });
+
+  ipcMain.handle(IPC.CLEAR_ONBOARDING_SESSION, (_event, projectPath: string) => {
+    onboardingSessions.delete(projectPath);
+    analysisResultsCache.delete(projectPath);
+    return { success: true };
   });
 
   // ── BROWSE_ONBOARDING_FILES (handle) ─────────────────────────────────────
@@ -1359,6 +1671,12 @@ function setupIPC(ipcMain: IpcMain): void {
     ) => {
       try {
         sendProgress(payload.projectPath, 'importing', 'Importing selected results...', 90);
+        patchSession(payload.projectPath, {
+          analysisResult: payload.results,
+          status: 'importing',
+          error: null,
+          cancelled: null,
+        });
         const result = importResults(payload.projectPath, payload.results, payload.selections);
 
         if (result.errors.length > 0) {
@@ -1376,6 +1694,14 @@ function setupIPC(ipcMain: IpcMain): void {
             100,
           );
         }
+
+        patchSession(payload.projectPath, {
+          analysisResult: payload.results,
+          importResult: result,
+          status: result.errors.length > 0 ? 'error' : 'imported',
+          error: result.errors.length > 0 ? `Import completed with ${result.errors.length} error(s).` : null,
+          cancelled: null,
+        });
 
         // Clean up cached results and active analysis entry after successful import
         analysisResultsCache.delete(payload.projectPath);
@@ -1401,23 +1727,11 @@ function setupIPC(ipcMain: IpcMain): void {
 
       if (analysis.streamId) {
         activityManager.cancelStream(analysis.streamId);
-      }
-
-      // Kill the terminal
-      try {
-        ptyManager.destroyTerminal(analysis.terminalId);
-      } catch (err) {
-        console.error('[Onboarding] Error destroying analysis terminal:', err);
-      }
-
-      // Reject the promise properly (also runs cleanup internally)
-      if (analysis.cancel) {
+      } else if (analysis.cancel) {
         analysis.cancel();
       } else {
         analysis.cleanup();
       }
-
-      sendProgress(projectPath, 'cancelled', 'Analysis cancelled by user.', 0, { activityStreamId: analysis.streamId });
     }
   });
 }

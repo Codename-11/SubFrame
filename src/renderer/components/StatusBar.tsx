@@ -11,12 +11,16 @@ import {
   ListTodo,
   GitPullRequestArrow,
   Terminal,
+  Globe,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useGitStatus, useGithubWorkflows } from '../hooks/useGithub';
 import { useTasks } from '../hooks/useTasks';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useUIStore } from '../stores/useUIStore';
+import { useIpcQuery } from '../hooks/useIpc';
+import { IPC } from '../../shared/ipcChannels';
+import { useSessionControlStore } from '../stores/useSessionControlStore';
 
 /** Read version at module level — avoids importing frameConstants.ts which uses Node's `path` */
 const FRAME_VERSION: string = require('../../../package.json').version;
@@ -81,6 +85,24 @@ export function StatusBar() {
 
   // Git dirty indicator
   const isDirty = files.length > 0;
+
+  // Web server status
+  const { data: webServerInfo } = useIpcQuery(IPC.WEB_SERVER_INFO, [], {
+    staleTime: 5_000,
+    refetchInterval: 5_000,
+  });
+  const { webClientConnected, hasControl, isViewOnly } = useSessionControlStore();
+  const webLabel = useMemo(() => {
+    if (!webServerInfo) return null;
+    if (webServerInfo.lastStartError) return { text: 'Web Error', cls: 'text-error' };
+    if (webClientConnected) {
+      if (hasControl) return { text: 'Web · Control', cls: 'text-accent' };
+      if (isViewOnly) return { text: 'Web · Viewing', cls: 'text-info' };
+      return { text: 'Web Live', cls: 'text-accent' };
+    }
+    if (webServerInfo.enabled) return { text: 'Web Ready', cls: 'text-text-secondary' };
+    return null;
+  }, [webServerInfo, webClientConnected, hasControl, isViewOnly]);
 
   // Panel opener — uses direct store access for type safety
   const setActivePanel = useUIStore.getState().setActivePanel;
@@ -178,6 +200,23 @@ export function StatusBar() {
       <div className="flex-1" />
 
       {/* ── Right side ─────────────────────────────────────────────────── */}
+
+      {/* Web Server */}
+      {webLabel && (
+        <>
+          <Section
+            onClick={() => {
+              useUIStore.getState().setSettingsOpen(true);
+            }}
+            title="Web server status — click to open settings"
+          >
+            <Globe size={11} className={cn('shrink-0', webLabel.cls)} />
+            <span className={webLabel.cls}>{webLabel.text}</span>
+          </Section>
+          <Divider />
+        </>
+      )}
+
       <span className="px-2 font-mono text-text-muted tabular-nums select-none">
         v{FRAME_VERSION}
       </span>

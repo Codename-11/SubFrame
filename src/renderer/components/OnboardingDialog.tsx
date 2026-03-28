@@ -51,9 +51,8 @@ import {
   Eye,
   ChevronDown,
 } from 'lucide-react';
-import { useIPCEvent } from '../hooks/useIPCListener';
-import { IPC } from '../../shared/ipcChannels';
 import type {
+  AIToolConfig,
   OnboardingDetectionResult,
   OnboardingAnalysisResult,
   OnboardingImportSelections,
@@ -61,6 +60,7 @@ import type {
   OnboardingAnalysisOptions,
   DetectedIntelligence,
 } from '../../shared/ipcChannels';
+import { EmbeddedTerminal } from './EmbeddedTerminal';
 
 // ── Step definitions ────────────────────────────────────────────────────────
 
@@ -110,7 +110,7 @@ interface OnboardingDialogProps {
   isAnalyzing: boolean;
   isImporting: boolean;
   error: string | null;
-  aiToolName: string;
+  aiToolConfig: AIToolConfig | null;
   onAnalyze: (options?: OnboardingAnalysisOptions) => void;
   onImport: (selections: OnboardingImportSelections) => void;
   onCancel: () => void;
@@ -139,7 +139,7 @@ export function OnboardingDialog({
   isAnalyzing,
   isImporting,
   error,
-  aiToolName,
+  aiToolConfig,
   onAnalyze,
   onImport,
   onCancel,
@@ -164,8 +164,6 @@ export function OnboardingDialog({
 
   // Inline terminal output state
   const [showOutput, setShowOutput] = useState(false);
-  const [outputLines, setOutputLines] = useState<string[]>([]);
-  const outputRef = useRef<HTMLDivElement>(null);
   const suppressCancelRef = useRef(false);
   const [confirmRollback, setConfirmRollback] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -180,6 +178,29 @@ export function OnboardingDialog({
   const [extraFiles, setExtraFiles] = useState<{path: string; type: 'file' | 'directory'}[]>([]);
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [selectedToolId, setSelectedToolId] = useState<string | null>(aiToolConfig?.activeTool.id ?? null);
+  const availableTools = useMemo(
+    () => Object.values(aiToolConfig?.availableTools ?? {}),
+    [aiToolConfig]
+  );
+  const selectedTool = useMemo(
+    () => availableTools.find((tool) => tool.id === selectedToolId) ?? aiToolConfig?.activeTool ?? null,
+    [availableTools, aiToolConfig, selectedToolId]
+  );
+
+  const buildAnalysisOptions = useCallback((base?: Partial<OnboardingAnalysisOptions>): OnboardingAnalysisOptions | undefined => {
+    const opts: OnboardingAnalysisOptions = { ...base };
+    if (selectedToolId) opts.toolId = selectedToolId;
+    if (customContext.trim()) opts.customContext = customContext.trim();
+    if (extraFiles.length > 0) opts.extraFiles = extraFiles.map((f) => f.path);
+    return Object.keys(opts).length > 0 ? opts : undefined;
+  }, [customContext, extraFiles, selectedToolId]);
+
+  useEffect(() => {
+    if (!selectedToolId && aiToolConfig?.activeTool.id) {
+      setSelectedToolId(aiToolConfig.activeTool.id);
+    }
+  }, [aiToolConfig?.activeTool.id, selectedToolId]);
 
   // ── Auto-advance steps based on external state ──
 
@@ -197,6 +218,12 @@ export function OnboardingDialog({
       setAnalysisSkipped(false);
     }
   }, [isAnalyzing]);
+
+  useEffect(() => {
+    if (isAnalyzing && terminalId) {
+      setShowOutput(true);
+    }
+  }, [isAnalyzing, terminalId]);
 
   // Analysis completed → advance to review
   useEffect(() => {
@@ -224,46 +251,6 @@ export function OnboardingDialog({
     }
   }, [isAnalyzing, analysisResult, error, detection]);
 
-  // ── Terminal output capture ──
-
-  useIPCEvent<{ terminalId: string; data: string }>(
-    IPC.TERMINAL_OUTPUT_ID,
-    useCallback((data: { terminalId: string; data: string }) => {
-      if (data.terminalId === terminalId) {
-        const clean = data.data
-          .replace(
-            // eslint-disable-next-line no-control-regex
-            /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
-            ''
-          )
-          .replace(
-            // eslint-disable-next-line no-control-regex
-            /\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g,
-            ''
-          )
-          .replace(
-            // eslint-disable-next-line no-control-regex
-            /[\u0000-\u001f\u007f]/g,
-            ''
-          );
-        const lines = clean.split('\n').filter(l => l.trim().length > 0);
-        if (lines.length > 0) {
-          setOutputLines(prev => {
-            const next = [...prev, ...lines];
-            return next.length > 200 ? next.slice(-200) : next;
-          });
-        }
-      }
-    }, [terminalId])
-  );
-
-  // Auto-scroll output
-  useEffect(() => {
-    if (showOutput && outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight;
-    }
-  }, [outputLines, showOutput]);
-
   // Auto-show output when analyzing phase begins, track elapsed time
   useEffect(() => {
     if (progress?.phase === 'analyzing' && isAnalyzing) {
@@ -287,20 +274,12 @@ export function OnboardingDialog({
   // Reset transient state on step change
   useEffect(() => {
     setConfirmRollback(false);
-    if (activeStep <= 1) {
-      setOutputLines([]);
+    if (activeStep === 0) {
       setShowOutput(false);
       setAnalyzeStartTime(null);
       setElapsed(0);
     }
   }, [activeStep]);
-
-  // Clear accumulated output when terminal changes (new analysis run)
-  useEffect(() => {
-    if (terminalId) {
-      setOutputLines([]);
-    }
-  }, [terminalId]);
 
   // Reset local state when dialog opens fresh
   useEffect(() => {
@@ -413,7 +392,11 @@ export function OnboardingDialog({
       suppressCancelRef.current = false;
       onOpenChange(nextOpen);
     }}>
-      <DialogContent className="sm:max-w-2xl bg-bg-primary border-border-subtle !flex !flex-col max-h-[80vh] overflow-hidden p-0 gap-0">
+      <DialogContent
+        className="sm:max-w-2xl bg-bg-primary border-border-subtle !flex !flex-col max-h-[80vh] overflow-hidden p-0 gap-0"
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogTitle className="sr-only">Project Setup</DialogTitle>
         {/* ── Stepper ──────────────────────────────────────────────────── */}
         <div className="shrink-0 flex items-start justify-between gap-1 px-7 pt-7 pb-2">
@@ -585,9 +568,32 @@ export function OnboardingDialog({
                         Run AI Analysis
                       </p>
                       <p className="text-xs text-text-muted mt-0.5">
-                        {aiToolName} will analyze your project to generate structure docs, notes, and tasks
+                        {(selectedTool?.name ?? aiToolConfig?.activeTool.name ?? 'Claude Code')} will analyze your project to generate structure docs, notes, and tasks
                       </p>
                     </div>
+                  </div>
+
+                  <div className="rounded-md border border-border-subtle bg-bg-secondary p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-medium text-text-secondary">Analysis Tool</p>
+                        <p className="text-[10px] text-text-muted">Override the globally active AI tool for this onboarding run only.</p>
+                      </div>
+                      {selectedTool?.installed === false && (
+                        <span className="text-[10px] text-warning shrink-0">Not installed</span>
+                      )}
+                    </div>
+                    <select
+                      value={selectedToolId ?? ''}
+                      onChange={(e) => setSelectedToolId(e.target.value || null)}
+                      className="w-full rounded-md border border-border-default bg-bg-deep px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent/50"
+                    >
+                      {availableTools.map((tool) => (
+                        <option key={tool.id} value={tool.id}>
+                          {tool.name}{tool.installed === false ? ' (Not installed)' : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* ── Advanced Options (collapsible) ──────────────────── */}
@@ -708,12 +714,7 @@ export function OnboardingDialog({
                               }
                               setIsLoadingPreview(true);
                               try {
-                                const opts: OnboardingAnalysisOptions = {};
-                                if (customContext.trim()) opts.customContext = customContext.trim();
-                                if (extraFiles.length > 0) opts.extraFiles = extraFiles.map(f => f.path);
-                                const result = await onPreviewPrompt(
-                                  Object.keys(opts).length > 0 ? opts : undefined
-                                );
+                                const result = await onPreviewPrompt(buildAnalysisOptions());
                                 setPromptPreview(result.prompt);
                               } catch {
                                 setPromptPreview('Error loading prompt preview');
@@ -780,7 +781,7 @@ export function OnboardingDialog({
                       <p className="text-[11px] text-text-secondary truncate flex-1">{progress.message}</p>
                       {progress.phase === 'analyzing' && elapsed > 0 && (
                         <span className="text-[10px] text-text-muted tabular-nums shrink-0">
-                          {elapsed}s{timeoutMs ? ` / ${Math.floor(timeoutMs / 1000)}s` : ''}{outputLines.length > 0 ? ` · ${outputLines.length} lines` : ''}
+                          {elapsed}s{timeoutMs ? ` / ${Math.floor(timeoutMs / 1000)}s` : ''}
                         </span>
                       )}
                     </div>
@@ -796,15 +797,13 @@ export function OnboardingDialog({
                 </div>
               )}
 
-              {/* Terminal output panel */}
-              {showOutput && outputLines.length > 0 && (
-                <div
-                  ref={outputRef}
-                  className="max-h-[160px] overflow-y-auto rounded-md bg-bg-deep border border-border-subtle p-2 font-mono text-[11px] leading-relaxed text-text-secondary"
-                >
-                  {outputLines.map((line, i) => (
-                    <div key={i} className="whitespace-pre-wrap break-all">{line}</div>
-                  ))}
+              {/* Terminal output — real terminal via registry attach */}
+              {showOutput && terminalId && (
+                <div className="h-[250px] overflow-hidden rounded-md bg-bg-deep border border-border-subtle">
+                  <EmbeddedTerminal
+                    terminalId={terminalId}
+                    className="h-full w-full"
+                  />
                 </div>
               )}
 
@@ -839,6 +838,7 @@ export function OnboardingDialog({
           {activeStep === 2 && analysisResult && (
             <ScrollArea className="max-h-[350px] pr-3">
               <div className="space-y-3">
+                {/* ── Structure ──────────────────────────────────── */}
                 <ReviewSection
                   checked={selections.structure}
                   onCheckedChange={(checked) =>
@@ -846,15 +846,13 @@ export function OnboardingDialog({
                   }
                   label="Structure"
                   icon={<FileText className="size-4 text-blue-400" />}
-                >
-                  <div className="space-y-1.5 text-xs text-text-secondary">
-                    {analysisResult.structure.description && (
-                      <p className="line-clamp-2">{analysisResult.structure.description}</p>
-                    )}
-                    {analysisResult.structure.architecture && (
-                      <p className="line-clamp-2 text-text-muted">{analysisResult.structure.architecture}</p>
-                    )}
-                    <div className="flex gap-3 text-text-muted">
+                  summary={
+                    <div className="flex gap-3 text-text-muted text-xs">
+                      {analysisResult.structure.architecture && (
+                        <span className="inline-flex items-center gap-1 rounded bg-bg-deep px-1.5 py-0.5 border border-border-subtle text-[10px]">
+                          {analysisResult.structure.architecture}
+                        </span>
+                      )}
                       {analysisResult.structure.conventions && (
                         <span>{analysisResult.structure.conventions.length} conventions</span>
                       )}
@@ -862,9 +860,47 @@ export function OnboardingDialog({
                         <span>{Object.keys(analysisResult.structure.modules).length} modules</span>
                       )}
                     </div>
+                  }
+                >
+                  <div className="space-y-3 text-xs">
+                    {analysisResult.structure.description && (
+                      <p className="text-text-secondary leading-relaxed">{analysisResult.structure.description}</p>
+                    )}
+                    {analysisResult.structure.dataFlow && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-text-muted font-medium mb-1">Data Flow</div>
+                        <p className="text-text-secondary leading-relaxed">{analysisResult.structure.dataFlow}</p>
+                      </div>
+                    )}
+                    {analysisResult.structure.conventions && analysisResult.structure.conventions.length > 0 && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-text-muted font-medium mb-1">Conventions</div>
+                        <div className="flex flex-wrap gap-1">
+                          {analysisResult.structure.conventions.map((c, i) => (
+                            <span key={i} className="inline-flex rounded bg-bg-deep px-1.5 py-0.5 border border-border-subtle text-[10px] text-text-secondary">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {analysisResult.structure.modules && Object.keys(analysisResult.structure.modules).length > 0 && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-text-muted font-medium mb-1">Modules</div>
+                        <div className="grid grid-cols-1 gap-0.5 max-h-[120px] overflow-y-auto">
+                          {Object.entries(analysisResult.structure.modules).map(([name, mod]) => (
+                            <div key={name} className="flex items-baseline gap-2 py-0.5">
+                              <code className="text-[10px] text-accent shrink-0">{name}</code>
+                              {mod.purpose && <span className="text-text-muted text-[10px] truncate">{mod.purpose}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </ReviewSection>
 
+                {/* ── Project Notes ──────────────────────────────── */}
                 <ReviewSection
                   checked={selections.projectNotes}
                   onCheckedChange={(checked) =>
@@ -872,23 +908,53 @@ export function OnboardingDialog({
                   }
                   label="Project Notes"
                   icon={<BookOpen className="size-4 text-green-400" />}
-                >
-                  <div className="space-y-1.5 text-xs text-text-secondary">
-                    {analysisResult.projectNotes.vision && (
-                      <p className="line-clamp-2">{analysisResult.projectNotes.vision}</p>
-                    )}
-                    <div className="flex gap-3 text-text-muted">
+                  summary={
+                    <div className="flex gap-3 text-text-muted text-xs">
                       {analysisResult.projectNotes.decisions && (
                         <span>{analysisResult.projectNotes.decisions.length} decisions</span>
                       )}
-                      {analysisResult.projectNotes.techStack &&
-                        analysisResult.projectNotes.techStack.length > 0 && (
-                          <span>{analysisResult.projectNotes.techStack.join(', ')}</span>
-                        )}
+                      {analysisResult.projectNotes.techStack && analysisResult.projectNotes.techStack.length > 0 && (
+                        <span>{analysisResult.projectNotes.techStack.length} technologies</span>
+                      )}
                     </div>
+                  }
+                >
+                  <div className="space-y-3 text-xs">
+                    {analysisResult.projectNotes.vision && (
+                      <p className="text-text-secondary leading-relaxed">{analysisResult.projectNotes.vision}</p>
+                    )}
+                    {analysisResult.projectNotes.techStack && analysisResult.projectNotes.techStack.length > 0 && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-text-muted font-medium mb-1">Tech Stack</div>
+                        <div className="flex flex-wrap gap-1">
+                          {analysisResult.projectNotes.techStack.map((tech, i) => (
+                            <span key={i} className="inline-flex rounded bg-bg-deep px-1.5 py-0.5 border border-border-subtle text-[10px] text-text-secondary">
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {analysisResult.projectNotes.decisions && analysisResult.projectNotes.decisions.length > 0 && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-text-muted font-medium mb-1">Decisions</div>
+                        <div className="space-y-1.5">
+                          {analysisResult.projectNotes.decisions.map((d, i) => (
+                            <div key={i} className="rounded bg-bg-deep p-2 border border-border-subtle">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-[10px] text-text-muted">{d.date}</span>
+                                <span className="text-text-primary font-medium">{d.title}</span>
+                              </div>
+                              <p className="text-text-secondary text-[10px] leading-relaxed">{d.detail}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </ReviewSection>
 
+                {/* ── Suggested Tasks ────────────────────────────── */}
                 {analysisResult.suggestedTasks.length > 0 && (
                   <div className="rounded-md border border-border-subtle bg-bg-secondary p-3">
                     <div className="mb-2 flex items-center justify-between">
@@ -898,15 +964,29 @@ export function OnboardingDialog({
                           Suggested Tasks
                         </span>
                       </div>
-                      <span className="text-xs text-text-muted">
-                        {selections.taskIds.length}/{analysisResult.suggestedTasks.length} selected
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="text-[10px] text-text-muted hover:text-accent cursor-pointer transition-colors"
+                          onClick={() => {
+                            const allSelected = selections.taskIds.length === analysisResult.suggestedTasks.length;
+                            setSelections((prev) => ({
+                              ...prev,
+                              taskIds: allSelected ? [] : analysisResult.suggestedTasks.map((_, i) => i),
+                            }));
+                          }}
+                        >
+                          {selections.taskIds.length === analysisResult.suggestedTasks.length ? 'Deselect all' : 'Select all'}
+                        </button>
+                        <span className="text-xs text-text-muted">
+                          {selections.taskIds.length}/{analysisResult.suggestedTasks.length}
+                        </span>
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       {analysisResult.suggestedTasks.map((task, index) => (
                         <label
                           key={index}
-                          className="flex items-start gap-2.5 rounded px-1.5 py-1 transition-colors hover:bg-bg-hover cursor-pointer"
+                          className="flex items-start gap-2.5 rounded px-2 py-1.5 transition-colors hover:bg-bg-hover cursor-pointer"
                         >
                           <Checkbox
                             checked={selections.taskIds.includes(index)}
@@ -915,11 +995,16 @@ export function OnboardingDialog({
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-text-primary truncate">{task.title}</span>
+                              <span className="text-sm text-text-primary">{task.title}</span>
                               <PriorityBadge priority={task.priority} />
+                              {task.category && (
+                                <span className="inline-flex rounded bg-bg-deep px-1.5 py-0 border border-border-subtle text-[10px] text-text-muted shrink-0">
+                                  {task.category}
+                                </span>
+                              )}
                             </div>
-                            {task.category && (
-                              <span className="text-[10px] text-text-muted">{task.category}</span>
+                            {task.description && (
+                              <p className="text-xs text-text-tertiary mt-0.5 leading-relaxed">{task.description}</p>
                             )}
                           </div>
                         </label>
@@ -1021,7 +1106,7 @@ export function OnboardingDialog({
             {/* Rollback (available in steps 1-2, not during active import or on success) */}
             {activeStep < 3 && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   if (confirmRollback) {
@@ -1031,7 +1116,10 @@ export function OnboardingDialog({
                   }
                 }}
                 disabled={isRollingBack || isImporting || isAnalyzing}
-                className={cn('gap-1.5', confirmRollback && 'text-error hover:text-error')}
+                className={cn(
+                  'gap-1.5 bg-bg-secondary text-text-primary hover:bg-bg-hover',
+                  confirmRollback && 'border-error/40 text-error hover:bg-error/10 hover:text-error'
+                )}
                 title="Remove all SubFrame files and undo initialization"
               >
                 <Undo2 className="size-3.5" />
@@ -1043,10 +1131,10 @@ export function OnboardingDialog({
             {activeStep === 1 && terminalId && (
               <>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => focusActivityBar({ mode: 'activity', streamId: activityStreamId })}
-                  className="gap-1.5"
+                  className="gap-1.5 bg-bg-secondary text-text-primary hover:bg-bg-hover"
                   title="Open the shared Activity bar for live progress and output"
                 >
                   <Eye className="size-3.5" />
@@ -1056,21 +1144,21 @@ export function OnboardingDialog({
                   variant="outline"
                   size="sm"
                   onClick={() => setShowOutput(!showOutput)}
-                  className="gap-1.5"
+                  className="gap-1.5 bg-bg-secondary text-text-primary hover:bg-bg-hover"
                   title="Toggle raw AI tool output in this dialog"
                 >
                   <Terminal className="size-3.5" />
                   {showOutput ? 'Hide Output' : 'Show Output'}
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     suppressCancelRef.current = true;
                     onOpenChange(false);
                     onViewTerminal();
                   }}
-                  className="gap-1.5"
+                  className="gap-1.5 bg-bg-secondary text-text-primary hover:bg-bg-hover"
                   title="Close dialog and switch to the analysis terminal"
                 >
                   Open Terminal
@@ -1095,31 +1183,28 @@ export function OnboardingDialog({
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          onRetry();
-                          // Schedule analyze with double timeout after retry clears state
-                          setTimeout(() => {
-                            const opts: OnboardingAnalysisOptions = {
-                              timeoutOverride: (timeoutMs ?? 600_000) * 2,
-                            };
-                            if (customContext.trim()) opts.customContext = customContext.trim();
-                            if (extraFiles.length > 0) opts.extraFiles = extraFiles.map(f => f.path);
-                            onAnalyze(opts);
+                            onRetry();
+                            // Schedule analyze with double timeout after retry clears state
+                            setTimeout(() => {
+                            onAnalyze(buildAnalysisOptions({
+                              timeoutOverride: (timeoutMs ?? 300_000) * 2,
+                            }));
                           }, 100);
                         }}
                         className="gap-1.5"
                       >
                         <RotateCcw className="size-3.5" />
-                        Retry ({Math.floor((timeoutMs ?? 600_000) * 2 / 60_000)}m timeout)
+                        Retry ({Math.floor((timeoutMs ?? 300_000) * 2 / 60_000)}m timeout)
                       </Button>
                     )}
                   </>
                 )}
                 {!isAnalyzing && (
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={handleSkipAnalysis}
-                    className="gap-1.5"
+                    className="gap-1.5 bg-bg-secondary text-text-primary hover:bg-bg-hover"
                     title="Skip AI analysis and close — you can run it later from SubFrame Health"
                   >
                     <SkipForward className="size-3.5" />
@@ -1127,23 +1212,23 @@ export function OnboardingDialog({
                   </Button>
                 )}
                 {isAnalyzing ? (
-                  <Button variant="ghost" size="sm" onClick={onCancel}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onCancel}
+                    className="bg-bg-secondary text-text-primary hover:bg-bg-hover"
+                  >
                     Cancel
                   </Button>
                 ) : (
                   <Button
                     size="sm"
-                    onClick={() => {
-                      const opts: OnboardingAnalysisOptions = {};
-                      if (customContext.trim()) opts.customContext = customContext.trim();
-                      if (extraFiles.length > 0) opts.extraFiles = extraFiles.map(f => f.path);
-                      onAnalyze(Object.keys(opts).length > 0 ? opts : undefined);
-                    }}
-                    disabled={isAnalyzing || !detection?.worthAnalyzing}
+                    onClick={() => onAnalyze(buildAnalysisOptions())}
+                    disabled={isAnalyzing || selectedTool?.installed === false}
                     className="gap-1.5"
                   >
                     <Brain className="size-3.5" />
-                    {error ? 'Rerun Analysis' : analysisResult ? 'Rerun' : `Analyze with ${aiToolName}`}
+                    {error ? 'Rerun Analysis' : analysisResult ? 'Rerun' : `Analyze with ${selectedTool?.name ?? aiToolConfig?.activeTool.name ?? 'Claude Code'}`}
                   </Button>
                 )}
               </>
@@ -1153,13 +1238,13 @@ export function OnboardingDialog({
             {activeStep === 2 && (
               <>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     setActiveStep(1);
                     onRetry();
                   }}
-                  className="gap-1.5"
+                  className="gap-1.5 bg-bg-secondary text-text-primary hover:bg-bg-hover"
                 >
                   <RotateCcw className="size-3.5" />
                   Rerun Analysis
@@ -1198,11 +1283,11 @@ export function OnboardingDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="text-xs h-8">
+          <AlertDialogCancel className="text-xs h-8 bg-bg-secondary text-text-primary border-border-default hover:bg-bg-hover">
             Keep Open
           </AlertDialogCancel>
           <AlertDialogAction
-            className="text-xs h-8 bg-transparent border border-border-default text-text-secondary hover:bg-bg-hover"
+            className="text-xs h-8 bg-bg-secondary border border-border-default text-text-primary hover:bg-bg-hover"
             onClick={() => {
               onCancel();
               setShowCloseConfirm(false);
@@ -1235,30 +1320,45 @@ function ReviewSection({
   onCheckedChange,
   label,
   icon,
+  summary,
   children,
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   label: string;
   icon: React.ReactNode;
+  summary?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const [expanded, setExpanded] = useState(false);
   return (
-    <div className="rounded-md border border-border-subtle bg-bg-secondary p-3">
-      <label className="flex items-start gap-2.5 cursor-pointer">
-        <Checkbox
-          checked={checked}
-          onCheckedChange={(val) => onCheckedChange(val === true)}
-          className="mt-0.5"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
+    <div className="rounded-md border border-border-subtle bg-bg-secondary">
+      {/* Header row: checkbox + label + expand toggle */}
+      <div className="flex items-start gap-2.5 p-3">
+        <label className="cursor-pointer mt-0.5" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={checked}
+            onCheckedChange={(val) => onCheckedChange(val === true)}
+          />
+        </label>
+        <button
+          className="flex-1 min-w-0 text-left cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <div className="flex items-center gap-2">
             {icon}
             <span className="text-sm font-medium text-text-primary">{label}</span>
+            <ChevronDown className={cn('size-3.5 text-text-muted transition-transform ml-auto shrink-0', expanded && 'rotate-180')} />
           </div>
+          {!expanded && summary && <div className="mt-1">{summary}</div>}
+        </button>
+      </div>
+      {/* Expanded detail content */}
+      {expanded && (
+        <div className="px-3 pb-3 pt-0 ml-8 border-t border-border-subtle mt-0 pt-2">
           {children}
         </div>
-      </label>
+      )}
     </div>
   );
 }

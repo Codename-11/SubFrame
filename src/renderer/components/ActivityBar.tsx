@@ -13,10 +13,6 @@ import {
   Activity,
   ChevronUp,
   ChevronDown,
-  ChevronsUpDown,
-  Copy,
-  ExternalLink,
-  Globe,
   X,
   Check,
   Square,
@@ -26,22 +22,11 @@ import {
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 import { useActivity } from '../hooks/useActivity';
-import { useIpcQuery } from '../hooks/useIpc';
 import { useOutputChannels, useOutputChannelLog, useClearOutputChannel } from '../hooks/useOutputChannels';
-import { useUIStore } from '../stores/useUIStore';
 import type { ActivityStatus } from '../../shared/activityTypes';
-import { IPC } from '../../shared/ipcChannels';
-import { typedInvoke } from '../lib/ipc';
 import { ACTIVITY_BAR_FOCUS_EVENT, type ActivityBarFocusDetail } from '../lib/activityBarEvents';
-import { toast } from 'sonner';
+import { TerminalMirror } from './TerminalMirror';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -256,75 +241,13 @@ function ModeToggle({
 
 export function ActivityBar() {
   const { streams, activeStream, outputLogs, cancelStream, clearStream, clearAllFinished, revision } = useActivity();
-  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const [expanded, setExpanded] = useState(false);
   const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
   const [pendingFocusStreamId, setPendingFocusStreamId] = useState<string | null>(null);
   const [mode, setMode] = useState<BarMode>('activity');
+  const [activityViewMode, setActivityViewMode] = useState<'log' | 'session'>('log');
   const [showOutputPanel, setShowOutputPanel] = useState(false);
   const logEndRef = useRef<HTMLDivElement | null>(null);
-  const { data: webServerInfo } = useIpcQuery(IPC.WEB_SERVER_INFO, [], {
-    staleTime: 5_000,
-    refetchInterval: 5_000,
-  });
-  const webStatus = useMemo(() => {
-    if (!webServerInfo) {
-      return null;
-    }
-    if (webServerInfo.lastStartError) {
-      return {
-        label: 'Web Error',
-        className: 'bg-error/15 text-error hover:text-error',
-        title: webServerInfo.lastStartError,
-      };
-    }
-    if (webServerInfo.clientConnected) {
-      return {
-        label: 'Web Live',
-        className: 'bg-accent/20 text-accent',
-        title: `Remote client connected via ${webServerInfo.lanMode ? 'LAN' : 'local-only'} mode`,
-      };
-    }
-    if (webServerInfo.enabled) {
-      return {
-        label: 'Web Ready',
-        className: 'bg-bg-tertiary text-text-secondary hover:text-text-primary',
-        title: `Server running on port ${webServerInfo.port}${webServerInfo.startOnLaunch ? ' • starts on launch' : ''}`,
-      };
-    }
-    return {
-      label: 'Web Off',
-      className: 'bg-bg-tertiary/70 text-text-muted hover:text-text-secondary',
-      title: webServerInfo.startOnLaunch
-        ? 'Server is off for this session but will start on launch'
-        : 'Server is off. Start it here or from Settings.',
-    };
-  }, [webServerInfo]);
-  const webServerBaseUrl = webServerInfo?.enabled && webServerInfo.port
-    ? `http://${webServerInfo.lanMode && webServerInfo.lanIp ? webServerInfo.lanIp : 'localhost'}:${webServerInfo.port}`
-    : '';
-  const webServerConnectionUrl = webServerInfo?.enabled && webServerInfo.port && webServerInfo.token
-    ? `${webServerBaseUrl}/?token=${webServerInfo.token}`
-    : '';
-
-  const copyToClipboard = useCallback(async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success(`${label} copied`);
-    } catch {
-      toast.error(`Failed to copy ${label.toLowerCase()}`);
-    }
-  }, []);
-
-  const toggleWebServer = useCallback(async () => {
-    if (!webServerInfo) return;
-    try {
-      await typedInvoke(IPC.WEB_SERVER_TOGGLE, !webServerInfo.enabled);
-      toast.success(!webServerInfo.enabled ? 'SubFrame Server started' : 'SubFrame Server stopped');
-    } catch {
-      toast.error(!webServerInfo.enabled ? 'Failed to start SubFrame Server' : 'Failed to stop SubFrame Server');
-    }
-  }, [webServerInfo]);
 
   // Listen for external toggle from StatusBar
   useEffect(() => {
@@ -384,6 +307,9 @@ export function ActivityBar() {
     if (activeStream?.status === 'running') {
       setSelectedStreamId(activeStream.id);
       setMode('activity');
+      if (!activeStream.terminalId) {
+        setActivityViewMode('log');
+      }
     }
   }, [activeStream?.id, activeStream?.status]);
 
@@ -409,6 +335,12 @@ export function ActivityBar() {
     }
     return activeStream;
   }, [selectedStreamId, streams, activeStream]);
+
+  useEffect(() => {
+    if (!displayStream?.terminalId && activityViewMode === 'session') {
+      setActivityViewMode('log');
+    }
+  }, [activityViewMode, displayStream?.terminalId]);
 
   // Get log lines for displayed stream
   const logLines = useMemo(() => {
@@ -498,58 +430,6 @@ export function ActivityBar() {
 
         {/* Right: elapsed + stream count + toggle */}
         <span className="flex items-center gap-1.5 shrink-0">
-          {webStatus && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  onClick={(e) => e.stopPropagation()}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-medium transition-colors',
-                    webStatus.className,
-                  )}
-                  title={webStatus.title}
-                >
-                  <Globe size={10} />
-                  <span>{webStatus.label}</span>
-                  <ChevronsUpDown size={9} className="opacity-70" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[220px]">
-                <DropdownMenuItem
-                  onClick={toggleWebServer}
-                  className="text-xs cursor-pointer"
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  {webServerInfo?.enabled ? 'Stop SubFrame Server' : 'Start SubFrame Server'}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setSettingsOpen(true)}
-                  className="text-xs cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Open Server Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => copyToClipboard(webServerBaseUrl, 'Base URL')}
-                  disabled={!webServerBaseUrl}
-                  className="text-xs cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  Copy Base URL
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => copyToClipboard(webServerConnectionUrl, 'Connection URL')}
-                  disabled={!webServerConnectionUrl}
-                  className="text-xs cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  Copy Connection URL
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
           {mode === 'activity' && elapsed && (
             <span className="text-[10px] text-accent tabular-nums">
               {elapsed}
@@ -622,6 +502,34 @@ export function ActivityBar() {
                   ))}
 
                   <div className="ml-auto flex items-center gap-0.5 shrink-0">
+                    {displayStream?.terminalId && (
+                      <div className="flex items-center gap-0.5 mr-1">
+                        <button
+                          type="button"
+                          onClick={() => setActivityViewMode('log')}
+                          className={cn(
+                            'px-2 py-0.5 rounded text-[10px] transition-colors',
+                            activityViewMode === 'log'
+                              ? 'bg-accent/20 text-accent'
+                              : 'text-text-muted hover:text-text-secondary'
+                          )}
+                        >
+                          Log
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActivityViewMode('session')}
+                          className={cn(
+                            'px-2 py-0.5 rounded text-[10px] transition-colors',
+                            activityViewMode === 'session'
+                              ? 'bg-accent/20 text-accent'
+                              : 'text-text-muted hover:text-text-secondary'
+                          )}
+                        >
+                          Session
+                        </button>
+                      </div>
+                    )}
                     {/* Cancel button for running streams */}
                     {displayStream?.status === 'running' && (
                       <Button
@@ -655,37 +563,45 @@ export function ActivityBar() {
                 </div>
 
                 {/* Log area */}
-                <ScrollArea className="flex-1 min-h-0">
-                  <div className="p-2 bg-bg-deep">
-                    {hasStreams ? (
-                      logLines.length === 0 ? (
+                {activityViewMode === 'session' && displayStream?.terminalId ? (
+                  <div className="flex-1 min-h-0 bg-bg-deep p-2">
+                    <div className="h-full overflow-hidden rounded border border-border-subtle">
+                      <TerminalMirror terminalId={displayStream.terminalId} className="h-full w-full" />
+                    </div>
+                  </div>
+                ) : (
+                  <ScrollArea className="flex-1 min-h-0">
+                    <div className="p-2 bg-bg-deep">
+                      {hasStreams ? (
+                        logLines.length === 0 ? (
+                          <div className="flex items-center justify-center h-full py-8">
+                            <span className="text-[11px] text-text-muted">
+                              {displayStream?.status === 'pending'
+                                ? 'Waiting to start...'
+                                : 'No output yet'}
+                            </span>
+                          </div>
+                        ) : (
+                          logLines.map((line, i) => (
+                            <div
+                              key={i}
+                              className="text-[11px] font-mono text-text-secondary leading-[1.6] break-all"
+                            >
+                              {line || '\u00A0'}
+                            </div>
+                          ))
+                        )
+                      ) : (
                         <div className="flex items-center justify-center h-full py-8">
                           <span className="text-[11px] text-text-muted">
-                            {displayStream?.status === 'pending'
-                              ? 'Waiting to start...'
-                              : 'No output yet'}
+                            No activity streams
                           </span>
                         </div>
-                      ) : (
-                        logLines.map((line, i) => (
-                          <div
-                            key={i}
-                            className="text-[11px] font-mono text-text-secondary leading-[1.6] break-all"
-                          >
-                            {line || '\u00A0'}
-                          </div>
-                        ))
-                      )
-                    ) : (
-                      <div className="flex items-center justify-center h-full py-8">
-                        <span className="text-[11px] text-text-muted">
-                          No activity streams
-                        </span>
-                      </div>
-                    )}
-                    <div ref={logEndRef} />
-                  </div>
-                </ScrollArea>
+                      )}
+                      <div ref={logEndRef} />
+                    </div>
+                  </ScrollArea>
+                )}
               </div>
             ) : (
               /* ── Output Channels View ──────────────────────────────────── */

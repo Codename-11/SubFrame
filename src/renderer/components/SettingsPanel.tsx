@@ -23,7 +23,7 @@ import {
   Github, FileText, Sparkles, Scale, Info, Check, RotateCcw, Save,
   Palette, SlidersHorizontal, TerminalSquare, Code2, Bot, Download, Search, Globe,
   Zap, ChevronDown, ChevronRight, Pencil, Wand2, Play, Shield, FileCode, Bell,
-  Monitor, Wifi, Copy, QrCode, AlertTriangle, Smartphone,
+  Monitor, Wifi, Copy, QrCode, AlertTriangle, Smartphone, FolderX, Eye,
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -32,7 +32,7 @@ import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import { useIpcQuery } from '../hooks/useIpc';
 import { useIPCEvent } from '../hooks/useIPCListener';
-import { IPC, type ShellInfo, type WorkspaceListResult } from '../../shared/ipcChannels';
+import { IPC, type ShellInfo, type WorkspaceListResult, type UninstallOptions, type UninstallResult } from '../../shared/ipcChannels';
 import { WebServerSetup } from './WebServerSetup';
 import { toast } from 'sonner';
 import { EDITOR_THEMES } from '../lib/codemirror-theme';
@@ -40,12 +40,15 @@ import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
 import {
   DEFAULT_WORKSPACE_PILL_DISPLAY,
+  WORKSPACE_ACCENT_OPTIONS,
   WORKSPACE_ICON_COMPONENTS,
   WORKSPACE_ICON_OPTIONS,
   getWorkspacePillPresentation,
+  normalizeWorkspaceAccentColor,
   normalizeWorkspaceIcon,
   normalizeWorkspacePillDisplay,
   normalizeWorkspaceShortLabel,
+  withWorkspaceAccentAlpha,
   type WorkspacePillDisplaySettings,
 } from '../lib/workspacePills';
 import {
@@ -124,6 +127,7 @@ const NAV_ITEMS = [
   { key: 'ai-tool', label: 'AI Tool', icon: Bot },
   { key: 'hooks', label: 'Hooks', icon: Zap },
   { key: 'integrations', label: 'Integrations', icon: Globe },
+  { key: 'project', label: 'Project', icon: FolderOpen },
   { key: 'updates', label: 'Updates', icon: Download },
   { key: 'about', label: 'About', icon: Info },
 ] as const;
@@ -177,6 +181,10 @@ const SECTION_LABELS: Record<string, string[]> = {
   updates: [
     'Auto-check for updates', 'Pre-release Channel',
     'Check Interval', 'Update Preferences',
+  ],
+  project: [
+    'Uninstall', 'Remove SubFrame', 'AGENTS.md', 'Hooks', 'Git Hooks',
+    'Backlinks', 'Skills', 'Danger Zone', 'Rollback',
   ],
   about: [
     'SubFrame', 'GitHub', 'Report Issue', "What's New",
@@ -263,6 +271,264 @@ function SettingGroup({ label, children }: { label: string; children: React.Reac
       <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1.5">{label}</div>
       <div className="bg-bg-secondary/50 rounded-lg p-3 space-y-3">{children}</div>
     </div>
+  );
+}
+
+/* ---------- Project Uninstall Section ---------- */
+
+const UNINSTALL_ITEMS: Array<{
+  key: keyof UninstallOptions;
+  label: string;
+  description: string;
+  warnIfModified?: string;
+}> = [
+  { key: 'removeSubframeDir', label: '.subframe/ directory', description: 'Config, structure map, tasks, notes, internal docs' },
+  { key: 'removeClaudeHooks', label: 'Claude hooks', description: 'SessionStart, UserPromptSubmit, Stop hooks from .claude/settings.json' },
+  { key: 'removeClaudeSkills', label: 'Claude skills', description: '/sub-tasks, /sub-docs, /sub-audit, /onboard from .claude/skills/' },
+  { key: 'removeGitHooks', label: 'Git hooks', description: 'pre-commit hook installed by SubFrame' },
+  { key: 'removeBacklinks', label: 'Backlinks', description: 'SubFrame reference blocks from CLAUDE.md, GEMINI.md' },
+  { key: 'removeAgentsMd', label: 'AGENTS.md', description: 'The AGENTS.md file managed by SubFrame', warnIfModified: 'Other tools (Claude Code, Codex) may also use this file' },
+];
+
+function ProjectUninstallSection({ projectPath }: { projectPath: string | null }) {
+  const isFrameProject = useProjectStore((s) => s.isFrameProject);
+  const [opts, setOpts] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    UNINSTALL_ITEMS.forEach((item) => { initial[item.key] = true; });
+    return initial;
+  });
+  const [previewResult, setPreviewResult] = useState<UninstallResult | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [confirmStep, setConfirmStep] = useState(0); // 0=idle, 1=confirmed once, 2=executing
+  const [result, setResult] = useState<UninstallResult | null>(null);
+
+  // Listen for uninstall results
+  useEffect(() => {
+    const handler = (_event: unknown, data: { projectPath: string; result: UninstallResult | null }) => {
+      if (data.result) {
+        if (data.result.dryRun) {
+          setPreviewResult(data.result);
+          setShowPreview(true);
+        } else {
+          setResult(data.result);
+          setConfirmStep(0);
+          if (data.result.success) {
+            useProjectStore.getState().setIsFrameProject(false);
+            toast.success('SubFrame removed from project');
+          }
+        }
+      }
+    };
+    return getTransport().on(IPC.SUBFRAME_UNINSTALLED, handler);
+  }, []);
+
+  const toggle = (key: string) => {
+    setOpts((prev) => ({ ...prev, [key]: !prev[key] }));
+    setPreviewResult(null);
+    setShowPreview(false);
+    setConfirmStep(0);
+  };
+
+  const buildOptions = (dryRun: boolean): UninstallOptions => ({
+    removeClaudeHooks: opts.removeClaudeHooks ?? true,
+    removeGitHooks: opts.removeGitHooks ?? true,
+    removeBacklinks: opts.removeBacklinks ?? true,
+    removeAgentsMd: opts.removeAgentsMd ?? true,
+    removeClaudeSkills: opts.removeClaudeSkills ?? true,
+    removeSubframeDir: opts.removeSubframeDir ?? true,
+    dryRun,
+  });
+
+  const handlePreview = () => {
+    if (!projectPath) return;
+    typedSend(IPC.UNINSTALL_SUBFRAME, { projectPath, options: buildOptions(true) });
+  };
+
+  const handleUninstall = () => {
+    if (!projectPath) return;
+    if (confirmStep === 0) {
+      setConfirmStep(1);
+      return;
+    }
+    setConfirmStep(2);
+    typedSend(IPC.UNINSTALL_SUBFRAME, { projectPath, options: buildOptions(false) });
+  };
+
+  if (!projectPath) {
+    return (
+      <SettingGroup label="Project">
+        <div className="text-sm text-text-tertiary py-4 text-center">No project selected</div>
+      </SettingGroup>
+    );
+  }
+
+  if (!isFrameProject) {
+    return (
+      <SettingGroup label="Project">
+        <div className="text-sm text-text-tertiary py-4 text-center">
+          This project is not initialized as a SubFrame project
+        </div>
+      </SettingGroup>
+    );
+  }
+
+  const selectedCount = Object.values(opts).filter(Boolean).length;
+
+  return (
+    <>
+      {/* Success result */}
+      {result?.success && !result.dryRun && (
+        <SettingGroup label="Result">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-success">
+              <Check className="w-4 h-4" />
+              SubFrame has been removed from this project
+            </div>
+            {result.removed.length > 0 && (
+              <div className="text-xs text-text-tertiary">
+                <div className="font-medium text-text-secondary mb-1">Removed:</div>
+                {result.removed.map((item, i) => (
+                  <div key={i} className="flex items-center gap-1.5 pl-2">
+                    <Trash2 className="w-3 h-3 text-error/60 shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {result.preserved.length > 0 && (
+              <div className="text-xs text-text-tertiary">
+                <div className="font-medium text-text-secondary mb-1">Preserved:</div>
+                {result.preserved.map((item, i) => (
+                  <div key={i} className="flex items-center gap-1.5 pl-2">
+                    <Shield className="w-3 h-3 text-success/60 shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </SettingGroup>
+      )}
+
+      {/* Main uninstall UI (only when not already uninstalled) */}
+      {!(result?.success && !result.dryRun) && (
+        <>
+          <SettingGroup label="Remove SubFrame">
+            <div className="text-xs text-text-tertiary mb-2">
+              Select which SubFrame components to remove from this project.
+              Your source code is never affected.
+            </div>
+            <div className="space-y-1">
+              {UNINSTALL_ITEMS.map((item) => {
+                const isSelected = opts[item.key] ?? true;
+                const preservedEntry = previewResult?.preserved.find((p) =>
+                  p.toLowerCase().includes(item.label.toLowerCase().replace(/[./]/g, ''))
+                  || (item.key === 'removeAgentsMd' && p.toLowerCase().includes('agents'))
+                );
+                const isModified = !!preservedEntry;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => toggle(item.key)}
+                    className={cn(
+                      'flex items-start gap-3 w-full text-left px-2.5 py-2 rounded-md transition-colors cursor-pointer',
+                      isSelected ? 'bg-error/5 hover:bg-error/10' : 'hover:bg-bg-hover',
+                    )}
+                  >
+                    <div className={cn(
+                      'mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors',
+                      isSelected ? 'bg-error/80 border-error/80 text-white' : 'border-border-default bg-bg-deep',
+                    )}>
+                      {isSelected && <Check className="w-3 h-3" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-text-primary">{item.label}</div>
+                      <div className="text-xs text-text-tertiary">{item.description}</div>
+                      {isModified && isSelected && (
+                        <div className="flex items-center gap-1 mt-1 text-xs text-warning">
+                          <AlertTriangle className="w-3 h-3 shrink-0" />
+                          <span>Modified — {preservedEntry}</span>
+                          {item.warnIfModified && (
+                            <span className="text-text-muted">({item.warnIfModified})</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </SettingGroup>
+
+          {/* Preview results */}
+          {showPreview && previewResult && (
+            <SettingGroup label="Preview">
+              <div className="space-y-2 text-xs">
+                {previewResult.removed.length > 0 && (
+                  <div>
+                    <div className="font-medium text-error/80 mb-1">Will be removed:</div>
+                    {previewResult.removed.map((item, i) => (
+                      <div key={i} className="flex items-center gap-1.5 pl-2 text-text-secondary">
+                        <Trash2 className="w-3 h-3 text-error/50 shrink-0" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {previewResult.preserved.length > 0 && (
+                  <div>
+                    <div className="font-medium text-success/80 mb-1">Will be preserved:</div>
+                    {previewResult.preserved.map((item, i) => (
+                      <div key={i} className="flex items-center gap-1.5 pl-2 text-text-secondary">
+                        <Shield className="w-3 h-3 text-success/50 shrink-0" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </SettingGroup>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreview}
+              disabled={selectedCount === 0 || confirmStep === 2}
+              className="text-xs"
+            >
+              <Eye className="w-3.5 h-3.5 mr-1" />
+              Preview Changes
+            </Button>
+            <Button
+              variant={confirmStep >= 1 ? 'destructive' : 'outline'}
+              size="sm"
+              onClick={handleUninstall}
+              disabled={selectedCount === 0 || confirmStep === 2}
+              className={cn('text-xs', confirmStep === 0 && 'text-error hover:bg-error/10 hover:text-error border-error/30')}
+            >
+              {confirmStep === 2 ? (
+                <><RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />Removing...</>
+              ) : confirmStep === 1 ? (
+                <><AlertTriangle className="w-3.5 h-3.5 mr-1" />Confirm Remove</>
+              ) : (
+                <><FolderX className="w-3.5 h-3.5 mr-1" />Remove SubFrame</>
+              )}
+            </Button>
+            {confirmStep === 1 && (
+              <button
+                onClick={() => setConfirmStep(0)}
+                className="text-xs text-text-muted hover:text-text-secondary cursor-pointer"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
@@ -391,27 +657,42 @@ function WorkspacePillAppearanceRow({
   workspace,
   index,
   display,
+  highlighted = false,
   onSaved,
 }: {
   workspace: WorkspaceListResult['workspaces'][number];
   index: number;
   display: WorkspacePillDisplaySettings;
+  highlighted?: boolean;
   onSaved: () => void | Promise<unknown>;
 }) {
   const [shortLabel, setShortLabel] = useState(workspace.shortLabel ?? '');
   const [icon, setIcon] = useState(workspace.icon ?? '');
+  const [accentColor, setAccentColor] = useState(workspace.accentColor ?? '');
+  const [defaultProjectPath, setDefaultProjectPath] = useState(workspace.defaultProjectPath ?? '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setShortLabel(workspace.shortLabel ?? '');
     setIcon(workspace.icon ?? '');
-  }, [workspace.key, workspace.shortLabel, workspace.icon]);
+    setAccentColor(workspace.accentColor ?? '');
+    setDefaultProjectPath(workspace.defaultProjectPath ?? '');
+  }, [workspace.accentColor, workspace.defaultProjectPath, workspace.icon, workspace.key, workspace.shortLabel]);
 
   const normalizedShortLabel = normalizeWorkspaceShortLabel(shortLabel) ?? '';
   const normalizedIcon = normalizeWorkspaceIcon(icon) ?? '';
+  const normalizedAccentColor = normalizeWorkspaceAccentColor(accentColor) ?? '';
+  const normalizedDefaultProjectPath = defaultProjectPath.trim();
   const savedShortLabel = normalizeWorkspaceShortLabel(workspace.shortLabel) ?? '';
   const savedIcon = normalizeWorkspaceIcon(workspace.icon) ?? '';
-  const isDirty = normalizedShortLabel !== savedShortLabel || normalizedIcon !== savedIcon;
+  const savedAccentColor = normalizeWorkspaceAccentColor(workspace.accentColor) ?? '';
+  const savedDefaultProjectPath = workspace.defaultProjectPath ?? '';
+  const availableProjects = workspace.projects ?? [];
+  const isDirty =
+    normalizedShortLabel !== savedShortLabel
+    || normalizedIcon !== savedIcon
+    || normalizedAccentColor !== savedAccentColor
+    || normalizedDefaultProjectPath !== savedDefaultProjectPath;
 
   const preview = getWorkspacePillPresentation({
     display,
@@ -421,6 +702,12 @@ function WorkspacePillAppearanceRow({
     icon: normalizedIcon,
   });
   const PreviewIcon = preview.icon ? WORKSPACE_ICON_COMPONENTS[preview.icon] : null;
+  const previewAccent = normalizedAccentColor || null;
+  const previewStyle = previewAccent ? {
+    backgroundColor: withWorkspaceAccentAlpha(previewAccent, '22') ?? undefined,
+    borderColor: withWorkspaceAccentAlpha(previewAccent, '66') ?? previewAccent,
+    color: previewAccent,
+  } : undefined;
 
   const handleSave = useCallback(async () => {
     if (!isDirty || saving) return;
@@ -430,25 +717,49 @@ function WorkspacePillAppearanceRow({
         key: workspace.key,
         shortLabel: normalizedShortLabel || null,
         icon: normalizedIcon || null,
+        accentColor: normalizedAccentColor || null,
+        defaultProjectPath: normalizedDefaultProjectPath || null,
       });
       await onSaved();
+      typedSend(IPC.LOAD_WORKSPACE);
       toast.success(`Updated "${workspace.name}"`);
     } catch {
       toast.error('Failed to update workspace pill');
     } finally {
       setSaving(false);
     }
-  }, [isDirty, normalizedIcon, normalizedShortLabel, onSaved, saving, workspace.key, workspace.name]);
+  }, [
+    isDirty,
+    normalizedAccentColor,
+    normalizedDefaultProjectPath,
+    normalizedIcon,
+    normalizedShortLabel,
+    onSaved,
+    saving,
+    workspace.key,
+    workspace.name,
+  ]);
 
   const handleReset = useCallback(() => {
     setShortLabel(workspace.shortLabel ?? '');
     setIcon(workspace.icon ?? '');
-  }, [workspace.icon, workspace.shortLabel]);
+    setAccentColor(workspace.accentColor ?? '');
+    setDefaultProjectPath(workspace.defaultProjectPath ?? '');
+  }, [workspace.accentColor, workspace.defaultProjectPath, workspace.icon, workspace.shortLabel]);
 
   return (
-    <div className="rounded-lg border border-border-subtle bg-bg-secondary/40 p-3 space-y-3">
+    <div
+      data-workspace-key={workspace.key}
+      className={cn(
+        'rounded-lg border bg-bg-secondary/40 p-3 space-y-3 transition-colors',
+        highlighted ? 'border-accent bg-accent/5 ring-1 ring-accent/30' : 'border-border-subtle',
+      )}
+    >
       <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center min-w-[34px] h-7 px-2 rounded-md border border-border-subtle bg-bg-deep text-[10px] font-semibold tracking-wide text-text-primary">
+        <div
+          className="flex items-center justify-center min-w-[34px] h-7 px-2 rounded-md border border-border-subtle bg-bg-deep text-[10px] font-semibold tracking-wide text-text-primary"
+          style={previewStyle}
+        >
           {preview.indexText && <span className="font-mono">{preview.indexText}</span>}
           {PreviewIcon && <PreviewIcon className="w-3.5 h-3.5 shrink-0" />}
           {preview.text && (
@@ -458,14 +769,21 @@ function WorkspacePillAppearanceRow({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm text-text-primary truncate">{workspace.name}</div>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="text-sm text-text-primary truncate">{workspace.name}</div>
+            {workspace.inactive && (
+              <span className="rounded border border-border-subtle px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-text-muted">
+                Inactive
+              </span>
+            )}
+          </div>
           <div className="text-[10px] text-text-muted">
             #{index} · {workspace.projectCount} project{workspace.projectCount === 1 ? '' : 's'}
           </div>
         </div>
       </div>
 
-      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-end">
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px]">
         <div>
           <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1">Short Label</div>
           <Input
@@ -490,26 +808,79 @@ function WorkspacePillAppearanceRow({
             ))}
           </select>
         </div>
+      </div>
 
-        <div className="flex gap-2 md:justify-end">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleReset}
-            disabled={saving || !isDirty}
-            className="cursor-pointer"
-          >
-            Reset
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={saving || !isDirty}
-            className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </Button>
+      <div className="space-y-2">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1">Accent Color</div>
+          <div className="flex flex-wrap gap-2">
+            {WORKSPACE_ACCENT_OPTIONS.map((option) => {
+              const isSelected = (option.value ?? '') === normalizedAccentColor;
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => setAccentColor(option.value ?? '')}
+                  className={cn(
+                    'flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] transition-colors cursor-pointer',
+                    isSelected
+                      ? 'border-accent bg-accent/10 text-text-primary'
+                      : 'border-border-subtle bg-bg-deep text-text-secondary hover:bg-bg-hover',
+                  )}
+                  title={option.label}
+                >
+                  <span
+                    className="h-3 w-3 rounded-full border border-black/20"
+                    style={{ backgroundColor: option.value ?? 'var(--color-accent)' }}
+                  />
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-text-tertiary font-medium mb-1">Default Project</div>
+          <select
+            value={normalizedDefaultProjectPath}
+            onChange={(e) => setDefaultProjectPath(e.target.value)}
+            disabled={availableProjects.length === 0}
+            className="w-full h-9 bg-bg-deep border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:opacity-60"
+          >
+            <option value="">No default project</option>
+            {availableProjects.map((project) => (
+              <option key={project.path} value={project.path}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+          <div className="mt-1 text-[10px] text-text-muted">
+            {availableProjects.length > 0
+              ? 'When this workspace becomes active, SubFrame will prefer this project instead of falling back to the first entry.'
+              : 'Add projects to this workspace first to choose a default landing project.'}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 md:justify-end">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleReset}
+          disabled={saving || !isDirty}
+          className="cursor-pointer"
+        >
+          Reset
+        </Button>
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={saving || !isDirty}
+          className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
 
       <div className="text-[10px] text-text-muted">
@@ -522,8 +893,11 @@ function WorkspacePillAppearanceRow({
 /* ---------- Main component ---------- */
 
 export function SettingsPanel() {
-  const settingsOpen = useUIStore((s) => s.settingsOpen);
+  const settingsOpenStore = useUIStore((s) => s.settingsOpen);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
+  // Don't render the Dialog tree at all when closed — prevents Radix Presence
+  // ref errors (React #185) in web mode where the portal mount races with hydration.
+  const settingsOpen = settingsOpenStore;
   const { settings, updateSetting } = useSettings();
   const { config: aiToolConfig, setAITool, addCustomTool, removeCustomTool, refetch: refetchAITools } = useAIToolConfig();
   const [recheckingTools, setRecheckingTools] = useState(false);
@@ -533,6 +907,7 @@ export function SettingsPanel() {
 
   // Local form state
   const [activeTab, setActiveTab] = useState('appearance');
+  const [focusedWorkspaceKey, setFocusedWorkspaceKey] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [fontSize, setFontSize] = useState(14);
   const [scrollback, setScrollback] = useState(10000);
@@ -860,6 +1235,30 @@ export function SettingsPanel() {
     }
   }, [settings, aiToolConfig, dirtyToolDrafts]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail;
+      setSettingsOpen(true);
+      setActiveTab('appearance');
+      setSearchQuery('');
+      setFocusedWorkspaceKey(detail?.key ?? null);
+    };
+
+    window.addEventListener('open-workspace-settings', handler);
+    return () => window.removeEventListener('open-workspace-settings', handler);
+  }, [setSettingsOpen]);
+
+  const appearanceWorkspaceList = (workspaceListRaw as WorkspaceListResult | undefined)?.workspaces ?? [];
+
+  useEffect(() => {
+    if (!settingsOpen || activeTab !== 'appearance' || !focusedWorkspaceKey) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(`[data-workspace-key="${focusedWorkspaceKey}"]`);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, focusedWorkspaceKey, settingsOpen, workspaceListRaw]);
+
   // Fetch available shells for the terminal shell dropdown
   useEffect(() => {
     const handler = (_event: unknown, data: { shells: ShellInfo[]; success: boolean }) => {
@@ -874,8 +1273,6 @@ export function SettingsPanel() {
   const appearanceSettings = (settings.appearance as Record<string, unknown>) || {};
   const terminalSettings = (settings.terminal as Record<string, unknown>) || {};
   const workspacePillDisplay = normalizeWorkspacePillDisplay(appearanceSettings.workspacePillDisplay ?? appearanceSettings.workspacePillStyle);
-  const appearanceWorkspaceList = ((workspaceListRaw as WorkspaceListResult | undefined)?.workspaces ?? [])
-    .filter((workspace) => !workspace.inactive);
   const autoCreateTerminal = (general.autoCreateTerminal as boolean) || false;
   const reuseIdleTerminal = general.reuseIdleTerminal !== false; // default true
   const showDotfiles = (general.showDotfiles as boolean) || false;
@@ -1221,9 +1618,12 @@ export function SettingsPanel() {
     return label.toLowerCase().includes(normalizedQuery);
   }
 
+  // Don't mount Dialog tree when closed — avoids Radix Presence ref errors in web mode
+  if (!settingsOpen) return null;
+
   return (
     <>
-    <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+    <Dialog open onOpenChange={setSettingsOpen}>
       <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-[1100px] !flex !flex-col h-[88vh] max-h-[920px] overflow-hidden p-0" aria-describedby={undefined}>
         <DialogHeader className="shrink-0 px-6 pt-6">
           <DialogTitle>Settings</DialogTitle>
@@ -1624,7 +2024,7 @@ export function SettingsPanel() {
 
                     <div className="space-y-2">
                       <div className="text-xs text-text-tertiary">
-                        Set an optional short label and icon per workspace. Short labels are capped at 4 characters.
+                        Set per-workspace short labels, icons, accent colors, and default landing projects. Short labels are capped at 4 characters.
                       </div>
                       {appearanceWorkspaceList.length > 0 ? (
                         appearanceWorkspaceList.map((workspace, index) => (
@@ -1633,6 +2033,7 @@ export function SettingsPanel() {
                             workspace={workspace}
                             index={index + 1}
                             display={workspacePillDisplay}
+                            highlighted={focusedWorkspaceKey === workspace.key}
                             onSaved={refetchWorkspaceList}
                           />
                         ))
@@ -3390,6 +3791,11 @@ export function SettingsPanel() {
                   </Button>
                 </div>
               </>
+            )}
+
+            {/* ===== Project ===== */}
+            {activeTab === 'project' && (
+              <ProjectUninstallSection projectPath={currentProjectPath} />
             )}
 
             {/* ===== About ===== */}
