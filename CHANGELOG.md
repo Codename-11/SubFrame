@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.2-beta] - 2026-03-28
+
+### Fixed
+- **Multiline user message markers** — left-border decoration now spans the full message height instead of a single row
+- **Bracketed paste detection** — pasted text in terminals was silently dropped from the input buffer; now strips ESC wrappers and accumulates correctly
+- **Terminal web links** — require Ctrl/Cmd+Click to open URLs (was opening on any click)
+- **Release workflow** — releases no longer marked as pre-release while project is beta-only
+
 ## [0.11.1-beta] - 2026-03-28
 
 ### Added
