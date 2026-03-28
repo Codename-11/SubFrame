@@ -2287,7 +2287,7 @@ export function SettingsPanel() {
                         label="Collapsed pill count"
                         description="Workspace pills visible before hovering to expand (active workspaces shown first)"
                         value={String((settings?.general as Record<string, unknown>)?.collapsedWorkspaceCount ?? 3)}
-                        onChange={(v) => updateSetting('general.collapsedWorkspaceCount', parseInt(v, 10))}
+                        onChange={(v) => updateSetting.mutate([{ key: 'general.collapsedWorkspaceCount', value: parseInt(v, 10) }])}
                         options={[
                           { value: '2', label: '2' },
                           { value: '3', label: '3 (default)' },
@@ -2302,7 +2302,7 @@ export function SettingsPanel() {
                         label="Max expanded workspaces"
                         description="Maximum workspace pills visible on hover before horizontal scroll"
                         value={String((settings?.general as Record<string, unknown>)?.maxVisibleWorkspaces ?? 12)}
-                        onChange={(v) => updateSetting('general.maxVisibleWorkspaces', parseInt(v, 10))}
+                        onChange={(v) => updateSetting.mutate([{ key: 'general.maxVisibleWorkspaces', value: parseInt(v, 10) }])}
                         options={[
                           { value: '6', label: '6' },
                           { value: '8', label: '8' },

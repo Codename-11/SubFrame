@@ -1733,6 +1733,12 @@ export interface IPCSendMap {
   // Activity Streams
   [IPC.ACTIVITY_CLEAR]: string; // streamId
 
+  // Session Control
+  [IPC.SESSION_CONTROL_REQUEST]: void;
+  [IPC.SESSION_CONTROL_GRANT]: void;
+  [IPC.SESSION_CONTROL_TAKE]: void;
+  [IPC.SESSION_CONTROL_RELEASE]: void;
+
   // API Server bridge (renderer → main responses)
   [IPC.API_SELECTION_SYNC]: { terminalId: string; text: string };
   [IPC.API_RENDERER_RESPONSE]: { requestId: string; payload: unknown };

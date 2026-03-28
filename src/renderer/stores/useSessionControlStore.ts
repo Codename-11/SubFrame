@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { SessionControlState } from '../../shared/ipcChannels';
 import { getTransport } from '../lib/transportProvider';
 
-interface SessionControlStore extends SessionControlState {
+export interface SessionControlStore extends SessionControlState {
   /** True when running in Electron (false for web client) */
   isElectronSide: boolean;
   /** Current side has input control */
