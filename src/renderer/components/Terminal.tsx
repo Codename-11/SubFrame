@@ -98,6 +98,8 @@ export function Terminal({ terminalId, className }: TerminalProps) {
   const [hasMessageAbove, setHasMessageAbove] = useState(false);
   const [hasMessageBelow, setHasMessageBelow] = useState(false);
   const inputBufferRef = useRef('');
+  /** Absolute buffer line where user input started — used to compute multiline marker height */
+  const inputStartLineRef = useRef(-1);
   // Stable refs for message stepping — avoids stale closures in attachCustomKeyEventHandler
   const prevMessageRef = useRef<() => void>(() => {});
   const nextMessageRef = useRef<() => void>(() => {});
@@ -189,8 +191,20 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       // Suppress if a pattern-based marker was placed in the last 2 seconds (same message)
       if (now - lastPatternMarkerTime.current < 2000) return;
 
+      // Compute multiline height from inputStartLine → current cursor
+      const instance = terminalRegistry.get(terminalId);
+      let height = 1;
+      let markerOffset = -1;
+      if (instance && inputStartLineRef.current >= 0) {
+        const cursorAbsLine = instance.terminal.buffer.active.cursorY + instance.terminal.buffer.active.baseY;
+        height = Math.max(1, cursorAbsLine - inputStartLineRef.current);
+        // Offset marker back to the start of the message block
+        markerOffset = -(height);
+      }
+
       lastIpcMarkerTime.current = now;
-      terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor);
+      inputStartLineRef.current = -1;
+      terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor, height, markerOffset);
     };
     return getTransport().on(IPC.USER_MESSAGE_SIGNAL, handler);
   }, [highlightUserMessages, terminalId, userMessageColor]);
@@ -208,7 +222,10 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       if (data === '\r' || data === '\n') {
         const typed = inputBufferRef.current.trim();
         inputBufferRef.current = '';
-        if (typed.length === 0) return;
+        if (typed.length === 0) {
+          inputStartLineRef.current = -1;
+          return;
+        }
         if (!terminalRegistry.wasRecentlyActive(terminalId)) return;
 
         // Check the buffer line at cursor-1 for the Claude prompt marker `❯`
@@ -227,15 +244,32 @@ export function Terminal({ terminalId, className }: TerminalProps) {
           // Suppress if IPC already placed a marker in the last 2 seconds (same message)
           if (now - lastIpcMarkerTime.current < 2000) return;
 
+          // Compute multiline height
+          let height = 1;
+          let markerOffset = -1;
+          if (inputStartLineRef.current >= 0) {
+            height = Math.max(1, cursorY - inputStartLineRef.current);
+            markerOffset = -(height);
+          }
+
           lastPatternMarkerTime.current = now;
-          terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor);
+          inputStartLineRef.current = -1;
+          terminalRegistry.addUserMessageMarker(terminalId, true, userMessageColor, height, markerOffset);
         }
       } else if (data === '\x7f' || data === '\b') {
         inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-      } else if (data.length === 1 && data >= ' ') {
-        inputBufferRef.current += data;
-      } else if (data.length > 1 && !data.startsWith('\x1b')) {
-        inputBufferRef.current += data;
+      } else {
+        // Track start line on first character of input
+        if (inputBufferRef.current.length === 0 && inputStartLineRef.current < 0) {
+          const terminal = instance.terminal;
+          inputStartLineRef.current = terminal.buffer.active.cursorY + terminal.buffer.active.baseY;
+        }
+        // Accumulate printable chars and paste blocks (strip bracketed paste wrappers)
+        // eslint-disable-next-line no-control-regex
+        const cleaned = data.replace(/\x1b\[20[01]~/g, '');
+        if (cleaned.length > 0) {
+          inputBufferRef.current += cleaned;
+        }
       }
     });
 

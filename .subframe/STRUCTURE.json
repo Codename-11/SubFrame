@@ -8333,43 +8333,43 @@
           "line": 450
         },
         "addUserMessageMarker": {
-          "line": 458
+          "line": 464
         },
         "getUserMessageMarkers": {
-          "line": 508
+          "line": 519
         },
         "clearUserMessageMarkers": {
-          "line": 513
-        },
-        "setLastActive": {
           "line": 524
         },
+        "setLastActive": {
+          "line": 535
+        },
         "wasRecentlyActive": {
-          "line": 530
+          "line": 541
         },
         "getTooltip": {
-          "line": 542
+          "line": 553
         },
         "showLinkTooltip": {
-          "line": 560
+          "line": 571
         },
         "hideLinkTooltip": {
-          "line": 569
+          "line": 580
         },
         "getCtrlLabel": {
-          "line": 574
+          "line": 585
         },
         "registerWebLinkProvider": {
-          "line": 589
+          "line": 600
         },
         "registerFilePathLinkProvider": {
-          "line": 687
+          "line": 698
         },
         "initAPIBridge": {
-          "line": 769
+          "line": 780
         },
         "registerSelectionSync": {
-          "line": 848
+          "line": 859
         }
       }
     },

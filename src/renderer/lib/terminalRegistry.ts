@@ -454,14 +454,25 @@ export function get(id: string): TerminalInstance | null {
 /**
  * Register a user message marker at the terminal's current cursor position.
  * Creates an xterm marker + optional left-border decoration.
+ *
+ * @param height Number of terminal rows the marker should span (default 1).
+ *               For multiline user messages, pass the line count so the
+ *               left-border decoration covers the full message block.
+ * @param markerOffset Offset from cursor for the marker (default -1, meaning
+ *                     the line above current cursor).
  */
-export function addUserMessageMarker(id: string, showDecoration: boolean, color = '#ff6eb4'): IMarker | null {
+export function addUserMessageMarker(
+  id: string,
+  showDecoration: boolean,
+  color = '#ff6eb4',
+  height = 1,
+  markerOffset = -1,
+): IMarker | null {
   const entry = registry.get(id);
   if (!entry) return null;
 
   const terminal = entry.terminal;
-  // Offset -1: cursor has already moved to the next line by the time onData fires
-  const marker = terminal.registerMarker(-1);
+  const marker = terminal.registerMarker(markerOffset);
   if (!marker) return null;
 
   let decoration: IDecoration | undefined;
@@ -470,7 +481,7 @@ export function addUserMessageMarker(id: string, showDecoration: boolean, color 
       marker,
       anchor: 'left',
       width: 1,
-      height: 1,
+      height: Math.max(1, height),
       overviewRulerOptions: { color, position: 'left' },
     });
     if (decoration) {
