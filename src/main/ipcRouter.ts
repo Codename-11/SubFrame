@@ -79,6 +79,7 @@ export function routeSend(channel: string, args: unknown[] = [], transport?: Rou
   });
   const reply = transport?.reply ?? sendToSender;
   const routedEvent = {
+    __wsRouted: true,
     sender: {
       send(replyChannel: string, payload?: unknown) {
         sendToSender(replyChannel, payload);
@@ -91,6 +92,11 @@ export function routeSend(channel: string, args: unknown[] = [], transport?: Rou
   for (const handler of handlers) {
     handler(routedEvent, ...args);
   }
+}
+
+/** Returns true if the event originated from a WebSocket client (not Electron IPC). */
+export function isWSEvent(event: unknown): boolean {
+  return !!(event && typeof event === 'object' && (event as Record<string, unknown>).__wsRouted);
 }
 
 /** Check if a handler is registered for an invoke channel */

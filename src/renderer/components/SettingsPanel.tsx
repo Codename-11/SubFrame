@@ -60,6 +60,7 @@ import {
 } from '../../shared/themeTypes';
 
 import { getTransport } from '../lib/transportProvider';
+import { useUpdater } from '../hooks/useUpdater';
 const APP_VERSION = require('../../../package.json').version;
 
 const BUILTIN_TOOL_IDS = new Set(['claude', 'codex', 'gemini']);
@@ -942,6 +943,7 @@ export function SettingsPanel() {
   const [autoCheck, setAutoCheck] = useState(true);
   const [allowPrerelease, setAllowPrerelease] = useState('auto');
   const [checkIntervalHours, setCheckIntervalHours] = useState(4);
+  const updater = useUpdater();
 
   // Appearance / theme state
   const [activeThemeId, setActiveThemeId] = useState('classic-amber');
@@ -1246,7 +1248,22 @@ export function SettingsPanel() {
     };
 
     window.addEventListener('open-workspace-settings', handler);
-    return () => window.removeEventListener('open-workspace-settings', handler);
+
+    // Generic section opener (e.g. from StatusBar web badge)
+    const sectionHandler = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail;
+      if (detail?.key) {
+        setSettingsOpen(true);
+        setActiveTab(detail.key);
+        setSearchQuery('');
+      }
+    };
+    window.addEventListener('open-settings-section', sectionHandler);
+
+    return () => {
+      window.removeEventListener('open-workspace-settings', handler);
+      window.removeEventListener('open-settings-section', sectionHandler);
+    };
   }, [setSettingsOpen]);
 
   const appearanceWorkspaceList = (workspaceListRaw as WorkspaceListResult | undefined)?.workspaces ?? [];
@@ -2711,6 +2728,12 @@ export function SettingsPanel() {
                                       Custom
                                     </span>
                                   )}
+                                  {hasDangerousFlag && (
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-error/15 text-error shrink-0">
+                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                      YOLO
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-xs text-text-tertiary truncate mt-0.5">
                                   {tool.installed === false
@@ -2812,6 +2835,8 @@ export function SettingsPanel() {
                                         markToolDraftDirty(tool.id);
                                         setToolCustomArgs((prev) => ({ ...prev, [tool.id]: e.target.value }));
                                       }}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onMouseDown={(e) => e.stopPropagation()}
                                       onKeyDown={(e) => e.stopPropagation()}
                                       placeholder="e.g. --max-turns 15"
                                       className="bg-bg-deep border-border-subtle text-xs"
@@ -3828,6 +3853,62 @@ export function SettingsPanel() {
                     Check Now
                   </Button>
                 </div>
+
+                {/* Update status & actions */}
+                {updater.status !== 'idle' && updater.status !== 'not-available' && (
+                  <SettingGroup label="Update Status">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs">
+                        {updater.status === 'checking' && (
+                          <span className="text-text-secondary">Checking for updates...</span>
+                        )}
+                        {updater.status === 'available' && (
+                          <span className="text-accent">v{updater.version ?? '?'} available</span>
+                        )}
+                        {updater.status === 'downloading' && (
+                          <span className="text-info">
+                            Downloading... {updater.progress ? `${Math.round(updater.progress.percent)}%` : ''}
+                          </span>
+                        )}
+                        {updater.status === 'downloaded' && (
+                          <span className="text-success">v{updater.version ?? '?'} ready to install</span>
+                        )}
+                        {updater.status === 'error' && (
+                          <span className="text-error">{updater.error ?? 'Update failed'}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5">
+                        {(updater.status === 'available' || updater.status === 'error') && (
+                          <Button
+                            size="sm"
+                            className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                            onClick={() => updater.downloadUpdate.mutate([])}
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Download
+                          </Button>
+                        )}
+                        {updater.status === 'downloaded' && (
+                          <Button
+                            size="sm"
+                            className="bg-success text-bg-deep hover:bg-success/80 cursor-pointer"
+                            onClick={() => updater.installUpdate.mutate([])}
+                          >
+                            Restart &amp; Install
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {updater.status === 'downloading' && updater.progress && (
+                      <div className="w-full h-1.5 rounded-full bg-bg-deep overflow-hidden mt-2">
+                        <div
+                          className="h-full rounded-full bg-info transition-all duration-300"
+                          style={{ width: `${Math.round(updater.progress.percent)}%` }}
+                        />
+                      </div>
+                    )}
+                  </SettingGroup>
+                )}
               </>
             )}
 

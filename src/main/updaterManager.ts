@@ -91,13 +91,13 @@ function init(window: BrowserWindow, app: App): void {
   });
 
   autoUpdater.on('download-progress', (progress: UpdaterProgress) => {
-    sendStatus({ status: 'downloading' });
+    sendStatus({ status: 'downloading', manual: true });
     sendProgress(progress);
   });
 
   autoUpdater.on('update-downloaded', (info: { version?: string }) => {
     updateDownloaded = true;
-    sendStatus({ status: 'downloaded', version: info.version });
+    sendStatus({ status: 'downloaded', version: info.version, manual: true });
     // Stop periodic checks — update is ready, no need to keep checking
     if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
   });

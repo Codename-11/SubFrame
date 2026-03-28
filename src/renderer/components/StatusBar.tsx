@@ -206,7 +206,7 @@ export function StatusBar() {
         <>
           <Section
             onClick={() => {
-              useUIStore.getState().setSettingsOpen(true);
+              window.dispatchEvent(new CustomEvent('open-settings-section', { detail: { key: 'web-server' } }));
             }}
             title="Web server status — click to open settings"
           >

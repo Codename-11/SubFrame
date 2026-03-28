@@ -16,7 +16,12 @@ export function useSessionControl() {
 
     // Listen for live updates
     return getTransport().on(IPC.SESSION_CONTROL_STATE, (_event: unknown, data: unknown) => {
-      useSessionControlStore.getState().applyState(data as import('../../shared/ipcChannels').SessionControlState);
+      const state = data as import('../../shared/ipcChannels').SessionControlState;
+      const isElectron = useSessionControlStore.getState().isElectronSide;
+      console.log(`[Session Control] Received state: controller=${state.controller}, webConnected=${state.webClientConnected}, mySide=${isElectron ? 'electron' : 'web'}`);
+      useSessionControlStore.getState().applyState(state);
+      const derived = useSessionControlStore.getState();
+      console.log(`[Session Control] Derived: hasControl=${derived.hasControl}, isViewOnly=${derived.isViewOnly}`);
     });
   }, []);
 

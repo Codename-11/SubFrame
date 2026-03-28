@@ -93,7 +93,13 @@ export function UpdateNotification() {
           duration: Infinity,
           action: {
             label: 'Download',
-            onClick: () => { clearSnooze(); downloadUpdate.mutate([]); },
+            onClick: () => {
+              clearSnooze();
+              // Show immediately — sonner dismisses the action toast, and the
+              // 'downloading' status arrives async after IPC roundtrip
+              toast.loading('Starting download...', { id: 'updater', duration: Infinity });
+              downloadUpdate.mutate([]);
+            },
           },
           cancel: {
             label: 'Later',
@@ -126,14 +132,11 @@ export function UpdateNotification() {
         break;
 
       case 'error':
-        if (manual) {
-          toast.error(`Update check failed: ${error ?? 'Unknown error'}`, {
-            id: 'updater',
-            duration: 8000,
-          });
-        } else {
-          toast.dismiss('updater');
-        }
+        // Always show errors — download/install failures are user-initiated actions
+        toast.error(`Update failed: ${error ?? 'Unknown error'}`, {
+          id: 'updater',
+          duration: 8000,
+        });
         break;
 
       case 'not-available':

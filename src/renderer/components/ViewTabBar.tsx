@@ -255,7 +255,7 @@ function WorkspacePillButton({
                     </span>
                   )}
                   {hasTerminals && (
-                    <span className="absolute -bottom-1 -right-1 min-w-[12px] h-3 px-0.5 rounded-full bg-info/90 text-[8px] leading-3 text-bg-deep font-bold text-center shadow-sm">
+                    <span className="absolute -bottom-0.5 -right-1.5 min-w-[12px] h-3 px-0.5 rounded-full bg-info/90 text-[8px] leading-3 text-bg-deep font-bold text-center shadow-sm z-10">
                       {activity.terminalCount > 9 ? '9+' : activity.terminalCount}
                     </span>
                   )}
@@ -573,7 +573,7 @@ export function ViewTabBar() {
   const primaryRunningStream = runningStreams[0] ?? null;
 
   return (
-    <div className="flex items-center bg-bg-secondary border-b border-border-subtle shrink-0" data-neon-bar="">
+    <div className="flex items-center bg-bg-secondary border-b border-border-subtle shrink-0 overflow-visible relative z-10" data-neon-bar="">
       {/* Workspace + project badge — visible when sidebar is not expanded */}
       {sidebarState !== 'expanded' && (
         <TooltipProvider delayDuration={400}>
@@ -657,11 +657,11 @@ export function ViewTabBar() {
 
         return (
         <div
-          className={`group/ws-pills flex items-center border-r border-border-subtle mr-1 pr-1 shrink-0 transition-all duration-300 ${
+          className={`group/ws-pills flex items-center border-r border-border-subtle mr-1 pr-1 shrink-0 overflow-visible transition-all duration-300 ${
             wsPulse ? 'ring-1 ring-accent/40 rounded-md bg-accent/5' : ''
           }`}
         >
-          <div className="flex items-center overflow-x-auto overflow-y-hidden scrollbar-none">
+          <div className="flex items-center overflow-x-auto overflow-y-visible scrollbar-none">
             {/* Collapsed pills — always visible */}
           <Reorder.Group
             axis="x"

@@ -2071,67 +2071,39 @@
       }
     },
     "main/ipcRouter": {
-      "file": "src\\main\\ipcRouter.ts",
+      "file": "src/main/ipcRouter.ts",
       "description": "IPC Router — dual-registration handler router.",
       "exports": [
         "createRoutableIPC",
         "routeInvoke",
         "routeSend",
+        "isWSEvent",
         "hasInvokeHandler",
         "hasSendHandler"
       ],
       "depends": [
+        "electron",
         "eventBridge"
       ],
       "functions": {
         "createRoutableIPC": {
-          "line": 35,
-          "params": [
-            "ipcMain"
-          ],
-          "purpose": "raw ipcMain. Handlers are registered in both Electron IPC and the parallel map."
+          "line": 35
         },
         "routeInvoke": {
-          "line": 60,
-          "params": [
-            "channel",
-            "args"
-          ],
-          "purpose": "Used by WebSocket server for request/response messages."
+          "line": 60
         },
         "routeSend": {
-          "line": 71,
-          "params": [
-            "channel",
-            "args",
-            "transport"
-          ],
-          "purpose": "Used by WebSocket server for fire-and-forget messages.",
-          "calls": [
-            "broadcast",
-            "send"
-          ]
+          "line": 71
+        },
+        "isWSEvent": {
+          "line": 98
         },
         "hasInvokeHandler": {
-          "line": 97,
-          "params": [
-            "channel"
-          ]
+          "line": 103
         },
         "hasSendHandler": {
-          "line": 102,
-          "params": [
-            "channel"
-          ]
+          "line": 108
         }
-      },
-      "loc": 118,
-      "ipc": {
-        "listens": [
-          "channel",
-          "channel"
-        ],
-        "emits": []
       }
     },
     "main/menu": {
@@ -3768,89 +3740,44 @@
       }
     },
     "main/updaterManager": {
-      "file": "src\\main\\updaterManager.ts",
-      "description": "Updater Manager Handles automatic update checks, downloads, and installation via electron-updater. In dev mode (app.isPackaged === false), all operations are no-ops.",
-      "exports": [
-        "init",
-        "setupIPC",
-        "destroy",
-        "checkForUpdates",
-        "setBeforeInstallHook",
-        "performQuitAndInstall"
-      ],
+      "file": "src/main/updaterManager.ts",
+      "description": "Updater Manager",
+      "exports": [],
       "depends": [
         "electron-updater",
         "../package.json",
         "electron",
         "shared/ipcChannels",
         "settingsManager",
-        "eventBridge"
+        "eventBridge",
+        "ipcRouter"
       ],
       "functions": {
         "sendStatus": {
-          "line": 31,
-          "params": [
-            "status"
-          ],
-          "purpose": "Send updater status to the renderer process",
-          "calls": [
-            "broadcast"
-          ]
+          "line": 31
         },
         "sendProgress": {
-          "line": 40,
-          "params": [
-            "progress"
-          ],
-          "purpose": "Send download progress to the renderer process",
-          "calls": [
-            "broadcast"
-          ]
+          "line": 40
         },
         "init": {
-          "line": 50,
-          "params": [
-            "window",
-            "app"
-          ],
-          "purpose": "Must be called after the main window is created.",
-          "calls": [
-            "getSetting",
-            "sendProgress",
-            "sendStatus"
-          ]
+          "line": 50
         },
         "setupIPC": {
-          "line": 146,
-          "params": [
-            "ipc"
-          ],
-          "purpose": "Setup IPC handlers for updater actions."
+          "line": 146
         },
         "checkForUpdates": {
-          "line": 201,
-          "purpose": "In dev mode, sends a no-op status to the renderer.",
-          "calls": [
-            "sendStatus"
-          ]
+          "line": 201
         },
         "destroy": {
-          "line": 220,
-          "purpose": "Cleanup on shutdown"
+          "line": 220
         },
         "setBeforeInstallHook": {
-          "line": 231,
-          "params": [
-            "hook"
-          ],
-          "purpose": "Return false to defer install (e.g. to perform graceful shutdown first)."
+          "line": 231
         },
         "performQuitAndInstall": {
-          "line": 238,
-          "purpose": "Programmatically call quitAndInstall (e.g. after graceful shutdown completes)."
+          "line": 238
         }
-      },
-      "loc": 245
+      }
     },
     "main/webServerManager": {
       "file": "src/main/webServerManager.ts",
@@ -3877,103 +3804,103 @@
           "line": 50
         },
         "broadcastControlState": {
-          "line": 63
+          "line": 64
         },
         "buildDeviceLabel": {
-          "line": 67
+          "line": 75
         },
         "isPrivateIpv4": {
-          "line": 79
+          "line": 87
         },
         "getLanIps": {
-          "line": 88
+          "line": 96
         },
         "getLanIp": {
-          "line": 108
+          "line": 116
         },
         "normalizePort": {
-          "line": 112
-        },
-        "getStoredLastPort": {
           "line": 120
         },
+        "getStoredLastPort": {
+          "line": 128
+        },
         "persistLastPort": {
-          "line": 129
+          "line": 137
         },
         "writeServiceConfig": {
-          "line": 174
+          "line": 182
         },
         "removeServiceConfig": {
-          "line": 185
+          "line": 193
         },
         "getRemoteCursorEnabled": {
-          "line": 189
+          "line": 197
         },
         "buildRemotePointerLabel": {
-          "line": 198
+          "line": 206
         },
         "clearRemotePointer": {
-          "line": 207
+          "line": 215
         },
         "getSessionContext": {
-          "line": 211
+          "line": 219
         },
         "getWebBootstrapPayload": {
-          "line": 227
+          "line": 235
         },
         "getDistDir": {
-          "line": 271
-        },
-        "getWebIndexPath": {
           "line": 279
         },
+        "getWebIndexPath": {
+          "line": 287
+        },
         "serveStatic": {
-          "line": 288
+          "line": 296
         },
         "handleHTTP": {
-          "line": 343
+          "line": 355
         },
         "handlePairing": {
-          "line": 400
+          "line": 412
         },
         "handleWsConnection": {
-          "line": 430
+          "line": 442
         },
         "createSession": {
-          "line": 612
+          "line": 624
         },
         "wsSend": {
-          "line": 623
+          "line": 635
         },
         "onBridgeEvent": {
-          "line": 631
+          "line": 643
         },
         "buildNotification": {
-          "line": 653
+          "line": 665
         },
         "batchTerminalOutput": {
-          "line": 672
+          "line": 684
         },
         "flushTerminalBatches": {
-          "line": 682
+          "line": 694
         },
         "broadcastIPC": {
-          "line": 700
+          "line": 712
         },
         "startServer": {
-          "line": 709
+          "line": 721
         },
         "stopServer": {
-          "line": 803
+          "line": 815
         },
         "init": {
-          "line": 839
+          "line": 851
         },
         "setupIPC": {
-          "line": 862
+          "line": 874
         },
         "shutdown": {
-          "line": 1122
+          "line": 1138
         }
       }
     },
@@ -5844,35 +5771,36 @@
         "lib/codemirror-theme",
         "framer-motion",
         "lib/utils",
-        "lib/transportProvider"
+        "lib/transportProvider",
+        "hooks/useUpdater"
       ],
       "functions": {
         "detectNerdFont": {
-          "line": 112
+          "line": 113
         },
         "SettingGroup": {
-          "line": 269
+          "line": 270
         },
         "ProjectUninstallSection": {
-          "line": 294
+          "line": 295
         },
         "SettingToggle": {
-          "line": 543
+          "line": 544
         },
         "SettingSelect": {
-          "line": 570
+          "line": 571
         },
         "SettingInput": {
-          "line": 601
+          "line": 602
         },
         "SettingSlider": {
-          "line": 634
+          "line": 635
         },
         "WorkspacePillAppearanceRow": {
-          "line": 657
+          "line": 658
         },
         "SettingsPanel": {
-          "line": 896
+          "line": 897
         }
       }
     },
@@ -6828,8 +6756,8 @@
       "loc": 107
     },
     "renderer/components/UpdateNotification": {
-      "file": "src\\renderer\\components\\UpdateNotification.tsx",
-      "description": "UpdateNotification — side-effect component that listens for auto-updater events and shows non-intrusive sonner toasts. Renders null.",
+      "file": "src/renderer/components/UpdateNotification.tsx",
+      "description": "UpdateNotification — side-effect component that listens for auto-updater",
       "exports": [
         "UpdateNotification"
       ],
@@ -6843,10 +6771,7 @@
           "line": 22
         },
         "snooze": {
-          "line": 32,
-          "params": [
-            "durationMs"
-          ]
+          "line": 32
         },
         "clearSnooze": {
           "line": 38
@@ -6855,17 +6780,9 @@
           "line": 44
         },
         "UpdateNotification": {
-          "line": 57,
-          "calls": [
-            "clearSnooze",
-            "formatSnoozeRemaining",
-            "isSnoozed",
-            "snooze",
-            "useUpdater"
-          ]
+          "line": 57
         }
-      },
-      "loc": 161
+      }
     },
     "renderer/components/ViewTabBar": {
       "file": "src/renderer/components/ViewTabBar.tsx",
@@ -9633,16 +9550,16 @@
           "line": 8
         },
         "requestControl": {
-          "line": 27
+          "line": 32
         },
         "grantControl": {
-          "line": 28
+          "line": 33
         },
         "takeControl": {
-          "line": 29
+          "line": 34
         },
         "releaseControl": {
-          "line": 30
+          "line": 35
         }
       }
     },
@@ -9654,12 +9571,11 @@
       ],
       "depends": [
         "zustand",
-        "../shared/ipcChannels",
-        "lib/transportProvider"
+        "../shared/ipcChannels"
       ],
       "functions": {
         "deriveControl": {
-          "line": 16
+          "line": 18
         }
       }
     }

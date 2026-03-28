@@ -17,7 +17,7 @@ import * as os from 'os';
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { RoutableIPC } from './ipcRouter';
-import { routeInvoke, routeSend, hasInvokeHandler, hasSendHandler } from './ipcRouter';
+import { routeInvoke, routeSend, hasInvokeHandler, hasSendHandler, isWSEvent } from './ipcRouter';
 import { addBridgeListener } from './eventBridge';
 import { IPC, type WebRemotePointerState, type WebSessionState } from '../shared/ipcChannels';
 import type { ClientMessage, ServerMessage } from '../shared/wsProtocol';
@@ -60,8 +60,16 @@ function getSessionControlState(): import('../shared/ipcChannels').SessionContro
   };
 }
 
+let controlStateBroadcastTimer: ReturnType<typeof setTimeout> | null = null;
 function broadcastControlState(): void {
-  broadcastIPC(IPC.SESSION_CONTROL_STATE, getSessionControlState());
+  // Debounce to prevent rapid-fire broadcasts (e.g. take + activity timestamp in quick succession)
+  if (controlStateBroadcastTimer) clearTimeout(controlStateBroadcastTimer);
+  controlStateBroadcastTimer = setTimeout(() => {
+    controlStateBroadcastTimer = null;
+    const state = getSessionControlState();
+    console.log(`[Session Control] Broadcasting: controller=${state.controller}, webConnected=${state.webClientConnected}`);
+    broadcastIPC(IPC.SESSION_CONTROL_STATE, state);
+  }, 50);
 }
 
 function buildDeviceLabel(userAgent: string): string {
@@ -319,7 +327,10 @@ function serveStatic(res: http.ServerResponse, urlPath: string): boolean {
     }
   }
 
-  if (!fs.existsSync(filePath)) return false;
+  if (!fs.existsSync(filePath)) {
+    console.warn(`[Web Server] serveStatic miss: ${urlPath} → ${filePath} (not found)`);
+    return false;
+  }
 
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
@@ -333,7 +344,8 @@ function serveStatic(res: http.ServerResponse, urlPath: string): boolean {
     });
     res.end(content);
     return true;
-  } catch {
+  } catch (err) {
+    console.warn(`[Web Server] serveStatic read error: ${urlPath} → ${filePath}:`, (err as Error).message);
     return false;
   }
 }
@@ -930,7 +942,7 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
   router.handle(IPC.SESSION_CONTROL_STATE, () => getSessionControlState());
 
   router.on(IPC.SESSION_CONTROL_REQUEST, (_event: unknown) => {
-    const requester: 'electron' | 'web' = _event !== null ? 'electron' : 'web';
+    const requester: 'electron' | 'web' = isWSEvent(_event) ? 'web' : 'electron';
     if (sessionControl.controller === requester) return;
 
     const lastActivity = sessionControl.controller === 'electron'
@@ -951,7 +963,7 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
 
   router.on(IPC.SESSION_CONTROL_GRANT, (_event: unknown) => {
     if (!sessionControl.controlRequestPending || !sessionControl.controlRequestFrom) return;
-    const granter: 'electron' | 'web' = _event !== null ? 'electron' : 'web';
+    const granter: 'electron' | 'web' = isWSEvent(_event) ? 'web' : 'electron';
     if (sessionControl.controller !== granter) return;
 
     sessionControl.controller = sessionControl.controlRequestFrom;
@@ -961,7 +973,9 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
   });
 
   router.on(IPC.SESSION_CONTROL_TAKE, (_event: unknown) => {
-    const taker: 'electron' | 'web' = _event !== null ? 'electron' : 'web';
+    const wsRouted = isWSEvent(_event);
+    const taker: 'electron' | 'web' = wsRouted ? 'web' : 'electron';
+    console.log(`[Session Control] TAKE — isWSEvent=${wsRouted}, taker=${taker}, event type=${typeof _event}, event keys=${_event ? Object.keys(_event as object).join(',') : 'null'}`);
     sessionControl.controller = taker;
     sessionControl.controlRequestPending = false;
     sessionControl.controlRequestFrom = null;
@@ -969,7 +983,7 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
   });
 
   router.on(IPC.SESSION_CONTROL_RELEASE, (_event: unknown) => {
-    const releaser: 'electron' | 'web' = _event !== null ? 'electron' : 'web';
+    const releaser: 'electron' | 'web' = isWSEvent(_event) ? 'web' : 'electron';
     if (sessionControl.controller === releaser) {
       sessionControl.controller = null;
       sessionControl.controlRequestPending = false;
@@ -980,7 +994,7 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
 
   // Track Electron terminal input activity
   router.on(IPC.TERMINAL_INPUT_ID, (_event: unknown) => {
-    if (_event !== null) {
+    if (!isWSEvent(_event)) {
       sessionControl.lastElectronActivity = Date.now();
     }
   });
@@ -1013,6 +1027,7 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
   router.on(IPC.WEB_SESSION_SYNC, (_event, payload) => {
     if (!payload || typeof payload !== 'object') return;
     const data = payload as {
+      origin?: 'electron' | 'web';
       currentProjectPath?: string | null;
       session?: WebSessionState['session'];
       ui?: WebSessionState['ui'];
@@ -1034,7 +1049,8 @@ function setupIPC(router: RoutableIPC | IpcMain): void {
     }
 
     liveSessionState = nextState;
-    broadcastIPC(IPC.WEB_SESSION_SYNC, liveSessionState);
+    // Preserve origin so receivers can filter (e.g. Electron ignores electron-origin syncs)
+    broadcastIPC(IPC.WEB_SESSION_SYNC, { ...liveSessionState, origin: data.origin });
   });
 
   router.on(IPC.WEB_REMOTE_POINTER_SYNC, (_event, payload) => {

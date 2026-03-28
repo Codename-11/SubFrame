@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { SessionControlState } from '../../shared/ipcChannels';
-import { getTransport } from '../lib/transportProvider';
+
+/** Build-time define: `true` in web build (build-web.js), undefined in Electron build. */
+declare const __SUBFRAME_WEB__: boolean | undefined;
 
 export interface SessionControlStore extends SessionControlState {
   /** True when running in Electron (false for web client) */
@@ -21,9 +23,9 @@ function deriveControl(state: SessionControlState, isElectron: boolean) {
 }
 
 export const useSessionControlStore = create<SessionControlStore>((set, get) => {
-  const isElectronSide = (() => {
-    try { return getTransport().platform.isElectron; } catch { return true; }
-  })();
+  // Detect side using build-time define — getTransport() may not be ready at store init time.
+  // esbuild replaces __SUBFRAME_WEB__ → true in web build; Electron build leaves it undefined.
+  const isElectronSide = typeof __SUBFRAME_WEB__ === 'undefined';
 
   const initial: SessionControlState = {
     controller: 'electron',

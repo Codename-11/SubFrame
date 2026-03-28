@@ -20,6 +20,7 @@ const nodeBin = process.execPath;
 
 let electronProc = null;
 let rendererCtx = null;
+let webRendererCtx = null;
 let mainCtx = null;
 let isRestarting = false;
 let shuttingDown = false;
@@ -97,7 +98,7 @@ function mainRebuildPlugin() {
 // ── Main ─────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('[dev] Starting dev environment (main watch + renderer watch + Electron)...\n');
+  console.log('[dev] Starting dev environment (main + renderer + web-renderer watch + Electron)...\n');
 
   // 1. Start main process watcher (esbuild API — same options as build:main)
   mainCtx = await esbuild.context({
@@ -141,6 +142,23 @@ async function main() {
     }
   });
 
+  // 3. Start web renderer watcher (spawns build-web.js --watch as a child)
+  const webRendererProc = spawn(
+    nodeBin,
+    [path.join(root, 'scripts', 'build-web.js'), '--watch'],
+    { cwd: root, stdio: 'pipe' },
+  );
+
+  webRendererProc.stdout.on('data', (data) => {
+    const msg = data.toString().trim();
+    if (msg) console.log(`[dev:web] ${msg}`);
+  });
+
+  webRendererProc.stderr.on('data', (data) => {
+    const msg = data.toString().trim();
+    if (msg) console.error(`[dev:web] ${msg}`);
+  });
+
   // Fallback: start Electron after a short delay if watch message not detected
   setTimeout(() => {
     if (!electronProc && !isRestarting) {
@@ -151,6 +169,7 @@ async function main() {
 
   // Store for cleanup
   rendererCtx = rendererProc;
+  webRendererCtx = webRendererProc;
 }
 
 // ── Clean shutdown ───────────────────────────────────────────────────
@@ -167,6 +186,7 @@ async function cleanup() {
     }
   }
   if (rendererCtx) rendererCtx.kill();
+  if (webRendererCtx) webRendererCtx.kill();
   if (mainCtx) await mainCtx.dispose().catch(() => {});
 
   process.exit(0);
