@@ -208,8 +208,8 @@ The `/release` skill handles the full workflow: version bump, `docs/index.md` sy
 ```
 
 **GitHub releases** are auto-created by `.github/workflows/release.yml` on `v*` tag push:
-- **Beta tags** (`-beta`, `-alpha`, `-rc`): marked `prerelease: true` so electron-updater can detect them with `allowPrerelease`
-- **`make_latest: true` always** — while the project is beta-only, every release is "Latest" so the repo page shows an active release and the shields.io badge works. When stable releases exist, change to `make_latest` only for stable.
+- **`prerelease: false`** — while the project is beta-only, all releases are marked as full releases (not pre-release) so the repo page shows them prominently. When stable versions exist, re-enable `prerelease: true` for beta/alpha/rc tags.
+- **`make_latest: true` always** — every release is "Latest" so the shields.io badge works. When stable releases exist, change to `make_latest` only for stable.
 - No manual `gh release create` needed — CI handles artifacts, notes, and metadata
 
 ## CSS Design System

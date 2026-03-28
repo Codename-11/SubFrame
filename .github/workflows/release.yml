@@ -87,7 +87,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') }}
+          prerelease: false  # All releases are beta — don't mark pre-release until stable versions exist
           make_latest: true  # Always mark as Latest — beta-only project needs a visible "Latest" on the repo page
           body_path: ${{ steps.release_notes.outputs.has_notes == 'true' && 'RELEASE_NOTES.md' || '' }}
           generate_release_notes: ${{ steps.release_notes.outputs.has_notes != 'true' }}

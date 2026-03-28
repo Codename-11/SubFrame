@@ -613,9 +613,9 @@ export function registerWebLinkProvider(terminal: Terminal): IDisposable {
           // Always show underline so URLs are discoverable; cursor changes on Ctrl hover
           decorations: { underline: true, pointerCursor: false },
 
-          activate(_event: MouseEvent, text: string): void {
-            // Open on any click — Ctrl requirement removed for better UX
-            // (xterm only fires activate when the link is being tracked via hover)
+          activate(event: MouseEvent, text: string): void {
+            // Require Ctrl/Cmd+Click to avoid accidental navigation when selecting text
+            if (!event.ctrlKey && !event.metaKey) return;
             try {
               const { protocol } = new URL(text);
               if (protocol === 'https:' || protocol === 'http:') {
