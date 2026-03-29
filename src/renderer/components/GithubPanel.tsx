@@ -33,7 +33,7 @@ import {
 } from './ui/context-menu';
 import { cn } from '../lib/utils';
 import {
-  useGithubIssues, useGitBranches, useGitWorktrees, useGitStatus, useGithubWorkflows,
+  useGithubIssues, useGithubPRs, useGitBranches, useGitWorktrees, useGitStatus, useGithubWorkflows,
   useGithubIssueDetail, useGithubPRDetail, useGithubPRDiff, useCreateGithubIssue,
   useRerunWorkflow, useDispatchWorkflow, useGithubNotifications, useMarkNotificationRead,
 } from '../hooks/useGithub';
@@ -240,11 +240,17 @@ function BulkSendDialog({ open, onOpenChange, issues }: { open: boolean; onOpenC
 
 function IssuesTab({ state: initialState = 'open', isPR = false }: { state?: string; isPR?: boolean }) {
   const [filter, setFilter] = useState(initialState);
-  const { issues: items, error, isLoading, refetch } = useGithubIssues(filter);
+  const issuesQuery = useGithubIssues(filter);
+  const prsQuery = useGithubPRs(filter);
+  const { issues: items, error, isLoading, refetch } = isPR
+    ? { issues: prsQuery.prs, error: prsQuery.error, isLoading: prsQuery.isLoading, refetch: prsQuery.refetch }
+    : issuesQuery;
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const [selectMode, setSelectMode] = useState(false); const [selected, setSelected] = useState<Set<number>>(new Set());
   const [expandedIssue, setExpandedIssue] = useState<number | null>(null); const [createDialogOpen, setCreateDialogOpen] = useState(false); const [bulkSendOpen, setBulkSendOpen] = useState(false);
-  const FILTERS = [{ label: 'Open', value: 'open' }, { label: 'Closed', value: 'closed' }, { label: 'All', value: 'all' }];
+  const FILTERS = isPR
+    ? [{ label: 'Open', value: 'open' }, { label: 'Closed', value: 'closed' }, { label: 'Merged', value: 'merged' }, { label: 'All', value: 'all' }]
+    : [{ label: 'Open', value: 'open' }, { label: 'Closed', value: 'closed' }, { label: 'All', value: 'all' }];
   const toggleSelect = useCallback((num: number) => { setSelected((prev) => { const next = new Set(prev); if (next.has(num)) next.delete(num); else next.add(num); return next; }); }, []);
   const handleSelectAll = useCallback(() => { if (selected.size === items.length) setSelected(new Set()); else setSelected(new Set(items.map((i: GitHubIssue) => i.number))); }, [items, selected.size]);
   const selectedIssues = useMemo(() => items.filter((i: GitHubIssue) => selected.has(i.number)), [items, selected]);

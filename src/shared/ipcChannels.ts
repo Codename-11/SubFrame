@@ -132,6 +132,7 @@ export const IPC = {
 
   // GitHub Panel
   LOAD_GITHUB_ISSUES: 'load-github-issues',
+  LOAD_GITHUB_PRS: 'load-github-prs',
   LOAD_GITHUB_WORKFLOWS: 'load-github-workflows',
   GITHUB_ISSUES_DATA: 'github-issues-data',
   TOGGLE_GITHUB_PANEL: 'toggle-github-panel',
@@ -1447,6 +1448,7 @@ export interface IPCHandleMap {
 
   // GitHub
   [IPC.LOAD_GITHUB_ISSUES]: { args: [payload: { projectPath: string; state?: string }]; return: GitHubIssuesResult };
+  [IPC.LOAD_GITHUB_PRS]: { args: [payload: { projectPath: string; state?: string }]; return: GitHubIssuesResult };
   [IPC.LOAD_GITHUB_WORKFLOWS]: { args: [projectPath: string]; return: GitHubWorkflowsResult };
   [IPC.VIEW_GITHUB_ISSUE]: { args: [payload: { projectPath: string; issueNumber: number }]; return: { error: string | null; issue: GitHubIssueDetail | null } };
   [IPC.VIEW_GITHUB_PR]: { args: [payload: { projectPath: string; prNumber: number }]; return: { error: string | null; pr: GitHubPRDetail | null } };

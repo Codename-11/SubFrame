@@ -26,6 +26,24 @@ export function useGithubIssues(state: string = 'open') {
   };
 }
 
+export function useGithubPRs(state: string = 'open') {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+
+  const query = useIpcQuery(
+    IPC.LOAD_GITHUB_PRS,
+    [{ projectPath: projectPath ?? '', state }],
+    { enabled: !!projectPath }
+  );
+
+  return {
+    prs: query.data?.issues ?? [],
+    error: query.data?.error ?? null,
+    repoName: query.data?.repoName,
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
+}
+
 export function useGitBranches() {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
 

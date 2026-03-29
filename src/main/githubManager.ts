@@ -144,6 +144,40 @@ async function loadIssues(projectPath: string, state: string = 'open'): Promise<
 }
 
 /**
+ * Load GitHub pull requests for current project
+ */
+async function loadPRs(projectPath: string, state: string = 'open'): Promise<IssuesResult> {
+  const ghAvailable = await checkGhCli();
+  if (!ghAvailable) {
+    return { error: 'gh CLI not installed', issues: [] };
+  }
+
+  const repoInfo = await checkGitHubRepo(projectPath);
+  if (!repoInfo.isGitHubRepo) {
+    return { error: 'Not a GitHub repository', issues: [] };
+  }
+
+  const safeState = ['open', 'closed', 'all', 'merged'].includes(state) ? state : 'open';
+
+  return new Promise((resolve) => {
+    const cmd = `gh pr list --state ${safeState} --json number,title,state,author,labels,createdAt,updatedAt,url --limit 50`;
+
+    exec(cmd, { cwd: projectPath }, (error, stdout, stderr) => {
+      if (error) {
+        resolve({ error: stderr || error.message, issues: [], repoName: repoInfo.repoName });
+      } else {
+        try {
+          const prs = JSON.parse(stdout) as GitHubIssue[];
+          resolve({ error: null, issues: prs, repoName: repoInfo.repoName });
+        } catch (_e) {
+          resolve({ error: 'Failed to parse pull requests', issues: [], repoName: repoInfo.repoName });
+        }
+      }
+    });
+  });
+}
+
+/**
  * Load workflow runs for a specific workflow
  */
 function loadWorkflowRuns(projectPath: string, workflowId: number): Promise<GitHubWorkflowRun[]> {
@@ -374,6 +408,15 @@ function setupIPC(ipcMain: IpcMain): void {
       return { error: 'No project selected', issues: [] };
     }
     return await loadIssues(targetPath, state);
+  });
+
+  // Load pull requests
+  ipcMain.handle(IPC.LOAD_GITHUB_PRS, async (_event, { projectPath, state }: { projectPath?: string; state?: string }) => {
+    const targetPath = projectPath || currentProjectPath;
+    if (!targetPath) {
+      return { error: 'No project selected', issues: [] };
+    }
+    return await loadPRs(targetPath, state);
   });
 
   // Open issue in browser
