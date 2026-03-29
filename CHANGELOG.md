@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0-beta] - 2026-03-28
+
+### Added
+- **File > Open menu** (Ctrl+O) — open any file in the editor via native file dialog
+- **Drag-drop file open** — drop files onto the window to open in editor (filters binary files)
+- **Markdown preview: HTML passthrough** — `rehype-raw` enables raw HTML blocks, badges, shields.io images
+- **Markdown preview: GitHub alerts** — `[!NOTE]`, `[!WARNING]`, `[!TIP]`, `[!IMPORTANT]`, `[!CAUTION]` blockquotes render as styled alert boxes
+- **Markdown preview: task list checkboxes** — GFM `- [x]` / `- [ ]` render as styled checkboxes
+- **Two-step workspace creation** — "New Workspace" now offers Browse Existing / Create New / Skip project setup, with optional SubFrame init
+- **Editor popout windows** — pop out the file editor to a separate window (mirrors terminal popout pattern) with dock-back support
+- **GitHub PR tab** — PR panel now fetches actual pull requests via `gh pr list` (was showing issues), with Merged filter
+
+### Fixed
+- **Workspace reorder sync** — reorder in ViewTabBar now broadcasts `WORKSPACE_UPDATED` + `LOAD_WORKSPACE` so sidebar updates immediately
+
 ## [0.11.2-beta] - 2026-03-28
 
 ### Fixed
