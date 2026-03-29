@@ -9,7 +9,7 @@ import {
   Cpu, Download, RefreshCw, Loader2, CheckCircle,
   Terminal, Keyboard, BookMarked, Globe, Copy, Zap,
   ChevronDown, ChevronUp, RotateCw, Info, Link2,
-  FileText, Settings2, Check, X, Plus, ExternalLink,
+  FileText, Settings2, Check, X, Plus, ExternalLink, AlertTriangle,
 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Button } from './ui/button';
@@ -845,6 +845,7 @@ function ConfigFileRow({
   label,
   filePath,
   exists,
+  warnings,
   onOpen,
   onCreate,
 }: {
@@ -852,94 +853,100 @@ function ConfigFileRow({
   label: string;
   filePath: string;
   exists: boolean;
+  warnings?: string[];
   onOpen: () => void;
   onCreate: () => void;
 }) {
+  const hasWarnings = warnings && warnings.length > 0;
   return (
-    <div className="flex items-center gap-2 py-1 px-1 rounded hover:bg-bg-hover/50 transition-colors group">
-      <Icon size={13} className="text-text-muted shrink-0" />
-      <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-[11px] font-medium text-text-secondary truncate">{label}</span>
-        <span className="text-[10px] text-text-tertiary truncate">{filePath}</span>
+    <div className="py-1 px-1 rounded hover:bg-bg-hover/50 transition-colors group">
+      <div className="flex items-center gap-2">
+        <Icon size={13} className={cn('shrink-0', hasWarnings ? 'text-warning' : 'text-text-muted')} />
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-[11px] font-medium text-text-secondary truncate">{label}</span>
+          <span className="text-[10px] text-text-tertiary truncate">{filePath}</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {exists ? (
+            <>
+              <span className={cn('flex items-center gap-1 text-[10px]', hasWarnings ? 'text-warning' : 'text-emerald-400')}>
+                {hasWarnings ? <AlertTriangle size={10} /> : <Check size={10} />}
+                <span>{hasWarnings ? `${warnings.length} warning${warnings.length > 1 ? 's' : ''}` : 'OK'}</span>
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onOpen}
+                className="h-5 px-1.5 text-[10px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <ExternalLink size={10} className="mr-0.5" />
+                Open
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="flex items-center gap-1 text-[10px] text-text-muted">
+                <X size={10} />
+                <span>Not found</span>
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onCreate}
+                className="h-5 px-1.5 text-[10px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Plus size={10} className="mr-0.5" />
+                Create
+              </Button>
+            </>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        {exists ? (
-          <>
-            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-              <Check size={10} />
-              <span>Exists</span>
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={onOpen}
-              className="h-5 px-1.5 text-[10px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <ExternalLink size={10} className="mr-0.5" />
-              Open
-            </Button>
-          </>
-        ) : (
-          <>
-            <span className="flex items-center gap-1 text-[10px] text-text-muted">
-              <X size={10} />
-              <span>Not found</span>
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={onCreate}
-              className="h-5 px-1.5 text-[10px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Plus size={10} className="mr-0.5" />
-              Create
-            </Button>
-          </>
-        )}
-      </div>
+      {hasWarnings && (
+        <div className="ml-5 mt-0.5 space-y-0.5">
+          {warnings.map((w, i) => (
+            <div key={i} className="flex items-center gap-1 text-[9px] text-warning">
+              <span className="shrink-0">•</span>
+              <span className="truncate">{w}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ProjectConfigSection({
-  project,
+interface FileStatus { exists: boolean; path: string; size?: number; warnings?: string[] }
+
+function ToolConfigSection({
+  title,
+  files,
   onOpen,
   onCreate,
 }: {
-  project: { claudeMd: { exists: boolean; path: string }; settings: { exists: boolean; path: string }; privateMd: { exists: boolean; path: string } };
+  title: string;
+  files: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; status: FileStatus; isSettings?: boolean }[];
   onOpen: (path: string) => void;
   onCreate: (path: string, isSettings: boolean) => void;
 }) {
   return (
     <div>
       <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
-        Project
+        {title}
       </div>
       <div className="rounded border border-border-subtle bg-bg-primary/50 p-1.5 space-y-0.5">
-        <ConfigFileRow
-          icon={FileText}
-          label="CLAUDE.md"
-          filePath={project.claudeMd.path}
-          exists={project.claudeMd.exists}
-          onOpen={() => onOpen(project.claudeMd.path)}
-          onCreate={() => onCreate(project.claudeMd.path, false)}
-        />
-        <ConfigFileRow
-          icon={Settings2}
-          label=".claude/settings.json"
-          filePath={project.settings.path}
-          exists={project.settings.exists}
-          onOpen={() => onOpen(project.settings.path)}
-          onCreate={() => onCreate(project.settings.path, true)}
-        />
-        <ConfigFileRow
-          icon={FileText}
-          label=".claude/CLAUDE.md (private)"
-          filePath={project.privateMd.path}
-          exists={project.privateMd.exists}
-          onOpen={() => onOpen(project.privateMd.path)}
-          onCreate={() => onCreate(project.privateMd.path, false)}
-        />
+        {files.map((f) => (
+          <ConfigFileRow
+            key={f.status.path}
+            icon={f.icon}
+            label={f.label}
+            filePath={f.status.path}
+            exists={f.status.exists}
+            warnings={f.status.warnings}
+            onOpen={() => onOpen(f.status.path)}
+            onCreate={() => onCreate(f.status.path, !!f.isSettings)}
+          />
+        ))}
       </div>
     </div>
   );
@@ -960,18 +967,34 @@ function ClaudeConfigCard() {
   };
 
   const createFile = (filePath: string, isSettings: boolean) => {
-    const content = isSettings
-      ? JSON.stringify({}, null, 2) + '\n'
-      : '# CLAUDE.md\n\n## Instructions\n\n';
+    const basename = filePath.split(/[/\\]/).pop() || '';
+    let content: string;
+    if (isSettings) {
+      content = JSON.stringify({}, null, 2) + '\n';
+    } else if (basename === 'GEMINI.md') {
+      content = '# GEMINI.md\n\n## Instructions\n\n';
+    } else if (basename === 'AGENTS.md') {
+      content = '# AGENTS.md\n\n## Instructions\n\n';
+    } else if (basename === 'instructions.md') {
+      content = '# Codex Instructions\n\n';
+    } else {
+      content = '# CLAUDE.md\n\n## Instructions\n\n';
+    }
 
-    // Ensure parent directory exists by writing the file via IPC
     typedSend(IPC.WRITE_FILE, { filePath, content });
-    // Open in editor after a brief delay to allow fs write
     setTimeout(() => {
       setEditorFilePath(filePath);
       refetch();
     }, 300);
   };
+
+  // Type assertion for the expanded config status
+  const cs = configStatus as {
+    global: { claudeMd: FileStatus; settings: FileStatus };
+    project: { claudeMd: FileStatus; settings: FileStatus; privateMd: FileStatus } | null;
+    gemini?: { project: { geminiMd: FileStatus; settings: FileStatus } | null };
+    codex?: { project: { agentsMd: FileStatus; instructions: FileStatus } | null };
+  } | undefined;
 
   return (
     <motion.div
@@ -980,8 +1003,8 @@ function ClaudeConfigCard() {
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <FileText size={14} className="text-accent" />
-          <span className="text-xs font-medium text-text-primary">Claude Configuration</span>
+          <Settings2 size={14} className="text-accent" />
+          <span className="text-xs font-medium text-text-primary">AI Tool Configuration</span>
         </div>
         <Button
           size="sm"
@@ -999,45 +1022,64 @@ function ClaudeConfigCard() {
         </Button>
       </div>
 
-      {isLoading && !configStatus ? (
+      {isLoading && !cs ? (
         <div className="flex items-center justify-center py-3">
           <Loader2 size={14} className="animate-spin text-text-muted" />
         </div>
-      ) : configStatus ? (
+      ) : cs ? (
         <div className="space-y-3">
-          {/* Global Configuration */}
-          <div>
-            <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
-              Global (~/.claude/)
-            </div>
-            <div className="rounded border border-border-subtle bg-bg-primary/50 p-1.5 space-y-0.5">
-              <ConfigFileRow
-                icon={FileText}
-                label="CLAUDE.md"
-                filePath={configStatus.global.claudeMd.path}
-                exists={configStatus.global.claudeMd.exists}
-                onOpen={() => openFile(configStatus.global.claudeMd.path)}
-                onCreate={() => createFile(configStatus.global.claudeMd.path, false)}
-              />
-              <ConfigFileRow
-                icon={Settings2}
-                label="settings.json"
-                filePath={configStatus.global.settings.path}
-                exists={configStatus.global.settings.exists}
-                onOpen={() => openFile(configStatus.global.settings.path)}
-                onCreate={() => createFile(configStatus.global.settings.path, true)}
-              />
-            </div>
-          </div>
+          {/* Claude — Global */}
+          <ToolConfigSection
+            title="Claude · Global (~/.claude/)"
+            files={[
+              { icon: FileText, label: 'CLAUDE.md', status: cs.global.claudeMd },
+              { icon: Settings2, label: 'settings.json', status: cs.global.settings, isSettings: true },
+            ]}
+            onOpen={openFile}
+            onCreate={createFile}
+          />
 
-          {/* Project Configuration */}
-          {configStatus.project ? (
-            <ProjectConfigSection
-              project={configStatus.project}
+          {/* Claude — Project */}
+          {cs.project ? (
+            <ToolConfigSection
+              title="Claude · Project"
+              files={[
+                { icon: FileText, label: 'CLAUDE.md', status: cs.project.claudeMd },
+                { icon: Settings2, label: '.claude/settings.json', status: cs.project.settings, isSettings: true },
+                { icon: FileText, label: '.claude/CLAUDE.md (private)', status: cs.project.privateMd },
+              ]}
               onOpen={openFile}
               onCreate={createFile}
             />
-          ) : (
+          ) : null}
+
+          {/* Gemini — Project */}
+          {cs.gemini?.project ? (
+            <ToolConfigSection
+              title="Gemini · Project"
+              files={[
+                { icon: FileText, label: 'GEMINI.md', status: cs.gemini.project.geminiMd },
+                { icon: Settings2, label: '.gemini/settings.json', status: cs.gemini.project.settings, isSettings: true },
+              ]}
+              onOpen={openFile}
+              onCreate={createFile}
+            />
+          ) : null}
+
+          {/* Codex — Project */}
+          {cs.codex?.project ? (
+            <ToolConfigSection
+              title="Codex · Project"
+              files={[
+                { icon: FileText, label: 'AGENTS.md', status: cs.codex.project.agentsMd },
+                { icon: FileText, label: '.codex/instructions.md', status: cs.codex.project.instructions },
+              ]}
+              onOpen={openFile}
+              onCreate={createFile}
+            />
+          ) : null}
+
+          {!projectPath && (
             <div className="text-[10px] text-text-tertiary italic">
               Select a project to view project-level configuration
             </div>

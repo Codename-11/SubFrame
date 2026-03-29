@@ -100,7 +100,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   prompts:         { id: 'prompts',         label: 'Prompts',    icon: BookMarked,     shortcut: 'Ctrl+Shift+L' },
   pipeline:        { id: 'pipeline',        label: 'Pipeline',   icon: Workflow,       shortcut: 'Ctrl+Shift+Y' },
   system:          { id: 'system',          label: 'System',     icon: Cpu,            shortcut: 'Ctrl+Shift+U' },
-  aiAnalysis:      { id: 'aiAnalysis',      label: 'AI Analysis', icon: Bot,           shortcut: 'Ctrl+Shift+I' },
+  aiAnalysis:      { id: 'aiAnalysis',      label: 'AI Analysis', icon: Bot,           shortcut: 'Ctrl+Shift+J' },
 };
 
 /**

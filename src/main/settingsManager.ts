@@ -308,36 +308,96 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
     return updateSetting(key, value);
   });
 
-  // Claude Configuration status — check existence of Claude config files
+  // AI Configuration status — check existence and validate config files for all AI tools
   ipc.handle(IPC.GET_CLAUDE_CONFIG_STATUS, (_event, projectPath: string | null) => {
     const home = os.homedir();
-    const globalClaudeMdPath = path.join(home, '.claude', 'CLAUDE.md');
-    const globalSettingsPath = path.join(home, '.claude', 'settings.json');
 
-    const global = {
-      claudeMd: { exists: fs.existsSync(globalClaudeMdPath), path: globalClaudeMdPath },
-      settings: { exists: fs.existsSync(globalSettingsPath), path: globalSettingsPath },
+    interface FileStatus {
+      exists: boolean;
+      path: string;
+      size?: number;
+      warnings?: string[];
+    }
+
+    function checkFile(filePath: string, validate?: (content: string) => string[]): FileStatus {
+      const exists = fs.existsSync(filePath);
+      if (!exists) return { exists, path: filePath };
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const stat = fs.statSync(filePath);
+        const warnings = validate ? validate(content) : [];
+        return { exists, path: filePath, size: stat.size, warnings };
+      } catch {
+        return { exists, path: filePath, warnings: ['Could not read file'] };
+      }
+    }
+
+    // JSON validator — checks parse errors + common issues
+    function validateJson(content: string): string[] {
+      const warnings: string[] = [];
+      try {
+        const parsed = JSON.parse(content);
+        if (typeof parsed !== 'object' || parsed === null) warnings.push('Root must be an object');
+      } catch (e) {
+        warnings.push(`Invalid JSON: ${(e as Error).message}`);
+      }
+      return warnings;
+    }
+
+    // Markdown validator — checks for common issues
+    function validateMd(content: string): string[] {
+      const warnings: string[] = [];
+      if (content.trim().length === 0) warnings.push('File is empty');
+      if (content.length > 50000) warnings.push(`File is large (${Math.round(content.length / 1024)}KB) — may slow context loading`);
+      return warnings;
+    }
+
+    // Claude config
+    const claude = {
+      global: {
+        claudeMd: checkFile(path.join(home, '.claude', 'CLAUDE.md'), validateMd),
+        settings: checkFile(path.join(home, '.claude', 'settings.json'), validateJson),
+      },
+      project: null as { claudeMd: FileStatus; settings: FileStatus; privateMd: FileStatus } | null,
     };
-
-    let project: {
-      claudeMd: { exists: boolean; path: string };
-      settings: { exists: boolean; path: string };
-      privateMd: { exists: boolean; path: string };
-    } | null = null;
-
     if (projectPath) {
-      const projClaudeMdPath = path.join(projectPath, 'CLAUDE.md');
-      const projSettingsPath = path.join(projectPath, '.claude', 'settings.json');
-      const projPrivateMdPath = path.join(projectPath, '.claude', 'CLAUDE.md');
-
-      project = {
-        claudeMd: { exists: fs.existsSync(projClaudeMdPath), path: projClaudeMdPath },
-        settings: { exists: fs.existsSync(projSettingsPath), path: projSettingsPath },
-        privateMd: { exists: fs.existsSync(projPrivateMdPath), path: projPrivateMdPath },
+      claude.project = {
+        claudeMd: checkFile(path.join(projectPath, 'CLAUDE.md'), validateMd),
+        settings: checkFile(path.join(projectPath, '.claude', 'settings.json'), validateJson),
+        privateMd: checkFile(path.join(projectPath, '.claude', 'CLAUDE.md'), validateMd),
       };
     }
 
-    return { global, project };
+    // Gemini config
+    const gemini = {
+      project: null as { geminiMd: FileStatus; settings: FileStatus } | null,
+    };
+    if (projectPath) {
+      gemini.project = {
+        geminiMd: checkFile(path.join(projectPath, 'GEMINI.md'), validateMd),
+        settings: checkFile(path.join(projectPath, '.gemini', 'settings.json'), validateJson),
+      };
+    }
+
+    // Codex config
+    const codex = {
+      project: null as { agentsMd: FileStatus; instructions: FileStatus } | null,
+    };
+    if (projectPath) {
+      codex.project = {
+        agentsMd: checkFile(path.join(projectPath, 'AGENTS.md'), validateMd),
+        instructions: checkFile(path.join(projectPath, '.codex', 'instructions.md'), validateMd),
+      };
+    }
+
+    // Legacy compat: return claude's structure at top level + new tool-specific sections
+    return {
+      global: claude.global,
+      project: claude.project,
+      claude,
+      gemini,
+      codex,
+    };
   });
 }
 
