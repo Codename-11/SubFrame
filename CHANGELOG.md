@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1-beta] - 2026-03-29
+
+### Added
+- **AI Tool Configuration in System panel** — collapsible per-tool sections showing config file status for Claude, Gemini, and Codex at both global and project levels with validation warnings (invalid JSON, empty/large files)
+- **Global config detection** — Gemini (`~/.gemini/settings.json`) and Codex (`~/.codex/instructions.md`) global files now detected alongside Claude's
+
+### Fixed
+- **Panel dropdown indicator** — group selector button now shows a ChevronDown icon so it's visually clear it's a dropdown
+- **AI Analysis shortcut** — changed from Ctrl+Shift+I (DevTools conflict) to Ctrl+Shift+J
+
 ## [0.12.0-beta] - 2026-03-28
 
 ### Added

@@ -1,20 +1,19 @@
-Feature release adding file management, enhanced markdown preview, workspace creation flow, editor popout, and GitHub PR support.
+Patch release adding AI tool configuration management and UI polish.
 
 ## What's Changed
 
 ### Features
-- **File > Open (Ctrl+O)** — open any file in the editor via native file dialog with drag-drop support on the window
-- **Markdown Preview Overhaul** — HTML passthrough via rehype-raw, GitHub-style alert boxes ([!NOTE]/[!WARNING]/[!TIP]/[!IMPORTANT]/[!CAUTION]), shields.io badge rendering, and GFM task list checkboxes
-- **Two-Step Workspace Creation** — new workspace dialog now offers project setup: browse existing folder, create new folder (with optional SubFrame init), or skip
-- **Editor Popout Windows** — pop out the file editor to a separate window with dock-back, mirroring the terminal popout pattern
-- **GitHub PR Tab** — Pull Requests panel now fetches actual PRs via `gh pr list` with Open/Closed/Merged/All filters (was incorrectly showing issues)
-- **Workspace Reorder Sync** — drag-reordering workspace pills now immediately updates the sidebar
+- **AI Tool Configuration** — new section in System panel showing config file status for Claude Code, Gemini CLI, and Codex CLI at both global (`~/`) and project levels. Collapsible per-tool sections with inline summary (files found + warning count). Detects and validates: `CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `settings.json`, `instructions.md` — with warnings for invalid JSON, empty files, and large files. Open existing files in editor or create from templates.
+
+### Bug Fixes
+- **Panel dropdown indicator** — the right panel group selector now shows a ChevronDown chevron so it's clear the active panel name is a clickable dropdown
+- **AI Analysis shortcut conflict** — changed from Ctrl+Shift+I (conflicts with Electron DevTools) to Ctrl+Shift+J
 
 ## Installation and Update
 
-Grab the latest installer from [GitHub Releases](https://github.com/Codename-11/SubFrame/releases/tag/v0.12.0-beta).
+Grab the latest installer from [GitHub Releases](https://github.com/Codename-11/SubFrame/releases/tag/v0.12.1-beta).
 
-- **Windows**: SubFrame-Setup-0.12.0-beta.exe
-- **macOS**: SubFrame-0.12.0-beta.dmg
+- **Windows**: SubFrame-Setup-0.12.1-beta.exe
+- **macOS**: SubFrame-0.12.1-beta.dmg
 
 If you already have SubFrame installed, update through the in-app updater or the System Panel.
