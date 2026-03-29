@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, FolderOpen, MoreVertical, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, FolderOpen, FolderPlus, SkipForward, ArrowLeft, MoreVertical, Loader2, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -129,14 +129,30 @@ export function WorkspaceSelector() {
     [refetch, loading, parsed]
   );
 
-  // Dialog state for create
+  // Dialog state for create (two-step)
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createName, setCreateName] = useState('');
+  const [createStep, setCreateStep] = useState<1 | 2>(1);
+
+  // Step 2 state
+  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderParent, setNewFolderParent] = useState('');
+  const [initAsSubFrame, setInitAsSubFrame] = useState(false);
+  const [createMode, setCreateMode] = useState<'browse' | 'create' | null>(null);
+
+  const resetCreateDialog = useCallback(() => {
+    setCreateName('');
+    setCreateStep(1);
+    setNewFolderName('');
+    setNewFolderParent('');
+    setInitAsSubFrame(false);
+    setCreateMode(null);
+  }, []);
 
   const handleCreate = useCallback(() => {
-    setCreateName('');
+    resetCreateDialog();
     setShowCreateDialog(true);
-  }, []);
+  }, [resetCreateDialog]);
 
   // Listen for create event from ViewTabBar's + button
   useEffect(() => {
@@ -145,22 +161,78 @@ export function WorkspaceSelector() {
     return () => window.removeEventListener('open-workspace-create', handler);
   }, [handleCreate]);
 
-  const confirmCreate = useCallback(async () => {
+  const finalizeWorkspaceCreate = useCallback(async (projectPath?: string, projectName?: string, shouldInit?: boolean) => {
     const name = createName.trim();
     if (loading || !name) return;
     setLoading(true);
     try {
       await typedInvoke(IPC.WORKSPACE_CREATE, name);
+      // If a project was selected/created, add it to the new workspace
+      if (projectPath && projectName) {
+        typedSend(IPC.ADD_PROJECT_TO_WORKSPACE, {
+          projectPath,
+          name: projectName,
+        });
+        // Optionally initialize as SubFrame project
+        if (shouldInit) {
+          typedSend(IPC.INITIALIZE_FRAME_PROJECT, {
+            projectPath,
+            projectName,
+            confirmed: true,
+          });
+        }
+      }
       refetch();
       typedSend(IPC.LOAD_WORKSPACE);
       toast.success(`Workspace "${name}" created`);
       setShowCreateDialog(false);
+      resetCreateDialog();
     } catch {
       toast.error('Failed to create workspace');
     } finally {
       setLoading(false);
     }
-  }, [refetch, loading, createName]);
+  }, [refetch, loading, createName, resetCreateDialog]);
+
+  const handleBrowseExisting = useCallback(async () => {
+    try {
+      const result = await typedInvoke(IPC.SELECT_FOLDER);
+      if (result) {
+        const folderName = result.path.split(/[/\\]/).pop() || 'Project';
+        await finalizeWorkspaceCreate(result.path, folderName, initAsSubFrame);
+      }
+    } catch {
+      toast.error('Failed to select folder');
+    }
+  }, [finalizeWorkspaceCreate, initAsSubFrame]);
+
+  const handleCreateNewFolder = useCallback(async () => {
+    const trimmedName = newFolderName.trim();
+    if (!trimmedName || !newFolderParent) return;
+    setLoading(true);
+    try {
+      const result = await typedInvoke(IPC.CREATE_FOLDER, {
+        parentPath: newFolderParent,
+        folderName: trimmedName,
+      });
+      await finalizeWorkspaceCreate(result.path, trimmedName, initAsSubFrame);
+    } catch {
+      toast.error('Failed to create folder');
+    } finally {
+      setLoading(false);
+    }
+  }, [newFolderName, newFolderParent, finalizeWorkspaceCreate, initAsSubFrame]);
+
+  const handleChooseParentDir = useCallback(async () => {
+    try {
+      const result = await typedInvoke(IPC.SELECT_FOLDER);
+      if (result) {
+        setNewFolderParent(result.path);
+      }
+    } catch {
+      toast.error('Failed to select location');
+    }
+  }, []);
 
   // Dialog state for rename
   const [renameTarget, setRenameTarget] = useState<{ key: string; name: string } | null>(null);
@@ -579,42 +651,171 @@ export function WorkspaceSelector() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create workspace dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={(open) => !open && setShowCreateDialog(false)}>
-        <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-sm" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>New Workspace</DialogTitle>
-            <DialogDescription className="text-text-secondary text-xs">
-              Give your workspace a name.
-            </DialogDescription>
-          </DialogHeader>
-          <input
-            type="text"
-            value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') confirmCreate();
-            }}
-            placeholder="e.g. Work, Personal, Client X"
-            className="w-full px-3 py-2 text-xs rounded-md bg-bg-deep border border-border-subtle text-text-primary outline-none focus:border-accent"
-            autoFocus
-          />
-          <DialogFooter>
-            <button
-              onClick={() => setShowCreateDialog(false)}
-              className="px-3 py-1.5 text-xs rounded-md border border-border-subtle text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmCreate}
-              disabled={loading || !createName.trim()}
-              className="px-3 py-1.5 text-xs rounded-md bg-accent text-bg-deep hover:bg-accent/80 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-              Create
-            </button>
-          </DialogFooter>
+      {/* Create workspace dialog (two-step) */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowCreateDialog(false);
+          resetCreateDialog();
+        }
+      }}>
+        <DialogContent className="bg-bg-primary border-border-subtle text-text-primary sm:max-w-md" showCloseButton={false}>
+          {createStep === 1 ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>New Workspace</DialogTitle>
+                <DialogDescription className="text-text-secondary text-xs">
+                  Step 1 of 2 — Give your workspace a name.
+                </DialogDescription>
+              </DialogHeader>
+              <input
+                type="text"
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && createName.trim()) setCreateStep(2);
+                }}
+                placeholder="e.g. Work, Personal, Client X"
+                className="w-full px-3 py-2 text-xs rounded-md bg-bg-deep border border-border-subtle text-text-primary outline-none focus:border-accent"
+                autoFocus
+              />
+              <DialogFooter>
+                <button
+                  onClick={() => { setShowCreateDialog(false); resetCreateDialog(); }}
+                  className="px-3 py-1.5 text-xs rounded-md border border-border-subtle text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setCreateStep(2)}
+                  disabled={!createName.trim()}
+                  className="px-3 py-1.5 text-xs rounded-md bg-accent text-bg-deep hover:bg-accent/80 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>New Workspace</DialogTitle>
+                <DialogDescription className="text-text-secondary text-xs">
+                  Step 2 of 2 — Add a project to &ldquo;{createName.trim()}&rdquo;.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-2">
+                {/* Option: Browse Existing Folder */}
+                <button
+                  onClick={handleBrowseExisting}
+                  disabled={loading}
+                  className="flex items-center gap-3 w-full px-3 py-3 text-left text-xs rounded-md border border-border-subtle bg-bg-deep hover:border-accent hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FolderOpen className="w-4 h-4 text-accent flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-text-primary">Add Existing Folder</div>
+                    <div className="text-[10px] text-text-muted mt-0.5">Browse for an existing project folder</div>
+                  </div>
+                </button>
+
+                {/* Option: Create New Folder */}
+                <button
+                  onClick={() => setCreateMode(createMode === 'create' ? null : 'create')}
+                  disabled={loading}
+                  className={`flex items-center gap-3 w-full px-3 py-3 text-left text-xs rounded-md border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    createMode === 'create'
+                      ? 'border-accent bg-accent/5'
+                      : 'border-border-subtle bg-bg-deep hover:border-accent hover:bg-bg-hover'
+                  }`}
+                >
+                  <FolderPlus className="w-4 h-4 text-accent flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-text-primary">Create New Folder</div>
+                    <div className="text-[10px] text-text-muted mt-0.5">Create a new project folder on disk</div>
+                  </div>
+                </button>
+
+                {/* Expanded sub-form for Create New Folder */}
+                {createMode === 'create' && (
+                  <div className="ml-7 flex flex-col gap-2 pl-3 border-l border-border-subtle">
+                    <div>
+                      <label className="text-[10px] text-text-muted mb-1 block">Folder name</label>
+                      <input
+                        type="text"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        placeholder="my-project"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-md bg-bg-deep border border-border-subtle text-text-primary outline-none focus:border-accent"
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-muted mb-1 block">Location</label>
+                      <div className="flex items-center gap-2">
+                        <span className="flex-1 px-2.5 py-1.5 text-xs rounded-md bg-bg-deep border border-border-subtle text-text-secondary truncate min-w-0">
+                          {newFolderParent || 'No location selected'}
+                        </span>
+                        <button
+                          onClick={handleChooseParentDir}
+                          className="px-2.5 py-1.5 text-xs rounded-md border border-border-subtle text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer flex-shrink-0"
+                        >
+                          Choose...
+                        </button>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <span className={`flex items-center justify-center w-3.5 h-3.5 rounded border transition-colors ${
+                        initAsSubFrame ? 'bg-accent border-accent' : 'border-border-default bg-bg-deep'
+                      }`}>
+                        {initAsSubFrame && <Check className="w-2.5 h-2.5 text-bg-deep" />}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={initAsSubFrame}
+                        onChange={(e) => setInitAsSubFrame(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <span className="text-[11px] text-text-secondary">Initialize as SubFrame project</span>
+                    </label>
+                    <button
+                      onClick={handleCreateNewFolder}
+                      disabled={loading || !newFolderName.trim() || !newFolderParent}
+                      className="px-3 py-1.5 text-xs rounded-md bg-accent text-bg-deep hover:bg-accent/80 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 self-end mt-1"
+                    >
+                      {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                      Create & Add
+                    </button>
+                  </div>
+                )}
+
+                {/* Option: Skip */}
+                <button
+                  onClick={() => finalizeWorkspaceCreate()}
+                  disabled={loading}
+                  className="flex items-center gap-3 w-full px-3 py-3 text-left text-xs rounded-md border border-border-subtle bg-bg-deep hover:border-accent hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <SkipForward className="w-4 h-4 text-text-muted flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-text-primary">Skip for now</div>
+                    <div className="text-[10px] text-text-muted mt-0.5">Create an empty workspace, add projects later</div>
+                  </div>
+                </button>
+              </div>
+              <DialogFooter>
+                <button
+                  onClick={() => { setCreateStep(1); setCreateMode(null); }}
+                  className="px-3 py-1.5 text-xs rounded-md border border-border-subtle text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                  Back
+                </button>
+                <button
+                  onClick={() => { setShowCreateDialog(false); resetCreateDialog(); }}
+                  className="px-3 py-1.5 text-xs rounded-md border border-border-subtle text-text-secondary hover:bg-bg-hover transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

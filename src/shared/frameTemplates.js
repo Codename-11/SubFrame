@@ -176,6 +176,7 @@ var require_package = __commonJS({
         "react-resizable-panels": "^4.7.5",
         "react-zoom-pan-pinch": "^3.7.0",
         recharts: "^2.15.4",
+        "rehype-raw": "^7.0.0",
         "remark-gfm": "^4.0.1",
         sonner: "^2.0.7",
         "tailwind-merge": "^3.5.0",

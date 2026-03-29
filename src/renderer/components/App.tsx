@@ -538,9 +538,58 @@ export function App() {
       getTransport().on(IPC.MENU_CLOSE_TERMINAL, onCloseTerminal),
       getTransport().on(IPC.MENU_OPEN_SETTINGS, onOpenSettings),
       getTransport().on(IPC.MENU_NEW_TERMINAL, onNewTerminal),
+      getTransport().on(IPC.MENU_OPEN_FILE, (_event: unknown, filePath: string) => {
+        useUIStore.getState().setEditorFilePath(filePath);
+      }),
     ];
 
     return () => { unsubs.forEach(fn => fn()); };
+  }, []);
+
+  // Drag-and-drop file open support
+  useEffect(() => {
+    const BINARY_EXTENSIONS = new Set([
+      'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'webp', 'svg',
+      'mp3', 'mp4', 'wav', 'ogg', 'webm', 'avi', 'mov',
+      'zip', 'tar', 'gz', 'rar', '7z',
+      'exe', 'dll', 'so', 'dylib', 'bin',
+      'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+      'woff', 'woff2', 'ttf', 'otf', 'eot',
+    ]);
+
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    };
+
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      if (!e.dataTransfer?.files?.length) return;
+
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const file = e.dataTransfer.files[i];
+        // In Electron, file.path gives the absolute path
+        const filePath = (file as File & { path?: string }).path;
+        if (!filePath) continue;
+
+        // Skip directories (size 0 with no extension is a heuristic; Electron sets type = '' for dirs)
+        // Also skip binary files by extension
+        const ext = filePath.split('.').pop()?.toLowerCase() || '';
+        if (BINARY_EXTENSIONS.has(ext)) continue;
+
+        useUIStore.getState().setEditorFilePath(filePath);
+        break; // Open only the first valid file
+      }
+    };
+
+    document.body.addEventListener('dragover', onDragOver);
+    document.body.addEventListener('drop', onDrop);
+    return () => {
+      document.body.removeEventListener('dragover', onDragOver);
+      document.body.removeEventListener('drop', onDrop);
+    };
   }, []);
 
   // Listen for CLI integration events (file/project open from command line)

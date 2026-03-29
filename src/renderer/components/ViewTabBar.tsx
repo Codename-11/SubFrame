@@ -463,6 +463,7 @@ export function ViewTabBar() {
       try {
         await typedInvoke(IPC.WORKSPACE_REORDER, [...orderedActiveKeys, ...inactiveWorkspaceKeys]);
         refetchWorkspaces();
+        typedSend(IPC.LOAD_WORKSPACE);
       } catch {
         toast.error('Failed to reorder workspace');
         workspaceOrderKeysRef.current = currentActiveKeys;

@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as os from 'os';
 import type { App, BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
+import { broadcast } from './eventBridge';
 import { WORKSPACE_DIR, WORKSPACE_FILE, FRAME_VERSION, FRAME_DIR, FRAME_CONFIG_FILE } from '../shared/frameConstants';
 
 interface WorkspaceProject {
@@ -718,7 +719,9 @@ function setupIPC(ipcMain: IpcMain): void {
   );
   ipcMain.handle(IPC.WORKSPACE_DELETE, (_e, key: string) => deleteWorkspace(key));
   ipcMain.handle(IPC.WORKSPACE_REORDER, (_event, orderedKeys: string[]) => {
-    return reorderWorkspaces(orderedKeys);
+    const result = reorderWorkspaces(orderedKeys);
+    if (result) broadcast(IPC.WORKSPACE_UPDATED, { type: 'reorder' });
+    return result;
   });
   ipcMain.handle(IPC.WORKSPACE_SET_INACTIVE, (_event, payload: { key: string; inactive: boolean }) => {
     return setWorkspaceInactive(payload.key, payload.inactive);

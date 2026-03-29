@@ -40,6 +40,7 @@ import * as pipelineManager from './pipelineManager';
 import * as activityManager from './activityManager';
 import * as outputChannelManager from './outputChannelManager';
 import * as popoutManager from './popoutManager';
+import * as editorPopoutManager from './editorPopoutManager';
 import * as apiServerManager from './apiServerManager';
 import * as webServerManager from './webServerManager';
 import { initEventBridge, broadcast } from './eventBridge';
@@ -512,6 +513,7 @@ function createWindow(): BrowserWindow {
   mainWindow.on('closed', () => {
     gitBranchesManager.stopAutoFetch();
     popoutManager.closeAll();
+    editorPopoutManager.closeAll();
     pty.killPTY();
     ptyManager.destroyAll();
     mainWindow = null;
@@ -558,6 +560,7 @@ function setupAllIPC(): void {
   activityManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   outputChannelManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   popoutManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  editorPopoutManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   apiServerManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   webServerManager.setupIPC(routedIpc);
   updaterManager.setupIPC(routedIpc as unknown as typeof ipcMain);
@@ -854,6 +857,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   onboardingManager.init(window);
   pipelineManager.init(window);
   popoutManager.init(window);
+  editorPopoutManager.init(window);
   updaterManager.init(window, app);
   apiServerManager.init(window);
   webServerManager.init();
@@ -922,7 +926,7 @@ if (!gotTheLock) {
 
   app.on('window-all-closed', () => {
     // Don't quit if only a pop-out window closed — the main window is still running
-    if (process.platform !== 'darwin' && popoutManager.getOpenCount() === 0) {
+    if (process.platform !== 'darwin' && popoutManager.getOpenCount() === 0 && editorPopoutManager.getOpenCount() === 0) {
       app.quit();
     }
   });

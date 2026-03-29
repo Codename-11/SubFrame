@@ -55,6 +55,10 @@ export const IPC = {
   SCAN_PROJECT_DIR: 'scan-project-dir',
   SELECT_DEFAULT_PROJECT_DIR: 'select-default-project-dir',
 
+  // Generic Folder Dialogs
+  SELECT_FOLDER: 'select-folder',
+  CREATE_FOLDER: 'create-folder',
+
   // SubFrame Project
   INITIALIZE_FRAME_PROJECT: 'initialize-frame-project',
   FRAME_PROJECT_INITIALIZED: 'frame-project-initialized',
@@ -284,6 +288,11 @@ export const IPC = {
   TERMINAL_POPOUT_STATUS: 'terminal-popout-status',
   POPOUT_ACTIVATE: 'popout-activate',
 
+  // Pop-Out Editor
+  EDITOR_POPOUT: 'editor-popout',
+  EDITOR_DOCK: 'editor-dock',
+  EDITOR_POPOUT_STATUS: 'editor-popout-status',
+
   // CLI Integration (main → renderer)
   CLI_OPEN_FILE: 'cli-open-file',
   CLI_OPEN_PROJECT: 'cli-open-project',
@@ -344,6 +353,7 @@ export const IPC = {
   MENU_CLOSE_TERMINAL: 'menu-close-terminal',
   MENU_OPEN_SETTINGS: 'menu-open-settings',
   MENU_NEW_TERMINAL: 'menu-new-terminal',
+  MENU_OPEN_FILE: 'menu-open-file',
 
   // Dev tools
   DEV_SYNC_FROM_PRODUCTION: 'dev-sync-from-production',
@@ -1389,6 +1399,8 @@ export interface IPCHandleMap {
   [IPC.API_SERVER_REGEN_TOKEN]: { args: []; return: { token: string } };
   [IPC.DETECT_AI_FEATURES]: { args: [projectPath: string]; return: { hooks: boolean; mcpServers: boolean; skills: boolean; hookCount: number; mcpServerCount: number } };
   [IPC.SELECT_DEFAULT_PROJECT_DIR]: { args: []; return: string | null };
+  [IPC.SELECT_FOLDER]: { args: []; return: { path: string } | null };
+  [IPC.CREATE_FOLDER]: { args: [payload: { parentPath: string; folderName: string }]; return: { path: string } };
 
   // Web Server
   [IPC.WEB_SERVER_INFO]: {
@@ -1490,6 +1502,10 @@ export interface IPCHandleMap {
   // Pop-Out Terminal
   [IPC.TERMINAL_POPOUT]: { args: [terminalId: string]; return: { success: boolean } };
   [IPC.TERMINAL_DOCK]: { args: [terminalId: string]; return: { success: boolean } };
+
+  // Pop-Out Editor
+  [IPC.EDITOR_POPOUT]: { args: [filePath: string]; return: { success: boolean } };
+  [IPC.EDITOR_DOCK]: { args: [filePath: string]; return: { success: boolean } };
 
   // Terminal Session Name
   [IPC.GET_TERMINAL_SESSION_NAME]: { args: [payload: { terminalId: string; sessionId?: string }]; return: { name: string | null } };
@@ -1822,6 +1838,9 @@ export interface IPCEventMap {
   [IPC.TERMINAL_POPOUT_STATUS]: { terminalId: string; poppedOut: boolean };
   [IPC.POPOUT_ACTIVATE]: { terminalId: string };
 
+  // Pop-Out Editor
+  [IPC.EDITOR_POPOUT_STATUS]: { filePath: string; popped: boolean };
+
   // CLI Integration
   [IPC.CLI_OPEN_FILE]: string; // absolute file path
   [IPC.CLI_OPEN_PROJECT]: string; // absolute directory path
@@ -1838,6 +1857,7 @@ export interface IPCEventMap {
   [IPC.MENU_CLOSE_TERMINAL]: void;
   [IPC.MENU_OPEN_SETTINGS]: void;
   [IPC.MENU_NEW_TERMINAL]: void;
+  [IPC.MENU_OPEN_FILE]: string; // absolute file path
 
   // Web Server
   [IPC.WEB_CLIENT_CONNECTED]: { userAgent: string; connectedAt: string };

@@ -20,6 +20,7 @@ import {
   Minimize2,
   Search,
   Hash,
+  ExternalLink,
 } from 'lucide-react';
 import { MarkdownPreview } from './previews/MarkdownPreview';
 import { HtmlPreview } from './previews/HtmlPreview';
@@ -57,7 +58,7 @@ import {
   TooltipProvider,
 } from '@/components/ui/tooltip';
 import { IPC } from '../../shared/ipcChannels';
-import { typedSend } from '../lib/ipc';
+import { typedSend, typedInvoke } from '../lib/ipc';
 import { useSettings } from '../hooks/useSettings';
 import { toast } from 'sonner';
 import { useProjectStore } from '../stores/useProjectStore';
@@ -178,6 +179,27 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
   const fileExt = fileName.split('.').pop()?.toLowerCase() ?? '';
   const isPreviewable = PREVIEWABLE_EXTENSIONS.has(fileExt);
   const relativePath = filePath ? getRelativePath(filePath, currentProjectPath) : '';
+
+  // Pop-out editor state
+  const [isPoppedOut, setIsPoppedOut] = useState(false);
+
+  // Listen for editor popout status changes
+  useEffect(() => {
+    if (!filePath || !inline) return;
+    const handler = (_event: unknown, data: { filePath: string; popped: boolean }) => {
+      if (data.filePath === filePath) {
+        setIsPoppedOut(data.popped);
+      }
+    };
+    return getTransport().on(IPC.EDITOR_POPOUT_STATUS, handler);
+  }, [filePath, inline]);
+
+  const handlePopout = useCallback(() => {
+    if (!filePath) return;
+    typedInvoke(IPC.EDITOR_POPOUT, filePath).then(() => {
+      onClose();
+    }).catch(() => {});
+  }, [filePath, onClose]);
 
   // Load file content when filePath changes
   useEffect(() => {
@@ -699,6 +721,24 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
                 >
                   Save
                 </button>
+                {inline && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={handlePopout}
+                        disabled={isPoppedOut}
+                        className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-bg-hover
+                                   transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        title={isPoppedOut ? 'Already popped out' : 'Pop out to separate window'}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="bg-bg-tertiary text-text-primary border-border-subtle text-[10px]">
+                      {isPoppedOut ? 'Already in separate window' : 'Pop out editor'}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             </div>
             <p className="text-[10px] font-mono text-text-muted truncate mt-1">

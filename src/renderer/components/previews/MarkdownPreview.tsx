@@ -1,6 +1,9 @@
 import React from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import type { Root, Blockquote, Paragraph, Text } from 'mdast';
+import type { Plugin } from 'unified';
 import { ScrollArea } from '../ui/scroll-area';
 import { getTransport } from '../../lib/transportProvider';
 import hljs from 'highlight.js/lib/core';
@@ -70,6 +73,58 @@ const hljsStyles = `
 .hljs-strong { font-weight: bold; }
 `;
 
+// GitHub-style alert types and their styling
+const ALERT_TYPES: Record<string, { icon: string; label: string; colorClass: string; bgClass: string; borderClass: string }> = {
+  NOTE: { icon: 'i', label: 'Note', colorClass: 'text-info', bgClass: 'bg-info/10', borderClass: 'border-info/40' },
+  TIP: { icon: '\u2714', label: 'Tip', colorClass: 'text-success', bgClass: 'bg-success/10', borderClass: 'border-success/40' },
+  IMPORTANT: { icon: '\u2605', label: 'Important', colorClass: 'text-accent', bgClass: 'bg-accent/10', borderClass: 'border-accent/40' },
+  WARNING: { icon: '\u26A0', label: 'Warning', colorClass: 'text-warning', bgClass: 'bg-warning/10', borderClass: 'border-warning/40' },
+  CAUTION: { icon: '\u2716', label: 'Caution', colorClass: 'text-error', bgClass: 'bg-error/10', borderClass: 'border-error/40' },
+};
+
+// Remark plugin: transform GitHub-style alerts [!NOTE], [!WARNING], etc.
+const remarkGithubAlerts: Plugin<[], Root> = () => {
+  return (tree: Root) => {
+    for (const node of tree.children) {
+      if (node.type !== 'blockquote') continue;
+      const bq = node as Blockquote;
+      if (bq.children.length === 0) continue;
+
+      const firstChild = bq.children[0];
+      if (firstChild.type !== 'paragraph') continue;
+      const para = firstChild as Paragraph;
+      if (para.children.length === 0) continue;
+
+      const firstInline = para.children[0];
+      if (firstInline.type !== 'text') continue;
+      const textNode = firstInline as Text;
+
+      const match = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/.exec(textNode.value);
+      if (!match) continue;
+
+      const alertType = match[1];
+      // Strip the alert marker from the text
+      textNode.value = textNode.value.slice(match[0].length);
+      // If the text node is now empty, remove it
+      if (textNode.value === '') {
+        para.children.shift();
+        // Also remove leading linebreak if present
+        if (para.children.length > 0 && para.children[0].type === 'break') {
+          para.children.shift();
+        }
+      }
+      // If the paragraph is now empty, remove it
+      if (para.children.length === 0) {
+        bq.children.shift();
+      }
+
+      // Add data attributes so the blockquote component can detect it
+      const data = (bq.data = bq.data || {});
+      data.hProperties = { ...(data.hProperties as Record<string, unknown> || {}), 'data-alert-type': alertType };
+    }
+  };
+};
+
 interface MarkdownPreviewProps {
   content: string;
 }
@@ -106,18 +161,48 @@ const components: Record<string, React.ComponentType<any>> = {
   strong: ({ children, ...props }) => (
     <strong className="text-text-primary font-semibold" {...props}>{children}</strong>
   ),
-  blockquote: ({ children, ...props }) => (
-    <blockquote className="border-l-2 border-accent pl-4 italic text-text-tertiary mb-4" {...props}>{children}</blockquote>
-  ),
+  blockquote: ({ children, ...props }) => {
+    const alertType = props['data-alert-type'] as string | undefined;
+    if (alertType && ALERT_TYPES[alertType]) {
+      const alert = ALERT_TYPES[alertType];
+      return (
+        <div className={`${alert.bgClass} ${alert.borderClass} border-l-4 rounded-r-lg px-4 py-3 mb-4`} {...props}>
+          <div className={`${alert.colorClass} font-semibold text-sm mb-1 flex items-center gap-1.5`}>
+            <span>{alert.icon}</span> {alert.label}
+          </div>
+          <div className="text-text-secondary text-sm [&>p]:mb-1 [&>p:last-child]:mb-0">{children}</div>
+        </div>
+      );
+    }
+    return (
+      <blockquote className="border-l-2 border-accent pl-4 italic text-text-tertiary mb-4" {...props}>{children}</blockquote>
+    );
+  },
   ul: ({ children, ...props }) => (
     <ul className="list-disc pl-6 mb-3 text-text-secondary text-sm" {...props}>{children}</ul>
   ),
   ol: ({ children, ...props }) => (
     <ol className="list-decimal pl-6 mb-3 text-text-secondary text-sm" {...props}>{children}</ol>
   ),
-  li: ({ children, ...props }) => (
-    <li className="mb-1" {...props}>{children}</li>
-  ),
+  li: ({ children, ...props }) => {
+    // Detect task list items (GFM checkboxes)
+    const childArray = React.Children.toArray(children);
+    const firstChild = childArray[0];
+    if (React.isValidElement(firstChild) && (firstChild as React.ReactElement<any>).props?.type === 'checkbox') {
+      const checked = (firstChild as React.ReactElement<any>).props?.checked;
+      return (
+        <li className="mb-1 list-none flex items-start gap-2" {...props}>
+          <span className={`mt-0.5 inline-flex items-center justify-center w-4 h-4 rounded border ${checked ? 'bg-accent border-accent text-bg-primary' : 'border-border-default'} text-xs flex-shrink-0`}>
+            {checked ? '\u2713' : ''}
+          </span>
+          <span className={checked ? 'line-through text-text-tertiary' : ''}>{childArray.slice(1)}</span>
+        </li>
+      );
+    }
+    return (
+      <li className="mb-1" {...props}>{children}</li>
+    );
+  },
   table: ({ children, ...props }) => (
     <table className="w-full border-collapse mb-4 text-sm" {...props}>{children}</table>
   ),
@@ -140,7 +225,7 @@ const components: Record<string, React.ComponentType<any>> = {
     <hr className="border-border-subtle my-6" {...props} />
   ),
   img: ({ src, alt, ...props }) => (
-    <img src={src} alt={alt ?? ''} className="max-w-full rounded-lg my-4" {...props} />
+    <img src={src} alt={alt ?? ''} className="max-w-full rounded-lg my-4" referrerPolicy="no-referrer" crossOrigin="anonymous" {...props} />
   ),
   code: ({ className, children, ...props }) => {
     const match = /language-(\w+)/.exec(className || '');
@@ -169,7 +254,7 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
     <ScrollArea className="h-full">
       <style>{hljsStyles}</style>
       <div className="p-6 max-w-4xl">
-        <Markdown remarkPlugins={[remarkGfm]} components={components}>
+        <Markdown remarkPlugins={[remarkGfm, remarkGithubAlerts]} rehypePlugins={[rehypeRaw]} components={components}>
           {content}
         </Markdown>
       </div>

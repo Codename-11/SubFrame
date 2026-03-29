@@ -44,9 +44,29 @@ const editorParams = hash.startsWith('#editor?')
 const editorFilePath = editorParams?.get('filePath') ?? null;
 const isStandaloneEditor = !!editorFilePath;
 
+// Detect editor popout mode (#editor-popout?filePath=xxx)
+const editorPopoutParams = hash.startsWith('#editor-popout?')
+  ? new URLSearchParams(hash.replace('#editor-popout?', ''))
+  : null;
+const editorPopoutFilePath = editorPopoutParams?.get('filePath')
+  ? decodeURIComponent(editorPopoutParams.get('filePath')!)
+  : null;
+const isEditorPopout = !!editorPopoutFilePath;
+
 const rootEl = document.getElementById('root');
 if (rootEl) {
-  if (isStandaloneEditor) {
+  if (isEditorPopout) {
+    // Pop-out editor window — detached editor for multi-monitor workflows
+    const { PopoutEditor } = require('./components/PopoutEditor');
+    createRoot(rootEl).render(
+      <ErrorBoundary name="PopoutEditor">
+        <QueryClientProvider client={queryClient}>
+          <PopoutEditor filePath={editorPopoutFilePath} />
+          <Toaster position="bottom-right" theme="dark" />
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  } else if (isStandaloneEditor) {
     // Standalone editor window — opened via CLI `subframe edit <file>`
     const { Editor } = require('./components/Editor');
     createRoot(rootEl).render(

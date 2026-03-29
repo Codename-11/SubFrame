@@ -13,6 +13,7 @@ import { IPC } from '../shared/ipcChannels';
 import { IS_DEV_MODE, WORKSPACE_DIR, WORKSPACE_DIR_PROD, WORKSPACE_FILE } from '../shared/frameConstants';
 import { checkForUpdates } from './updaterManager';
 import { broadcast } from './eventBridge';
+import { showOpenFileDialog } from './dialogs';
 
 const REPO_URL = 'https://github.com/Codename-11/SubFrame';
 const DOCS_URL = 'https://codename-11.github.io/SubFrame';
@@ -90,6 +91,11 @@ async function getMenuTemplate(): Promise<MenuItemConstructorOptions[]> {
           click: () => sendToRenderer(IPC.MENU_CLOSE_TERMINAL)
         },
         { type: 'separator' },
+        {
+          label: 'Open File...',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => showOpenFileDialog()
+        },
         {
           label: 'Open Project...',
           click: () => sendToRenderer(IPC.PROJECT_SELECTED, '__open_dialog__')
