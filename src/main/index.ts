@@ -580,6 +580,72 @@ function setupAllIPC(): void {
     return { version, content };
   });
 
+  // ── AI Analysis Panel — lightweight terminal-based AI prompting ─────────────
+  // Tracks active analysis terminals per project so follow-up prompts reuse the same session.
+  const aiAnalysisTerminals = new Map<string, string>(); // projectPath → terminalId
+
+  routedIpc.handle(IPC.RUN_AI_ANALYSIS, async (_event: unknown, ...args: unknown[]) => {
+    const payload = args[0] as { projectPath: string; prompt: string; terminalId?: string };
+    const { projectPath, prompt, terminalId: existingTerminalId } = payload;
+
+    // If a terminal already exists and is still alive, reuse it by sending input
+    const activeTerminalId = existingTerminalId || aiAnalysisTerminals.get(projectPath);
+    if (activeTerminalId && ptyManager.hasTerminal(activeTerminalId)) {
+      // Send the prompt as terminal input (the AI tool is already running)
+      ptyManager.writeToTerminal(activeTerminalId, prompt + '\n');
+      broadcast(IPC.AI_ANALYSIS_STATUS, {
+        projectPath,
+        status: 'running' as const,
+        message: 'Sent follow-up prompt',
+        terminalId: activeTerminalId,
+      });
+      return { terminalId: activeTerminalId, reused: true };
+    }
+
+    // Create a new terminal with the AI tool
+    const command = await aiToolManager.getStartCommand();
+    const newTerminalId = ptyManager.createTerminal(
+      projectPath,
+      projectPath,
+      null, // use default shell
+      200,
+      50,
+      { conptyInheritCursor: false },
+    );
+
+    aiAnalysisTerminals.set(projectPath, newTerminalId);
+
+    // Broadcast that terminal was created (so UI picks it up)
+    broadcast(IPC.TERMINAL_CREATED, {
+      terminalId: newTerminalId,
+      success: true,
+      projectPath,
+      name: 'AI Analysis',
+      background: true,
+    });
+
+    broadcast(IPC.AI_ANALYSIS_STATUS, {
+      projectPath,
+      status: 'running' as const,
+      message: 'Starting AI tool...',
+      terminalId: newTerminalId,
+    });
+
+    // Wait briefly for shell to initialize, then launch the AI tool and send the prompt
+    setTimeout(() => {
+      if (!ptyManager.hasTerminal(newTerminalId)) return;
+      // Launch the AI tool first, then send the prompt after it starts
+      ptyManager.writeToTerminal(newTerminalId, command + '\n');
+      // Give the AI tool time to start before sending the prompt
+      setTimeout(() => {
+        if (!ptyManager.hasTerminal(newTerminalId)) return;
+        ptyManager.writeToTerminal(newTerminalId, prompt + '\n');
+      }, 2000);
+    }, 500);
+
+    return { terminalId: newTerminalId, reused: false };
+  });
+
   // CLI install — create a shell wrapper in a PATH-accessible location
   routedIpc.handle(IPC.INSTALL_CLI, async () => {
     try {

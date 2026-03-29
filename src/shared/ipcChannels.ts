@@ -356,6 +356,11 @@ export const IPC = {
   MENU_NEW_TERMINAL: 'menu-new-terminal',
   MENU_OPEN_FILE: 'menu-open-file',
 
+  // AI Analysis Panel
+  RUN_AI_ANALYSIS: 'run-ai-analysis',
+  AI_ANALYSIS_RESULT: 'ai-analysis-result',
+  AI_ANALYSIS_STATUS: 'ai-analysis-status',
+
   // Claude Configuration
   GET_CLAUDE_CONFIG_STATUS: 'get-claude-config-status',
 
@@ -428,6 +433,7 @@ export interface WebSessionState {
       | 'prompts'
       | 'pipeline'
       | 'system'
+      | 'aiAnalysis'
       | null;
     rightPanelCollapsed: boolean;
     rightPanelWidth: number;
@@ -1577,6 +1583,12 @@ export interface IPCHandleMap {
     return: { success: boolean; error?: string };
   };
 
+  // AI Analysis Panel
+  [IPC.RUN_AI_ANALYSIS]: {
+    args: [payload: { projectPath: string; prompt: string; terminalId?: string }];
+    return: { terminalId: string; reused: boolean };
+  };
+
   // Task AI Enhance
   [IPC.ENHANCE_TASK]: {
     args: [payload: { projectPath: string; task: Partial<Task> }];
@@ -1890,6 +1902,10 @@ export interface IPCEventMap {
   [IPC.SESSION_CONTROL_TAKE]: void;
   [IPC.SESSION_CONTROL_RELEASE]: void;
   [IPC.SESSION_CONTROL_STATE]: SessionControlState;
+
+  // AI Analysis Panel
+  [IPC.AI_ANALYSIS_STATUS]: { projectPath: string; status: 'running' | 'complete' | 'error'; message?: string; terminalId?: string };
+  [IPC.AI_ANALYSIS_RESULT]: { projectPath: string; result: string; timestamp: string };
 }
 
 // ─── CommonJS compat (keep old require('...ipcChannels') working) ────────────

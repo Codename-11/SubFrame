@@ -36,6 +36,7 @@ import {
   ChevronDown,
   Maximize2,
   TerminalSquare,
+  Bot,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -66,8 +67,9 @@ import { SkillsPanel } from './SkillsPanel';
 import { PromptsPanel } from './PromptsPanel';
 import { PipelinePanel } from './PipelinePanel';
 import { SystemPanel } from './SystemPanel';
+import { AIAnalysisPanel } from './AIAnalysisPanel';
 
-type PanelId = 'tasks' | 'sessions' | 'aiSessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system';
+type PanelId = 'tasks' | 'sessions' | 'aiSessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system' | 'aiAnalysis';
 
 interface PanelDef {
   id: PanelId;
@@ -98,6 +100,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   prompts:         { id: 'prompts',         label: 'Prompts',    icon: BookMarked,     shortcut: 'Ctrl+Shift+L' },
   pipeline:        { id: 'pipeline',        label: 'Pipeline',   icon: Workflow,       shortcut: 'Ctrl+Shift+Y' },
   system:          { id: 'system',          label: 'System',     icon: Cpu,            shortcut: 'Ctrl+Shift+U' },
+  aiAnalysis:      { id: 'aiAnalysis',      label: 'AI Analysis', icon: Bot,           shortcut: 'Ctrl+Shift+I' },
 };
 
 /**
@@ -117,6 +120,7 @@ const PANEL_GROUPS: PanelGroup[] = [
   { panels: ['prompts'],                                                                    label: 'Prompts' },
   { panels: ['pipeline'],                                                                   label: 'Pipeline' },
   { panels: ['overview', 'aiFiles', 'subframeHealth', 'system'],                              label: 'Project' },
+  { panels: ['aiAnalysis'],                                                                    label: 'AI Analysis' },
 ];
 
 /** Find which group a panel belongs to */
@@ -150,6 +154,7 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   prompts: PromptsPanel,
   pipeline: PipelinePanel,
   system: SystemPanel,
+  aiAnalysis: AIAnalysisPanel,
 };
 
 /** Panels that can be opened as a full-view tab (maps panel ID to FullViewContent ID) */
