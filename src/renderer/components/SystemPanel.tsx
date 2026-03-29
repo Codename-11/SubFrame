@@ -992,9 +992,68 @@ function ClaudeConfigCard() {
   const cs = configStatus as {
     global: { claudeMd: FileStatus; settings: FileStatus };
     project: { claudeMd: FileStatus; settings: FileStatus; privateMd: FileStatus } | null;
-    gemini?: { project: { geminiMd: FileStatus; settings: FileStatus } | null };
-    codex?: { project: { agentsMd: FileStatus; instructions: FileStatus } | null };
+    gemini?: { global: { settings: FileStatus }; project: { geminiMd: FileStatus; settings: FileStatus } | null };
+    codex?: { global: { instructions: FileStatus }; project: { agentsMd: FileStatus; instructions: FileStatus } | null };
   } | undefined;
+
+  // Collapsed state per tool — collapsed by default
+  const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
+  const toggleTool = (tool: string) => setExpandedTools((prev) => ({ ...prev, [tool]: !prev[tool] }));
+
+  // Count files per tool for inline summary
+  function countFiles(files: FileStatus[]): { found: number; total: number; warnings: number } {
+    let found = 0; let warnings = 0;
+    for (const f of files) {
+      if (f.exists) found++;
+      if (f.warnings?.length) warnings += f.warnings.length;
+    }
+    return { found, total: files.length, warnings };
+  }
+
+  // Build tool sections
+  const toolSections = cs ? [
+    {
+      id: 'claude',
+      label: 'Claude Code',
+      files: [
+        ...(cs.global ? [
+          { icon: FileText, label: '~/.claude/CLAUDE.md', status: cs.global.claudeMd, scope: 'global' as const },
+          { icon: Settings2, label: '~/.claude/settings.json', status: cs.global.settings, isSettings: true, scope: 'global' as const },
+        ] : []),
+        ...(cs.project ? [
+          { icon: FileText, label: 'CLAUDE.md', status: cs.project.claudeMd, scope: 'project' as const },
+          { icon: Settings2, label: '.claude/settings.json', status: cs.project.settings, isSettings: true, scope: 'project' as const },
+          { icon: FileText, label: '.claude/CLAUDE.md (private)', status: cs.project.privateMd, scope: 'project' as const },
+        ] : []),
+      ],
+    },
+    {
+      id: 'gemini',
+      label: 'Gemini CLI',
+      files: [
+        ...(cs.gemini?.global ? [
+          { icon: Settings2, label: '~/.gemini/settings.json', status: cs.gemini.global.settings, isSettings: true, scope: 'global' as const },
+        ] : []),
+        ...(cs.gemini?.project ? [
+          { icon: FileText, label: 'GEMINI.md', status: cs.gemini.project.geminiMd, scope: 'project' as const },
+          { icon: Settings2, label: '.gemini/settings.json', status: cs.gemini.project.settings, isSettings: true, scope: 'project' as const },
+        ] : []),
+      ],
+    },
+    {
+      id: 'codex',
+      label: 'Codex CLI',
+      files: [
+        ...(cs.codex?.global ? [
+          { icon: FileText, label: '~/.codex/instructions.md', status: cs.codex.global.instructions, scope: 'global' as const },
+        ] : []),
+        ...(cs.codex?.project ? [
+          { icon: FileText, label: 'AGENTS.md', status: cs.codex.project.agentsMd, scope: 'project' as const },
+          { icon: FileText, label: '.codex/instructions.md', status: cs.codex.project.instructions, scope: 'project' as const },
+        ] : []),
+      ],
+    },
+  ] : [];
 
   return (
     <motion.div
@@ -1027,61 +1086,51 @@ function ClaudeConfigCard() {
           <Loader2 size={14} className="animate-spin text-text-muted" />
         </div>
       ) : cs ? (
-        <div className="space-y-3">
-          {/* Claude — Global */}
-          <ToolConfigSection
-            title="Claude · Global (~/.claude/)"
-            files={[
-              { icon: FileText, label: 'CLAUDE.md', status: cs.global.claudeMd },
-              { icon: Settings2, label: 'settings.json', status: cs.global.settings, isSettings: true },
-            ]}
-            onOpen={openFile}
-            onCreate={createFile}
-          />
-
-          {/* Claude — Project */}
-          {cs.project ? (
-            <ToolConfigSection
-              title="Claude · Project"
-              files={[
-                { icon: FileText, label: 'CLAUDE.md', status: cs.project.claudeMd },
-                { icon: Settings2, label: '.claude/settings.json', status: cs.project.settings, isSettings: true },
-                { icon: FileText, label: '.claude/CLAUDE.md (private)', status: cs.project.privateMd },
-              ]}
-              onOpen={openFile}
-              onCreate={createFile}
-            />
-          ) : null}
-
-          {/* Gemini — Project */}
-          {cs.gemini?.project ? (
-            <ToolConfigSection
-              title="Gemini · Project"
-              files={[
-                { icon: FileText, label: 'GEMINI.md', status: cs.gemini.project.geminiMd },
-                { icon: Settings2, label: '.gemini/settings.json', status: cs.gemini.project.settings, isSettings: true },
-              ]}
-              onOpen={openFile}
-              onCreate={createFile}
-            />
-          ) : null}
-
-          {/* Codex — Project */}
-          {cs.codex?.project ? (
-            <ToolConfigSection
-              title="Codex · Project"
-              files={[
-                { icon: FileText, label: 'AGENTS.md', status: cs.codex.project.agentsMd },
-                { icon: FileText, label: '.codex/instructions.md', status: cs.codex.project.instructions },
-              ]}
-              onOpen={openFile}
-              onCreate={createFile}
-            />
-          ) : null}
+        <div className="space-y-1.5">
+          {toolSections.map((tool) => {
+            const expanded = !!expandedTools[tool.id];
+            const stats = countFiles(tool.files.map((f) => f.status));
+            return (
+              <div key={tool.id} className="rounded border border-border-subtle bg-bg-primary/30">
+                <button
+                  onClick={() => toggleTool(tool.id)}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left cursor-pointer hover:bg-bg-hover/30 transition-colors"
+                >
+                  <ChevronDown size={10} className={cn('text-text-muted transition-transform shrink-0', !expanded && '-rotate-90')} />
+                  <span className="text-[11px] font-medium text-text-primary flex-1">{tool.label}</span>
+                  <span className="text-[10px] text-text-muted">
+                    {stats.found}/{stats.total} found
+                  </span>
+                  {stats.warnings > 0 && (
+                    <span className="flex items-center gap-0.5 text-[10px] text-warning">
+                      <AlertTriangle size={9} />
+                      {stats.warnings}
+                    </span>
+                  )}
+                </button>
+                {expanded && (
+                  <div className="px-1.5 pb-1.5 space-y-0.5">
+                    {tool.files.map((f) => (
+                      <ConfigFileRow
+                        key={f.status.path}
+                        icon={f.icon}
+                        label={f.label}
+                        filePath={f.status.path}
+                        exists={f.status.exists}
+                        warnings={f.status.warnings}
+                        onOpen={() => openFile(f.status.path)}
+                        onCreate={() => createFile(f.status.path, !!f.isSettings)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {!projectPath && (
-            <div className="text-[10px] text-text-tertiary italic">
-              Select a project to view project-level configuration
+            <div className="text-[10px] text-text-tertiary italic px-1">
+              Select a project to view project-level files
             </div>
           )}
         </div>

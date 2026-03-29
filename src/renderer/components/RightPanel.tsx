@@ -116,11 +116,10 @@ interface PanelGroup {
 const PANEL_GROUPS: PanelGroup[] = [
   { panels: ['tasks'],                                                                      label: 'Sub-Tasks' },
   { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees', 'githubWorkflows', 'githubNotifications'], label: 'GitHub' },
-  { panels: ['agentState', 'aiSessions', 'sessions', 'history', 'skills', 'plugins'],       label: 'Agent' },
+  { panels: ['agentState', 'aiAnalysis', 'aiSessions', 'sessions', 'history', 'skills', 'plugins'], label: 'Agent' },
   { panels: ['prompts'],                                                                    label: 'Prompts' },
   { panels: ['pipeline'],                                                                   label: 'Pipeline' },
   { panels: ['overview', 'aiFiles', 'subframeHealth', 'system'],                              label: 'Project' },
-  { panels: ['aiAnalysis'],                                                                    label: 'AI Analysis' },
 ];
 
 /** Find which group a panel belongs to */
@@ -390,6 +389,7 @@ export function RightPanel() {
                   >
                     <ActiveIcon size={13} className="text-accent flex-shrink-0" />
                     <span className="text-xs font-medium truncate">{activeDef.label}</span>
+                    <ChevronDown size={10} className="text-text-muted flex-shrink-0 ml-0.5" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[220px]">

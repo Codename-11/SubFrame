@@ -370,6 +370,9 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
 
     // Gemini config
     const gemini = {
+      global: {
+        settings: checkFile(path.join(home, '.gemini', 'settings.json'), validateJson),
+      },
       project: null as { geminiMd: FileStatus; settings: FileStatus } | null,
     };
     if (projectPath) {
@@ -381,6 +384,9 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
 
     // Codex config
     const codex = {
+      global: {
+        instructions: checkFile(path.join(home, '.codex', 'instructions.md'), validateMd),
+      },
       project: null as { agentsMd: FileStatus; instructions: FileStatus } | null,
     };
     if (projectPath) {
