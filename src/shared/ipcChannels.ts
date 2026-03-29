@@ -356,6 +356,9 @@ export const IPC = {
   MENU_NEW_TERMINAL: 'menu-new-terminal',
   MENU_OPEN_FILE: 'menu-open-file',
 
+  // Claude Configuration
+  GET_CLAUDE_CONFIG_STATUS: 'get-claude-config-status',
+
   // Dev tools
   DEV_SYNC_FROM_PRODUCTION: 'dev-sync-from-production',
 } as const;
@@ -1626,6 +1629,22 @@ export interface IPCHandleMap {
   [IPC.CHECK_CONTEXT_MENU]: {
     args: [];
     return: { installed: boolean };
+  };
+
+  // Claude Configuration
+  [IPC.GET_CLAUDE_CONFIG_STATUS]: {
+    args: [projectPath: string | null];
+    return: {
+      global: {
+        claudeMd: { exists: boolean; path: string };
+        settings: { exists: boolean; path: string };
+      };
+      project: {
+        claudeMd: { exists: boolean; path: string };
+        settings: { exists: boolean; path: string };
+        privateMd: { exists: boolean; path: string };
+      } | null;
+    };
   };
 
   // Dev tools

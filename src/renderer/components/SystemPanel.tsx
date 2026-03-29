@@ -9,6 +9,7 @@ import {
   Cpu, Download, RefreshCw, Loader2, CheckCircle,
   Terminal, Keyboard, BookMarked, Globe, Copy, Zap,
   ChevronDown, ChevronUp, RotateCw, Info, Link2,
+  FileText, Settings2, Check, X, Plus, ExternalLink,
 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Button } from './ui/button';
@@ -22,6 +23,7 @@ import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { useSubFrameHealth } from '../hooks/useSubFrameHealth';
 import { usePrompts } from '../hooks/usePrompts';
 import { useIpcQuery, useIpcMutation } from '../hooks/useIpc';
+import { typedSend } from '../lib/ipc';
 import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { IPC } from '../../shared/ipcChannels';
@@ -116,7 +118,18 @@ export function SystemPanel({ isFullView = false }: { isFullView?: boolean }) {
             <FeatureDetectionCard />
           </motion.div>
 
-          {/* Section 4: Quick Access */}
+          {/* Section 4: Claude Configuration */}
+          <SectionDivider icon={FileText} label="Claude Configuration" />
+          <motion.div
+            className="grid gap-2 grid-cols-2"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <ClaudeConfigCard />
+          </motion.div>
+
+          {/* Section 5: Quick Access */}
           <SectionDivider icon={Zap} label="Quick Access" />
           <motion.div
             className="grid gap-2 grid-cols-2"
@@ -820,6 +833,219 @@ function FeatureDetectionCard() {
           </div>
         ))}
       </div>
+    </motion.div>
+  );
+}
+
+// ─── Card: Claude Configuration ──────────────────────────────────────────────
+
+/** Single config file row */
+function ConfigFileRow({
+  icon: Icon,
+  label,
+  filePath,
+  exists,
+  onOpen,
+  onCreate,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  filePath: string;
+  exists: boolean;
+  onOpen: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 py-1 px-1 rounded hover:bg-bg-hover/50 transition-colors group">
+      <Icon size={13} className="text-text-muted shrink-0" />
+      <div className="flex flex-col min-w-0 flex-1">
+        <span className="text-[11px] font-medium text-text-secondary truncate">{label}</span>
+        <span className="text-[10px] text-text-tertiary truncate">{filePath}</span>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {exists ? (
+          <>
+            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+              <Check size={10} />
+              <span>Exists</span>
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onOpen}
+              className="h-5 px-1.5 text-[10px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ExternalLink size={10} className="mr-0.5" />
+              Open
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="flex items-center gap-1 text-[10px] text-text-muted">
+              <X size={10} />
+              <span>Not found</span>
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onCreate}
+              className="h-5 px-1.5 text-[10px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Plus size={10} className="mr-0.5" />
+              Create
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProjectConfigSection({
+  project,
+  onOpen,
+  onCreate,
+}: {
+  project: { claudeMd: { exists: boolean; path: string }; settings: { exists: boolean; path: string }; privateMd: { exists: boolean; path: string } };
+  onOpen: (path: string) => void;
+  onCreate: (path: string, isSettings: boolean) => void;
+}) {
+  return (
+    <div>
+      <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
+        Project
+      </div>
+      <div className="rounded border border-border-subtle bg-bg-primary/50 p-1.5 space-y-0.5">
+        <ConfigFileRow
+          icon={FileText}
+          label="CLAUDE.md"
+          filePath={project.claudeMd.path}
+          exists={project.claudeMd.exists}
+          onOpen={() => onOpen(project.claudeMd.path)}
+          onCreate={() => onCreate(project.claudeMd.path, false)}
+        />
+        <ConfigFileRow
+          icon={Settings2}
+          label=".claude/settings.json"
+          filePath={project.settings.path}
+          exists={project.settings.exists}
+          onOpen={() => onOpen(project.settings.path)}
+          onCreate={() => onCreate(project.settings.path, true)}
+        />
+        <ConfigFileRow
+          icon={FileText}
+          label=".claude/CLAUDE.md (private)"
+          filePath={project.privateMd.path}
+          exists={project.privateMd.exists}
+          onOpen={() => onOpen(project.privateMd.path)}
+          onCreate={() => onCreate(project.privateMd.path, false)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ClaudeConfigCard() {
+  const projectPath = useProjectStore((s) => s.currentProjectPath);
+  const setEditorFilePath = useUIStore((s) => s.setEditorFilePath);
+
+  const { data: configStatus, refetch, isLoading } = useIpcQuery(
+    IPC.GET_CLAUDE_CONFIG_STATUS,
+    [projectPath],
+    { staleTime: 10000 }
+  );
+
+  const openFile = (filePath: string) => {
+    setEditorFilePath(filePath);
+  };
+
+  const createFile = (filePath: string, isSettings: boolean) => {
+    const content = isSettings
+      ? JSON.stringify({}, null, 2) + '\n'
+      : '# CLAUDE.md\n\n## Instructions\n\n';
+
+    // Ensure parent directory exists by writing the file via IPC
+    typedSend(IPC.WRITE_FILE, { filePath, content });
+    // Open in editor after a brief delay to allow fs write
+    setTimeout(() => {
+      setEditorFilePath(filePath);
+      refetch();
+    }, 300);
+  };
+
+  return (
+    <motion.div
+      variants={cardVariants}
+      className="rounded-lg border border-border-subtle bg-bg-deep/50 p-3 col-span-2 hover:border-accent/30 transition-colors"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <FileText size={14} className="text-accent" />
+          <span className="text-xs font-medium text-text-primary">Claude Configuration</span>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => refetch()}
+          className="h-6 px-2 cursor-pointer shrink-0"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : (
+            <RefreshCw size={12} />
+          )}
+          <span className="text-[10px] ml-1">Refresh</span>
+        </Button>
+      </div>
+
+      {isLoading && !configStatus ? (
+        <div className="flex items-center justify-center py-3">
+          <Loader2 size={14} className="animate-spin text-text-muted" />
+        </div>
+      ) : configStatus ? (
+        <div className="space-y-3">
+          {/* Global Configuration */}
+          <div>
+            <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
+              Global (~/.claude/)
+            </div>
+            <div className="rounded border border-border-subtle bg-bg-primary/50 p-1.5 space-y-0.5">
+              <ConfigFileRow
+                icon={FileText}
+                label="CLAUDE.md"
+                filePath={configStatus.global.claudeMd.path}
+                exists={configStatus.global.claudeMd.exists}
+                onOpen={() => openFile(configStatus.global.claudeMd.path)}
+                onCreate={() => createFile(configStatus.global.claudeMd.path, false)}
+              />
+              <ConfigFileRow
+                icon={Settings2}
+                label="settings.json"
+                filePath={configStatus.global.settings.path}
+                exists={configStatus.global.settings.exists}
+                onOpen={() => openFile(configStatus.global.settings.path)}
+                onCreate={() => createFile(configStatus.global.settings.path, true)}
+              />
+            </div>
+          </div>
+
+          {/* Project Configuration */}
+          {configStatus.project ? (
+            <ProjectConfigSection
+              project={configStatus.project}
+              onOpen={openFile}
+              onCreate={createFile}
+            />
+          ) : (
+            <div className="text-[10px] text-text-tertiary italic">
+              Select a project to view project-level configuration
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="text-[10px] text-text-tertiary">Unable to load config status</div>
+      )}
     </motion.div>
   );
 }

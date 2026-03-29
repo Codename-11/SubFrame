@@ -5,6 +5,7 @@
 
 import { ipcMain, type App, type BrowserWindow, type IpcMain } from 'electron';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { IPC } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
@@ -305,6 +306,38 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
 
   ipc.handle(IPC.UPDATE_SETTING, (_event, { key, value }: { key: string; value: unknown }) => {
     return updateSetting(key, value);
+  });
+
+  // Claude Configuration status — check existence of Claude config files
+  ipc.handle(IPC.GET_CLAUDE_CONFIG_STATUS, (_event, projectPath: string | null) => {
+    const home = os.homedir();
+    const globalClaudeMdPath = path.join(home, '.claude', 'CLAUDE.md');
+    const globalSettingsPath = path.join(home, '.claude', 'settings.json');
+
+    const global = {
+      claudeMd: { exists: fs.existsSync(globalClaudeMdPath), path: globalClaudeMdPath },
+      settings: { exists: fs.existsSync(globalSettingsPath), path: globalSettingsPath },
+    };
+
+    let project: {
+      claudeMd: { exists: boolean; path: string };
+      settings: { exists: boolean; path: string };
+      privateMd: { exists: boolean; path: string };
+    } | null = null;
+
+    if (projectPath) {
+      const projClaudeMdPath = path.join(projectPath, 'CLAUDE.md');
+      const projSettingsPath = path.join(projectPath, '.claude', 'settings.json');
+      const projPrivateMdPath = path.join(projectPath, '.claude', 'CLAUDE.md');
+
+      project = {
+        claudeMd: { exists: fs.existsSync(projClaudeMdPath), path: projClaudeMdPath },
+        settings: { exists: fs.existsSync(projSettingsPath), path: projSettingsPath },
+        privateMd: { exists: fs.existsSync(projPrivateMdPath), path: projPrivateMdPath },
+      };
+    }
+
+    return { global, project };
   });
 }
 
