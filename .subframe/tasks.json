@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-30T22:21:20.994Z",
+  "lastUpdated": "2026-03-30T22:47:52.468Z",
   "tasks": {
     "pending": [
       {
@@ -695,23 +695,6 @@
         "completedAt": null,
         "description": "Right panel (Agent group) for sending prompts to AI tools with follow-up feedback. Creates terminal with active AI tool, sends prompt, reuses session for conversation. Quick action chips, prompt history, status indicators.",
         "userRequest": "AI Analysis similar to onboarding but allow user feedback to direct AI changes",
-        "steps": []
-      },
-      {
-        "id": "task-mndoup0a-fkmr",
-        "title": "Hot-update: renderer-only reload + session snapshot/restore (B+C hybrid)",
-        "status": "in_progress",
-        "priority": "high",
-        "category": "feature",
-        "context": "Session 2026-03-30",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-30T21:16:47.001Z",
-        "updatedAt": "2026-03-30T22:21:20.991Z",
-        "completedAt": null,
-        "description": "Allow updating SubFrame without destroying terminal sessions. Phase 1 (C): Snapshot session state (scrollback, CWD, running command, agent context) before update, restore after restart with auto-resume via --continue. Phase 2 (B): Detect renderer-only updates and hot-reload BrowserWindow without restarting main process — PTYs survive natively. Phase 3 (future/A): PTY broker daemon that owns PTYs independently of Electron lifecycle, enabling true detach→update→reattach.",
-        "userRequest": "Allow updating without destroying terminal sessions. Keep 10+ claude/codex sessions open across updates.",
-        "acceptanceCriteria": "Renderer-only changes hot-reload without PTY interruption. Main process changes snapshot and restore terminal sessions with scrollback and auto-resume agents.",
         "steps": []
       }
     ],
@@ -1945,6 +1928,23 @@
         "updatedAt": "2026-03-08T02:31:08.401Z",
         "completedAt": "2026-03-08T02:31:08.401Z",
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
+        "steps": []
+      },
+      {
+        "id": "task-mndoup0a-fkmr",
+        "title": "Hot-update: renderer-only reload + session snapshot/restore (B+C hybrid)",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-30",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-30T21:16:47.001Z",
+        "updatedAt": "2026-03-30T22:47:52.464Z",
+        "completedAt": "2026-03-30T22:47:52.464Z",
+        "description": "Allow updating SubFrame without destroying terminal sessions. Phase 1 (C): Snapshot session state (scrollback, CWD, running command, agent context) before update, restore after restart with auto-resume via --continue. Phase 2 (B): Detect renderer-only updates and hot-reload BrowserWindow without restarting main process — PTYs survive natively. Phase 3 (future/A): PTY broker daemon that owns PTYs independently of Electron lifecycle, enabling true detach→update→reattach.",
+        "userRequest": "Allow updating without destroying terminal sessions. Keep 10+ claude/codex sessions open across updates.",
+        "acceptanceCriteria": "Renderer-only changes hot-reload without PTY interruption. Main process changes snapshot and restore terminal sessions with scrollback and auto-resume agents.",
         "steps": []
       }
     ]
