@@ -9,6 +9,7 @@ import { IPC } from '../shared/ipcChannels';
 import type { UpdaterStatus, UpdaterProgress } from '../shared/ipcChannels';
 import { getSetting } from './settingsManager';
 import { broadcast } from './eventBridge';
+import { log as outputLog } from './outputChannelManager';
 import type { RoutableIPC } from './ipcRouter';
 
 let mainWindow: BrowserWindow | null = null;
@@ -81,6 +82,7 @@ function init(window: BrowserWindow, app: App): void {
   });
 
   autoUpdater.on('update-available', (info: { version?: string }) => {
+    outputLog('system', `Update available: v${info.version ?? '?'}`);
     sendStatus({ status: 'available', version: info.version, manual: isManualCheck });
     isManualCheck = false;
   });
@@ -97,13 +99,25 @@ function init(window: BrowserWindow, app: App): void {
 
   autoUpdater.on('update-downloaded', (info: { version?: string }) => {
     updateDownloaded = true;
+    outputLog('system', `Update v${info.version ?? '?'} downloaded — ready to install`);
     sendStatus({ status: 'downloaded', version: info.version, manual: true });
     // Stop periodic checks — update is ready, no need to keep checking
     if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
   });
 
   autoUpdater.on('error', (err: Error) => {
-    sendStatus({ status: 'error', error: err.message, manual: isManualCheck });
+    // 404s during silent background checks are transient (e.g. CI still uploading artifacts) — swallow them
+    const is404 = err.message?.includes('404') || err.message?.includes('HttpError');
+    if (!isManualCheck && is404) {
+      console.log('[updater] Background check got 404 — artifacts not ready yet, will retry later');
+    } else {
+      // For manual checks or non-404 errors, report to renderer
+      const friendlyError = is404
+        ? 'Update artifacts not available yet — try again in a few minutes'
+        : err.message;
+      outputLog('system', `Update error: ${friendlyError}`);
+      sendStatus({ status: 'error', error: friendlyError, manual: isManualCheck });
+    }
     isManualCheck = false;
   });
 
@@ -203,10 +217,13 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
 
   ipc.handle(IPC.UPDATER_DOWNLOAD, async () => {
     try {
+      sendStatus({ status: 'downloading', manual: true });
       await autoUpdater.downloadUpdate();
     } catch (err) {
       console.error('[updater] Download failed:', err);
-      // Error event on autoUpdater will also fire and send status to renderer
+      const msg = err instanceof Error ? err.message : 'Download failed';
+      const friendly = msg.includes('404') ? 'Update not available yet — try again shortly' : msg;
+      sendStatus({ status: 'error', error: friendly, manual: true });
     }
   });
 

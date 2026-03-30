@@ -31,6 +31,7 @@ import {
 import * as aiToolManager from './aiToolManager';
 import * as activityManager from './activityManager';
 import { broadcast as bridgeBroadcast } from './eventBridge';
+import { log as outputLog } from './outputChannelManager';
 
 // ─── Module State ────────────────────────────────────────────────────────────
 
@@ -319,6 +320,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
 
   run.status = 'running';
   run.updatedAt = now();
+  outputLog('pipeline', `Pipeline started: ${run.workflowId} (${run.id})`);
   broadcastRunUpdate(run);
 
   // Verify the active AI tool is installed before proceeding
@@ -571,6 +573,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
 
   run.completedAt = now();
   run.updatedAt = now();
+  outputLog('pipeline', `Pipeline ${run.status}: ${run.workflowId} (${run.id})`);
   broadcastRunUpdate(run);
   persistRuns(projectPath);
   activeRuns.delete(run.id);

@@ -7,7 +7,7 @@
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-30T22:47:52.468Z",
+  "lastUpdated": "2026-03-30T22:53:42.859Z",
   "tasks": {
     "pending": [
       {
@@ -662,6 +662,23 @@
         "updatedAt": "2026-03-23T23:20:32.348Z",
         "completedAt": null,
         "description": "Save which right panel is open per workspace/project. When switching workspaces, restore the panel state (e.g. SubFrame had Tasks panel open, Conjure had GitHub Issues). Currently panel state is global — switching workspace doesn't change which panel is shown.",
+        "steps": []
+      },
+      {
+        "id": "task-mndsbcip-7eba",
+        "title": "Phase A: PTY broker daemon + renderer differential updates",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-30",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-30T22:53:42.816Z",
+        "updatedAt": "2026-03-30T22:53:42.816Z",
+        "completedAt": null,
+        "description": "Long-term hot-update evolution. Two components: (1) PTY broker daemon — a persistent Node process that owns all PTYs via socket API. SubFrame connects as a client, enabling true detach/reattach across full app restarts, OS reboots, and multi-device access (tmux model). (2) Renderer differential updates — split renderer out of ASAR into a writable location (userData/renderer/), add a differential update mechanism to download just the renderer bundle, then use the existing reloadIgnoringCache() + TERMINAL_RESYNC plumbing to apply UI updates without any restart. Both build on the Phase B/C foundation (session snapshot, renderer reload, terminal resync IPC) already shipped in v0.13.0-beta.",
+        "userRequest": "Keep terminals alive across updates without restart. Phase A from hot-update roadmap.",
+        "acceptanceCriteria": "PTY broker: terminals survive full app restart without snapshot/restore. Differential updates: renderer-only releases apply via hot reload without quitAndInstall.",
         "steps": []
       }
     ],
@@ -1736,6 +1753,23 @@
         "steps": []
       },
       {
+        "id": "task-mndoup0a-fkmr",
+        "title": "Hot-update: renderer-only reload + session snapshot/restore (B+C hybrid)",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-30",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-30T21:16:47.001Z",
+        "updatedAt": "2026-03-30T22:47:52.464Z",
+        "completedAt": "2026-03-30T22:47:52.464Z",
+        "description": "Allow updating SubFrame without destroying terminal sessions. Phase 1 (C): Snapshot session state (scrollback, CWD, running command, agent context) before update, restore after restart with auto-resume via --continue. Phase 2 (B): Detect renderer-only updates and hot-reload BrowserWindow without restarting main process — PTYs survive natively. Phase 3 (future/A): PTY broker daemon that owns PTYs independently of Electron lifecycle, enabling true detach→update→reattach.",
+        "userRequest": "Allow updating without destroying terminal sessions. Keep 10+ claude/codex sessions open across updates.",
+        "acceptanceCriteria": "Renderer-only changes hot-reload without PTY interruption. Main process changes snapshot and restore terminal sessions with scrollback and auto-resume agents.",
+        "steps": []
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -1928,23 +1962,6 @@
         "updatedAt": "2026-03-08T02:31:08.401Z",
         "completedAt": "2026-03-08T02:31:08.401Z",
         "description": "Modernize terminal UX inspired by Warp terminal. (1) Smart Ctrl+C — copy to clipboard when text is selected (via terminal.hasSelection()), send SIGINT when no selection. (2) Ctrl+V — intercept before xterm.js and paste from clipboard API (currently requires Ctrl+Shift+V). (3) Right-click context menu — replace current paste-only behavior with a proper context menu: Copy, Paste, Select All, Clear Terminal. (4) Shift+Enter — insert literal newline in multi-line input mode. (5) Scroll-to-bottom overlay — verify existing floating button is polished and visible per-terminal in both tab and grid views. Files: terminalManager.js (key handler rewrite), terminal.css (context menu styles), multiTerminalUI.js (scroll button per-terminal verification).",
-        "steps": []
-      },
-      {
-        "id": "task-mndoup0a-fkmr",
-        "title": "Hot-update: renderer-only reload + session snapshot/restore (B+C hybrid)",
-        "status": "completed",
-        "priority": "high",
-        "category": "feature",
-        "context": "Session 2026-03-30",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-30T21:16:47.001Z",
-        "updatedAt": "2026-03-30T22:47:52.464Z",
-        "completedAt": "2026-03-30T22:47:52.464Z",
-        "description": "Allow updating SubFrame without destroying terminal sessions. Phase 1 (C): Snapshot session state (scrollback, CWD, running command, agent context) before update, restore after restart with auto-resume via --continue. Phase 2 (B): Detect renderer-only updates and hot-reload BrowserWindow without restarting main process — PTYs survive natively. Phase 3 (future/A): PTY broker daemon that owns PTYs independently of Electron lifecycle, enabling true detach→update→reattach.",
-        "userRequest": "Allow updating without destroying terminal sessions. Keep 10+ claude/codex sessions open across updates.",
-        "acceptanceCriteria": "Renderer-only changes hot-reload without PTY interruption. Main process changes snapshot and restore terminal sessions with scrollback and auto-resume agents.",
         "steps": []
       }
     ]

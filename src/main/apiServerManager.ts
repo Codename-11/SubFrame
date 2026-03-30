@@ -16,6 +16,7 @@ import * as path from 'path';
 import * as os from 'os';
 import type { IpcMain, BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipcChannels';
+import { log as outputLog } from './outputChannelManager';
 
 // ── State ──────────────────────────────────────────────────────────────────
 
@@ -305,6 +306,7 @@ function startServer(): void {
     const addr = server!.address();
     serverPort = typeof addr === 'object' && addr ? addr.port : 0;
     console.log(`[API Server] Listening on http://127.0.0.1:${serverPort}`);
+    outputLog('api', `API server listening on http://127.0.0.1:${serverPort}`);
     writeServiceConfig();
   });
 

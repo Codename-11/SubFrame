@@ -14,6 +14,7 @@ import * as promptLogger from './promptLogger';
 import * as agentStateManager from './agentStateManager';
 import { getSetting } from './settingsManager';
 import { broadcast } from './eventBridge';
+import { log as outputLog } from './outputChannelManager';
 
 interface PTYInstance {
   pty: IPty;
@@ -395,6 +396,7 @@ function handleTerminalOutput(terminalId: string, data: string): void {
 
 function handleTerminalExit(terminalId: string, exitCode: number | undefined): void {
   console.log(`Terminal ${terminalId} exited:`, exitCode);
+  outputLog('agent', `Terminal exited: ${terminalId} (code: ${exitCode ?? 'unknown'})`);
   ptyInstances.delete(terminalId);
   CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
   captureBuffers.delete(terminalId);
@@ -651,6 +653,7 @@ function createTerminal(
   });
   bindPtyLifecycle(terminalId, ptyProcess);
   console.log(`Created terminal ${terminalId} in ${cwd} (shell: ${shell}, project: ${projectPath || 'global'})`);
+  outputLog('agent', `Terminal created: ${terminalId} in ${cwd} (${shell})`);
 
   return terminalId;
 }

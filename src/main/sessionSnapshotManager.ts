@@ -16,6 +16,7 @@ import { ipcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
 import { getSetting } from './settingsManager';
+import { log as outputLog } from './outputChannelManager';
 import * as ptyManager from './ptyManager';
 import type { RoutableIPC } from './ipcRouter';
 
@@ -159,6 +160,7 @@ function saveSnapshot(reason: 'update' | 'quit' | 'manual' = 'manual'): SessionS
       fs.writeFileSync(tmpPath, JSON.stringify(snapshot, null, 2), 'utf-8');
       fs.renameSync(tmpPath, snapshotPath);
       console.log(`[session-snapshot] Saved ${terminals.length} terminal(s) — reason: ${reason}`);
+      outputLog('system', `Session snapshot saved: ${terminals.length} terminal(s) — ${reason}`);
     } catch (err) {
       console.error('[session-snapshot] Failed to save snapshot:', err);
     }
@@ -305,6 +307,7 @@ function restoreFromSnapshot(): SessionRestoreStatus | null {
   restoreCompleted = true;
 
   console.log(`[session-snapshot] Restored ${result.restored}/${result.total} terminal(s)`);
+  outputLog('system', `Session restored: ${result.restored}/${result.total} terminal(s)`);
 
   // Broadcast restore status to renderer
   if (mainWindow && !mainWindow.isDestroyed()) {

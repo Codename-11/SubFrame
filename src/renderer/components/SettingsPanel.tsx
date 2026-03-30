@@ -3882,11 +3882,15 @@ export function SettingsPanel() {
                           <Button
                             size="sm"
                             className="bg-accent text-bg-deep hover:bg-accent/80 cursor-pointer"
+                            disabled={updater.downloadUpdate.isPending}
                             onClick={() => updater.downloadUpdate.mutate([])}
                           >
                             <Download className="h-3 w-3 mr-1" />
-                            Download
+                            {updater.downloadUpdate.isPending ? 'Starting...' : 'Download'}
                           </Button>
+                        )}
+                        {updater.status === 'downloading' && !updater.progress && (
+                          <span className="text-xs text-text-secondary animate-pulse">Connecting...</span>
                         )}
                         {updater.status === 'downloaded' && (
                           <Button

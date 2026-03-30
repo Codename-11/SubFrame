@@ -7,6 +7,7 @@ import { exec } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
+import { log as outputLog } from './outputChannelManager';
 
 interface GitResult {
   stdout: string;
@@ -256,6 +257,7 @@ async function switchBranch(projectPath: string, branchName: string): Promise<Op
     }
 
     await execGit(`git checkout "${targetBranch}"`, projectPath);
+    outputLog('git', `Checked out branch: ${targetBranch}`);
     return { error: null, branch: targetBranch };
   } catch (err) {
     return { error: (err as GitError).error || (err as Error).message };
@@ -282,6 +284,7 @@ async function createBranch(projectPath: string, branchName: string, checkout: b
         : `git branch "${branchName}"`;
     }
     await execGit(cmd, projectPath);
+    outputLog('git', `Created branch: ${branchName}${baseBranch ? ` from ${baseBranch}` : ''}`);
     return { error: null, branch: branchName };
   } catch (err) {
     return { error: (err as GitError).error || (err as Error).message };

@@ -95,10 +95,12 @@ export function UpdateNotification() {
             label: 'Download',
             onClick: () => {
               clearSnooze();
-              // Show immediately — sonner dismisses the action toast, and the
-              // 'downloading' status arrives async after IPC roundtrip
               toast.loading('Starting download...', { id: 'updater', duration: Infinity });
-              downloadUpdate.mutate([]);
+              downloadUpdate.mutate([], {
+                onError: () => {
+                  toast.error('Download failed — try again later', { id: 'updater', duration: 6000 });
+                },
+              });
             },
           },
           cancel: {
