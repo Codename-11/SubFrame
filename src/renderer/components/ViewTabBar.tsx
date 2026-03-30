@@ -126,6 +126,43 @@ function formatSubType(subType: string | null): string | null {
   return subType.charAt(0).toUpperCase() + subType.slice(1);
 }
 
+function dedupeWorkspaceKeys(keys: string[], validKeys: Set<string>): string[] {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const key of keys) {
+    if (!validKeys.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(key);
+  }
+  return deduped;
+}
+
+function fillPinnedWorkspaceKeys(
+  pinnedKeys: string[],
+  workspaceOrder: string[],
+  slotCount: number,
+): string[] {
+  if (slotCount <= 0) return [];
+  const nextPinned = [...pinnedKeys];
+  for (const key of workspaceOrder) {
+    if (nextPinned.length >= slotCount) break;
+    if (nextPinned.includes(key)) continue;
+    nextPinned.push(key);
+  }
+  return nextPinned.slice(0, slotCount);
+}
+
+function getLeastRecentlyUsedWorkspaceKey(
+  keys: string[],
+  timestamps: Record<string, number>,
+): string | null {
+  if (keys.length === 0) return null;
+  return keys.reduce((oldestKey, key) => {
+    if (oldestKey == null) return key;
+    return (timestamps[key] ?? 0) < (timestamps[oldestKey] ?? 0) ? key : oldestKey;
+  }, keys[0] ?? null);
+}
+
 interface WorkspacePillInfo {
   key: string;
   name: string;
@@ -365,6 +402,16 @@ export function ViewTabBar() {
   const [wsPulse, setWsPulse] = useState(false);
   const [workspaceOrderKeys, setWorkspaceOrderKeys] = useState<string[]>([]);
   const workspaceOrderKeysRef = useRef<string[]>([]);
+  const workspaceByKey = useMemo(
+    () => new Map(wsWorkspaces.map((workspace) => [workspace.key, workspace])),
+    [wsWorkspaces]
+  );
+  const [pinnedWorkspaceKeys, setPinnedWorkspaceKeys] = useState<string[]>([]);
+  const pinnedWorkspaceKeysRef = useRef<string[]>([]);
+  const [workspaceActivationTimes, setWorkspaceActivationTimes] = useState<Record<string, number>>({});
+  const workspaceActivationTimesRef = useRef<Record<string, number>>({});
+  const activeWorkspaceKey = wsParsed?.active ?? null;
+  const previousActiveWorkspaceKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const nextKeys = wsWorkspaces.map((workspace) => workspace.key);
@@ -372,11 +419,120 @@ export function ViewTabBar() {
     setWorkspaceOrderKeys(nextKeys);
   }, [wsWorkspaces]);
 
+  useEffect(() => {
+    pinnedWorkspaceKeysRef.current = pinnedWorkspaceKeys;
+  }, [pinnedWorkspaceKeys]);
+
+  useEffect(() => {
+    workspaceActivationTimesRef.current = workspaceActivationTimes;
+  }, [workspaceActivationTimes]);
+
+  useEffect(() => {
+    const validKeys = new Set(wsWorkspaces.map((workspace) => workspace.key));
+    const orderedKeys = workspaceOrderKeysRef.current.filter((key) => validKeys.has(key));
+    const nextTimes = Object.fromEntries(
+      Object.entries(workspaceActivationTimesRef.current).filter(([key]) => validKeys.has(key))
+    );
+
+    workspaceActivationTimesRef.current = nextTimes;
+    setWorkspaceActivationTimes(nextTimes);
+
+    setPinnedWorkspaceKeys((prev) => {
+      const deduped = dedupeWorkspaceKeys(prev, validKeys);
+      const trimmed =
+        deduped.length > collapsedWorkspaceCount
+          ? deduped
+              .slice()
+              .sort((a, b) => (nextTimes[b] ?? 0) - (nextTimes[a] ?? 0))
+              .slice(0, collapsedWorkspaceCount)
+          : deduped;
+      const trimmedSet = new Set(trimmed);
+      const preservedOrder = deduped.filter((key) => trimmedSet.has(key));
+      const nextPinned = fillPinnedWorkspaceKeys(preservedOrder, orderedKeys, collapsedWorkspaceCount);
+      pinnedWorkspaceKeysRef.current = nextPinned;
+      return nextPinned;
+    });
+  }, [collapsedWorkspaceCount, wsWorkspaces]);
+
+  const noteWorkspaceActivation = useCallback((key: string, activatedAt = Date.now()) => {
+    const nextTimes = {
+      ...workspaceActivationTimesRef.current,
+      [key]: activatedAt,
+    };
+    workspaceActivationTimesRef.current = nextTimes;
+    setWorkspaceActivationTimes(nextTimes);
+    return nextTimes;
+  }, []);
+
+  const promoteWorkspaceToPinnedSlots = useCallback((key: string, activatedAt = Date.now()) => {
+    if (collapsedWorkspaceCount <= 0 || !workspaceByKey.has(key)) return;
+
+    const orderedKeys = workspaceOrderKeysRef.current.filter((workspaceKey) => workspaceByKey.has(workspaceKey));
+    const nextTimes = noteWorkspaceActivation(key, activatedAt);
+
+    setPinnedWorkspaceKeys((prev) => {
+      const validKeys = new Set(orderedKeys);
+      const deduped = dedupeWorkspaceKeys(prev, validKeys);
+
+      if (deduped.includes(key)) {
+        pinnedWorkspaceKeysRef.current = deduped;
+        return deduped;
+      }
+
+      if (deduped.length < collapsedWorkspaceCount) {
+        const nextPinned = fillPinnedWorkspaceKeys([...deduped, key], orderedKeys, collapsedWorkspaceCount);
+        pinnedWorkspaceKeysRef.current = nextPinned;
+        return nextPinned;
+      }
+
+      const lruKey = getLeastRecentlyUsedWorkspaceKey(deduped, nextTimes);
+      if (!lruKey) {
+        const nextPinned = fillPinnedWorkspaceKeys([key], orderedKeys, collapsedWorkspaceCount);
+        pinnedWorkspaceKeysRef.current = nextPinned;
+        return nextPinned;
+      }
+
+      const nextPinned = deduped.map((workspaceKey) => (workspaceKey === lruKey ? key : workspaceKey));
+      pinnedWorkspaceKeysRef.current = nextPinned;
+      return nextPinned;
+    });
+  }, [collapsedWorkspaceCount, noteWorkspaceActivation, workspaceByKey]);
+
+  useEffect(() => {
+    if (!activeWorkspaceKey || !workspaceByKey.has(activeWorkspaceKey)) {
+      previousActiveWorkspaceKeyRef.current = activeWorkspaceKey;
+      return;
+    }
+
+    const previousActiveKey = previousActiveWorkspaceKeyRef.current;
+    previousActiveWorkspaceKeyRef.current = activeWorkspaceKey;
+
+    if (previousActiveKey == null) {
+      noteWorkspaceActivation(activeWorkspaceKey);
+      return;
+    }
+
+    if (previousActiveKey === activeWorkspaceKey) return;
+
+    if (pinnedWorkspaceKeysRef.current.includes(activeWorkspaceKey)) {
+      noteWorkspaceActivation(activeWorkspaceKey);
+      return;
+    }
+
+    promoteWorkspaceToPinnedSlots(activeWorkspaceKey);
+  }, [activeWorkspaceKey, noteWorkspaceActivation, promoteWorkspaceToPinnedSlots, workspaceByKey]);
+
   const handleWsSwitch = useCallback(async (key: string) => {
     if (wsSwitching || wsParsed?.active === key) return;
     setWsSwitching(true);
     try {
       await typedInvoke(IPC.WORKSPACE_SWITCH, key);
+      const activatedAt = Date.now();
+      if (pinnedWorkspaceKeysRef.current.includes(key)) {
+        noteWorkspaceActivation(key, activatedAt);
+      } else {
+        promoteWorkspaceToPinnedSlots(key, activatedAt);
+      }
       refetchWorkspaces();
       typedSend(IPC.LOAD_WORKSPACE);
     } catch {
@@ -384,7 +540,7 @@ export function ViewTabBar() {
     } finally {
       setWsSwitching(false);
     }
-  }, [wsSwitching, wsParsed, refetchWorkspaces]);
+  }, [noteWorkspaceActivation, promoteWorkspaceToPinnedSlots, refetchWorkspaces, wsParsed, wsSwitching]);
 
   const handleWorkspaceDeactivate = useCallback(async (key: string) => {
     if (wsSwitching || wsReordering) return;
@@ -446,11 +602,6 @@ export function ViewTabBar() {
     }
   }, [refetchWorkspaces, wsReordering, wsSwitching]);
 
-  const workspaceByKey = useMemo(
-    () => new Map(wsWorkspaces.map((workspace) => [workspace.key, workspace])),
-    [wsWorkspaces]
-  );
-
   const handleWorkspaceReorderCommit = useCallback(async () => {
     if (wsReordering) return;
     const orderedActiveKeys = workspaceOrderKeysRef.current.filter((key) => workspaceByKey.has(key));
@@ -473,6 +624,13 @@ export function ViewTabBar() {
       }
     }
   }, [inactiveWorkspaceKeys, refetchWorkspaces, workspaceByKey, wsReordering, wsWorkspaces]);
+
+  const displayedWorkspaceKeys = useMemo(() => {
+    const validKeys = new Set(workspaceOrderKeys.filter((key) => workspaceByKey.has(key)));
+    const pinned = dedupeWorkspaceKeys(pinnedWorkspaceKeys, validKeys);
+    const overflow = workspaceOrderKeys.filter((key) => validKeys.has(key) && !pinned.includes(key));
+    return [...pinned, ...overflow];
+  }, [pinnedWorkspaceKeys, workspaceByKey, workspaceOrderKeys]);
 
   const handleWsCreate = useCallback(() => {
     window.dispatchEvent(new Event('open-workspace-create'));
@@ -637,24 +795,7 @@ export function ViewTabBar() {
 
       {/* ── Workspace pills (left side, expands rightward on hover) ── */}
       {wsWorkspaces.length > 0 && (() => {
-        // Smart ordering: active workspaces (current + those with terminals) sort to front
-        const activeKeySet = new Set<string>();
-        for (const key of workspaceOrderKeys) {
-          const ws = workspaceByKey.get(key);
-          if (!ws) continue;
-          if (ws.active) { activeKeySet.add(key); continue; }
-          const act = workspaceActivity.get(ws.key);
-          if (act && act.terminalCount > 0) activeKeySet.add(key);
-        }
-        const smartOrder = [
-          ...workspaceOrderKeys.filter((k) => activeKeySet.has(k)),
-          ...workspaceOrderKeys.filter((k) => !activeKeySet.has(k)),
-        ];
-
-        // Collapsed: render only first `collapsedWorkspaceCount` pills (active-first)
-        // Hovered: section expands to show all (up to maxVisibleWorkspaces), hoz scroll
-        const collapsedKeys = smartOrder.slice(0, collapsedWorkspaceCount);
-        const needsExpand = smartOrder.length > collapsedWorkspaceCount;
+        const needsExpand = displayedWorkspaceKeys.length > collapsedWorkspaceCount;
 
         return (
         <div
@@ -666,14 +807,17 @@ export function ViewTabBar() {
             {/* Collapsed pills — always visible */}
           <Reorder.Group
             axis="x"
-            values={smartOrder}
+            values={displayedWorkspaceKeys}
             onReorder={(nextOrder) => {
               workspaceOrderKeysRef.current = nextOrder;
               setWorkspaceOrderKeys(nextOrder);
+              const nextPinned = nextOrder.slice(0, collapsedWorkspaceCount);
+              pinnedWorkspaceKeysRef.current = nextPinned;
+              setPinnedWorkspaceKeys(nextPinned);
             }}
             className="flex items-center"
           >
-            {smartOrder.map((workspaceKey, i) => {
+            {displayedWorkspaceKeys.map((workspaceKey, i) => {
               const ws = workspaceByKey.get(workspaceKey);
               if (!ws) return null;
               const activity = workspaceActivity.get(ws.key) ?? { terminalCount: 0, agentCount: 0 };
