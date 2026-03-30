@@ -21,6 +21,8 @@ interface PTYInstance {
   projectPath: string | null;
   claudeActive: boolean;
   shell: string;
+  shellReady: boolean;
+  shellReadyBuffer: string;
   lastOutputTimestamp: number;
 }
 
@@ -61,6 +63,7 @@ function parseOSC7(data: string): string | null {
 const CLAUDE_OUTPUT_BUFFERS = new Map<string, string>();
 const CLAUDE_TIMEOUT_HANDLES = new Map<string, ReturnType<typeof setTimeout>>();
 const CLAUDE_BUFFER_MAX = 2048;
+const SHELL_READY_BUFFER_MAX = 4096;
 const TERMINAL_BACKLOG_MAX_CHARS = 256 * 1024;
 
 // ─── Output Capture ──────────────────────────────────────────────────────────
@@ -103,6 +106,46 @@ const SHELL_PROMPT_PATTERNS: RegExp[] = [
   /\w+@[\w.-]+[:#~]\S*\s*\$\s*$/,        // full bash prompt: "user@host:~/dir$ "
   /PS\s+[A-Z]:\\[^>]*>\s*$/,             // PowerShell full: "PS C:\Users\foo> "
 ];
+
+function stripTerminalControlSequences(text: string): string {
+  return text
+    .replace(
+      // eslint-disable-next-line no-control-regex
+      /\x1b\][^\x07]*(?:\x07|\x1b\\)/g,
+      '',
+    )
+    .replace(
+      // eslint-disable-next-line no-control-regex
+      /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
+      '',
+    );
+}
+
+function markShellReady(terminalId: string): void {
+  const instance = ptyInstances.get(terminalId);
+  if (!instance || instance.shellReady) return;
+
+  instance.shellReady = true;
+  instance.shellReadyBuffer = '';
+  broadcast(IPC.TERMINAL_SHELL_READY, { terminalId });
+}
+
+function detectShellReady(terminalId: string, data: string): void {
+  const instance = ptyInstances.get(terminalId);
+  if (!instance || instance.shellReady) return;
+
+  instance.shellReadyBuffer = (instance.shellReadyBuffer + data).slice(-SHELL_READY_BUFFER_MAX);
+  const promptCandidates = stripTerminalControlSequences(instance.shellReadyBuffer)
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0)
+    .slice(-4);
+
+  if (promptCandidates.some((line) => SHELL_PROMPT_PATTERNS.some((pattern) => pattern.test(line.trim())))) {
+    markShellReady(terminalId);
+  }
+}
 
 /**
  * Patterns that strongly indicate Claude Code TUI is active.
@@ -326,6 +369,7 @@ function handleTerminalOutput(terminalId: string, data: string): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     broadcast(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
   }
+  detectShellReady(terminalId, data);
   detectClaudeOutput(terminalId, data);
 
   const instForStall = ptyInstances.get(terminalId);
@@ -595,10 +639,17 @@ function createTerminal(
     } as Record<string, string>
   });
   terminalBacklogs.set(terminalId, '');
-
+  ptyInstances.set(terminalId, {
+    pty: ptyProcess,
+    cwd,
+    projectPath,
+    claudeActive: false,
+    shell,
+    shellReady: false,
+    shellReadyBuffer: '',
+    lastOutputTimestamp: Date.now(),
+  });
   bindPtyLifecycle(terminalId, ptyProcess);
-
-  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false, shell, lastOutputTimestamp: Date.now() });
   console.log(`Created terminal ${terminalId} in ${cwd} (shell: ${shell}, project: ${projectPath || 'global'})`);
 
   return terminalId;
@@ -651,10 +702,17 @@ function spawnDirect(
     } as Record<string, string>,
   });
   terminalBacklogs.set(terminalId, '');
-
+  ptyInstances.set(terminalId, {
+    pty: ptyProcess,
+    cwd,
+    projectPath,
+    claudeActive: false,
+    shell: spawnCmd,
+    shellReady: false,
+    shellReadyBuffer: '',
+    lastOutputTimestamp: Date.now(),
+  });
   bindPtyLifecycle(terminalId, ptyProcess);
-
-  ptyInstances.set(terminalId, { pty: ptyProcess, cwd, projectPath, claudeActive: false, shell: spawnCmd, lastOutputTimestamp: Date.now() });
   console.log(`Spawned direct terminal ${terminalId} in ${cwd} (command: ${command} ${args.join(' ')}, project: ${projectPath || 'global'})`);
 
   return terminalId;
@@ -715,12 +773,13 @@ function restartTerminal(terminalId: string): { success: boolean; error?: string
     } as Record<string, string>
   });
 
-  bindPtyLifecycle(terminalId, newPty);
-
   // Update the instance in-place
   instance.pty = newPty;
   instance.claudeActive = false;
+  instance.shellReady = false;
+  instance.shellReadyBuffer = '';
   instance.lastOutputTimestamp = Date.now();
+  bindPtyLifecycle(terminalId, newPty);
 
   console.log(`Restarted terminal ${terminalId} shell (${shell}) in ${cwd}`);
   return { success: true };

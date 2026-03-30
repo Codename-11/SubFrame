@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-28",
+  "lastUpdated": "2026-03-30",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -30,13 +30,23 @@
           "line": 98
         },
         "broadcastStatus": {
-          "line": 107
+          "line": 107,
+          "calls": [
+            "send",
+            "toActivityStream"
+          ]
         },
         "flushBatch": {
-          "line": 115
+          "line": 115,
+          "calls": [
+            "send"
+          ]
         },
         "clearTimers": {
-          "line": 128
+          "line": 128,
+          "calls": [
+            "flushBatch"
+          ]
         },
         "moveToHistory": {
           "line": 148
@@ -45,37 +55,66 @@
           "line": 165
         },
         "createStream": {
-          "line": 172
+          "line": 172,
+          "calls": [
+            "broadcastStatus"
+          ]
         },
         "emit": {
-          "line": 206
+          "line": 206,
+          "calls": [
+            "flushBatch"
+          ]
         },
         "updateStatus": {
-          "line": 223
+          "line": 223,
+          "calls": [
+            "broadcastStatus",
+            "clearTimers",
+            "isTerminalStatus",
+            "moveToHistory"
+          ]
         },
         "updateProgress": {
-          "line": 250
+          "line": 250,
+          "calls": [
+            "broadcastStatus"
+          ]
         },
         "startHeartbeat": {
           "line": 262
         },
         "attachTerminal": {
-          "line": 279
+          "line": 279,
+          "calls": [
+            "broadcastStatus"
+          ]
         },
         "startTimeout": {
-          "line": 289
+          "line": 289,
+          "calls": [
+            "updateStatus"
+          ]
         },
         "getAbortSignal": {
           "line": 310
         },
         "cancelStream": {
-          "line": 318
+          "line": 318,
+          "calls": [
+            "updateStatus"
+          ]
         },
         "clearStream": {
           "line": 331
         },
         "setupIPC": {
-          "line": 343
+          "line": 343,
+          "calls": [
+            "cancelStream",
+            "clearStream",
+            "toActivityStream"
+          ]
         },
         "hasActiveStreams": {
           "line": 377
@@ -184,7 +223,10 @@
           "line": 31
         },
         "parseCommand": {
-          "line": 74
+          "line": 74,
+          "calls": [
+            "tokenizeCommand"
+          ]
         },
         "hasArg": {
           "line": 85
@@ -196,7 +238,10 @@
           "line": 104
         },
         "buildDisplayCommand": {
-          "line": 108
+          "line": 108,
+          "calls": [
+            "quoteArg"
+          ]
         },
         "getInteractiveToolConfig": {
           "line": 112
@@ -208,7 +253,15 @@
           "line": 165
         },
         "prepareAIInvocation": {
-          "line": 169
+          "line": 169,
+          "calls": [
+            "buildDisplayCommand",
+            "createTempMessageFile",
+            "hasArg",
+            "parseCommand",
+            "setFlagValue",
+            "unwrapEnvelopeResult"
+          ]
         },
         "buildOnboardingShellCommand": {
           "line": 259
@@ -413,13 +466,21 @@
           "line": 35
         },
         "extractMarkedBlock": {
-          "line": 94
+          "line": 94,
+          "calls": [
+            "stripAnsi"
+          ]
         },
         "createStructuredJsonPrompt": {
           "line": 116
         },
         "parseJsonFromMixedOutput": {
-          "line": 143
+          "line": 143,
+          "calls": [
+            "parseLastBalancedJson",
+            "parseLastJsonFence",
+            "stripAnsi"
+          ]
         }
       }
     },
@@ -454,7 +515,11 @@
           "line": 119
         },
         "broadcastSessionsUpdated": {
-          "line": 130
+          "line": 130,
+          "calls": [
+            "broadcast",
+            "listSessions"
+          ]
         },
         "getSession": {
           "line": 135
@@ -463,7 +528,13 @@
           "line": 139
         },
         "createSession": {
-          "line": 146
+          "line": 146,
+          "calls": [
+            "appendTerminalTranscriptChunk",
+            "broadcastSessionsUpdated",
+            "getDefaultAIShell",
+            "nowIso"
+          ]
         },
         "delay": {
           "line": 201
@@ -475,28 +546,54 @@
           "line": 275
         },
         "startSessionCommand": {
-          "line": 300
+          "line": 300,
+          "calls": [
+            "broadcastSessionsUpdated",
+            "nowIso",
+            "sendKeys"
+          ]
         },
         "pasteFromFile": {
-          "line": 312
+          "line": 312,
+          "calls": [
+            "delay"
+          ]
         },
         "waitForReady": {
           "line": 329
         },
         "sendPromptFromFile": {
-          "line": 379
+          "line": 379,
+          "calls": [
+            "pasteFromFile",
+            "sendKeys"
+          ]
         },
         "launchInteractiveSession": {
-          "line": 395
+          "line": 395,
+          "calls": [
+            "delay",
+            "getSession",
+            "sendPromptFromFile",
+            "startSessionCommand",
+            "waitForReady"
+          ]
         },
         "markSessionStatus": {
-          "line": 416
+          "line": 416,
+          "calls": [
+            "broadcastSessionsUpdated",
+            "nowIso"
+          ]
         },
         "getTranscript": {
           "line": 428
         },
         "capturePane": {
-          "line": 432
+          "line": 432,
+          "calls": [
+            "getTranscript"
+          ]
         },
         "addDataListener": {
           "line": 436
@@ -511,10 +608,29 @@
           "line": 475
         },
         "runInteractivePrompt": {
-          "line": 484
+          "line": 484,
+          "calls": [
+            "addDataListener",
+            "broadcast",
+            "buildInteractiveAICommand",
+            "cleanup",
+            "createSession",
+            "destroySession",
+            "extractMarkedBlock",
+            "getInteractiveToolConfig",
+            "getTranscript",
+            "launchInteractiveSession",
+            "looksLikeShellPrompt",
+            "markSessionStatus",
+            "removeDataListener",
+            "renderTerminalTranscript"
+          ]
         },
         "setupIPC": {
-          "line": 677
+          "line": 677,
+          "calls": [
+            "listSessions"
+          ]
         }
       }
     },
@@ -535,7 +651,10 @@
       ],
       "functions": {
         "init": {
-          "line": 105
+          "line": 105,
+          "calls": [
+            "loadConfig"
+          ]
         },
         "loadConfig": {
           "line": 114
@@ -544,43 +663,83 @@
           "line": 129
         },
         "isCommandInstalledAsync": {
-          "line": 157
+          "line": 157,
+          "calls": [
+            "getSetting"
+          ]
         },
         "checkToolInstalled": {
-          "line": 220
+          "line": 220,
+          "calls": [
+            "isCommandInstalledAsync"
+          ]
         },
         "getAvailableTools": {
-          "line": 229
+          "line": 229,
+          "calls": [
+            "checkToolInstalled"
+          ]
         },
         "getActiveTool": {
-          "line": 246
+          "line": 246,
+          "calls": [
+            "getAvailableTools"
+          ]
         },
         "setActiveTool": {
-          "line": 257
+          "line": 257,
+          "calls": [
+            "broadcast",
+            "getActiveTool",
+            "getAvailableTools",
+            "saveConfig"
+          ]
         },
         "onActiveToolChanged": {
           "line": 280
         },
         "getConfig": {
-          "line": 287
+          "line": 287,
+          "calls": [
+            "getActiveTool",
+            "getAvailableTools"
+          ]
         },
         "addCustomTool": {
           "line": 297
         },
         "removeCustomTool": {
-          "line": 315
+          "line": 315,
+          "calls": [
+            "saveConfig"
+          ]
         },
         "setupIPC": {
-          "line": 330
+          "line": 330,
+          "calls": [
+            "addCustomTool",
+            "broadcast",
+            "getActiveTool",
+            "getConfig",
+            "removeCustomTool",
+            "setActiveTool"
+          ]
         },
         "getCommand": {
-          "line": 415
+          "line": 415,
+          "calls": [
+            "getActiveTool"
+          ]
         },
         "getCustomCommand": {
           "line": 423
         },
         "getStartCommand": {
-          "line": 437
+          "line": 437,
+          "calls": [
+            "getActiveTool",
+            "getCustomCommand"
+          ]
         }
       }
     },
@@ -1211,7 +1370,10 @@
         },
         "showDefaultProjectDirPicker": {
           "line": 71,
-          "purpose": "Show default project directory picker"
+          "purpose": "Show default project directory picker",
+          "calls": [
+            "broadcast"
+          ]
         },
         "setupIPC": {
           "line": 86,
@@ -1220,9 +1382,7 @@
           ],
           "purpose": "Setup IPC handlers",
           "calls": [
-            "showDefaultProjectDirPicker",
-            "showFolderPicker",
-            "showNewProjectDialog"
+            "broadcast"
           ]
         }
       },
@@ -1864,7 +2024,11 @@
             "projectPath",
             "workflowId"
           ],
-          "purpose": "Load workflow runs for a specific workflow"
+          "purpose": "Load workflow runs for a specific workflow",
+          "calls": [
+            "checkGhCli",
+            "checkGitHubRepo"
+          ]
         },
         "loadWorkflows": {
           "line": 172,
@@ -1931,21 +2095,30 @@
         },
         "loadNotifications": {
           "line": 331,
-          "purpose": "Load GitHub notifications (not project-specific)"
+          "purpose": "Load GitHub notifications (not project-specific)",
+          "calls": [
+            "rerunWorkflow"
+          ]
         },
         "markNotificationRead": {
           "line": 346,
           "params": [
             "threadId"
           ],
-          "purpose": "Mark a GitHub notification thread as read"
+          "purpose": "Mark a GitHub notification thread as read",
+          "calls": [
+            "dispatchWorkflow"
+          ]
         },
         "openIssue": {
           "line": 360,
           "params": [
             "url"
           ],
-          "purpose": "Open issue in browser"
+          "purpose": "Open issue in browser",
+          "calls": [
+            "loadNotifications"
+          ]
         },
         "setupIPC": {
           "line": 369,
@@ -2036,31 +2209,59 @@
       ],
       "functions": {
         "handleCLIArgs": {
-          "line": 75
+          "line": 75,
+          "calls": [
+            "sendCLIOpenFile",
+            "sendCLIOpenProject"
+          ]
         },
         "sendCLIOpenFile": {
           "line": 111
         },
         "sendCLIOpenProject": {
-          "line": 128
+          "line": 128,
+          "calls": [
+            "broadcast"
+          ]
         },
         "getWindowStatePath": {
           "line": 143
         },
         "loadWindowState": {
-          "line": 150
+          "line": 150,
+          "calls": [
+            "getWindowStatePath"
+          ]
         },
         "saveWindowState": {
-          "line": 162
+          "line": 162,
+          "calls": [
+            "getWindowStatePath"
+          ]
         },
         "createSplash": {
-          "line": 175
+          "line": 175,
+          "calls": [
+            "getLogoSVG"
+          ]
         },
         "createWindow": {
-          "line": 225
+          "line": 225,
+          "calls": [
+            "broadcast",
+            "createSplash",
+            "initEventBridge",
+            "initModulesWithWindow",
+            "loadWindowState",
+            "saveWindowState"
+          ]
         },
         "setupAllIPC": {
-          "line": 530
+          "line": 530,
+          "calls": [
+            "broadcast",
+            "createRoutableIPC"
+          ]
         },
         "init": {
           "line": 828
@@ -2093,7 +2294,11 @@
           "line": 60
         },
         "routeSend": {
-          "line": 71
+          "line": 71,
+          "calls": [
+            "broadcast",
+            "send"
+          ]
         },
         "isWSEvent": {
           "line": 98
@@ -2125,28 +2330,53 @@
           "line": 47
         },
         "sendToRenderer": {
-          "line": 56
+          "line": 56,
+          "calls": [
+            "broadcast"
+          ]
         },
         "getMenuTemplate": {
-          "line": 65
+          "line": 65,
+          "calls": [
+            "buildAICommandsSubmenu",
+            "checkForUpdates",
+            "sendToRenderer"
+          ]
         },
         "buildAICommandsSubmenu": {
           "line": 289
         },
         "buildToolSwitcherSubmenu": {
-          "line": 405
+          "line": 405,
+          "calls": [
+            "createMenu"
+          ]
         },
         "sendCommand": {
-          "line": 426
+          "line": 426,
+          "calls": [
+            "createMenu",
+            "getMenuTemplate",
+            "openHistoryFile",
+            "sendToRenderer",
+            "toggleHistoryPanel"
+          ]
         },
         "toggleHistoryPanel": {
-          "line": 433
+          "line": 433,
+          "calls": [
+            "openHistoryFile",
+            "sendToRenderer"
+          ]
         },
         "openHistoryFile": {
           "line": 440
         },
         "createMenu": {
-          "line": 455
+          "line": 455,
+          "calls": [
+            "getMenuTemplate"
+          ]
         }
       }
     },
@@ -2178,13 +2408,23 @@
           "line": 49
         },
         "createEmptySession": {
-          "line": 53
+          "line": 53,
+          "calls": [
+            "nowIso"
+          ]
         },
         "getOrCreateSession": {
-          "line": 69
+          "line": 69,
+          "calls": [
+            "createEmptySession"
+          ]
         },
         "patchSession": {
-          "line": 77
+          "line": 77,
+          "calls": [
+            "getOrCreateSession",
+            "nowIso"
+          ]
         },
         "countSourceFiles": {
           "line": 102
@@ -2196,7 +2436,11 @@
           "line": 161
         },
         "detectProjectIntelligence": {
-          "line": 203
+          "line": 203,
+          "calls": [
+            "countSourceFiles",
+            "extensionToLanguage"
+          ]
         },
         "gatherContext": {
           "line": 268
@@ -2214,7 +2458,10 @@
           "line": 442
         },
         "buildOnboardingCommand": {
-          "line": 474
+          "line": 474,
+          "calls": [
+            "getMcpServerPath"
+          ]
         },
         "getAnalysisTimeout": {
           "line": 545
@@ -2232,13 +2479,29 @@
           "line": 1133
         },
         "importResults": {
-          "line": 1160
+          "line": 1160,
+          "calls": [
+            "generateTaskId",
+            "getExistingTaskTitles"
+          ]
         },
         "init": {
           "line": 1366
         },
         "setupIPC": {
-          "line": 1373
+          "line": 1373,
+          "calls": [
+            "buildAnalysisPrompt",
+            "checkAIToolAvailable",
+            "detectProjectIntelligence",
+            "gatherContext",
+            "getAnalysisTimeout",
+            "importResults",
+            "parseAnalysisResponse",
+            "patchSession",
+            "runAnalysisInTerminal",
+            "sendProgress"
+          ]
         },
         "hasActiveAnalyses": {
           "line": 1742
@@ -2572,13 +2835,22 @@
           "line": 62
         },
         "emitProgress": {
-          "line": 68
+          "line": 68,
+          "calls": [
+            "send"
+          ]
         },
         "broadcastRunUpdate": {
-          "line": 73
+          "line": 73,
+          "calls": [
+            "send"
+          ]
         },
         "broadcastRunsList": {
-          "line": 77
+          "line": 77,
+          "calls": [
+            "send"
+          ]
         },
         "ensurePipelinesDir": {
           "line": 87
@@ -2587,10 +2859,16 @@
           "line": 98
         },
         "persistRuns": {
-          "line": 123
+          "line": 123,
+          "calls": [
+            "ensurePipelinesDir"
+          ]
         },
         "loadPersistedRuns": {
-          "line": 145
+          "line": 145,
+          "calls": [
+            "now"
+          ]
         },
         "execAsync": {
           "line": 170
@@ -2602,10 +2880,26 @@
           "line": 239
         },
         "buildRun": {
-          "line": 252
+          "line": 252,
+          "calls": [
+            "now",
+            "stepToStageType",
+            "topologicalSortJobs",
+            "uid"
+          ]
         },
         "executeRun": {
-          "line": 316
+          "line": 316,
+          "calls": [
+            "broadcastRunUpdate",
+            "emitProgress",
+            "getStageHandler",
+            "now",
+            "persistRuns",
+            "runCustomStage",
+            "shouldRequireApproval",
+            "waitForApproval"
+          ]
         },
         "shouldRequireApproval": {
           "line": 582
@@ -2617,19 +2911,54 @@
           "line": 617
         },
         "setupIPC": {
-          "line": 624
+          "line": 624,
+          "calls": [
+            "broadcastRunUpdate",
+            "broadcastRunsList",
+            "buildRun",
+            "ensureWorkflowsDir",
+            "execAsync",
+            "executeRun",
+            "listWorkflows",
+            "loadPersistedRuns",
+            "now",
+            "parseWorkflow",
+            "persistRuns",
+            "unwatchPrePushTrigger",
+            "unwatchWorkflows",
+            "watchPrePushTrigger",
+            "watchWorkflows"
+          ]
         },
         "watchWorkflows": {
-          "line": 883
+          "line": 883,
+          "calls": [
+            "broadcastRunsList",
+            "unwatchWorkflows"
+          ]
         },
         "unwatchWorkflows": {
           "line": 908
         },
         "startPipelineFromTrigger": {
-          "line": 923
+          "line": 923,
+          "calls": [
+            "broadcastRunUpdate",
+            "broadcastRunsList",
+            "buildRun",
+            "ensureWorkflowsDir",
+            "execAsync",
+            "executeRun",
+            "listWorkflows"
+          ]
         },
         "watchPrePushTrigger": {
-          "line": 981
+          "line": 981,
+          "calls": [
+            "listWorkflows",
+            "startPipelineFromTrigger",
+            "unwatchPrePushTrigger"
+          ]
         },
         "unwatchPrePushTrigger": {
           "line": 1020
@@ -2687,55 +3016,134 @@
           "line": 133
         },
         "getDiff": {
-          "line": 164
+          "line": 164,
+          "calls": [
+            "execAsync"
+          ]
         },
         "getProjectContext": {
-          "line": 195
+          "line": 195,
+          "calls": [
+            "execAsync"
+          ]
         },
         "spawnAITool": {
-          "line": 263
+          "line": 263,
+          "calls": [
+            "spawnAIToolRaw"
+          ]
         },
         "spawnAIToolRaw": {
-          "line": 295
+          "line": 295,
+          "calls": [
+            "buildInteractiveAICommand",
+            "createStructuredJsonPrompt"
+          ]
         },
         "spawnAIToolAgent": {
-          "line": 349
+          "line": 349,
+          "calls": [
+            "buildInteractiveAICommand",
+            "createStructuredJsonPrompt",
+            "formatElapsed",
+            "isMaxTurnsError"
+          ]
         },
         "dispatchAITool": {
-          "line": 437
+          "line": 437,
+          "calls": [
+            "spawnAITool",
+            "spawnAIToolAgent"
+          ]
         },
         "getContextForScope": {
           "line": 451
         },
         "parseJSONFromOutput": {
-          "line": 465
+          "line": 465,
+          "calls": [
+            "parseJsonFromMixedOutput"
+          ]
         },
         "runLintStage": {
-          "line": 477
+          "line": 477,
+          "calls": [
+            "execAsync",
+            "now",
+            "parseJSONFromOutput",
+            "parseLintOutput",
+            "spawnAITool",
+            "uid"
+          ]
         },
         "parseLintOutput": {
-          "line": 567
+          "line": 567,
+          "calls": [
+            "now",
+            "uid"
+          ]
         },
         "buildFocusInstruction": {
           "line": 594
         },
         "runTestStage": {
-          "line": 614
+          "line": 614,
+          "calls": [
+            "buildFocusInstruction",
+            "dispatchAITool",
+            "getContextForScope",
+            "isMaxTurnsError",
+            "now",
+            "parseJSONFromOutput",
+            "uid"
+          ]
         },
         "runDescribeStage": {
-          "line": 692
+          "line": 692,
+          "calls": [
+            "buildFocusInstruction",
+            "dispatchAITool",
+            "getContextForScope",
+            "isMaxTurnsError",
+            "now",
+            "parseJSONFromOutput",
+            "uid"
+          ]
         },
         "runCritiqueStage": {
-          "line": 792
+          "line": 792,
+          "calls": [
+            "buildFocusInstruction",
+            "dispatchAITool",
+            "getContextForScope",
+            "isMaxTurnsError",
+            "now",
+            "parseJSONFromOutput",
+            "uid"
+          ]
         },
         "runFreezeStage": {
-          "line": 956
+          "line": 956,
+          "calls": [
+            "now",
+            "uid"
+          ]
         },
         "runPushStage": {
-          "line": 984
+          "line": 984,
+          "calls": [
+            "execAsync",
+            "now",
+            "uid"
+          ]
         },
         "runCreatePrStage": {
-          "line": 1055
+          "line": 1055,
+          "calls": [
+            "execAsync",
+            "now",
+            "uid"
+          ]
         },
         "runCustomStage": {
           "line": 1148
@@ -3372,16 +3780,41 @@
       }
     },
     "main/ptyManager": {
-      "file": "src/main/ptyManager.ts",
-      "description": "PTY Manager Module",
-      "exports": [],
+      "file": "src\\main\\ptyManager.ts",
+      "description": "PTY Manager Module Manages multiple PTY instances for multi-terminal support",
+      "exports": [
+        "init",
+        "createTerminal",
+        "spawnDirect",
+        "restartTerminal",
+        "writeToTerminal",
+        "injectTerminalOutput",
+        "resizeTerminal",
+        "destroyTerminal",
+        "destroyAll",
+        "getTerminalCount",
+        "getTerminalIds",
+        "hasTerminal",
+        "isClaudeActive",
+        "getTerminalsByProject",
+        "getTerminalInfo",
+        "getAvailableShells",
+        "setupIPC",
+        "waitForExit",
+        "startCapturing",
+        "stopCapturing",
+        "addOutputHandler",
+        "removeOutputHandler",
+        "registerPopoutWebContents",
+        "unregisterPopoutWebContents",
+        "getTerminalBacklog"
+      ],
       "depends": [
         "../package.json",
         "node-pty",
         "fs",
         "path",
         "child_process",
-        "electron",
         "shared/ipcChannels",
         "promptLogger",
         "agentStateManager",
@@ -3390,119 +3823,363 @@
       ],
       "functions": {
         "parseOSC7": {
-          "line": 38
+          "line": 40,
+          "params": [
+            "data"
+          ],
+          "purpose": "on every directory change."
         },
         "getAgentExitTimeout": {
-          "line": 80
+          "line": 83,
+          "calls": [
+            "getSetting"
+          ]
+        },
+        "stripTerminalControlSequences": {
+          "line": 110,
+          "params": [
+            "text"
+          ]
+        },
+        "markShellReady": {
+          "line": 124,
+          "params": [
+            "terminalId"
+          ],
+          "calls": [
+            "broadcast"
+          ]
+        },
+        "detectShellReady": {
+          "line": 133,
+          "params": [
+            "terminalId",
+            "data"
+          ],
+          "calls": [
+            "markShellReady",
+            "stripTerminalControlSequences"
+          ]
         },
         "isSessionFresh": {
-          "line": 140
+          "line": 183,
+          "params": [
+            "lastActivityAt"
+          ]
         },
         "correlateSession": {
-          "line": 152
+          "line": 195,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "2. Heuristic: most recently active unclaimed session (fresh only, <2 min)",
+          "calls": [
+            "isSessionFresh"
+          ]
         },
         "broadcastClaudeStatus": {
-          "line": 193
+          "line": 236,
+          "params": [
+            "terminalId",
+            "active"
+          ],
+          "calls": [
+            "broadcast",
+            "correlateSession",
+            "isSessionFresh"
+          ]
         },
         "detectClaudeOutput": {
-          "line": 254
+          "line": 297,
+          "params": [
+            "terminalId",
+            "data"
+          ],
+          "calls": [
+            "broadcastClaudeStatus",
+            "getAgentExitTimeout"
+          ]
         },
         "appendTerminalBacklog": {
-          "line": 316
+          "line": 359,
+          "params": [
+            "terminalId",
+            "data"
+          ]
         },
         "handleTerminalOutput": {
-          "line": 324
+          "line": 367,
+          "params": [
+            "terminalId",
+            "data"
+          ],
+          "calls": [
+            "appendTerminalBacklog",
+            "broadcast",
+            "detectClaudeOutput",
+            "detectShellReady",
+            "parseOSC7"
+          ]
         },
         "handleTerminalExit": {
-          "line": 352
+          "line": 396,
+          "params": [
+            "terminalId",
+            "exitCode"
+          ],
+          "calls": [
+            "broadcast"
+          ]
         },
         "bindPtyLifecycle": {
-          "line": 373
+          "line": 417,
+          "params": [
+            "terminalId",
+            "ptyProcess"
+          ],
+          "calls": [
+            "handleTerminalExit",
+            "handleTerminalOutput"
+          ]
         },
         "getMaxTerminals": {
-          "line": 397
+          "line": 441,
+          "calls": [
+            "getSetting"
+          ]
         },
         "init": {
-          "line": 406
+          "line": 450,
+          "params": [
+            "window"
+          ],
+          "purpose": "Initialize PTY manager with window reference",
+          "calls": [
+            "broadcast",
+            "broadcastClaudeStatus",
+            "getSetting"
+          ]
         },
         "getDefaultShell": {
-          "line": 460
+          "line": 504,
+          "purpose": "Get default shell based on platform"
         },
         "getAvailableShells": {
-          "line": 476
+          "line": 520,
+          "purpose": "Get available shells on the system",
+          "calls": [
+            "getDefaultShell"
+          ]
         },
         "createTerminal": {
-          "line": 556
+          "line": 600,
+          "params": [
+            "workingDir",
+            "projectPath",
+            "shellPath",
+            "initialCols",
+            "initialRows",
+            "options"
+          ],
+          "purpose": "Create a new terminal instance"
         },
         "spawnDirect": {
-          "line": 616
+          "line": 667,
+          "params": [
+            "command",
+            "args",
+            "workingDir",
+            "projectPath",
+            "initialCols",
+            "initialRows"
+          ],
+          "purpose": "into an interactive shell and waiting for it to echo/execute.",
+          "calls": [
+            "bindPtyLifecycle",
+            "getMaxTerminals"
+          ]
         },
         "getShellArgs": {
-          "line": 666
+          "line": 724,
+          "params": [
+            "shell"
+          ],
+          "purpose": "Get shell arguments based on shell type (reusable helper)."
         },
         "restartTerminal": {
-          "line": 681
+          "line": 739,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "The renderer xterm instance keeps running; it receives output from the new PTY."
         },
         "getTerminalsByProject": {
-          "line": 732
+          "line": 791,
+          "params": [
+            "projectPath"
+          ],
+          "purpose": "Get terminals for a specific project"
         },
         "getTerminalInfo": {
-          "line": 745
+          "line": 804,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "Get terminal info"
         },
         "writeToTerminal": {
-          "line": 756
+          "line": 815,
+          "params": [
+            "terminalId",
+            "data"
+          ],
+          "purpose": "Write data to specific terminal"
         },
         "injectTerminalOutput": {
-          "line": 768
+          "line": 827,
+          "params": [
+            "terminalId",
+            "data"
+          ],
+          "purpose": "before the shell has echoed anything back.",
+          "calls": [
+            "handleTerminalOutput"
+          ]
         },
         "resizeTerminal": {
-          "line": 776
+          "line": 835,
+          "params": [
+            "terminalId",
+            "cols",
+            "rows"
+          ],
+          "purpose": "Resize specific terminal"
         },
         "destroyTerminal": {
-          "line": 786
+          "line": 845,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "Destroy specific terminal"
         },
         "destroyAll": {
-          "line": 807
+          "line": 866,
+          "purpose": "Destroy all terminals"
         },
         "getTerminalCount": {
-          "line": 829
+          "line": 888,
+          "purpose": "Get terminal count"
         },
         "getTerminalIds": {
-          "line": 836
+          "line": 895,
+          "purpose": "Get all terminal IDs"
         },
         "hasTerminal": {
-          "line": 843
+          "line": 902,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "Check if terminal exists"
         },
         "isClaudeActive": {
-          "line": 850
+          "line": 909,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "Check if Claude Code is currently active in a terminal"
         },
         "waitForExit": {
-          "line": 859
+          "line": 918,
+          "params": [
+            "terminalId",
+            "timeoutMs"
+          ],
+          "purpose": "Returns 'exited' if the terminal process ends, or 'timeout' if the deadline passes."
         },
         "setupIPC": {
-          "line": 881
+          "line": 940,
+          "params": [
+            "ipcMain"
+          ],
+          "purpose": "Setup IPC handlers for multi-terminal",
+          "calls": [
+            "createTerminal",
+            "destroyTerminal",
+            "getAvailableShells",
+            "isClaudeActive",
+            "resizeTerminal",
+            "restartTerminal",
+            "writeToTerminal"
+          ]
         },
         "startCapturing": {
-          "line": 1008
+          "line": 1067,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "─── Output Capture API ──────────────────────────────────────────────────────"
         },
         "stopCapturing": {
-          "line": 1013
+          "line": 1072,
+          "params": [
+            "terminalId"
+          ]
         },
         "registerPopoutWebContents": {
-          "line": 1020
+          "line": 1079,
+          "params": [
+            "terminalId",
+            "wc"
+          ]
         },
         "unregisterPopoutWebContents": {
-          "line": 1025
+          "line": 1084,
+          "params": [
+            "terminalId"
+          ]
         },
         "addOutputHandler": {
-          "line": 1030
+          "line": 1089,
+          "params": [
+            "terminalId",
+            "handler"
+          ]
         },
         "removeOutputHandler": {
-          "line": 1040
+          "line": 1099,
+          "params": [
+            "terminalId",
+            "handlerId"
+          ]
         },
         "getTerminalBacklog": {
-          "line": 1055
+          "line": 1114,
+          "params": [
+            "terminalId"
+          ],
+          "purpose": "Get the raw backlog for a terminal (used by onboardingManager for MCP analysis output)."
         }
+      },
+      "loc": 1128,
+      "ipc": {
+        "listens": [
+          "GET_AVAILABLE_SHELLS",
+          "TERMINAL_CREATE",
+          "TERMINAL_DESTROY",
+          "IS_TERMINAL_CLAUDE_ACTIVE",
+          "TERMINAL_INPUT_ID",
+          "TERMINAL_RESIZE_ID",
+          "GET_TERMINAL_STATE",
+          "GET_TERMINAL_BACKLOG",
+          "SAVE_TERMINAL_SCROLLBACK",
+          "LOAD_TERMINAL_SCROLLBACK",
+          "TERMINAL_STALL_RECOVER",
+          "TERMINAL_RESTART"
+        ],
+        "emits": [
+          "CLAUDE_ACTIVE_STATUS",
+          "TERMINAL_DESTROYED"
+        ]
       }
     },
     "main/settingsManager": {
@@ -3519,16 +4196,26 @@
       ],
       "functions": {
         "init": {
-          "line": 175
+          "line": 175,
+          "calls": [
+            "loadSettings"
+          ]
         },
         "loadSettings": {
-          "line": 184
+          "line": 184,
+          "calls": [
+            "deepMerge"
+          ]
         },
         "saveSettings": {
           "line": 211
         },
         "updateSetting": {
-          "line": 224
+          "line": 224,
+          "calls": [
+            "broadcast",
+            "saveSettings"
+          ]
         },
         "onSettingChange": {
           "line": 254
@@ -3540,7 +4227,10 @@
           "line": 280
         },
         "setupIPC": {
-          "line": 301
+          "line": 301,
+          "calls": [
+            "updateSetting"
+          ]
         },
         "reload": {
           "line": 312
@@ -3693,7 +4383,11 @@
           "line": 107
         },
         "ensureTasksDir": {
-          "line": 115
+          "line": 115,
+          "calls": [
+            "getPrivateTasksDir",
+            "getTasksDir"
+          ]
         },
         "statusToGroupKey": {
           "line": 125
@@ -3711,31 +4405,91 @@
           "line": 173
         },
         "buildTasksData": {
-          "line": 180
+          "line": 180,
+          "calls": [
+            "getProjectName",
+            "statusToGroupKey"
+          ]
         },
         "loadTasks": {
-          "line": 237
+          "line": 237,
+          "calls": [
+            "buildTasksData",
+            "getPrivateTasksDir",
+            "getTasksDir",
+            "getTasksJsonPath",
+            "parseTaskMarkdown"
+          ]
         },
         "regenerateIndex": {
-          "line": 329
+          "line": 329,
+          "calls": [
+            "getProjectName",
+            "getTasksJsonPath",
+            "stripInternalFields"
+          ]
         },
         "addTask": {
-          "line": 383
+          "line": 383,
+          "calls": [
+            "ensureTasksDir",
+            "generateTaskId",
+            "getTaskFilePath",
+            "loadTasks",
+            "regenerateIndex",
+            "serializeTaskMarkdown"
+          ]
         },
         "updateTask": {
-          "line": 429
+          "line": 429,
+          "calls": [
+            "ensureTasksDir",
+            "findTaskFile",
+            "getTaskFilePath",
+            "loadTasks",
+            "parseTaskMarkdown",
+            "regenerateIndex",
+            "serializeTaskMarkdown"
+          ]
         },
         "deleteTask": {
-          "line": 497
+          "line": 497,
+          "calls": [
+            "findTaskFile",
+            "loadTasks",
+            "regenerateIndex"
+          ]
         },
         "watchTasksFile": {
-          "line": 522
+          "line": 522,
+          "calls": [
+            "broadcast",
+            "computeTasksFingerprint",
+            "getPrivateTasksDir",
+            "getTasksDir",
+            "loadTasks",
+            "unwatchTasksFile"
+          ]
         },
         "unwatchTasksFile": {
           "line": 583
         },
         "setupIPC": {
-          "line": 598
+          "line": 598,
+          "calls": [
+            "addTask",
+            "broadcast",
+            "checkToolInstalled",
+            "createStructuredJsonPrompt",
+            "deleteTask",
+            "getActiveTool",
+            "getStartCommand",
+            "loadTasks",
+            "parseJsonFromMixedOutput",
+            "unwatchTasksFile",
+            "updateTask",
+            "watchTasksFile"
+          ]
         }
       }
     },
@@ -3754,19 +4508,33 @@
       ],
       "functions": {
         "sendStatus": {
-          "line": 31
+          "line": 31,
+          "calls": [
+            "broadcast"
+          ]
         },
         "sendProgress": {
-          "line": 40
+          "line": 40,
+          "calls": [
+            "broadcast"
+          ]
         },
         "init": {
-          "line": 50
+          "line": 50,
+          "calls": [
+            "getSetting",
+            "sendProgress",
+            "sendStatus"
+          ]
         },
         "setupIPC": {
           "line": 146
         },
         "checkForUpdates": {
-          "line": 201
+          "line": 201,
+          "calls": [
+            "sendStatus"
+          ]
         },
         "destroy": {
           "line": 220
@@ -3801,10 +4569,17 @@
       ],
       "functions": {
         "getSessionControlState": {
-          "line": 50
+          "line": 50,
+          "calls": [
+            "buildDeviceLabel"
+          ]
         },
         "broadcastControlState": {
-          "line": 64
+          "line": 64,
+          "calls": [
+            "broadcastIPC",
+            "getSessionControlState"
+          ]
         },
         "buildDeviceLabel": {
           "line": 75
@@ -3813,16 +4588,25 @@
           "line": 87
         },
         "getLanIps": {
-          "line": 96
+          "line": 96,
+          "calls": [
+            "isPrivateIpv4"
+          ]
         },
         "getLanIp": {
-          "line": 116
+          "line": 116,
+          "calls": [
+            "getLanIps"
+          ]
         },
         "normalizePort": {
           "line": 120
         },
         "getStoredLastPort": {
-          "line": 128
+          "line": 128,
+          "calls": [
+            "normalizePort"
+          ]
         },
         "persistLastPort": {
           "line": 137
@@ -3840,7 +4624,10 @@
           "line": 206
         },
         "clearRemotePointer": {
-          "line": 215
+          "line": 215,
+          "calls": [
+            "broadcastIPC"
+          ]
         },
         "getSessionContext": {
           "line": 219
@@ -3852,19 +4639,42 @@
           "line": 279
         },
         "getWebIndexPath": {
-          "line": 287
+          "line": 287,
+          "calls": [
+            "getDistDir"
+          ]
         },
         "serveStatic": {
-          "line": 296
+          "line": 296,
+          "calls": [
+            "getDistDir",
+            "getWebIndexPath"
+          ]
         },
         "handleHTTP": {
-          "line": 355
+          "line": 355,
+          "calls": [
+            "getWebBootstrapPayload",
+            "getWebIndexPath",
+            "handlePairing",
+            "serveStatic"
+          ]
         },
         "handlePairing": {
           "line": 412
         },
         "handleWsConnection": {
-          "line": 442
+          "line": 442,
+          "calls": [
+            "broadcastControlState",
+            "broadcastIPC",
+            "clearRemotePointer",
+            "createSession",
+            "hasInvokeHandler",
+            "routeInvoke",
+            "routeSend",
+            "wsSend"
+          ]
         },
         "createSession": {
           "line": 624
@@ -3873,7 +4683,12 @@
           "line": 635
         },
         "onBridgeEvent": {
-          "line": 643
+          "line": 643,
+          "calls": [
+            "batchTerminalOutput",
+            "buildNotification",
+            "wsSend"
+          ]
         },
         "buildNotification": {
           "line": 665
@@ -3882,25 +4697,68 @@
           "line": 684
         },
         "flushTerminalBatches": {
-          "line": 694
+          "line": 694,
+          "calls": [
+            "wsSend"
+          ]
         },
         "broadcastIPC": {
-          "line": 712
+          "line": 712,
+          "calls": [
+            "broadcast"
+          ]
         },
         "startServer": {
-          "line": 721
+          "line": 721,
+          "calls": [
+            "addBridgeListener",
+            "getStoredLastPort",
+            "handleHTTP",
+            "persistLastPort",
+            "stopServer",
+            "writeServiceConfig"
+          ]
         },
         "stopServer": {
-          "line": 815
+          "line": 815,
+          "calls": [
+            "clearRemotePointer",
+            "removeServiceConfig"
+          ]
         },
         "init": {
-          "line": 851
+          "line": 851,
+          "calls": [
+            "normalizePort",
+            "startServer"
+          ]
         },
         "setupIPC": {
-          "line": 874
+          "line": 874,
+          "calls": [
+            "broadcastControlState",
+            "broadcastIPC",
+            "buildRemotePointerLabel",
+            "clearRemotePointer",
+            "getLanIp",
+            "getLanIps",
+            "getRemoteCursorEnabled",
+            "getSessionContext",
+            "getSessionControlState",
+            "isWSEvent",
+            "normalizePort",
+            "routeInvoke",
+            "startServer",
+            "stopServer",
+            "writeServiceConfig",
+            "wsSend"
+          ]
         },
         "shutdown": {
-          "line": 1138
+          "line": 1138,
+          "calls": [
+            "stopServer"
+          ]
         }
       }
     },
@@ -3918,34 +4776,64 @@
       ],
       "functions": {
         "init": {
-          "line": 78
+          "line": 78,
+          "calls": [
+            "ensureWorkspaceDir"
+          ]
         },
         "ensureWorkspaceDir": {
-          "line": 88
+          "line": 88,
+          "calls": [
+            "createDefaultWorkspace",
+            "saveWorkspace"
+          ]
         },
         "createDefaultWorkspace": {
           "line": 102
         },
         "loadWorkspace": {
-          "line": 119
+          "line": 119,
+          "calls": [
+            "createDefaultWorkspace",
+            "saveWorkspace"
+          ]
         },
         "saveWorkspace": {
           "line": 149
         },
         "getProjects": {
-          "line": 162
+          "line": 162,
+          "calls": [
+            "loadWorkspace"
+          ]
         },
         "addProject": {
-          "line": 171
+          "line": 171,
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "removeProject": {
-          "line": 196
+          "line": 196,
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "updateProjectLastOpened": {
-          "line": 212
+          "line": 212,
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "renameProject": {
-          "line": 228
+          "line": 228,
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "scanProjectDir": {
           "line": 248
@@ -3954,16 +4842,33 @@
           "line": 280
         },
         "getProjectsWithScanned": {
-          "line": 293
+          "line": 293,
+          "calls": [
+            "getProjects",
+            "loadWorkspace",
+            "recheckFrameStatus",
+            "scanProjectDir"
+          ]
         },
         "updateProjectFrameStatus": {
-          "line": 323
+          "line": 323,
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "setProjectAITool": {
-          "line": 339
+          "line": 339,
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "getProjectAITool": {
-          "line": 360
+          "line": 360,
+          "calls": [
+            "loadWorkspace"
+          ]
         },
         "getOrderedKeys": {
           "line": 371
@@ -3972,19 +4877,41 @@
           "line": 385
         },
         "getWorkspaceList": {
-          "line": 398
+          "line": 398,
+          "calls": [
+            "getOrderedKeys",
+            "loadWorkspace"
+          ]
         },
         "normalizeAccentColor": {
           "line": 420
         },
         "switchWorkspace": {
-          "line": 429
+          "line": 429,
+          "calls": [
+            "getProjectsWithScanned",
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "createWorkspace": {
-          "line": 445
+          "line": 445,
+          "calls": [
+            "getWorkspaceList",
+            "loadWorkspace",
+            "saveWorkspace",
+            "slugify"
+          ]
         },
         "duplicateWorkspace": {
-          "line": 477
+          "line": 477,
+          "calls": [
+            "getOrderedKeys",
+            "getWorkspaceList",
+            "loadWorkspace",
+            "saveWorkspace",
+            "slugify"
+          ]
         },
         "renameWorkspace": {
           "line": 527
@@ -3993,16 +4920,44 @@
           "line": 585
         },
         "reorderWorkspaces": {
-          "line": 620
+          "line": 620,
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "setWorkspaceInactive": {
-          "line": 641
+          "line": 641,
+          "calls": [
+            "loadWorkspace",
+            "saveWorkspace"
+          ]
         },
         "setupIPC": {
-          "line": 661
+          "line": 661,
+          "calls": [
+            "addProject",
+            "broadcast",
+            "createWorkspace",
+            "deleteWorkspace",
+            "duplicateWorkspace",
+            "getProjectsWithScanned",
+            "getWorkspaceList",
+            "removeProject",
+            "renameProject",
+            "renameWorkspace",
+            "reorderWorkspaces",
+            "scanProjectDir",
+            "setProjectAITool",
+            "setWorkspaceInactive",
+            "switchWorkspace"
+          ]
         },
         "reload": {
-          "line": 729
+          "line": 729,
+          "calls": [
+            "loadWorkspace"
+          ]
         }
       }
     },
@@ -4029,19 +4984,33 @@
           "line": 38
         },
         "useElapsedTime": {
-          "line": 48
+          "line": 48,
+          "calls": [
+            "formatElapsed"
+          ]
         },
         "StatusDot": {
           "line": 70
         },
         "OutputChannelViewer": {
-          "line": 102
+          "line": 102,
+          "calls": [
+            "useClearOutputChannel",
+            "useOutputChannelLog",
+            "useOutputChannels"
+          ]
         },
         "ModeToggle": {
           "line": 203
         },
         "ActivityBar": {
-          "line": 242
+          "line": 242,
+          "calls": [
+            "clearStream",
+            "cn",
+            "useActivity",
+            "useElapsedTime"
+          ]
         }
       }
     },
@@ -4208,7 +5177,11 @@
           "line": 23
         },
         "AISessionsPanel": {
-          "line": 65
+          "line": 65,
+          "calls": [
+            "focusActivityBar",
+            "useAISessions"
+          ]
         }
       }
     },
@@ -4290,7 +5263,23 @@
       ],
       "functions": {
         "App": {
-          "line": 49
+          "line": 49,
+          "calls": [
+            "TerminalArea",
+            "applyLiveUIStateSnapshot",
+            "buildLiveUIStateSnapshot",
+            "cn",
+            "consumeMirroredUISyncSuppression",
+            "focusActivityBar",
+            "getTransport",
+            "typedInvoke",
+            "typedSend",
+            "useAIToolConfig",
+            "useIpcQuery",
+            "useOnboarding",
+            "useSessionControl",
+            "useViewport"
+          ]
         }
       }
     },
@@ -4679,7 +5668,10 @@
             "onToggleDir",
             "projectPath }"
           ],
-          "purpose": "─── File Tree Components ────────────────────────────────────────────────────"
+          "purpose": "─── File Tree Components ────────────────────────────────────────────────────",
+          "calls": [
+            "countFiles"
+          ]
         },
         "FileGroup": {
           "line": 334,
@@ -4720,6 +5712,11 @@
           "line": 379,
           "params": [
             "{ workflow }"
+          ],
+          "calls": [
+            "GithubWorkflowsPanel",
+            "useDispatchWorkflow",
+            "useRerunWorkflow"
           ]
         },
         "WorkflowsTab": {
@@ -4920,7 +5917,10 @@
           "line": 114
         },
         "MobilePanelsView": {
-          "line": 161
+          "line": 161,
+          "calls": [
+            "cn"
+          ]
         }
       }
     },
@@ -5476,7 +6476,12 @@
       ],
       "functions": {
         "ProjectList": {
-          "line": 41
+          "line": 41,
+          "calls": [
+            "getTransport",
+            "sortProjects",
+            "typedSend"
+          ]
         },
         "ProjectCard": {
           "line": 301
@@ -5673,7 +6678,10 @@
           "line": 123
         },
         "getGroupIndex": {
-          "line": 128
+          "line": 128,
+          "calls": [
+            "RightPanel"
+          ]
         },
         "RightPanel": {
           "line": 163
@@ -5800,7 +6808,20 @@
           "line": 658
         },
         "SettingsPanel": {
-          "line": 897
+          "line": 897,
+          "calls": [
+            "cn",
+            "detectNerdFont",
+            "getThemeById",
+            "getTransport",
+            "normalizeWorkspacePillDisplay",
+            "typedInvoke",
+            "typedSend",
+            "useAIToolConfig",
+            "useIpcQuery",
+            "useSettings",
+            "useUpdater"
+          ]
         }
       }
     },
@@ -5827,7 +6848,7 @@
       "loc": 125
     },
     "renderer/components/Sidebar": {
-      "file": "src/renderer/components/Sidebar.tsx",
+      "file": "src\\renderer\\components\\Sidebar.tsx",
       "description": "",
       "exports": [
         "Sidebar"
@@ -5856,20 +6877,59 @@
       ],
       "functions": {
         "Sidebar": {
-          "line": 69
+          "line": 69,
+          "purpose": "at top, tab icons with active accent, settings at bottom.",
+          "calls": [
+            "cn",
+            "getLogoSVG",
+            "getTransport",
+            "typedInvoke",
+            "useAIToolConfig",
+            "useSettings"
+          ]
         },
         "CollapsedWorkspaceSwitcher": {
-          "line": 592
+          "line": 603,
+          "calls": [
+            "cn",
+            "typedInvoke",
+            "typedSend",
+            "useIpcQuery"
+          ]
         },
         "GitStatusBar": {
-          "line": 703
+          "line": 714,
+          "calls": [
+            "useGitStatus"
+          ]
         },
         "CollapsedGitStatus": {
-          "line": 728
+          "line": 739,
+          "calls": [
+            "cn",
+            "useGitStatus"
+          ]
         },
         "GitBranchIcon": {
-          "line": 769
+          "line": 780,
+          "params": [
+            "{ className }"
+          ]
         }
+      },
+      "loc": 788,
+      "ipc": {
+        "listens": [
+          "IS_FRAME_PROJECT_RESULT",
+          "FRAME_PROJECT_INITIALIZED",
+          "TERMINAL_CREATED",
+          "TERMINAL_SHELL_READY"
+        ],
+        "emits": [
+          "TERMINAL_INPUT_ID",
+          "TERMINAL_CREATE",
+          "INITIALIZE_FRAME_PROJECT"
+        ]
       }
     },
     "renderer/components/SidebarAgentStatus": {
@@ -6031,7 +7091,14 @@
           "line": 51
         },
         "StatusBar": {
-          "line": 57
+          "line": 57,
+          "calls": [
+            "cn",
+            "useGitStatus",
+            "useGithubWorkflows",
+            "useIpcQuery",
+            "useTasks"
+          ]
         }
       }
     },
@@ -6238,7 +7305,6 @@
           "line": 300,
           "purpose": "─── Card 2: AI Tool Picker ──────────────────────────────────────────────────",
           "calls": [
-            "cn",
             "useAIToolConfig"
           ]
         },
@@ -6613,19 +7679,47 @@
           "line": 71
         },
         "syncLiveWebSession": {
-          "line": 121
+          "line": 121,
+          "calls": [
+            "getTransport"
+          ]
         },
         "saveSession": {
-          "line": 129
+          "line": 129,
+          "calls": [
+            "buildSessionData",
+            "syncLiveWebSession"
+          ]
         },
         "saveSessionWithState": {
-          "line": 149
+          "line": 149,
+          "calls": [
+            "saveSession",
+            "typedInvoke"
+          ]
         },
         "loadSession": {
           "line": 162
         },
         "TerminalArea": {
-          "line": 172
+          "line": 172,
+          "calls": [
+            "buildSessionData",
+            "createTerminal",
+            "generateTerminalName",
+            "getLogoSVG",
+            "getTabIdForContent",
+            "getTransport",
+            "getUsedTerminalNames",
+            "loadSession",
+            "saveSession",
+            "saveSessionWithState",
+            "syncLiveWebSession",
+            "typedInvoke",
+            "typedSend",
+            "useAIToolConfig",
+            "useSettings"
+          ]
         }
       }
     },
@@ -6780,7 +7874,14 @@
           "line": 44
         },
         "UpdateNotification": {
-          "line": 57
+          "line": 57,
+          "calls": [
+            "clearSnooze",
+            "formatSnoozeRemaining",
+            "isSnoozed",
+            "snooze",
+            "useUpdater"
+          ]
         }
       }
     },
@@ -6817,7 +7918,22 @@
           "line": 141
         },
         "ViewTabBar": {
-          "line": 299
+          "line": 299,
+          "calls": [
+            "focusActivityBar",
+            "formatSubType",
+            "formatTierName",
+            "getTabIdForContent",
+            "getTransport",
+            "normalizeWorkspaceAccentColor",
+            "normalizeWorkspacePillDisplay",
+            "typedInvoke",
+            "typedSend",
+            "useAIToolConfig",
+            "useActivity",
+            "useIpcQuery",
+            "useSettings"
+          ]
         },
         "UsageTooltip": {
           "line": 917
@@ -7015,7 +8131,13 @@
       ],
       "functions": {
         "WorkspaceSelector": {
-          "line": 50
+          "line": 50,
+          "calls": [
+            "normalizeWorkspaceAccentColor",
+            "typedInvoke",
+            "typedSend",
+            "useIpcQuery"
+          ]
         },
         "AddProjectButton": {
           "line": 663
@@ -7050,7 +8172,13 @@
           "line": 14
         },
         "useActivity": {
-          "line": 21
+          "line": 21,
+          "calls": [
+            "isDiagnosticLine",
+            "typedInvoke",
+            "typedSend",
+            "useIpcQuery"
+          ]
         }
       }
     },
@@ -7108,8 +8236,7 @@
           "calls": [
             "getTransport",
             "reload",
-            "typedSend",
-            "useIPCEvent"
+            "typedSend"
           ]
         }
       },
@@ -7142,7 +8269,10 @@
       ],
       "functions": {
         "useAISessions": {
-          "line": 9
+          "line": 9,
+          "calls": [
+            "useIpcQuery"
+          ]
         }
       }
     },
@@ -7221,7 +8351,6 @@
         "useGitBranches": {
           "line": 29,
           "calls": [
-            "useIpcMutation",
             "useIpcQuery"
           ]
         },
@@ -7229,19 +8358,30 @@
           "line": 61,
           "calls": [
             "typedSend",
+            "useIpcMutation",
             "useIpcQuery"
           ]
         },
         "useGithubWorkflows": {
           "line": 97,
           "calls": [
-            "useIpcQuery"
+            "useCreateGithubIssue",
+            "useDispatchWorkflow",
+            "useGitWorktrees",
+            "useGithubIssueDetail",
+            "useGithubNotifications",
+            "useGithubPRDetail",
+            "useGithubPRDiff",
+            "useIpcMutation",
+            "useIpcQuery",
+            "useMarkNotificationRead",
+            "useRerunWorkflow"
           ]
         },
         "useGitWorktrees": {
           "line": 113,
           "calls": [
-            "useIpcMutation",
+            "useGithubWorkflows",
             "useIpcQuery"
           ]
         },
@@ -7251,7 +8391,7 @@
             "issueNumber"
           ],
           "calls": [
-            "useIpcQuery"
+            "useIpcMutation"
           ]
         },
         "useGithubPRDetail": {
@@ -7260,7 +8400,15 @@
             "prNumber"
           ],
           "calls": [
-            "useIpcQuery"
+            "useCreateGithubIssue",
+            "useDispatchWorkflow",
+            "useGithubIssueDetail",
+            "useGithubNotifications",
+            "useGithubPRDiff",
+            "useIpcMutation",
+            "useIpcQuery",
+            "useMarkNotificationRead",
+            "useRerunWorkflow"
           ]
         },
         "useGithubPRDiff": {
@@ -7287,7 +8435,8 @@
         "useDispatchWorkflow": {
           "line": 177,
           "calls": [
-            "useIpcMutation"
+            "useGithubPRDiff",
+            "useIpcQuery"
           ]
         },
         "useGithubNotifications": {
@@ -7299,6 +8448,7 @@
         "useMarkNotificationRead": {
           "line": 186,
           "calls": [
+            "useCreateGithubIssue",
             "useIpcMutation"
           ]
         }
@@ -7362,10 +8512,16 @@
       ],
       "functions": {
         "subscribeShared": {
-          "line": 19
+          "line": 19,
+          "calls": [
+            "getTransport"
+          ]
         },
         "useIPCListener": {
-          "line": 67
+          "line": 67,
+          "calls": [
+            "subscribeShared"
+          ]
         }
       }
     },
@@ -7384,7 +8540,12 @@
       ],
       "functions": {
         "useOnboarding": {
-          "line": 22
+          "line": 22,
+          "calls": [
+            "typedInvoke",
+            "typedSend",
+            "useIpcMutation"
+          ]
         }
       }
     },
@@ -7472,8 +8633,7 @@
           "calls": [
             "getTransport",
             "typedInvoke",
-            "typedSend",
-            "useIPCEvent"
+            "typedSend"
           ]
         },
         "usePipelineWorkflows": {
@@ -7699,8 +8859,7 @@
             "extractGrouped",
             "flattenTasks",
             "getTransport",
-            "typedSend",
-            "useIPCEvent"
+            "typedSend"
           ]
         }
       },
@@ -8279,7 +9438,10 @@
           "line": 67
         },
         "refreshTerminalThemes": {
-          "line": 82
+          "line": 82,
+          "calls": [
+            "getTerminalTheme"
+          ]
         },
         "onMarkerChange": {
           "line": 117
@@ -8309,13 +9471,24 @@
           "line": 211
         },
         "getOrCreate": {
-          "line": 248
+          "line": 248,
+          "calls": [
+            "getHolderRoot",
+            "getTerminalTheme",
+            "getTransport",
+            "loadGpuRenderer",
+            "registerWebLinkProvider",
+            "writeOrBuffer"
+          ]
         },
         "attach": {
           "line": 340
         },
         "detach": {
-          "line": 359
+          "line": 359,
+          "calls": [
+            "getHolderRoot"
+          ]
         },
         "dispose": {
           "line": 376
@@ -8333,7 +9506,10 @@
           "line": 450
         },
         "addUserMessageMarker": {
-          "line": 464
+          "line": 464,
+          "calls": [
+            "notifyMarkerChange"
+          ]
         },
         "getUserMessageMarkers": {
           "line": 519
@@ -8351,25 +9527,49 @@
           "line": 553
         },
         "showLinkTooltip": {
-          "line": 571
+          "line": 571,
+          "calls": [
+            "getTooltip"
+          ]
         },
         "hideLinkTooltip": {
           "line": 580
         },
         "getCtrlLabel": {
-          "line": 585
+          "line": 585,
+          "calls": [
+            "getTransport"
+          ]
         },
         "registerWebLinkProvider": {
-          "line": 600
+          "line": 600,
+          "calls": [
+            "getCtrlLabel",
+            "getTransport",
+            "hideLinkTooltip",
+            "showLinkTooltip"
+          ]
         },
         "registerFilePathLinkProvider": {
-          "line": 698
+          "line": 698,
+          "calls": [
+            "getCtrlLabel",
+            "getProjectPath",
+            "hideLinkTooltip",
+            "showLinkTooltip"
+          ]
         },
         "initAPIBridge": {
-          "line": 780
+          "line": 780,
+          "calls": [
+            "getTransport"
+          ]
         },
         "registerSelectionSync": {
-          "line": 859
+          "line": 859,
+          "calls": [
+            "getTransport"
+          ]
         }
       }
     },
@@ -8460,19 +9660,29 @@
           "line": 77
         },
         "withWorkspaceAccentAlpha": {
-          "line": 84
+          "line": 84,
+          "calls": [
+            "normalizeWorkspaceAccentColor"
+          ]
         },
         "deriveWorkspaceMonogram": {
           "line": 90
         },
         "getWorkspacePillText": {
-          "line": 103
+          "line": 103,
+          "calls": [
+            "deriveWorkspaceMonogram",
+            "normalizeWorkspaceShortLabel"
+          ]
         },
         "getLegacyWorkspacePillDisplay": {
           "line": 107
         },
         "normalizeWorkspacePillDisplay": {
-          "line": 122
+          "line": 122,
+          "calls": [
+            "getLegacyWorkspacePillDisplay"
+          ]
         },
         "getWorkspacePillPresentation": {
           "line": 144
@@ -8556,22 +9766,41 @@
           "line": 75
         },
         "cloneLiveUIStateSnapshot": {
-          "line": 79
+          "line": 79,
+          "calls": [
+            "cloneTabs"
+          ]
         },
         "isSameTabs": {
           "line": 86
         },
         "isSameLiveUIState": {
-          "line": 98
+          "line": 98,
+          "calls": [
+            "isSameTabs"
+          ]
         },
         "buildLiveUIStateSnapshot": {
-          "line": 443
+          "line": 443,
+          "calls": [
+            "cloneTabs"
+          ]
         },
         "applyLiveUIStateSnapshot": {
-          "line": 457
+          "line": 457,
+          "calls": [
+            "buildLiveUIStateSnapshot",
+            "cloneLiveUIStateSnapshot",
+            "cloneTabs",
+            "isSameLiveUIState",
+            "persistTabs"
+          ]
         },
         "consumeMirroredUISyncSuppression": {
-          "line": 490
+          "line": 490,
+          "calls": [
+            "isSameLiveUIState"
+          ]
         }
       }
     },
@@ -8603,7 +9832,10 @@
       ],
       "functions": {
         "applyThemeAppearance": {
-          "line": 66
+          "line": 66,
+          "calls": [
+            "getThemeById"
+          ]
         },
         "ConnectingScreen": {
           "line": 138
@@ -8621,13 +9853,22 @@
           "line": 433
         },
         "loadStoredWebToken": {
-          "line": 437
+          "line": 437,
+          "calls": [
+            "getWebTokenStorageKey"
+          ]
         },
         "storeWebToken": {
-          "line": 445
+          "line": 445,
+          "calls": [
+            "getWebTokenStorageKey"
+          ]
         },
         "clearStoredWebToken": {
-          "line": 453
+          "line": 453,
+          "calls": [
+            "getWebTokenStorageKey"
+          ]
         },
         "isTokenError": {
           "line": 461
@@ -8639,7 +9880,10 @@
           "line": 484
         },
         "deriveCurrentProjectPath": {
-          "line": 488
+          "line": 488,
+          "calls": [
+            "getManualProjects"
+          ]
         },
         "buildFallbackSession": {
           "line": 496
@@ -8648,7 +9892,10 @@
           "line": 522
         },
         "hydrateProjectStore": {
-          "line": 546
+          "line": 546,
+          "calls": [
+            "getManualProjects"
+          ]
         },
         "hydrateTerminalStore": {
           "line": 563
@@ -8657,10 +9904,29 @@
           "line": 632
         },
         "hydrateLiveSession": {
-          "line": 710
+          "line": 710,
+          "calls": [
+            "applyLiveUIStateSnapshot",
+            "buildFallbackSession",
+            "deriveCurrentProjectPath",
+            "hydrateProjectStore",
+            "hydrateTerminalStore",
+            "persistHydratedSession"
+          ]
         },
         "WebClientRoot": {
-          "line": 730
+          "line": 730,
+          "calls": [
+            "applyLiveSessionSync",
+            "applyThemeAppearance",
+            "clearStoredWebToken",
+            "exchangePairingCode",
+            "hydrateLiveSession",
+            "isTokenError",
+            "loadStoredWebToken",
+            "setTransport",
+            "storeWebToken"
+          ]
         }
       }
     },
@@ -8968,10 +10234,17 @@
           "line": 310
         },
         "injectBacklink": {
-          "line": 320
+          "line": 320,
+          "calls": [
+            "getBacklinkBlock"
+          ]
         },
         "updateBacklink": {
-          "line": 338
+          "line": 338,
+          "calls": [
+            "getBacklinkBlock",
+            "injectBacklink"
+          ]
         },
         "removeBacklink": {
           "line": 362
@@ -8995,37 +10268,66 @@
           "line": 488
         },
         "verifyBacklinks": {
-          "line": 525
+          "line": 525,
+          "calls": [
+            "verifyNativeFile"
+          ]
         },
         "getDateString": {
           "line": 630
         },
         "getISOTimestamp": {
-          "line": 633
+          "line": 633,
+          "calls": [
+            "getAgentsTemplate",
+            "getDateString"
+          ]
         },
         "getAgentsTemplate": {
-          "line": 636
+          "line": 636,
+          "calls": [
+            "getDateString"
+          ]
         },
         "getStructureTemplate": {
-          "line": 1026
+          "line": 1026,
+          "calls": [
+            "getDateString"
+          ]
         },
         "getNotesTemplate": {
-          "line": 1046
+          "line": 1046,
+          "calls": [
+            "getDateString"
+          ]
         },
         "getTasksTemplate": {
-          "line": 1062
+          "line": 1062,
+          "calls": [
+            "getDateString",
+            "getISOTimestamp"
+          ]
         },
         "getTaskMarkdownTemplate": {
-          "line": 1112
+          "line": 1112,
+          "calls": [
+            "getISOTimestamp"
+          ]
         },
         "getQuickstartTemplate": {
-          "line": 1142
+          "line": 1142,
+          "calls": [
+            "getDateString"
+          ]
         },
         "getDocsInternalReadme": {
           "line": 1216
         },
         "getFrameConfigTemplate": {
-          "line": 1254
+          "line": 1254,
+          "calls": [
+            "getISOTimestamp"
+          ]
         },
         "getCodexWrapperTemplate": {
           "line": 1282
@@ -9058,13 +10360,22 @@
           "line": 1579
         },
         "main": {
-          "line": 2289
+          "line": 2289,
+          "calls": [
+            "cleanStaleSessions",
+            "findProjectRoot",
+            "loadState",
+            "writeState"
+          ]
         },
         "getPromptSubmitHookTemplate": {
           "line": 1681
         },
         "findTasksFile": {
-          "line": 1874
+          "line": 1874,
+          "calls": [
+            "findProjectRoot"
+          ]
         },
         "readPrivatePending": {
           "line": 1714
@@ -9132,17 +10443,16 @@
       }
     },
     "shared/ipcChannels": {
-      "file": "src/shared/ipcChannels.ts",
-      "description": "IPC Channel Constants — TypeScript Edition",
+      "file": "src\\shared\\ipcChannels.ts",
+      "description": "IPC Channel Constants — TypeScript Edition Single source of truth for all IPC channel names and their type signatures.",
       "exports": [
         "IPC"
       ],
       "depends": [
-        "...ipcChannels",
-        "agentStateTypes",
-        "activityTypes"
+        "...ipcChannels"
       ],
-      "functions": {}
+      "functions": {},
+      "loc": 1918
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",
@@ -9185,7 +10495,10 @@
           "line": 282
         },
         "injectBacklink": {
-          "line": 294
+          "line": 294,
+          "calls": [
+            "getBacklinkBlock"
+          ]
         },
         "isSymlinkFile": {
           "line": 312
@@ -9194,28 +10507,51 @@
           "line": 383
         },
         "getISOTimestamp": {
-          "line": 386
+          "line": 386,
+          "calls": [
+            "getAgentsTemplate",
+            "getDateString"
+          ]
         },
         "getAgentsTemplate": {
-          "line": 389
+          "line": 389,
+          "calls": [
+            "getDateString"
+          ]
         },
         "getStructureTemplate": {
-          "line": 779
+          "line": 779,
+          "calls": [
+            "getDateString"
+          ]
         },
         "getNotesTemplate": {
-          "line": 799
+          "line": 799,
+          "calls": [
+            "getDateString"
+          ]
         },
         "getTasksTemplate": {
-          "line": 815
+          "line": 815,
+          "calls": [
+            "getDateString",
+            "getISOTimestamp"
+          ]
         },
         "getQuickstartTemplate": {
-          "line": 865
+          "line": 865,
+          "calls": [
+            "getDateString"
+          ]
         },
         "getDocsInternalReadme": {
           "line": 939
         },
         "getFrameConfigTemplate": {
-          "line": 977
+          "line": 977,
+          "calls": [
+            "getISOTimestamp"
+          ]
         },
         "getCodexWrapperTemplate": {
           "line": 1005
@@ -9242,13 +10578,22 @@
           "line": 1267
         },
         "main": {
-          "line": 1977
+          "line": 1977,
+          "calls": [
+            "cleanStaleSessions",
+            "findProjectRoot",
+            "loadState",
+            "writeState"
+          ]
         },
         "getPromptSubmitHookTemplate": {
           "line": 1369
         },
         "findTasksFile": {
-          "line": 1562
+          "line": 1562,
+          "calls": [
+            "findProjectRoot"
+          ]
         },
         "readPrivatePending": {
           "line": 1402
@@ -9314,7 +10659,10 @@
           "line": 2724
         },
         "isSubFrameHook": {
-          "line": 2732
+          "line": 2732,
+          "calls": [
+            "mergeSubFrameHooks"
+          ]
         },
         "mergeSubFrameHooks": {
           "line": 2735
@@ -9323,7 +10671,11 @@
           "line": 2755
         },
         "createOrMigrateNativeFile": {
-          "line": 2763
+          "line": 2763,
+          "calls": [
+            "injectBacklink",
+            "isSymlinkFile"
+          ]
         },
         "checkExistingFiles": {
           "line": 2774
@@ -9486,7 +10838,11 @@
       ],
       "functions": {
         "SessionControlBanner": {
-          "line": 11
+          "line": 11,
+          "calls": [
+            "cn",
+            "takeControl"
+          ]
         }
       }
     },
@@ -9547,19 +10903,34 @@
       ],
       "functions": {
         "useSessionControl": {
-          "line": 8
+          "line": 8,
+          "calls": [
+            "getTransport"
+          ]
         },
         "requestControl": {
-          "line": 32
+          "line": 32,
+          "calls": [
+            "typedSend"
+          ]
         },
         "grantControl": {
-          "line": 33
+          "line": 33,
+          "calls": [
+            "typedSend"
+          ]
         },
         "takeControl": {
-          "line": 34
+          "line": 34,
+          "calls": [
+            "typedSend"
+          ]
         },
         "releaseControl": {
-          "line": 35
+          "line": 35,
+          "calls": [
+            "typedSend"
+          ]
         }
       }
     },
@@ -9967,15 +11338,15 @@
     "activity": [
       {
         "module": "main/activityManager",
-        "file": "src\\main\\activityManager.ts",
-        "description": "Activity Manager — Centralized execution/output manager for SubFrame. Every long-running operation creates an ActivityStream that routes output through a unified channel with throttled IPC broadcasts."
+        "file": "src/main/activityManager.ts",
+        "description": "Activity Manager — Centralized execution/output manager for SubFrame."
       }
     ],
     "activity-bar": [
       {
         "module": "renderer/components/ActivityBar",
-        "file": "src\\renderer\\components\\ActivityBar.tsx",
-        "description": "ActivityBar — Thin bottom bar for centralized activity streams output and output channel viewer. Collapsed: single row showing active stream status + latest log line. Expanded: tabbed view with two modes: - \"Activity\" — per-stream output logs with cancel controls - \"Output\"   — VS Code-style output channels viewer"
+        "file": "src/renderer/components/ActivityBar.tsx",
+        "description": "ActivityBar — Thin bottom bar for centralized activity streams output"
       }
     ],
     "activity-bar-events": [
@@ -9988,8 +11359,8 @@
     "activity-types": [
       {
         "module": "shared/activityTypes",
-        "file": "src\\shared\\activityTypes.ts",
-        "description": "Activity Streams — Shared types for the centralized execution/output system. Every long-running operation (AI tool, pipeline stage, onboarding, script) creates an ActivityStream that routes output through a unified channel."
+        "file": "src/shared/activityTypes.ts",
+        "description": "Activity Streams — Shared types for the centralized execution/output system."
       }
     ],
     "agent-state": [
@@ -10023,7 +11394,7 @@
     "ai-execution": [
       {
         "module": "main/aiExecutionManager",
-        "file": "src\\main\\aiExecutionManager.ts",
+        "file": "src/main/aiExecutionManager.ts",
         "description": ""
       }
     ],
@@ -10037,22 +11408,22 @@
     "ai-output-parser": [
       {
         "module": "main/aiOutputParser",
-        "file": "src\\main\\aiOutputParser.ts",
-        "description": "Shared parsers for AI transcript output. Interactive sessions often contain prompt echoes, banners, and shell text around the actual final JSON result."
+        "file": "src/main/aiOutputParser.ts",
+        "description": "Shared parsers for AI transcript output."
       }
     ],
     "ai-session": [
       {
         "module": "main/aiSessionManager",
-        "file": "src\\main\\aiSessionManager.ts",
+        "file": "src/main/aiSessionManager.ts",
         "description": ""
       }
     ],
     "ai-tool": [
       {
         "module": "main/aiToolManager",
-        "file": "src\\main\\aiToolManager.ts",
-        "description": "AI Tool Manager Manages switching between different AI coding tools (Claude Code, Codex CLI, etc.)"
+        "file": "src/main/aiToolManager.ts",
+        "description": "AI Tool Manager"
       }
     ],
     "aifiles": [
@@ -10065,7 +11436,7 @@
     "aisessions": [
       {
         "module": "renderer/components/AISessionsPanel",
-        "file": "src\\renderer\\components\\AISessionsPanel.tsx",
+        "file": "src/renderer/components/AISessionsPanel.tsx",
         "description": ""
       }
     ],
@@ -10086,7 +11457,7 @@
     "app": [
       {
         "module": "renderer/components/App",
-        "file": "src\\renderer\\components\\App.tsx",
+        "file": "src/renderer/components/App.tsx",
         "description": ""
       }
     ],
@@ -10153,6 +11524,13 @@
         "description": ""
       }
     ],
+    "dialog": [
+      {
+        "module": "renderer/components/ui/dialog",
+        "file": "src/renderer/components/ui/dialog.tsx",
+        "description": ""
+      }
+    ],
     "dialogs": [
       {
         "module": "main/dialogs",
@@ -10172,6 +11550,13 @@
         "module": "renderer/lib/electronTransport",
         "file": "src\\renderer\\lib\\electronTransport.ts",
         "description": "Electron transport — wraps ipcRenderer, shell, and clipboard."
+      }
+    ],
+    "embedded-terminal": [
+      {
+        "module": "renderer/components/EmbeddedTerminal",
+        "file": "src/renderer/components/EmbeddedTerminal.tsx",
+        "description": "EmbeddedTerminal — attaches a real terminal registry entry into any container."
       }
     ],
     "error-boundary": [
@@ -10215,12 +11600,12 @@
       },
       {
         "module": "shared/frameConstants",
-        "file": "src\\shared\\frameConstants.ts",
-        "description": "SubFrame Constants Configuration constants for SubFrame project management"
+        "file": "src/shared/frameConstants.ts",
+        "description": "SubFrame Constants"
       },
       {
         "module": "shared/frameTemplates",
-        "file": "src\\shared\\frameTemplates.ts",
+        "file": "src/shared/frameTemplates.js",
         "description": "SubFrame Templates Templates for auto-generated SubFrame project files Each template includes instructions header for Claude Code"
       }
     ],
@@ -10286,8 +11671,8 @@
     "index": [
       {
         "module": "main/index",
-        "file": "src\\main\\index.ts",
-        "description": "Main Process Entry Point Initializes Electron app, creates window, loads modules"
+        "file": "src/main/index.ts",
+        "description": "Main Process Entry Point"
       },
       {
         "module": "renderer/index",
@@ -10310,7 +11695,7 @@
     "ipc-router": [
       {
         "module": "main/ipcRouter",
-        "file": "src\\main\\ipcRouter.ts",
+        "file": "src/main/ipcRouter.ts",
         "description": "IPC Router — dual-registration handler router."
       }
     ],
@@ -10331,8 +11716,8 @@
     "menu": [
       {
         "module": "main/menu",
-        "file": "src\\main\\menu.ts",
-        "description": "Application Menu Module Defines menu structure and handlers Supports dynamic menu based on active AI tool"
+        "file": "src/main/menu.ts",
+        "description": "Application Menu Module"
       }
     ],
     "mobile-app": [
@@ -10352,7 +11737,7 @@
     "mobile-panels-view": [
       {
         "module": "renderer/components/mobile/MobilePanelsView",
-        "file": "src\\renderer\\components\\mobile\\MobilePanelsView.tsx",
+        "file": "src/renderer/components/mobile/MobilePanelsView.tsx",
         "description": ""
       }
     ],
@@ -10366,14 +11751,14 @@
     "onboarding": [
       {
         "module": "main/onboardingManager",
-        "file": "src\\main\\onboardingManager.ts",
-        "description": "Onboarding Manager Detects existing project intelligence files, runs AI analysis through a terminal tab, parses the JSON response, and imports results into SubFrame's spec files."
+        "file": "src/main/onboardingManager.ts",
+        "description": "Onboarding Manager"
       }
     ],
     "onboarding-dialog": [
       {
         "module": "renderer/components/OnboardingDialog",
-        "file": "src\\renderer\\components\\OnboardingDialog.tsx",
+        "file": "src/renderer/components/OnboardingDialog.tsx",
         "description": "OnboardingDialog — Multi-step dialog for project intelligence onboarding."
       }
     ],
@@ -10406,8 +11791,8 @@
     "pipeline": [
       {
         "module": "main/pipelineManager",
-        "file": "src\\main\\pipelineManager.ts",
-        "description": "Pipeline Manager Module Orchestrates pipeline runs: parses workflows, executes jobs/stages, handles approval gates, and pushes progress events to the renderer."
+        "file": "src/main/pipelineManager.ts",
+        "description": "Pipeline Manager Module"
       },
       {
         "module": "renderer/components/PipelinePanel",
@@ -10418,8 +11803,8 @@
     "pipeline-stages": [
       {
         "module": "main/pipelineStages",
-        "file": "src\\main\\pipelineStages.ts",
-        "description": "Pipeline Stage Handlers Built-in stage implementations for the pipeline system."
+        "file": "src/main/pipelineStages.ts",
+        "description": "Pipeline Stage Handlers"
       }
     ],
     "pipeline-timeline": [
@@ -10465,14 +11850,14 @@
     "project-init": [
       {
         "module": "shared/projectInit",
-        "file": "src\\shared\\projectInit.ts",
+        "file": "src/shared/projectInit.js",
         "description": "SubFrame Project Initialization (Pure Node.js) Core init logic shared between the Electron app and the CLI. No Electron dependencies — safe to require from plain Node.js."
       }
     ],
     "project-list": [
       {
         "module": "renderer/components/ProjectList",
-        "file": "src\\renderer\\components\\ProjectList.tsx",
+        "file": "src/renderer/components/ProjectList.tsx",
         "description": ""
       }
     ],
@@ -10512,8 +11897,15 @@
     "right": [
       {
         "module": "renderer/components/RightPanel",
-        "file": "src\\renderer\\components\\RightPanel.tsx",
-        "description": "RightPanel — Container for all right-side panels. Panels are grouped: solo panels show a title header, grouped panels show only their group's tabs. Terminal bar buttons map to groups: - Sub-Tasks → solo - Agent → activity, sessions, history, prompts, skills, plugins (tabbed) - GitHub → issues, PRs, branches, worktrees (tabbed) - Overview → full-view (handled by TerminalArea, not here)"
+        "file": "src/renderer/components/RightPanel.tsx",
+        "description": "RightPanel — Container for all right-side panels."
+      }
+    ],
+    "session-control-banner": [
+      {
+        "module": "renderer/components/SessionControlBanner",
+        "file": "src/renderer/components/SessionControlBanner.tsx",
+        "description": "SessionControlBanner — shown at top of main content when a web client is connected."
       }
     ],
     "sessions": [
@@ -10526,13 +11918,13 @@
     "settings": [
       {
         "module": "main/settingsManager",
-        "file": "src\\main\\settingsManager.ts",
-        "description": "Settings Manager Manages application settings stored in frame-settings.json"
+        "file": "src/main/settingsManager.ts",
+        "description": "Settings Manager"
       },
       {
         "module": "renderer/components/SettingsPanel",
-        "file": "src\\renderer\\components\\SettingsPanel.tsx",
-        "description": "SettingsPanel — Settings dialog/modal with sidebar navigation. Opens via useUIStore.settingsOpen."
+        "file": "src/renderer/components/SettingsPanel.tsx",
+        "description": "SettingsPanel — Settings dialog/modal with sidebar navigation."
       }
     ],
     "shortcuts": [
@@ -10583,8 +11975,8 @@
     "status-bar": [
       {
         "module": "renderer/components/StatusBar",
-        "file": "src\\renderer\\components\\StatusBar.tsx",
-        "description": "StatusBar — Persistent thin bar at the very bottom of the app (below ActivityBar). Shows at-a-glance status from multiple subsystems: git, agents, tasks, GitHub, output. Each section is clickable to open its corresponding right panel."
+        "file": "src/renderer/components/StatusBar.tsx",
+        "description": "StatusBar — Persistent thin bar at the very bottom of the app (below ActivityBar)."
       }
     ],
     "structure-map": [
@@ -10660,8 +12052,8 @@
     "tasks": [
       {
         "module": "main/tasksManager",
-        "file": "src\\main\\tasksManager.ts",
-        "description": "Tasks Manager Module Handles task CRUD operations for SubFrame projects."
+        "file": "src/main/tasksManager.ts",
+        "description": "Tasks Manager Module"
       },
       {
         "module": "renderer/components/TasksPanel",
@@ -10689,8 +12081,8 @@
       },
       {
         "module": "renderer/components/Terminal",
-        "file": "src\\renderer\\components\\Terminal.tsx",
-        "description": "Single terminal component. Wraps xterm.js via useTerminal hook. Connects IPC for I/O, provides context menu, scroll-to-bottom button with animation, live output overlay, and inline search."
+        "file": "src/renderer/components/Terminal.tsx",
+        "description": "Single terminal component."
       },
       {
         "module": "renderer/components/TerminalGrid",
@@ -10706,14 +12098,14 @@
     "terminal-area": [
       {
         "module": "renderer/components/TerminalArea",
-        "file": "src\\renderer\\components\\TerminalArea.tsx",
-        "description": "Terminal area orchestrator. Renders the tab bar and either a single terminal (tabs mode) or the terminal grid (grid mode). Manages terminal creation/destruction via IPC and keyboard shortcuts. Scopes terminals per-project with hot-swap."
+        "file": "src/renderer/components/TerminalArea.tsx",
+        "description": "Terminal area orchestrator."
       }
     ],
     "terminal-mirror": [
       {
         "module": "renderer/components/TerminalMirror",
-        "file": "src\\renderer\\components\\TerminalMirror.tsx",
+        "file": "src/renderer/components/TerminalMirror.tsx",
         "description": ""
       }
     ],
@@ -10727,14 +12119,14 @@
     "terminal-registry": [
       {
         "module": "renderer/lib/terminalRegistry",
-        "file": "src\\renderer\\lib\\terminalRegistry.ts",
-        "description": "Persistent terminal instance registry. Decouples xterm.js Terminal lifecycle from React component mount/unmount."
+        "file": "src/renderer/lib/terminalRegistry.ts",
+        "description": "Persistent terminal instance registry."
       }
     ],
     "terminal-transcript": [
       {
         "module": "shared/terminalTranscript",
-        "file": "src\\shared\\terminalTranscript.ts",
+        "file": "src/shared/terminalTranscript.ts",
         "description": ""
       }
     ],
@@ -10748,7 +12140,7 @@
     "theme-types": [
       {
         "module": "shared/themeTypes",
-        "file": "src\\shared\\themeTypes.ts",
+        "file": "src/shared/themeTypes.ts",
         "description": "SubFrame Theme System — Type definitions and built-in presets."
       }
     ],
@@ -10769,22 +12161,22 @@
     "update-notification": [
       {
         "module": "renderer/components/UpdateNotification",
-        "file": "src\\renderer\\components\\UpdateNotification.tsx",
-        "description": "UpdateNotification — side-effect component that listens for auto-updater events and shows non-intrusive sonner toasts. Renders null."
+        "file": "src/renderer/components/UpdateNotification.tsx",
+        "description": "UpdateNotification — side-effect component that listens for auto-updater"
       }
     ],
     "updater": [
       {
         "module": "main/updaterManager",
-        "file": "src\\main\\updaterManager.ts",
-        "description": "Updater Manager Handles automatic update checks, downloads, and installation via electron-updater. In dev mode (app.isPackaged === false), all operations are no-ops."
+        "file": "src/main/updaterManager.ts",
+        "description": "Updater Manager"
       }
     ],
     "use-activity": [
       {
         "module": "renderer/hooks/useActivity",
-        "file": "src\\renderer\\hooks\\useActivity.ts",
-        "description": "TanStack Query hook for activity streams. Wraps ACTIVITY_LIST (invoke) + ACTIVITY_STATUS / ACTIVITY_OUTPUT (events)."
+        "file": "src/renderer/hooks/useActivity.ts",
+        "description": "TanStack Query hook for activity streams."
       }
     ],
     "use-agent-state": [
@@ -10804,7 +12196,7 @@
     "use-aisessions": [
       {
         "module": "renderer/hooks/useAISessions",
-        "file": "src\\renderer\\hooks\\useAISessions.ts",
+        "file": "src/renderer/hooks/useAISessions.ts",
         "description": ""
       }
     ],
@@ -10832,15 +12224,15 @@
     "use-ipclistener": [
       {
         "module": "renderer/hooks/useIPCListener",
-        "file": "src\\renderer\\hooks\\useIPCListener.ts",
-        "description": "React hook that listens for main->renderer IPC events and optionally invalidates React Query caches."
+        "file": "src/renderer/hooks/useIPCListener.ts",
+        "description": "React hook that listens for main->renderer IPC events"
       }
     ],
     "use-onboarding": [
       {
         "module": "renderer/hooks/useOnboarding",
-        "file": "src\\renderer\\hooks\\useOnboarding.ts",
-        "description": "React hook for onboarding IPC calls. Wraps project intelligence detection, AI analysis, and import using TanStack Query mutations and IPC event listeners."
+        "file": "src/renderer/hooks/useOnboarding.ts",
+        "description": "React hook for onboarding IPC calls."
       }
     ],
     "use-output-channels": [
@@ -10883,6 +12275,20 @@
         "module": "renderer/hooks/usePrompts",
         "file": "src\\renderer\\hooks\\usePrompts.ts",
         "description": "TanStack Query hooks for the prompt library. Supports both project-level and global (user-level) prompts."
+      }
+    ],
+    "use-session-control": [
+      {
+        "module": "renderer/hooks/useSessionControl",
+        "file": "src/renderer/hooks/useSessionControl.ts",
+        "description": ""
+      }
+    ],
+    "use-session-control-store": [
+      {
+        "module": "renderer/stores/useSessionControlStore",
+        "file": "src/renderer/stores/useSessionControlStore.ts",
+        "description": ""
       }
     ],
     "use-sessions": [
@@ -10937,7 +12343,7 @@
     "use-uistore": [
       {
         "module": "renderer/stores/useUIStore",
-        "file": "src\\renderer\\stores\\useUIStore.ts",
+        "file": "src/renderer/stores/useUIStore.ts",
         "description": ""
       }
     ],
@@ -10965,21 +12371,21 @@
     "view": [
       {
         "module": "renderer/components/ViewTabBar",
-        "file": "src\\renderer\\components\\ViewTabBar.tsx",
+        "file": "src/renderer/components/ViewTabBar.tsx",
         "description": ""
       }
     ],
     "web-entry": [
       {
         "module": "renderer/web-entry",
-        "file": "src\\renderer\\web-entry.tsx",
+        "file": "src/renderer/web-entry.tsx",
         "description": "Web-mode entry point for SubFrame Server."
       }
     ],
     "web-server": [
       {
         "module": "main/webServerManager",
-        "file": "src\\main\\webServerManager.ts",
+        "file": "src/main/webServerManager.ts",
         "description": "Web Server Manager — serves SubFrame UI as a web app with WebSocket transport."
       }
     ],
@@ -11014,19 +12420,19 @@
     "workspace": [
       {
         "module": "main/workspace",
-        "file": "src\\main\\workspace.ts",
-        "description": "Workspace Module Manages workspace configuration in ~/.subframe/workspaces.json"
+        "file": "src/main/workspace.ts",
+        "description": "Workspace Module"
       },
       {
         "module": "renderer/components/WorkspaceSelector",
-        "file": "src\\renderer\\components\\WorkspaceSelector.tsx",
+        "file": "src/renderer/components/WorkspaceSelector.tsx",
         "description": ""
       }
     ],
     "workspace-pills": [
       {
         "module": "renderer/lib/workspacePills",
-        "file": "src\\renderer\\lib\\workspacePills.ts",
+        "file": "src/renderer/lib/workspacePills.ts",
         "description": ""
       }
     ],

@@ -57,6 +57,7 @@ const IPC = {
   // Multi-Terminal
   TERMINAL_CREATE: 'terminal-create',
   TERMINAL_CREATED: 'terminal-created',
+  TERMINAL_SHELL_READY: 'terminal-shell-ready',
   TERMINAL_DESTROY: 'terminal-destroy',
   TERMINAL_DESTROYED: 'terminal-destroyed',
   TERMINAL_INPUT_ID: 'terminal-input-id',

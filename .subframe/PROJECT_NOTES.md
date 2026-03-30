@@ -1631,3 +1631,9 @@ SubFrame Server was implemented, but the public docs and some in-app copy still 
 That docs pass exposed a real UX ambiguity in SSH mode: the product was showing the host server port and a tunnel command, but it was not explicit enough that the browser on the remote machine should open the tunnel endpoint, typically `http://localhost:8080`, rather than the host machine's internal server port. The Settings panel and setup wizard were tightened so SSH mode now labels the copied URLs as remote tunnel URLs, explains the host-port vs tunnel-endpoint distinction, shows both the base URL and tokenized connection URL, and limits QR guidance to LAN mode where it actually makes sense.
 
 This keeps the remote story coherent across docs and product UI: SSH is the recommended secure default, LAN is the explicit trusted-network/mobile convenience path, pairing/token flows are both visible, and the browser address to use in SSH mode is no longer left to inference.
+
+### [2026-03-30] Claude Start Button now waits for the shell prompt
+
+Starting Claude Code from the sidebar used to rely on a fixed 1000ms delay after `TERMINAL_CREATED`, which was not reliable on Windows. On slower or more variable PowerShell startups, the shell prompt could still be rendering when SubFrame typed the command, so the leading `c` in `claude` could be lost and PowerShell would receive `laude`, fail the command, and ring the terminal bell.
+
+The fix was to stop guessing and wait for real shell readiness instead. `ptyManager` now buffers the first PTY output chunks, strips control sequences, matches the existing shell prompt patterns, and emits a dedicated `TERMINAL_SHELL_READY` event once the prompt is actually visible. The sidebar start flow listens for that terminal-specific event before writing the AI start command, with a 3 second fallback timer for unusual prompt setups. This keeps fast machines fast while removing the startup race on slower Windows shells.
