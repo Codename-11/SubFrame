@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-26",
+    "lastUpdated": "2026-03-30",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-26T21:53:02.555Z",
+  "lastUpdated": "2026-03-30T22:21:20.994Z",
   "tasks": {
     "pending": [
       {
@@ -669,7 +669,7 @@
       {
         "id": "task-mn3t6lif-8ogg",
         "title": "Settings UI for terminal persistence",
-        "status": "completed",
+        "status": "in_progress",
         "priority": "medium",
         "category": "feature",
         "context": "Session 2026-03-23",
@@ -680,13 +680,46 @@
         "completedAt": null,
         "description": "Add UI controls in SettingsPanel for the new terminal persistence settings: restoreOnStartup toggle, restoreScrollback toggle, autoResumeAgent dropdown (auto/prompt/never), agentExitTimeout slider, maxScrollbackExport input. These settings exist in settingsManager but have no UI yet.",
         "steps": []
+      },
+      {
+        "id": "task-mnc8e9vw-5emb",
+        "title": "Interactive AI Analysis panel with feedback loop",
+        "status": "in_progress",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-29",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-29T20:48:20.875Z",
+        "updatedAt": "2026-03-29T20:48:34.309Z",
+        "completedAt": null,
+        "description": "Right panel (Agent group) for sending prompts to AI tools with follow-up feedback. Creates terminal with active AI tool, sends prompt, reuses session for conversation. Quick action chips, prompt history, status indicators.",
+        "userRequest": "AI Analysis similar to onboarding but allow user feedback to direct AI changes",
+        "steps": []
+      },
+      {
+        "id": "task-mndoup0a-fkmr",
+        "title": "Hot-update: renderer-only reload + session snapshot/restore (B+C hybrid)",
+        "status": "in_progress",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-03-30",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-30T21:16:47.001Z",
+        "updatedAt": "2026-03-30T22:21:20.991Z",
+        "completedAt": null,
+        "description": "Allow updating SubFrame without destroying terminal sessions. Phase 1 (C): Snapshot session state (scrollback, CWD, running command, agent context) before update, restore after restart with auto-resume via --continue. Phase 2 (B): Detect renderer-only updates and hot-reload BrowserWindow without restarting main process — PTYs survive natively. Phase 3 (future/A): PTY broker daemon that owns PTYs independently of Electron lifecycle, enabling true detach→update→reattach.",
+        "userRequest": "Allow updating without destroying terminal sessions. Keep 10+ claude/codex sessions open across updates.",
+        "acceptanceCriteria": "Renderer-only changes hot-reload without PTY interruption. Main process changes snapshot and restore terminal sessions with scrollback and auto-resume agents.",
+        "steps": []
       }
     ],
     "completed": [
       {
         "id": "task-1772674776397-kc624grpq",
         "title": "Task Editor UI Option",
-        "status": "in_progress",
+        "status": "completed",
         "priority": "medium",
         "category": "refactor",
         "blockedBy": [],
@@ -1335,8 +1368,8 @@
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-02T23:26:12.910Z",
-        "updatedAt": "2026-03-26T22:41:55.0545443Z",
-        "completedAt": "2026-03-26T22:41:55.0545443Z",
+        "updatedAt": "2026-03-26T22:41:55.054Z",
+        "completedAt": "2026-03-26T22:41:55.054Z",
         "description": "Detect existing project intelligence files, run AI analysis through visible terminal tab, import structured results into SubFrame spec files. Reusable runAnalysisInTerminal() pipeline.",
         "notes": "[2026-03-26] Revisited this pipeline to close the shared-session parity gaps found in audit. Task enhancement and pipeline AI stages now use the same live PTY session layer, structured-result markers are extracted after the echoed prompt boundary instead of parsing prompt examples, finished runs tear down their background terminals cleanly, and passive mirrors no longer resize the live PTY session.\n[2026-03-26] Reopened to fix onboarding completion cleanup. Successful analysis now clears the terminal reference and destroys the backing PTY instead of leaving an orphaned terminal behind, and the onboarding transcript emitter no longer stalls when the visible transcript window reaches its line cap.",
         "steps": []

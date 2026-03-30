@@ -801,10 +801,10 @@ function getTerminalsByProject(projectPath: string | null): string[] {
 /**
  * Get terminal info
  */
-function getTerminalInfo(terminalId: string): { cwd: string; projectPath: string | null; shell: string } | null {
+function getTerminalInfo(terminalId: string): { cwd: string; projectPath: string | null; shell: string; cols: number; rows: number } | null {
   const instance = ptyInstances.get(terminalId);
   if (instance) {
-    return { cwd: instance.cwd, projectPath: instance.projectPath, shell: instance.shell };
+    return { cwd: instance.cwd, projectPath: instance.projectPath, shell: instance.shell, cols: instance.pty.cols, rows: instance.pty.rows };
   }
   return null;
 }
@@ -1058,6 +1058,37 @@ function setupIPC(ipcMain: IpcMain): void {
   // Restart terminal shell (kills old PTY, spawns new one with fresh env)
   ipcMain.handle(IPC.TERMINAL_RESTART, async (_event, terminalId: string) => {
     return restartTerminal(terminalId);
+  });
+
+  // ── Renderer Hot Reload: Terminal Resync ──────────────────────────────────
+  // After a renderer reload, the renderer calls this to discover all active PTY
+  // instances and replay their backlogs so xterm can catch up.
+  ipcMain.handle(IPC.TERMINAL_RESYNC, () => {
+    const terminals: Array<{
+      terminalId: string;
+      cwd: string;
+      shell: string;
+      projectPath: string | null;
+      claudeActive: boolean;
+      cols: number;
+      rows: number;
+      sessionId: string | null;
+      backlog: string;
+    }> = [];
+    for (const [id, instance] of ptyInstances) {
+      terminals.push({
+        terminalId: id,
+        cwd: instance.cwd,
+        shell: instance.shell,
+        projectPath: instance.projectPath,
+        claudeActive: instance.claudeActive,
+        cols: instance.pty.cols,
+        rows: instance.pty.rows,
+        sessionId: terminalSessionMap.get(id) ?? null,
+        backlog: terminalBacklogs.get(id) || '',
+      });
+    }
+    return { terminals };
   });
 }
 

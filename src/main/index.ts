@@ -43,6 +43,7 @@ import * as popoutManager from './popoutManager';
 import * as editorPopoutManager from './editorPopoutManager';
 import * as apiServerManager from './apiServerManager';
 import * as webServerManager from './webServerManager';
+import * as sessionSnapshotManager from './sessionSnapshotManager';
 import { initEventBridge, broadcast } from './eventBridge';
 import { createRoutableIPC } from './ipcRouter';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
@@ -390,6 +391,10 @@ function createWindow(): BrowserWindow {
 
   /** Perform the graceful shutdown — inject /exit, wait for terminals, then finish */
   async function performGracefulShutdown(): Promise<void> {
+    // Snapshot terminal sessions BEFORE killing them — enables restore after restart/update
+    const snapshotReason = pendingShutdownReason === 'update' ? 'update' : 'quit';
+    sessionSnapshotManager.saveSnapshot(snapshotReason as 'update' | 'quit');
+
     const TIMEOUT_MS = 15_000;
     const activeTerminals = ptyManager.getTerminalIds().filter(id => ptyManager.isClaudeActive(id));
 
@@ -476,7 +481,9 @@ function createWindow(): BrowserWindow {
       requestGracefulShutdown('update');
       return false; // Defer — graceful shutdown will call performQuitAndInstall when ready
     }
-    return true; // No active work, proceed directly
+    // No active work — snapshot terminals before the direct install path
+    sessionSnapshotManager.saveSnapshot('update');
+    return true; // Proceed directly
   });
 
   // ── Save state before close — with active-work protection ─────────────────
@@ -564,6 +571,7 @@ function setupAllIPC(): void {
   apiServerManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   webServerManager.setupIPC(routedIpc);
   updaterManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  sessionSnapshotManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   // Note: updaterManager.init() still owns updater lifecycle wiring because it
   // needs app.isPackaged to be set first.
 
@@ -925,6 +933,7 @@ function initModulesWithWindow(window: BrowserWindow): void {
   popoutManager.init(window);
   editorPopoutManager.init(window);
   updaterManager.init(window, app);
+  sessionSnapshotManager.init(window, app);
   apiServerManager.init(window);
   webServerManager.init();
 }
@@ -987,6 +996,14 @@ if (!gotTheLock) {
         sendCLIOpenFile(pendingOpenFilePath);
         pendingOpenFilePath = null;
       }
+
+      // Restore terminal sessions from a previous snapshot (e.g. after update restart)
+      // Delayed slightly so the renderer has time to initialize IPC listeners
+      if (sessionSnapshotManager.hasPendingSnapshot()) {
+        setTimeout(() => {
+          sessionSnapshotManager.restoreFromSnapshot();
+        }, 1500);
+      }
     });
   });
 
@@ -1000,6 +1017,11 @@ if (!gotTheLock) {
   // Clean up API server on actual quit (not window-all-closed, which on macOS
   // fires when windows close but the app stays alive in the dock)
   app.on('before-quit', () => {
+    // Snapshot terminals for potential restore on next launch.
+    // hasPendingSnapshot() returns true if graceful shutdown already saved — skip to avoid double-write.
+    if (!sessionSnapshotManager.hasPendingSnapshot() && ptyManager.getTerminalCount() > 0) {
+      sessionSnapshotManager.saveSnapshot('quit');
+    }
     apiServerManager.shutdown();
     webServerManager.shutdown();
   });

@@ -145,7 +145,17 @@ const IPC = {
   SAVE_BACKLINK_CONFIG: 'save-backlink-config',
   BACKLINK_CONFIG_SAVED: 'backlink-config-saved',
   UPDATE_ALL_BACKLINKS: 'update-all-backlinks',
-  ALL_BACKLINKS_UPDATED: 'all-backlinks-updated'
+  ALL_BACKLINKS_UPDATED: 'all-backlinks-updated',
+
+  // Session Snapshot (terminal restore across restarts/updates)
+  SESSION_SNAPSHOT_SAVE: 'session-snapshot-save',
+  SESSION_SNAPSHOT_RESTORE: 'session-snapshot-restore',
+  SESSION_SNAPSHOT_STATUS: 'session-snapshot-status',
+
+  // Renderer Hot Reload
+  RENDERER_HOT_RELOAD: 'renderer-hot-reload',
+  TERMINAL_RESYNC: 'terminal-resync',
+  RENDERER_RELOADED: 'renderer-reloaded'
 };
 
 module.exports = { IPC };

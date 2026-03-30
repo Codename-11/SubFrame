@@ -141,9 +141,34 @@ function init(window: BrowserWindow, app: App): void {
 }
 
 /**
+ * Reload the renderer process without restarting the main process.
+ * PTY instances survive because they live in the main process — the renderer
+ * re-syncs via TERMINAL_RESYNC after remounting.
+ *
+ * Returns true if reload was triggered, false if no window is available.
+ */
+function reloadRenderer(): boolean {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  console.log('[updater] Reloading renderer (hot reload) — PTYs preserved');
+  mainWindow.webContents.reloadIgnoringCache();
+  return true;
+}
+
+/**
  * Setup IPC handlers for updater actions.
  */
 function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
+  // Renderer hot reload — works in both dev and packaged mode
+  ipc.handle(IPC.RENDERER_HOT_RELOAD, () => {
+    const success = reloadRenderer();
+    return { success };
+  });
+
+  // Renderer sends this after remounting post-reload to signal readiness
+  ipcMain.on(IPC.RENDERER_RELOADED, () => {
+    console.log('[updater] Renderer reloaded and re-synced successfully');
+  });
+
   if (!isPackaged) {
     // Dev mode stubs — return safe defaults
     ipc.handle(IPC.UPDATER_CHECK, () => ({
@@ -241,4 +266,4 @@ function performQuitAndInstall(): void {
   autoUpdater.quitAndInstall();
 }
 
-export { init, setupIPC, destroy, checkForUpdates, setBeforeInstallHook, performQuitAndInstall };
+export { init, setupIPC, destroy, checkForUpdates, setBeforeInstallHook, performQuitAndInstall, reloadRenderer };

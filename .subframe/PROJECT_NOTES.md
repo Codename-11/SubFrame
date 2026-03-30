@@ -1637,3 +1637,18 @@ This keeps the remote story coherent across docs and product UI: SSH is the reco
 Starting Claude Code from the sidebar used to rely on a fixed 1000ms delay after `TERMINAL_CREATED`, which was not reliable on Windows. On slower or more variable PowerShell startups, the shell prompt could still be rendering when SubFrame typed the command, so the leading `c` in `claude` could be lost and PowerShell would receive `laude`, fail the command, and ring the terminal bell.
 
 The fix was to stop guessing and wait for real shell readiness instead. `ptyManager` now buffers the first PTY output chunks, strips control sequences, matches the existing shell prompt patterns, and emits a dedicated `TERMINAL_SHELL_READY` event once the prompt is actually visible. The sidebar start flow listens for that terminal-specific event before writing the AI start command, with a 3 second fallback timer for unusual prompt setups. This keeps fast machines fast while removing the startup race on slower Windows shells.
+
+### [2026-03-30] Terminal session snapshot/restore for hot updates
+
+Added `sessionSnapshotManager` to serialize terminal sessions before app quit or update and restore them on next launch. The manager follows the existing `init()` + `setupIPC()` pattern. Snapshot data includes CWD, shell, project association, scrollback buffer content, and AI agent active state per terminal.
+
+**Architecture decisions:**
+- Snapshot file lives in `userData/session-snapshot.json` (alongside window-state.json, frame-settings.json)
+- Only allowlisted env vars are serialized (PATH, NODE_ENV, etc.) — no secrets
+- Scrollback comes from the existing `terminalBacklogs` Map (up to 256KB per terminal, already maintained by ptyManager)
+- Restore respects three existing settings: `restoreOnStartup` (boolean), `restoreScrollback` (boolean), `autoResumeAgent` ('auto'|'prompt'|'never')
+- When `autoResumeAgent` is 'auto', Claude Code is relaunched with `--continue` flag
+- Snapshot is taken at three integration points: (1) start of `performGracefulShutdown()` before terminals are killed, (2) in the updater's `beforeInstallHook` for the no-active-work direct path, (3) in `before-quit` for normal app exits
+- Restore runs 1.5s after `ready-to-show` to ensure renderer IPC listeners are initialized
+- Snapshot file is deleted after successful restore to prevent stale data accumulation
+- Three new IPC channels: `SESSION_SNAPSHOT_SAVE`, `SESSION_SNAPSHOT_RESTORE`, `SESSION_SNAPSHOT_STATUS`

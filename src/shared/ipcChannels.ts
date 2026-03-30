@@ -365,6 +365,16 @@ export const IPC = {
   // Claude Configuration
   GET_CLAUDE_CONFIG_STATUS: 'get-claude-config-status',
 
+  // Renderer Hot Reload
+  RENDERER_HOT_RELOAD: 'renderer-hot-reload',
+  TERMINAL_RESYNC: 'terminal-resync',
+  RENDERER_RELOADED: 'renderer-reloaded',
+
+  // Session Snapshot (terminal restore across restarts/updates)
+  SESSION_SNAPSHOT_SAVE: 'session-snapshot-save',
+  SESSION_SNAPSHOT_RESTORE: 'session-snapshot-restore',
+  SESSION_SNAPSHOT_STATUS: 'session-snapshot-status',
+
   // Dev tools
   DEV_SYNC_FROM_PRODUCTION: 'dev-sync-from-production',
 } as const;
@@ -488,6 +498,21 @@ export interface SessionControlState {
   lastElectronActivity: number;
   lastWebActivity: number;
   idleTimeoutMs: number;
+}
+
+/** Session snapshot restore result */
+export interface SessionRestoreStatus {
+  restored: number;
+  total: number;
+  terminals: Array<{
+    oldId: string;
+    newId: string;
+    cwd: string;
+    projectPath: string | null;
+    scrollbackReplayed: boolean;
+    agentResumed: boolean;
+  }>;
+  reason: string | null;
 }
 
 /** Workspace list entry */
@@ -1567,6 +1592,25 @@ export interface IPCHandleMap {
   [IPC.UPDATER_DOWNLOAD]: { args: []; return: void };
   [IPC.UPDATER_INSTALL]: { args: []; return: void };
 
+  // Renderer Hot Reload
+  [IPC.RENDERER_HOT_RELOAD]: { args: []; return: { success: boolean } };
+  [IPC.TERMINAL_RESYNC]: {
+    args: [];
+    return: {
+      terminals: Array<{
+        terminalId: string;
+        cwd: string;
+        shell: string;
+        projectPath: string | null;
+        claudeActive: boolean;
+        cols: number;
+        rows: number;
+        sessionId: string | null;
+        backlog: string;
+      }>;
+    };
+  };
+
   // Pipeline
   [IPC.PIPELINE_LIST_WORKFLOWS]: { args: [projectPath: string]; return: WorkflowDefinition[] };
   [IPC.PIPELINE_START]: { args: [payload: { projectPath: string; workflowId: string; trigger: PipelineTrigger; overrides?: Record<string, string> }]; return: { runId: string } };
@@ -1658,6 +1702,16 @@ export interface IPCHandleMap {
         privateMd: { exists: boolean; path: string };
       } | null;
     };
+  };
+
+  // Session Snapshot
+  [IPC.SESSION_SNAPSHOT_SAVE]: {
+    args: [];
+    return: { success: boolean; terminalCount: number };
+  };
+  [IPC.SESSION_SNAPSHOT_RESTORE]: {
+    args: [];
+    return: SessionRestoreStatus;
   };
 
   // Dev tools
@@ -1792,6 +1846,9 @@ export interface IPCSendMap {
   // API Server bridge (renderer → main responses)
   [IPC.API_SELECTION_SYNC]: { terminalId: string; text: string };
   [IPC.API_RENDERER_RESPONSE]: { requestId: string; payload: unknown };
+
+  // Renderer Hot Reload
+  [IPC.RENDERER_RELOADED]: void;
 }
 
 // ─── Event Map (main → renderer via webContents.send) ────────────────────────
@@ -1908,6 +1965,12 @@ export interface IPCEventMap {
   // AI Analysis Panel
   [IPC.AI_ANALYSIS_STATUS]: { projectPath: string; status: 'running' | 'complete' | 'error'; message?: string; terminalId?: string };
   [IPC.AI_ANALYSIS_RESULT]: { projectPath: string; result: string; timestamp: string };
+
+  // Session Snapshot
+  [IPC.SESSION_SNAPSHOT_STATUS]: SessionRestoreStatus;
+
+  // Renderer Hot Reload
+  [IPC.RENDERER_RELOADED]: void;
 }
 
 // ─── CommonJS compat (keep old require('...ipcChannels') working) ────────────

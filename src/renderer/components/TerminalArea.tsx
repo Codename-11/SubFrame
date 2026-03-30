@@ -209,6 +209,77 @@ export function TerminalArea() {
   const restoringTerminalsRef = useRef<string | null>(null);
   /** Cached terminal state from main process — used for synchronous saves (e.g. beforeunload) */
   const cachedTerminalStateRef = useRef<TerminalStateSnapshot | null>(null);
+  /** True after renderer hot reload resync has been attempted (prevents duplicate resync) */
+  const resyncAttemptedRef = useRef(false);
+
+  // ── Renderer Hot Reload: Terminal Resync ──────────────────────────────────
+  // On mount, check if the main process has active terminals that the renderer
+  // doesn't know about (i.e. this is a renderer reload, not a fresh app launch).
+  // If so, re-populate the Zustand store and let terminalRegistry re-hydrate
+  // each xterm instance from the backlog when Terminal components mount.
+  useEffect(() => {
+    if (resyncAttemptedRef.current) return;
+    resyncAttemptedRef.current = true;
+
+    // Only resync if the store is empty (fresh renderer) — if terminals exist,
+    // this is a normal mount, not a reload.
+    const storeHasTerminals = useTerminalStore.getState().terminals.size > 0;
+    if (storeHasTerminals) return;
+
+    typedInvoke(IPC.TERMINAL_RESYNC).then((result: {
+      terminals: Array<{
+        terminalId: string;
+        cwd: string;
+        shell: string;
+        projectPath: string | null;
+        claudeActive: boolean;
+        cols: number;
+        rows: number;
+        sessionId: string | null;
+        backlog: string;
+      }>;
+    }) => {
+      if (!result.terminals || result.terminals.length === 0) return;
+
+      console.log(`[hot-reload] Resyncing ${result.terminals.length} terminal(s) from main process`);
+
+      // Restore session data from localStorage to recover names, tab order, etc.
+      const session = loadSession(currentProjectPath);
+
+      for (const t of result.terminals) {
+        // Add to Zustand store (renderer-side terminal state)
+        const savedName = session?.terminalNames?.[t.terminalId];
+        addTerminal({
+          id: t.terminalId,
+          name: savedName || t.terminalId,
+          projectPath: t.projectPath || '',
+          isActive: false,
+        });
+
+        // Mark claude-active status (restore sessionId for session tracking)
+        if (t.claudeActive) {
+          setClaudeActive(t.terminalId, true, t.sessionId ?? undefined);
+        }
+      }
+
+      // Restore active terminal from session or pick the first one
+      const firstForProject = result.terminals.find(
+        (t) => (t.projectPath || '') === (currentProjectPath ?? '')
+      );
+      if (session?.activeTerminalId && result.terminals.some((t) => t.terminalId === session.activeTerminalId)) {
+        setActiveTerminal(session.activeTerminalId);
+      } else if (firstForProject) {
+        setActiveTerminal(firstForProject.terminalId);
+      }
+
+      // Signal to the main process that the renderer has reloaded
+      typedSend(IPC.RENDERER_RELOADED);
+    }).catch((err: unknown) => {
+      console.warn('[hot-reload] Terminal resync failed:', err);
+    });
+    // Only run once on mount — deps intentionally limited
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filter terminals for current project (normalise null → '' for comparison)
   const normalizedPath = currentProjectPath ?? '';

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Terminal session snapshot/restore** — terminal sessions are now serialized before app quit or update, and restored on next launch. Captures CWD, shell, project association, scrollback buffer, and AI agent state. Respects `restoreOnStartup`, `restoreScrollback`, and `autoResumeAgent` settings. Integrated with the updater flow so terminals survive hot updates.
+
 ## [0.12.1-beta] - 2026-03-29
 
 ### Added
