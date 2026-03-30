@@ -78,6 +78,7 @@ export const IPC = {
   // Multi-Terminal
   TERMINAL_CREATE: 'terminal-create',
   TERMINAL_CREATED: 'terminal-created',
+  TERMINAL_SHELL_READY: 'terminal-shell-ready',
   TERMINAL_DESTROY: 'terminal-destroy',
   TERMINAL_DESTROYED: 'terminal-destroyed',
   TERMINAL_INPUT_ID: 'terminal-input-id',
@@ -1806,6 +1807,7 @@ export interface IPCEventMap {
   [IPC.WORKSPACE_UPDATED]: WorkspaceData | WorkspaceProject[];
   [IPC.TERMINAL_OUTPUT]: string; // data
   [IPC.TERMINAL_CREATED]: { terminalId?: string; success: boolean; error?: string };
+  [IPC.TERMINAL_SHELL_READY]: { terminalId: string };
   [IPC.TERMINAL_DESTROYED]: { terminalId: string; exitCode: number };
   [IPC.TERMINAL_OUTPUT_ID]: { terminalId: string; data: string };
   [IPC.AVAILABLE_SHELLS_DATA]: { shells: ShellInfo[]; success: boolean; error?: string };

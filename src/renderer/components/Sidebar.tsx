@@ -215,12 +215,23 @@ export function Sidebar() {
           clearTimeout(safetyTimer);
           if (data.success && data.terminalId) {
             const newTerminalId = data.terminalId;
-            setTimeout(() => {
+            let resolved = false;
+            let unsubShellReady: (() => void) | null = null;
+            const finishStart = () => {
+              if (resolved) return;
+              resolved = true;
+              clearTimeout(shellReadyFallback);
+              unsubShellReady?.();
               getTransport().send(IPC.TERMINAL_INPUT_ID, {
                 terminalId: newTerminalId,
                 data: startCommand + '\r',
               });
-            }, 1000);
+            };
+            const shellReadyFallback = window.setTimeout(finishStart, 3000);
+            unsubShellReady = getTransport().on(IPC.TERMINAL_SHELL_READY, (_readyEvent: unknown, readyData: { terminalId: string }) => {
+              if (readyData.terminalId !== newTerminalId) return;
+              finishStart();
+            });
           } else if (!data.success) {
             toast.error('Failed to start terminal');
           }
