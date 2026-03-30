@@ -1,7 +1,7 @@
 {
   "name": "subframe",
   "productName": "SubFrame",
-  "version": "0.12.1-beta",
+  "version": "0.13.0-beta",
   "description": "SubFrame - Project Management IDE for Claude Code",
   "main": "dist/main/index.js",
   "scripts": {

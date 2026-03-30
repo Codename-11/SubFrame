@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0-beta] - 2026-03-30
+
 ### Added
-- **Terminal session snapshot/restore** — terminal sessions are now serialized before app quit or update, and restored on next launch. Captures CWD, shell, project association, scrollback buffer, and AI agent state. Respects `restoreOnStartup`, `restoreScrollback`, and `autoResumeAgent` settings. Integrated with the updater flow so terminals survive hot updates.
+- **Terminal session snapshot/restore** — terminal sessions serialized before app quit/update and restored on next launch. Captures CWD, shell, scrollback, dimensions, AI agent state. Respects `restoreOnStartup`, `restoreScrollback`, `autoResumeAgent` settings. Atomic file writes prevent corruption.
+- **Renderer hot reload** — UI-only updates reload the renderer without killing terminal sessions. PTYs survive in the main process; xterm instances resync from backlogs via new `TERMINAL_RESYNC` IPC.
+- **Pinned workspace pills** — collapsed workspace pills now maintain stable positions. Switching between pinned workspaces only moves the highlight; selecting from overflow evicts the least-recently-used slot.
+- **Shell-ready detection** — AI tool launch waits for shell prompt detection (via `TERMINAL_SHELL_READY` IPC) instead of a fixed 1s delay, with 3s fallback. Fixes garbled commands on slow-starting shells.
+
+### Fixed
+- **Double-save race condition** — `before-quit` snapshot now skipped if graceful shutdown already saved
+- **Terminal dimensions in snapshots** — captures actual PTY cols/rows instead of hardcoded 80x24
+- **AI agent resume per tool** — snapshot restore uses `claude --continue` for Claude, plain relaunch for Codex/Gemini
+- **Session ID on resync** — hot reload now passes `sessionId` through to Zustand store for session tracking
 
 ## [0.12.1-beta] - 2026-03-29
 
