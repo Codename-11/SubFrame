@@ -1,24 +1,25 @@
-This release introduces hot-update support so terminal sessions survive app restarts, plus stable workspace pills and shell-ready detection for AI tool launch.
+Fixes update notification reliability and connects all output channels to their subsystems for real-time logging in the Output panel.
 
 ## What's Changed
 
-### Features
-- **Terminal Session Snapshot/Restore** — Active terminal sessions are serialized (CWD, shell, scrollback, dimensions, AI agent state) before app quit or update and automatically restored on next launch. Uses atomic file writes to prevent corruption. Respects `restoreOnStartup`, `restoreScrollback`, and `autoResumeAgent` (auto/prompt/never) settings.
-- **Renderer Hot Reload** — UI-only updates reload the renderer without killing the main process or terminal sessions. PTYs stay alive; xterm instances resync from backlogs via the new `TERMINAL_RESYNC` IPC channel.
-- **Pinned Workspace Pills** — Collapsed workspace pills now maintain stable positions using LRU slot tracking. Switching between pinned workspaces just moves the active highlight — no reordering. Selecting a workspace from the expanded overflow replaces the least-recently-used pill.
-- **Shell-Ready Detection** — Starting an AI tool now waits for shell prompt detection (`TERMINAL_SHELL_READY` IPC) instead of a blind 1-second delay, with a 3-second fallback. Fixes garbled first command on slow-starting PowerShell sessions.
-
 ### Bug Fixes
-- **Double-save race condition** — `before-quit` snapshot is now skipped if graceful shutdown already saved, preventing file corruption from concurrent writes
-- **Terminal dimensions** — Session snapshots now capture actual PTY cols/rows instead of hardcoded 80x24
-- **Per-tool agent resume** — Snapshot restore uses `claude --continue` for Claude Code and plain relaunch for Codex/Gemini
-- **Session ID on resync** — Hot reload now passes `sessionId` through to the Zustand store for proper session tracking
+- **Updater 404 error spam** — Background update checks no longer show raw stack traces when CI artifacts aren't uploaded yet. 404s are silently swallowed for automatic checks; manual checks show a friendly "try again in a few minutes" message.
+- **Download button disappears** — Clicking Download in the update toast no longer silently fails. The download handler now immediately reports status and properly surfaces errors if the download can't start.
+- **Settings Download no feedback** — The Download button in Settings > Updates now shows a disabled/loading state while the download initializes, with a "Connecting..." indicator before progress percentage appears.
+
+### Improvements
+- **Output channels wired to subsystems** — The Output panel (ActivityBar bottom bar) now shows real-time logs from five previously-dormant channels:
+  - **System** — updater events (available, downloaded, errors), session snapshot save/restore
+  - **Agent** — terminal create/exit lifecycle events
+  - **Pipeline** — run start and completion with status
+  - **API** — server startup confirmation
+  - **Git** — branch checkout and create operations
 
 ## Installation and Update
 
-Grab the latest installer from [GitHub Releases](https://github.com/Codename-11/SubFrame/releases/tag/v0.13.0-beta).
+Grab the latest installer from [GitHub Releases](https://github.com/Codename-11/SubFrame/releases/tag/v0.14.0-beta).
 
-- **Windows**: SubFrame-Setup-0.13.0-beta.exe
-- **macOS**: SubFrame-0.13.0-beta.dmg
+- **Windows**: SubFrame-Setup-0.14.0-beta.exe
+- **macOS**: SubFrame-0.14.0-beta.dmg
 
 If you already have SubFrame installed, update through the in-app updater or the System Panel.

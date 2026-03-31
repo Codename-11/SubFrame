@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0-beta] - 2026-03-30
+
+### Fixed
+- **Updater error handling** — silent background checks swallow 404 errors (transient during CI upload); manual checks show friendly messages instead of raw stack traces
+- **Update download feedback** — Download button in toast and Settings panel now shows immediate loading state and properly reports failures instead of silently disappearing
+- **Settings Download button** — shows disabled/pending state while download starts, with "Connecting..." indicator before progress begins
+
+### Added
+- **Output channels wired** — System, Agent, Pipeline, API, and Git output channels now receive real-time logs from their respective subsystems (updater events, terminal lifecycle, pipeline runs, API server, git operations)
+
 ## [0.13.0-beta] - 2026-03-30
 
 ### Added
