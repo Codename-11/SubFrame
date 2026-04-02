@@ -7,13 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1-beta] - 2026-04-01
+
+### Fixed
+- **Workspace pill scrollbar** — vertical/horizontal scrollbars no longer appear on the workspace pill container (CSS overflow spec quirk)
+- **Terminal bell on first input** — bell sound now suppressed by default (opt-in only), fixing beeps caused by async settings load race condition
+- **Multi-project workspace terminals** — workspaces with multiple directories now default to combined terminal view instead of requiring manual "Mix" toggle each time
+
 ### Added
 - **AI tool capability model** — structured `AIToolFeatures` interface replaces the single `supportsPlugins` flag. Tracks hooks, streaming output, hook maturity, event names, config paths, and documentation URLs for Claude Code, Codex CLI, and Gemini CLI
 - **Pipeline agent status feedback** — running pipeline stages now show the active AI agent's current tool (e.g. "Read", "Edit") in the timeline and a live status bar in the log view
 - **Enhance agent status feedback** — task AI Enhance shows a compact agent activity indicator while running
+- **Workspace pill overflow indicator** — ellipsis icon shows when hidden pills exist, fades out on hover as they animate in
+- **Workspace pill keyboard navigation** — ArrowLeft/Right cycles focus between pills (WAI-ARIA toolbar pattern)
+- **Terminal tab rename buttons** — confirm (check) and cancel (X) buttons alongside rename input for pointer users
+- **Terminal creation loading state** — spinner replaces empty state during terminal creation; New Terminal button shows loading indicator
+- **Grid overflow badge** — readable "overflow" text badge replaces invisible dot on terminals exceeding grid capacity
+- **Project badges in combine mode** — all terminal tabs show project name badge when workspace mixing is active (3-tier styling: native/foreign/pinned)
 
 ### Changed
 - **AI tool definitions** include `docsUrl`, `hooksDocsUrl`, `cliDocsUrl` fields for live documentation verification
+- **Sidebar workspace selector** moved above Projects/Files tab bar to establish correct scope hierarchy
+- **StatusBar agent tooltip** now shows dynamic count and click action hint
 
 ## [0.14.0-beta] - 2026-03-30
 

@@ -1,25 +1,22 @@
-Fixes update notification reliability and connects all output channels to their subsystems for real-time logging in the Output panel.
+Fixes workspace pill scrollbar glitches, terminal bell on first input, and adds UI/UX polish across the workspace and terminal systems.
 
 ## What's Changed
 
 ### Bug Fixes
-- **Updater 404 error spam** — Background update checks no longer show raw stack traces when CI artifacts aren't uploaded yet. 404s are silently swallowed for automatic checks; manual checks show a friendly "try again in a few minutes" message.
-- **Download button disappears** — Clicking Download in the update toast no longer silently fails. The download handler now immediately reports status and properly surfaces errors if the download can't start.
-- **Settings Download no feedback** — The Download button in Settings > Updates now shows a disabled/loading state while the download initializes, with a "Connecting..." indicator before progress percentage appears.
+- **Workspace pill scrollbar** — Vertical and horizontal scrollbars no longer appear on the workspace pill container. Root cause was a CSS spec quirk where `overflow-y: visible` computes as `auto` when the other axis is `auto`.
+- **Terminal bell on first input** — Bell sound now suppressed by default (opt-in via Settings). Previously, async settings load could leave the bell handler unregistered, causing beeps from shell OSC sequences.
+- **Multi-project workspace mixing** — Workspaces with multiple directories now default to combined terminal view. No more clicking "Mix" every time you switch workspaces.
 
-### Improvements
-- **Output channels wired to subsystems** — The Output panel (ActivityBar bottom bar) now shows real-time logs from five previously-dormant channels:
-  - **System** — updater events (available, downloaded, errors), session snapshot save/restore
-  - **Agent** — terminal create/exit lifecycle events
-  - **Pipeline** — run start and completion with status
-  - **API** — server startup confirmation
-  - **Git** — branch checkout and create operations
+### UI/UX Improvements
+- **Workspace pill overflow indicator** — Ellipsis icon appears when hidden pills exist, fades out as they animate in on hover.
+- **Workspace pill keyboard navigation** — ArrowLeft/Right cycles focus between pills (WAI-ARIA toolbar pattern).
+- **Terminal tab rename buttons** — Confirm and cancel buttons alongside rename input for pointer/touch users.
+- **Terminal creation loading state** — Spinner replaces empty state during creation; New Terminal button shows loading indicator and prevents double-clicks.
+- **Grid overflow badge** — Readable "overflow" text badge replaces the barely-visible dot on terminals exceeding grid capacity.
+- **Project badges in combine mode** — All terminal tabs show project name badge when workspace mixing is active, with 3-tier styling (native/foreign/pinned).
+- **Sidebar workspace selector** moved above Projects/Files tab bar for clearer scope hierarchy.
+- **StatusBar agent tooltip** shows dynamic agent count and click action hint.
 
-## Installation and Update
-
-Grab the latest installer from [GitHub Releases](https://github.com/Codename-11/SubFrame/releases/tag/v0.14.0-beta).
-
-- **Windows**: SubFrame-Setup-0.14.0-beta.exe
-- **macOS**: SubFrame-0.14.0-beta.dmg
-
-If you already have SubFrame installed, update through the in-app updater or the System Panel.
+### Added
+- **AI tool capability model** — Structured `AIToolFeatures` interface tracks hooks, streaming, event names, config paths, and docs URLs for Claude Code, Codex CLI, and Gemini CLI.
+- **Pipeline agent status feedback** — Running pipeline stages show active AI agent tool usage in timeline and log view.
