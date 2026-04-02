@@ -266,8 +266,8 @@ export function getOrCreate(id: string, options?: TerminalOptions): TerminalInst
 
   terminal.loadAddon(fitAddon);
 
-  // Bell sound — suppress by consuming the onBell event
-  if (options?.bellSound === false) {
+  // Bell sound — suppress unless explicitly opted in (handles undefined from async settings load)
+  if (options?.bellSound !== true) {
     terminal.onBell(() => { /* suppressed */ });
   }
 

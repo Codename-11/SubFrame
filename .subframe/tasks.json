@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-03-30",
+    "lastUpdated": "2026-04-01",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-03-30T22:53:42.859Z",
+  "lastUpdated": "2026-04-01T03:02:31.443Z",
   "tasks": {
     "pending": [
       {
@@ -677,9 +677,175 @@
         "updatedAt": "2026-03-30T22:53:42.816Z",
         "completedAt": null,
         "description": "Long-term hot-update evolution. Two components: (1) PTY broker daemon — a persistent Node process that owns all PTYs via socket API. SubFrame connects as a client, enabling true detach/reattach across full app restarts, OS reboots, and multi-device access (tmux model). (2) Renderer differential updates — split renderer out of ASAR into a writable location (userData/renderer/), add a differential update mechanism to download just the renderer bundle, then use the existing reloadIgnoringCache() + TERMINAL_RESYNC plumbing to apply UI updates without any restart. Both build on the Phase B/C foundation (session snapshot, renderer reload, terminal resync IPC) already shipped in v0.13.0-beta.",
-        "userRequest": "Keep terminals alive across updates without restart. Phase A from hot-update roadmap.",
-        "acceptanceCriteria": "PTY broker: terminals survive full app restart without snapshot/restore. Differential updates: renderer-only releases apply via hot reload without quitAndInstall.",
         "steps": []
+      },
+      {
+        "id": "task-mnfgm8d0-cg8j",
+        "title": "Deploy ACP hooks for Codex CLI projects",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-04-01",
+        "blockedBy": [
+          "task-mmifstga-beor"
+        ],
+        "blocks": [],
+        "createdAt": "2026-04-01T03:01:47.602Z",
+        "updatedAt": "2026-04-01T03:01:47.602Z",
+        "completedAt": null,
+        "description": "Generate and deploy pre-tool-use/post-tool-use hooks for Codex CLI in frameTemplates.ts. Codex uses .codex/hooks.json with PreToolUse/PostToolUse events (same stdin JSON schema as Claude). Write to .subframe/agent-state.json using the same format. Must be deployed during subframe init when Codex is detected as the active tool.",
+        "acceptanceCriteria": "Codex CLI projects get hooks deployed during init that write to agent-state.json on tool use",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Add Codex hook template to frameTemplates.ts"
+          },
+          {
+            "completed": false,
+            "label": "Update projectInit.ts to deploy .codex/hooks.json when Codex detected"
+          },
+          {
+            "completed": false,
+            "label": "Test with Codex CLI in a SubFrame project"
+          },
+          {
+            "completed": false,
+            "label": "Rebuild templates: node scripts/build-templates.js"
+          }
+        ]
+      },
+      {
+        "id": "task-mnfgmev3-3rii",
+        "title": "Deploy ACP hooks for Gemini CLI projects",
+        "status": "pending",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-04-01",
+        "blockedBy": [
+          "task-mmifstga-beor"
+        ],
+        "blocks": [],
+        "createdAt": "2026-04-01T03:01:56.029Z",
+        "updatedAt": "2026-04-01T03:01:56.029Z",
+        "completedAt": null,
+        "description": "Generate and deploy BeforeTool/AfterTool hooks for Gemini CLI in frameTemplates.ts. Gemini uses settings.json with BeforeTool/AfterTool events. Write to .subframe/agent-state.json using the same format. Must be deployed during subframe init when Gemini is detected as the active tool.",
+        "acceptanceCriteria": "Gemini CLI projects get hooks deployed during init that write to agent-state.json on tool use",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Add Gemini hook template to frameTemplates.ts"
+          },
+          {
+            "completed": false,
+            "label": "Update projectInit.ts to deploy Gemini settings hooks when Gemini detected"
+          },
+          {
+            "completed": false,
+            "label": "Test with Gemini CLI in a SubFrame project"
+          },
+          {
+            "completed": false,
+            "label": "Rebuild templates: node scripts/build-templates.js"
+          }
+        ]
+      },
+      {
+        "id": "task-mnfgmowm-8l5j",
+        "title": "Migrate pipeline print-mode to stream-json output",
+        "status": "pending",
+        "priority": "low",
+        "category": "enhancement",
+        "context": "Session 2026-04-01",
+        "blockedBy": [
+          "task-mnfgm8d0-cg8j",
+          "task-mnfgmev3-3rii"
+        ],
+        "blocks": [],
+        "createdAt": "2026-04-01T03:02:09.045Z",
+        "updatedAt": "2026-04-01T03:02:09.045Z",
+        "completedAt": null,
+        "description": "For pipeline print-mode (single-turn) invocations, switch from --output-format json to --output-format stream-json (Claude/Gemini) or --json (Codex). Parse JSONL events in real-time for structured status (tool_use, assistant, result events). Consult features.streamingFlag for the correct CLI flag per tool. Bigger refactor — changes spawnAIToolRaw output parsing.",
+        "acceptanceCriteria": "Pipeline print-mode stages use streaming output for structured real-time progress. Fallback to json envelope for tools without streaming support.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Update prepareAIInvocation to use features.streamingFlag"
+          },
+          {
+            "completed": false,
+            "label": "Add JSONL event parser for stream-json output in pipelineStages.ts"
+          },
+          {
+            "completed": false,
+            "label": "Emit structured status events from parsed JSONL to activity stream"
+          },
+          {
+            "completed": false,
+            "label": "Test with all 3 tools in pipeline print mode"
+          }
+        ]
+      },
+      {
+        "id": "task-mnfgmwxj-vvqd",
+        "title": "AI tool capability badges in Settings/AI Tool Palette UI",
+        "status": "pending",
+        "priority": "low",
+        "category": "enhancement",
+        "context": "Session 2026-04-01",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-04-01T03:02:19.438Z",
+        "updatedAt": "2026-04-01T03:02:19.438Z",
+        "completedAt": null,
+        "description": "Show feature badges in the AI Tool settings panel and AI Tool Palette using the AIToolFeatures data. Display icons/badges for: hooks support, streaming output, hook maturity level, plugins. Link to each tool's docs via docsUrl/hooksDocsUrl. Gracefully degrade — dim/disable features not supported by the active tool.",
+        "acceptanceCriteria": "Settings panel shows capability badges per tool. Users can see at a glance what each tool supports.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Read features from useAIToolConfig hook"
+          },
+          {
+            "completed": false,
+            "label": "Add badge components for key capabilities"
+          },
+          {
+            "completed": false,
+            "label": "Show in SettingsPanel AI tool section and AIToolPalette"
+          },
+          {
+            "completed": false,
+            "label": "Add tooltip with doc link for each badge"
+          }
+        ]
+      },
+      {
+        "id": "task-mnfgn64w-h0z8",
+        "title": "Periodic AI tool capability verification workflow",
+        "status": "pending",
+        "priority": "low",
+        "category": "docs",
+        "context": "Session 2026-04-01",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-04-01T03:02:31.375Z",
+        "updatedAt": "2026-04-01T03:02:31.375Z",
+        "completedAt": null,
+        "description": "Create a checklist/workflow for verifying AI tool capabilities against live docs before releases. Could be a pipeline workflow, a script, or documented in AGENTS.md. Should check the hooksDocsUrl for each tool, compare against AIToolFeatures defaults, and flag discrepancies. Update the Last verified date in ai-tool-capabilities.md.",
+        "acceptanceCriteria": "Documented process for verifying tool capabilities. Can be run before releases to catch stale feature flags.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Document verification checklist in AGENTS.md or docs-internal"
+          },
+          {
+            "completed": false,
+            "label": "Optionally: create a pipeline workflow that fetches live docs and compares"
+          },
+          {
+            "completed": false,
+            "label": "Update Last verified date in ai-tool-capabilities.md"
+          }
+        ]
       }
     ],
     "inProgress": [

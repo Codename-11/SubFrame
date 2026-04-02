@@ -135,7 +135,12 @@ export function StatusBar() {
       <Divider />
 
       {/* Agent */}
-      <Section onClick={() => setActivePanel('agentState')} title="Agent status — click to open Activity panel">
+      <Section
+        onClick={() => setActivePanel('agentState')}
+        title={activeAgents > 0
+          ? `${activeAgents} AI agent${activeAgents > 1 ? 's' : ''} running in terminal${activeAgents > 1 ? 's' : ''} — click to open Activity panel`
+          : 'No agents running — click to open Activity panel'}
+      >
         <Bot size={11} className={cn('shrink-0', activeAgents > 0 ? 'text-success' : 'text-text-muted')} />
         {activeAgents > 0 ? (
           <span className="text-success">{activeAgents} active</span>

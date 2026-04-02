@@ -428,12 +428,30 @@ mainWindow.webContents.openDevTools();
 ---
 
 **Project Start:** 2026-01-21
-**Last Updated:** 2026-03-01
+**Last Updated:** 2026-03-31
 **Status:** Multi-workspace UI, sidebar restructure, session grouping by conversation chain
 
 ---
 
 ## Session Notes
+
+### [2026-03-31] Multi-Tool ACP & AI Tool Capabilities Model
+
+**Context:** SubFrame's ACP (Agent Communication Protocol) originally only worked with Claude Code via hooks writing to `.subframe/agent-state.json`. Pipeline stages and task enhance operations ran with no structured status feedback — users saw long 3-5 minute waits with no indication of what the AI was doing. Investigation revealed Codex CLI (v0.114+) and Gemini CLI both now support hooks with compatible stdin JSON schemas.
+
+**Decision:** Extend ACP to all three tools and wire agent state into pipeline/enhance UI.
+
+**What changed:**
+- `AIToolFeatures` interface in `ipcChannels.ts` — 18-field capability map replaces `supportsPlugins`
+- Per-tool feature defaults with doc URLs in `aiToolManager.ts`
+- `PipelineTimeline` and `PipelinePanel` log view now consume `useAgentState()` to show current tool activity during running stages
+- `TasksPanel` enhance button shows agent tool indicator while AI enhance is running
+- Internal docs reference at `.subframe/docs-internal/refs/ai-tool-capabilities.md`
+- CLAUDE.md guidance to verify capabilities against live docs
+
+**Remaining work:** Deploy Codex/Gemini hooks during init, stream-json migration for pipeline print-mode, UI capability badges. See sub-tasks.
+
+---
 
 ### [2026-03-22] Local API Server & System Panel Architecture
 

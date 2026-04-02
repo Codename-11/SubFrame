@@ -26,7 +26,7 @@ React 19, TypeScript (strict), Zustand (state), TanStack Query (IPC caching), Ta
 
 **Main process** — each manager has `init()` + `setupIPC()`:
 `ptyManager` `tasksManager` `pluginsManager` `claudeSessionsManager` `aiToolManager` `aiFilesManager` `settingsManager` `gitBranchesManager` `overviewManager` `agentStateManager` `skillsManager` `promptsManager` `updaterManager` `sessionSnapshotManager` `pipelineManager` `activityManager` `outputChannelManager` `onboardingManager` `popoutManager` `claudeUsageManager` `githubManager` `apiServerManager` `webServerManager` `workspace` `frameProject`
-**Main utilities** (no manager pattern): `fileEditor` (IPC file read/write) `dialogs` (native OS dialogs) `menu` (Electron application menu) `promptLogger` (prompt history logging) `pty` (PTY spawn helpers) `ipcRouter` (dual-registration IPC for Electron + WebSocket) `eventBridge` (broadcast fan-out to Electron window + WS clients)
+**Main utilities** (no manager pattern): `fileEditor` (IPC file read/write) `dialogs` (native OS dialogs) `menu` (Electron application menu) `promptLogger` (prompt history logging) `pty` (PTY spawn helpers) `ipcRouter` (dual-registration IPC for Electron + WebSocket) `eventBridge` (broadcast fan-out to Electron window + WS clients) `aiSessionManager` (background AI session lifecycle — PTY spawn, prompt injection, result extraction) `aiExecutionManager` (per-tool CLI flag construction, invocation modes, interactive tool configs)
 **Shared utilities**: `taskMarkdownParser` (parse/serialize task .md files with YAML frontmatter) `pipelineWorkflowParser` (YAML workflow parsing) `pipelineStages` (built-in stage handlers)
 **Shared types**: `themeTypes` (theme tokens, presets, CSS mapping) `activityTypes` (activity stream types, IPC events) `agentStateTypes` (agent session/step types) `subframeHealth` (health check types) `transport` (Transport + TransportPlatform interfaces — pluggable IPC abstraction)
 **Shared helpers**: `backlinkUtils` (CLAUDE.md/GEMINI.md backlink injection) `claudeSettingsUtils` (settings.json merge) `projectInit` (workspace init logic) `logoSVG` (inline SVG logo) `frameConstants` (version, paths) `frameTemplates` (file templates for init)
@@ -164,6 +164,23 @@ When changing any of these, update **all** locations that reference them:
 | **Hook templates** (any change to `frameTemplates.ts` hook functions) | Run `node scripts/build-templates.js && npm run generate:hooks`. Commit updated `frameTemplates.js` + `scripts/hooks/*.js`. User projects auto-detect drift via SubFrame Health Panel (`@subframe-version` stamps). See AGENTS.md "Hook Template Deployment". |
 | **Init logic** (any change to `projectInit.ts` or its imports) | Run `node scripts/build-templates.js` to recompile `projectInit.js`. Commit both `.ts` and `.js`. The CLI `subframe init` requires the compiled `.js`. |
 | **`package.json`** (deps, scripts, or metadata changed) | Run `npm install --package-lock-only --ignore-scripts` to sync `package-lock.json`. CI (`npm ci`) will fail if the lock file is stale. |
+| **AI tool capabilities** (hook events, CLI flags, output formats) | Verify against live docs (links below), update `AIToolFeatures` in `aiToolManager.ts`, update `.subframe/docs-internal/refs/ai-tool-capabilities.md` |
+
+## AI Tool Capabilities (External — Verify Before Assuming)
+
+SubFrame integrates three AI coding CLIs. Their hook systems, CLI flags, and output formats **change frequently** — do not assume capabilities from memory or training data. Always check live docs:
+
+| Tool | Hooks Docs | CLI Reference |
+|------|-----------|---------------|
+| Claude Code | [code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks) | [code.claude.com/docs/en/cli](https://code.claude.com/docs/en/cli) |
+| Codex CLI | [developers.openai.com/codex/hooks](https://developers.openai.com/codex/hooks) | [developers.openai.com/codex/cli/reference](https://developers.openai.com/codex/cli/reference) |
+| Gemini CLI | [geminicli.com/docs/hooks/reference](https://geminicli.com/docs/hooks/reference/) | [geminicli.com/docs](https://geminicli.com/docs/) |
+
+**When working on AI tool integrations:**
+- Use context7 or web search to fetch current docs — don't rely on cached knowledge
+- The `AIToolFeatures` interface (`src/shared/ipcChannels.ts`) and defaults in `src/main/aiToolManager.ts` are the source of truth for what SubFrame expects each tool to support
+- The full verified matrix is at `.subframe/docs-internal/refs/ai-tool-capabilities.md`
+- Hook event names differ per tool (e.g. `PreToolUse` vs `BeforeTool`) — check `features.preToolEventName`
 
 ## Conventions
 

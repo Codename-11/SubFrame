@@ -9,11 +9,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, SkipForward, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { PipelineStage, StageStatus } from '../../shared/ipcChannels';
+import type { AgentSession } from '../../shared/agentStateTypes';
 
 interface PipelineTimelineProps {
   stages: PipelineStage[];
   onStageClick?: (stageId: string) => void;
   compact?: boolean;
+  /** Active agent session — shown as status hint on running stages */
+  activeAgentSession?: AgentSession | null;
 }
 
 /** Format milliseconds to a human-readable duration */
@@ -31,7 +34,7 @@ function countFinished(stages: PipelineStage[]): number {
   return stages.filter((s) => s.status === 'completed' || s.status === 'skipped').length;
 }
 
-export function PipelineTimeline({ stages, onStageClick, compact }: PipelineTimelineProps) {
+export function PipelineTimeline({ stages, onStageClick, compact, activeAgentSession }: PipelineTimelineProps) {
   if (stages.length === 0) return null;
 
   const finishedCount = countFinished(stages);
@@ -92,6 +95,7 @@ export function PipelineTimeline({ stages, onStageClick, compact }: PipelineTime
             total={stages.length}
             prevStatus={index > 0 ? stages[index - 1].status : null}
             onClick={onStageClick}
+            activeAgentSession={stage.status === 'running' ? activeAgentSession : undefined}
           />
         ))}
       </div>
@@ -105,6 +109,7 @@ interface StageNodeProps {
   total: number;
   prevStatus: StageStatus | null;
   onClick?: (stageId: string) => void;
+  activeAgentSession?: AgentSession | null;
 }
 
 /** Live elapsed time for running stages.
@@ -129,7 +134,7 @@ function useElapsed(startedAt: string | null, isRunning: boolean): [string | nul
   return [elapsed, hostRef];
 }
 
-function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps) {
+function StageNode({ stage, index, total, prevStatus, onClick, activeAgentSession }: StageNodeProps) {
   const { status } = stage;
   const isCompleted = status === 'completed';
   const isRunning = status === 'running';
@@ -274,6 +279,12 @@ function StageNode({ stage, index, total, prevStatus, onClick }: StageNodeProps)
       {isRunning && elapsed && (
         <span className="text-[8px] text-accent mt-0.5 tabular-nums animate-pulse">
           {elapsed}
+        </span>
+      )}
+      {/* Agent tool activity hint */}
+      {isRunning && activeAgentSession?.currentTool && (
+        <span className="text-[7px] text-text-tertiary mt-0.5 truncate max-w-full px-0.5" title={activeAgentSession.currentTool}>
+          {activeAgentSession.currentTool}
         </span>
       )}
       {isCompleted && stage.durationMs != null && (

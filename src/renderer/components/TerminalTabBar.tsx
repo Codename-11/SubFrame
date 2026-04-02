@@ -22,6 +22,8 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -67,6 +69,8 @@ interface TerminalTabBarProps {
   onToggleCombine?: () => void;
   /** Terminal IDs that overflow the grid (not visible in grid view) */
   gridOverflowIds?: Set<string>;
+  /** True while a terminal is being created (disables new-terminal button) */
+  terminalCreating?: boolean;
   /** Called when any terminal tab is clicked (in addition to store setActiveTerminal) */
   onTerminalTabClick?: (id: string) => void;
   /** Editor file tabs (tab view mode) */
@@ -87,6 +91,7 @@ export function TerminalTabBar({
   workspaceTerminalCount,
   onToggleCombine,
   gridOverflowIds,
+  terminalCreating,
   onTerminalTabClick,
   editorFiles,
   activeEditorFile,
@@ -322,15 +327,17 @@ export function TerminalTabBar({
                     )}
 
                     <span className="relative z-10 flex items-center gap-1.5">
-                      {/* Foreign-project badge */}
-                      {foreignProjectIds.has(t.id) && (
+                      {/* Project badge — all terminals in combine mode, or foreign terminals in project mode */}
+                      {(combineWorkspaceTerminals || foreignProjectIds.has(t.id)) && (
                         <span
                           className={`flex items-center gap-0.5 px-1 py-px rounded text-[9px] font-medium flex-shrink-0 ${
                             pinnedTerminals.has(t.id)
                               ? 'bg-accent/15 text-accent/80'
-                              : 'bg-info/15 text-info/80'
+                              : foreignProjectIds.has(t.id)
+                                ? 'bg-info/15 text-info/80'
+                                : 'bg-bg-elevated text-text-muted'
                           }`}
-                          title={`${pinnedTerminals.has(t.id) ? 'Pinned from' : 'From'} ${t.projectPath || 'unknown'}`}
+                          title={`${pinnedTerminals.has(t.id) ? 'Pinned from' : foreignProjectIds.has(t.id) ? 'From' : ''} ${t.projectPath || 'unknown'}`.trim()}
                         >
                           {pinnedTerminals.has(t.id) && <Pin className="h-2.5 w-2.5" />}
                           {(t.projectPath || '').split(/[/\\]/).pop() || '?'}
@@ -356,21 +363,31 @@ export function TerminalTabBar({
                         <ExternalLink className="h-3 w-3 text-accent flex-shrink-0" />
                       )}
                       {renamingId === t.id ? (
-                        <input
-                          ref={renameInputRef}
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onBlur={finishRename}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') finishRename();
-                            if (e.key === 'Escape') {
-                              setRenamingId(null);
-                              setRenameValue('');
-                            }
-                          }}
-                          className="bg-transparent border-none text-xs w-20 text-text-primary focus:ring-1 focus:ring-accent focus:outline-none rounded-sm"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        <span className="flex items-center gap-0.5">
+                          <input
+                            ref={renameInputRef}
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={finishRename}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') finishRename();
+                              if (e.key === 'Escape') {
+                                setRenamingId(null);
+                                setRenameValue('');
+                              }
+                            }}
+                            className="bg-transparent border-none text-xs w-20 text-text-primary focus:ring-1 focus:ring-accent focus:outline-none rounded-sm"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <Check
+                            className="h-3 w-3 text-success/70 hover:text-success cursor-pointer flex-shrink-0"
+                            onMouseDown={(e) => { e.preventDefault(); finishRename(); }}
+                          />
+                          <X
+                            className="h-3 w-3 text-text-muted hover:text-error cursor-pointer flex-shrink-0"
+                            onMouseDown={(e) => { e.preventDefault(); setRenamingId(null); setRenameValue(''); }}
+                          />
+                        </span>
                       ) : (
                         <>
                           {idx < 9 && (
@@ -379,9 +396,11 @@ export function TerminalTabBar({
                           <span className={`truncate max-w-[120px]${t.poppedOut ? ' opacity-50' : ''}`}>{t.name}</span>
                           {gridOverflowIds?.has(t.id) && (
                             <span
-                              className="h-1.5 w-1.5 rounded-full bg-warning/70 flex-shrink-0"
-                              title="Not visible in grid — click to view"
-                            />
+                              className="px-1 py-px rounded text-[8px] font-medium bg-warning/15 text-warning/80 flex-shrink-0"
+                              title="Terminal exceeds grid capacity — click tab to view, or change grid layout"
+                            >
+                              overflow
+                            </span>
                           )}
                         </>
                       )}
@@ -598,11 +617,18 @@ export function TerminalTabBar({
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="flex items-center gap-0.5 h-7 px-1.5 rounded-md text-text-secondary
-                               hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                    className={`flex items-center gap-0.5 h-7 px-1.5 rounded-md transition-colors ${
+                      terminalCreating
+                        ? 'text-text-muted cursor-wait'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover cursor-pointer'
+                    }`}
                     aria-label="New terminal"
+                    disabled={terminalCreating}
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    {terminalCreating
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Plus className="h-3.5 w-3.5" />
+                    }
                     <ChevronDown className="h-2.5 w-2.5 opacity-50" />
                   </button>
                 </DropdownMenuTrigger>

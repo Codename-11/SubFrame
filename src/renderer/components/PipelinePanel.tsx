@@ -39,6 +39,7 @@ import {
 
 import { cn } from '../lib/utils';
 import { usePipeline, usePipelineWorkflows, usePipelineProgress } from '../hooks/usePipeline';
+import { useAgentState } from '../hooks/useAgentState';
 import { useUIStore } from '../stores/useUIStore';
 import { PipelineTimeline } from './PipelineTimeline';
 import { WorkflowEditorDialog } from './WorkflowEditor';
@@ -53,6 +54,7 @@ import type {
   ArtifactSeverity,
   WorkflowDefinition,
 } from '../../shared/ipcChannels';
+import type { AgentSession } from '../../shared/agentStateTypes';
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
@@ -153,7 +155,7 @@ function RunListItem({
 }
 
 /** Overview tab — timeline + artifact feed */
-function OverviewTab({ run, onStageClick }: { run: PipelineRun; onStageClick: (id: string) => void }) {
+function OverviewTab({ run, onStageClick, activeAgentSession }: { run: PipelineRun; onStageClick: (id: string) => void; activeAgentSession?: AgentSession | null }) {
   const allStages = run.jobs.flatMap((j) => j.stages);
   const sortedArtifacts = useMemo(
     () => [...run.artifacts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
@@ -164,7 +166,7 @@ function OverviewTab({ run, onStageClick }: { run: PipelineRun; onStageClick: (i
     <div className="space-y-4">
       {/* Pipeline timeline */}
       <div className="p-3 bg-bg-secondary rounded-lg border border-border-subtle">
-        <PipelineTimeline stages={allStages} onStageClick={onStageClick} />
+        <PipelineTimeline stages={allStages} onStageClick={onStageClick} activeAgentSession={activeAgentSession} />
       </div>
 
       {/* Artifact feed */}
@@ -374,10 +376,12 @@ function PipelineLogView({
   run,
   logs,
   initialStageId,
+  activeAgentSession,
 }: {
   run: PipelineRun;
   logs: Record<string, string[]>;
   initialStageId?: string | null;
+  activeAgentSession?: AgentSession | null;
 }) {
   const allStages = run.jobs.flatMap((j) => j.stages);
   const [selectedStageId, setSelectedStageId] = useState<string | null>(
@@ -426,6 +430,24 @@ function PipelineLogView({
           </button>
         ))}
       </div>
+
+      {/* Agent activity status (when stage is running and agent state is available) */}
+      {selectedStage?.status === 'running' && activeAgentSession?.currentTool && (
+        <div className="flex items-center gap-2 px-2 py-1 bg-accent/5 border border-accent/20 rounded text-[10px]">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+          </span>
+          <span className="text-text-secondary truncate">
+            <span className="text-accent font-medium">{activeAgentSession.currentTool}</span>
+            {activeAgentSession.steps.length > 0 && (
+              <span className="text-text-muted ml-1.5">
+                · step {activeAgentSession.steps.filter(s => s.status === 'completed').length + 1}
+              </span>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Log output */}
       <div className="bg-bg-deep rounded border border-border-subtle p-2 min-h-[120px] max-h-[300px] overflow-auto">
@@ -482,6 +504,7 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
 
   const { workflows, saveWorkflow, deleteWorkflow } = usePipelineWorkflows();
   const { logs } = usePipelineProgress(selectedRunId);
+  const { activeSession: activeAgentSession } = useAgentState();
   const setFullViewContent = useUIStore((s) => s.setFullViewContent);
   const closeRightPanel = useUIStore((s) => s.closeRightPanel);
 
@@ -855,7 +878,7 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
               transition={{ duration: 0.15 }}
             >
               {activeTab === 'overview' && (
-                <OverviewTab run={selectedRun} onStageClick={handleStageClick} />
+                <OverviewTab run={selectedRun} onStageClick={handleStageClick} activeAgentSession={activeAgentSession} />
               )}
               {activeTab === 'critique' && (
                 <CritiqueView run={selectedRun} />
@@ -864,7 +887,7 @@ export function PipelinePanel({ isFullView = false }: PipelinePanelProps) {
                 <PatchReview run={selectedRun} onApplyPatch={handleApplyPatch} />
               )}
               {activeTab === 'log' && (
-                <PipelineLogView run={selectedRun} logs={logs} initialStageId={logStageId} />
+                <PipelineLogView run={selectedRun} logs={logs} initialStageId={logStageId} activeAgentSession={activeAgentSession} />
               )}
             </motion.div>
           </AnimatePresence>

@@ -54,6 +54,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getTransport } from '../lib/transportProvider';
 import { focusActivityBar } from '../lib/activityBarEvents';
+import { useAgentState } from '../hooks/useAgentState';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-zinc-600 text-zinc-200',
@@ -325,6 +326,7 @@ interface TasksPanelProps {
 
 export function TasksPanel({ isFullView = false }: TasksPanelProps) {
   const { tasks, addTask, updateTask, deleteTask, isLoading, refetch } = useTasks();
+  const { activeSession: activeAgentSession } = useAgentState();
   const activeTerminalId = useTerminalStore((s) => s.activeTerminalId);
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
 
@@ -1342,6 +1344,16 @@ export function TasksPanel({ isFullView = false }: TasksPanelProps) {
                     {enhancing ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                     Enhance
                   </button>
+                )}
+                {/* Agent activity hint during enhance */}
+                {enhancing && activeAgentSession?.currentTool && (
+                  <span className="flex items-center gap-1 text-[10px] text-text-muted">
+                    <span className="relative flex h-1.5 w-1.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-info opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-info" />
+                    </span>
+                    {activeAgentSession.currentTool}
+                  </span>
                 )}
                 {/* Open in code editor */}
                 {editingTask?.filePath && (

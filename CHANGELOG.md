@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **AI tool capability model** — structured `AIToolFeatures` interface replaces the single `supportsPlugins` flag. Tracks hooks, streaming output, hook maturity, event names, config paths, and documentation URLs for Claude Code, Codex CLI, and Gemini CLI
+- **Pipeline agent status feedback** — running pipeline stages now show the active AI agent's current tool (e.g. "Read", "Edit") in the timeline and a live status bar in the log view
+- **Enhance agent status feedback** — task AI Enhance shows a compact agent activity indicator while running
+
+### Changed
+- **AI tool definitions** include `docsUrl`, `hooksDocsUrl`, `cliDocsUrl` fields for live documentation verification
+
 ## [0.14.0-beta] - 2026-03-30
 
 ### Fixed

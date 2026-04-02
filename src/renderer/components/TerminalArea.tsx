@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, ArrowLeft, ExternalLink, Sparkles } from 'lucide-react';
+import { X, ArrowLeft, ExternalLink, Sparkles, Loader2 } from 'lucide-react';
 import { TerminalTabBar } from './TerminalTabBar';
 import { generateTerminalName, getUsedTerminalNames } from '../lib/terminalNames';
 import { TerminalGrid } from './TerminalGrid';
@@ -334,16 +334,12 @@ export function TerminalArea() {
     && !gridTerminalIds.has(activeTerminalId);
   const showOverflowSingle = gridOverflowAutoSwitch && activeIsOverflow;
 
-  // Combine mode is temporary; reset when switching workspaces or when no secondary project exists.
+  // Auto-enable combine mode for multi-project workspaces (working on them together
+  // is the whole point of grouping dirs into one workspace). The user can still toggle
+  // it off via the Mix button; the effect only re-fires when workspace or project count changes.
   useEffect(() => {
-    setCombineWorkspaceTerminals(false);
-  }, [workspaceName]);
-
-  useEffect(() => {
-    if (!hasOtherWorkspaceProjects && combineWorkspaceTerminals) {
-      setCombineWorkspaceTerminals(false);
-    }
-  }, [combineWorkspaceTerminals, hasOtherWorkspaceProjects]);
+    setCombineWorkspaceTerminals(hasOtherWorkspaceProjects);
+  }, [workspaceName, hasOtherWorkspaceProjects]);
 
   // If combine mode is turned off while focused on a foreign terminal, restore the active terminal for the current project.
   useEffect(() => {
@@ -354,16 +350,19 @@ export function TerminalArea() {
 
   // Create terminal helper (ref guard prevents double-clicks, with safety timeout)
   const creatingTerminal = useRef(false);
+  const [terminalPending, setTerminalPending] = useState(false);
   const createTerminal = useCallback(
     (shell?: string) => {
       if (creatingTerminal.current) return;
       creatingTerminal.current = true;
+      setTerminalPending(true);
 
       // Safety timeout — if IPC reply is missed (e.g. listener removed during re-render),
       // reset the guard so the user isn't permanently locked out.
       const safetyTimeout = setTimeout(() => {
         if (creatingTerminal.current) {
           creatingTerminal.current = false;
+          setTerminalPending(false);
         }
       }, 5000);
       (creatingTerminal as any)._safetyTimeout = safetyTimeout;
@@ -434,6 +433,7 @@ export function TerminalArea() {
       if (!data.background) {
         clearTimeout((creatingTerminal as any)._safetyTimeout);
         creatingTerminal.current = false;
+        setTerminalPending(false);
       }
 
       if (data.success && data.terminalId) {
@@ -1039,6 +1039,7 @@ export function TerminalArea() {
           gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
             ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
             : undefined}
+          terminalCreating={terminalPending}
           onTerminalTabClick={editorViewMode === 'tab' ? () => setActiveEditorFile(null) : undefined}
           editorFiles={editorViewMode === 'tab' ? editorOpenFiles : undefined}
           activeEditorFile={editorViewMode === 'tab' ? activeEditorFile : undefined}
@@ -1120,6 +1121,11 @@ export function TerminalArea() {
             />
           </ErrorBoundary>
         ) : projectTerminals.length === 0 ? (
+          terminalPending ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
+            </div>
+          ) : (
           <div className="flex h-full items-center justify-center text-text-tertiary">
             <div className="text-center max-w-xs">
               {/* Animated SubFrame logo */}
@@ -1208,6 +1214,7 @@ export function TerminalArea() {
               </div>
             </div>
           </div>
+          )
         ) : viewMode === 'tabs' || showOverflowSingle ? (
           /* Single terminal — show only the active one (also used for grid overflow auto-switch) */
           activeTerminalId ? (

@@ -18,19 +18,7 @@ import { showOpenFileDialog } from './dialogs';
 const REPO_URL = 'https://github.com/Codename-11/SubFrame';
 const DOCS_URL = 'https://codename-11.github.io/SubFrame';
 
-interface AIToolCommands {
-  [key: string]: string;
-}
-
-interface AITool {
-  id: string;
-  name: string;
-  command: string;
-  commands: AIToolCommands;
-  menuLabel: string;
-  supportsPlugins: boolean;
-  installed?: boolean;
-}
+import type { AITool } from '../shared/ipcChannels';
 
 interface AIToolManagerLike {
   getActiveTool(): Promise<AITool>;
@@ -69,8 +57,15 @@ async function getMenuTemplate(): Promise<MenuItemConstructorOptions[]> {
     name: 'Claude Code',
     menuLabel: 'AI Commands',
     command: 'claude',
+    description: 'Anthropic Claude Code CLI',
     commands: {},
-    supportsPlugins: true
+    supportsPlugins: true,
+    features: {
+      hooks: true, preToolUse: true, postToolUse: true, notification: true,
+      stop: true, sessionStart: true, sessionEnd: true, userPromptSubmit: true,
+      streamingOutput: true, plugins: true, agentHooks: true, promptHooks: true,
+      httpHooks: true, pluginHooks: false, hookMaturity: 'mature' as const,
+    },
   };
 
   const aiCommandsSubmenu = await buildAICommandsSubmenu(activeTool);

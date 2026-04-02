@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "description": "SubFrame - Module structure and IPC communication map",
-  "lastUpdated": "2026-03-30",
+  "lastUpdated": "2026-04-01",
   "architecture": {
     "type": "electron",
     "mainProcess": "src/main/index.ts",
@@ -943,7 +943,7 @@
       ],
       "functions": {
         "init": {
-          "line": 105,
+          "line": 181,
           "params": [
             "window",
             "app"
@@ -954,15 +954,15 @@
           ]
         },
         "loadConfig": {
-          "line": 114,
+          "line": 190,
           "purpose": "Load configuration from file"
         },
         "saveConfig": {
-          "line": 129,
+          "line": 205,
           "purpose": "Save configuration to file"
         },
         "isCommandInstalledAsync": {
-          "line": 157,
+          "line": 233,
           "params": [
             "command"
           ],
@@ -972,7 +972,7 @@
           ]
         },
         "checkToolInstalled": {
-          "line": 220,
+          "line": 296,
           "params": [
             "tool"
           ],
@@ -982,14 +982,14 @@
           ]
         },
         "getAvailableTools": {
-          "line": 229,
+          "line": 305,
           "purpose": "Get all available AI tools (with install status)",
           "calls": [
             "checkToolInstalled"
           ]
         },
         "getActiveTool": {
-          "line": 246,
+          "line": 322,
           "params": [
             "toolId"
           ],
@@ -999,7 +999,7 @@
           ]
         },
         "setActiveTool": {
-          "line": 257,
+          "line": 333,
           "params": [
             "toolId"
           ],
@@ -1012,14 +1012,14 @@
           ]
         },
         "onActiveToolChanged": {
-          "line": 280,
+          "line": 356,
           "params": [
             "callback"
           ],
           "purpose": "Used by index.ts to rebuild the application menu."
         },
         "getConfig": {
-          "line": 287,
+          "line": 363,
           "purpose": "Get full configuration for renderer",
           "calls": [
             "getActiveTool",
@@ -1027,14 +1027,14 @@
           ]
         },
         "addCustomTool": {
-          "line": 297,
+          "line": 373,
           "params": [
             "tool"
           ],
           "purpose": "Add a custom AI tool"
         },
         "removeCustomTool": {
-          "line": 315,
+          "line": 398,
           "params": [
             "toolId"
           ],
@@ -1044,7 +1044,7 @@
           ]
         },
         "setupIPC": {
-          "line": 330,
+          "line": 413,
           "params": [
             "ipc"
           ],
@@ -1059,7 +1059,7 @@
           ]
         },
         "getCommand": {
-          "line": 415,
+          "line": 498,
           "params": [
             "action"
           ],
@@ -1069,14 +1069,14 @@
           ]
         },
         "getCustomCommand": {
-          "line": 423,
+          "line": 506,
           "params": [
             "toolId"
           ],
           "purpose": "Get custom command override from settings for a tool"
         },
         "getStartCommand": {
-          "line": 437,
+          "line": 520,
           "params": [
             "toolId"
           ],
@@ -1087,7 +1087,7 @@
           ]
         }
       },
-      "loc": 448
+      "loc": 531
     },
     "main/apiServerManager": {
       "file": "src\\main\\apiServerManager.ts",
@@ -1108,24 +1108,25 @@
         "fs",
         "path",
         "os",
-        "shared/ipcChannels"
+        "shared/ipcChannels",
+        "outputChannelManager"
       ],
       "functions": {
         "writeServiceConfig": {
-          "line": 63
+          "line": 64
         },
         "removeServiceConfig": {
-          "line": 97
+          "line": 98
         },
         "authenticate": {
-          "line": 104,
+          "line": 105,
           "params": [
             "req"
           ],
           "purpose": "── Auth ───────────────────────────────────────────────────────────────────"
         },
         "requestFromRenderer": {
-          "line": 117,
+          "line": 118,
           "params": [
             "channel",
             "data"
@@ -1133,7 +1134,7 @@
           "purpose": "── Renderer bridge (main→renderer request-response) ───────────────────────"
         },
         "sendJSON": {
-          "line": 136,
+          "line": 137,
           "params": [
             "res",
             "status",
@@ -1142,7 +1143,7 @@
           "purpose": "── Route handling ─────────────────────────────────────────────────────────"
         },
         "sendError": {
-          "line": 145,
+          "line": 146,
           "params": [
             "res",
             "status",
@@ -1153,7 +1154,7 @@
           ]
         },
         "handleRequest": {
-          "line": 149,
+          "line": 150,
           "params": [
             "req",
             "res"
@@ -1167,7 +1168,7 @@
           ]
         },
         "broadcastEvent": {
-          "line": 283,
+          "line": 284,
           "params": [
             "eventType",
             "data"
@@ -1175,7 +1176,7 @@
           "purpose": "── SSE broadcasting ───────────────────────────────────────────────────────"
         },
         "startServer": {
-          "line": 294,
+          "line": 295,
           "purpose": "── Server start/stop ─────────────────────────────────────────────────────",
           "calls": [
             "handleRequest",
@@ -1184,13 +1185,13 @@
           ]
         },
         "stopServer": {
-          "line": 316,
+          "line": 318,
           "calls": [
             "removeServiceConfig"
           ]
         },
         "init": {
-          "line": 335,
+          "line": 337,
           "params": [
             "window"
           ],
@@ -1200,7 +1201,7 @@
           ]
         },
         "setupIPC": {
-          "line": 371,
+          "line": 373,
           "params": [
             "ipcMain"
           ],
@@ -1213,13 +1214,13 @@
           ]
         },
         "shutdown": {
-          "line": 448,
+          "line": 450,
           "calls": [
             "stopServer"
           ]
         }
       },
-      "loc": 453,
+      "loc": 455,
       "ipc": {
         "listens": [
           "API_SELECTION_SYNC",
@@ -2242,18 +2243,19 @@
       "depends": [
         "child_process",
         "shared/ipcChannels",
-        "eventBridge"
+        "eventBridge",
+        "outputChannelManager"
       ],
       "functions": {
         "init": {
-          "line": 67,
+          "line": 68,
           "params": [
             "window"
           ],
           "purpose": "Initialize manager"
         },
         "execGit": {
-          "line": 74,
+          "line": 75,
           "params": [
             "command",
             "projectPath"
@@ -2261,14 +2263,14 @@
           "purpose": "Execute git command with promise"
         },
         "isWorkingTreeClean": {
-          "line": 89,
+          "line": 90,
           "params": [
             "projectPath"
           ],
           "purpose": "Check if working tree is clean"
         },
         "getGitStatus": {
-          "line": 118,
+          "line": 119,
           "params": [
             "projectPath"
           ],
@@ -2278,7 +2280,7 @@
           ]
         },
         "loadBranches": {
-          "line": 173,
+          "line": 174,
           "params": [
             "projectPath"
           ],
@@ -2288,7 +2290,7 @@
           ]
         },
         "switchBranch": {
-          "line": 227,
+          "line": 228,
           "params": [
             "projectPath",
             "branchName"
@@ -2300,7 +2302,7 @@
           ]
         },
         "createBranch": {
-          "line": 268,
+          "line": 270,
           "params": [
             "projectPath",
             "branchName",
@@ -2313,7 +2315,7 @@
           ]
         },
         "deleteBranch": {
-          "line": 294,
+          "line": 297,
           "params": [
             "projectPath",
             "branchName",
@@ -2325,7 +2327,7 @@
           ]
         },
         "loadWorktrees": {
-          "line": 311,
+          "line": 314,
           "params": [
             "projectPath"
           ],
@@ -2335,7 +2337,7 @@
           ]
         },
         "addWorktree": {
-          "line": 353,
+          "line": 356,
           "params": [
             "projectPath",
             "worktreePath",
@@ -2348,7 +2350,7 @@
           ]
         },
         "removeWorktree": {
-          "line": 372,
+          "line": 375,
           "params": [
             "projectPath",
             "worktreePath",
@@ -2360,7 +2362,7 @@
           ]
         },
         "startAutoFetch": {
-          "line": 393,
+          "line": 396,
           "params": [
             "projectPath",
             "intervalMs"
@@ -2371,10 +2373,10 @@
           ]
         },
         "stopAutoFetch": {
-          "line": 407
+          "line": 410
         },
         "setupIPC": {
-          "line": 415,
+          "line": 418,
           "params": [
             "ipcMain"
           ],
@@ -2394,7 +2396,7 @@
           ]
         }
       },
-      "loc": 467,
+      "loc": 470,
       "ipc": {
         "listens": [
           "LOAD_GIT_BRANCHES",
@@ -2782,7 +2784,7 @@
           "purpose": "Initialize modules that need window reference"
         }
       },
-      "loc": 1036,
+      "loc": 1037,
       "ipc": {
         "listens": [
           "GRACEFUL_SHUTDOWN_CONFIRM",
@@ -2885,7 +2887,7 @@
       ],
       "functions": {
         "init": {
-          "line": 48,
+          "line": 36,
           "params": [
             "window",
             "app",
@@ -2894,7 +2896,7 @@
           "purpose": "Initialize menu module"
         },
         "sendToRenderer": {
-          "line": 57,
+          "line": 45,
           "params": [
             "channel",
             "...args"
@@ -2905,7 +2907,7 @@
           ]
         },
         "getMenuTemplate": {
-          "line": 66,
+          "line": 54,
           "purpose": "Get menu template based on active AI tool",
           "calls": [
             "buildAICommandsSubmenu",
@@ -2915,7 +2917,7 @@
           ]
         },
         "buildAICommandsSubmenu": {
-          "line": 295,
+          "line": 290,
           "params": [
             "tool"
           ],
@@ -2928,14 +2930,14 @@
           ]
         },
         "buildToolSwitcherSubmenu": {
-          "line": 411,
+          "line": 406,
           "purpose": "Build tool switcher submenu",
           "calls": [
             "createMenu"
           ]
         },
         "sendCommand": {
-          "line": 432,
+          "line": 427,
           "params": [
             "command"
           ],
@@ -2945,25 +2947,25 @@
           ]
         },
         "toggleHistoryPanel": {
-          "line": 439,
+          "line": 434,
           "purpose": "Toggle history panel",
           "calls": [
             "sendToRenderer"
           ]
         },
         "openHistoryFile": {
-          "line": 446,
+          "line": 441,
           "purpose": "Open history file in default editor"
         },
         "createMenu": {
-          "line": 461,
+          "line": 456,
           "purpose": "Create and set application menu",
           "calls": [
             "getMenuTemplate"
           ]
         }
       },
-      "loc": 469
+      "loc": 464
     },
     "main/onboardingManager": {
       "file": "src\\main\\onboardingManager.ts",
@@ -3532,25 +3534,26 @@
         "pipelineWorkflowParser",
         "aiToolManager",
         "activityManager",
-        "eventBridge"
+        "eventBridge",
+        "outputChannelManager"
       ],
       "functions": {
         "uid": {
-          "line": 54,
+          "line": 55,
           "purpose": "─── Helpers ─────────────────────────────────────────────────────────────────"
         },
         "now": {
-          "line": 58
+          "line": 59
         },
         "send": {
-          "line": 62,
+          "line": 63,
           "params": [
             "channel",
             "data"
           ]
         },
         "emitProgress": {
-          "line": 68,
+          "line": 69,
           "params": [
             "runId",
             "stageId",
@@ -3561,7 +3564,7 @@
           ]
         },
         "broadcastRunUpdate": {
-          "line": 73,
+          "line": 74,
           "params": [
             "run"
           ],
@@ -3570,7 +3573,7 @@
           ]
         },
         "broadcastRunsList": {
-          "line": 77,
+          "line": 78,
           "params": [
             "projectPath"
           ],
@@ -3579,21 +3582,21 @@
           ]
         },
         "ensurePipelinesDir": {
-          "line": 87,
+          "line": 88,
           "params": [
             "projectPath"
           ],
           "purpose": "Get the pipelines directory, creating it if needed."
         },
         "ensureWorkflowsDir": {
-          "line": 98,
+          "line": 99,
           "params": [
             "projectPath"
           ],
           "purpose": "Ensure the workflows directory exists, seeding with default workflow if empty."
         },
         "persistRuns": {
-          "line": 123,
+          "line": 124,
           "params": [
             "projectPath"
           ],
@@ -3603,7 +3606,7 @@
           ]
         },
         "loadPersistedRuns": {
-          "line": 145,
+          "line": 146,
           "params": [
             "projectPath"
           ],
@@ -3613,7 +3616,7 @@
           ]
         },
         "execAsync": {
-          "line": 170,
+          "line": 171,
           "params": [
             "cmd",
             "cwd: string"
@@ -3621,7 +3624,7 @@
           "purpose": "Run a shell command and return stdout."
         },
         "topologicalSortJobs": {
-          "line": 188,
+          "line": 189,
           "params": [
             "jobs",
             "{ name?: string; needs?: string[]; steps: WorkflowStep[] }>"
@@ -3629,14 +3632,14 @@
           "purpose": "Returns an ordered array of [jobId, WorkflowJob] pairs."
         },
         "stepToStageType": {
-          "line": 239,
+          "line": 240,
           "params": [
             "step"
           ],
           "purpose": "Map a workflow step's `uses` value to a StageType."
         },
         "buildRun": {
-          "line": 252,
+          "line": 253,
           "params": [
             "workflow",
             "projectPath",
@@ -3656,7 +3659,7 @@
           ]
         },
         "executeRun": {
-          "line": 316,
+          "line": 317,
           "params": [
             "runCtx",
             "workflow"
@@ -3674,7 +3677,7 @@
           ]
         },
         "shouldRequireApproval": {
-          "line": 582,
+          "line": 585,
           "params": [
             "stage",
             "artifacts"
@@ -3682,21 +3685,21 @@
           "purpose": "Determine if a stage should pause for approval."
         },
         "waitForApproval": {
-          "line": 594,
+          "line": 597,
           "params": [
             "runCtx"
           ],
           "purpose": "Returns true if approved, false if rejected."
         },
         "init": {
-          "line": 617,
+          "line": 620,
           "params": [
             "window"
           ],
           "purpose": "Initialize the pipeline manager."
         },
         "setupIPC": {
-          "line": 624,
+          "line": 627,
           "params": [
             "ipcMain"
           ],
@@ -3720,7 +3723,7 @@
           ]
         },
         "watchWorkflows": {
-          "line": 883,
+          "line": 886,
           "params": [
             "projectPath"
           ],
@@ -3730,10 +3733,10 @@
           ]
         },
         "unwatchWorkflows": {
-          "line": 908
+          "line": 911
         },
         "startPipelineFromTrigger": {
-          "line": 923,
+          "line": 926,
           "params": [
             "projectPath",
             "workflowId",
@@ -3751,7 +3754,7 @@
           ]
         },
         "watchPrePushTrigger": {
-          "line": 981,
+          "line": 984,
           "params": [
             "projectPath"
           ],
@@ -3762,14 +3765,14 @@
           ]
         },
         "unwatchPrePushTrigger": {
-          "line": 1020
+          "line": 1023
         },
         "hasActiveRuns": {
-          "line": 1030,
+          "line": 1033,
           "purpose": "─── Exports ─────────────────────────────────────────────────────────────────"
         }
       },
-      "loc": 1043,
+      "loc": 1046,
       "ipc": {
         "listens": [
           "PIPELINE_LIST_WORKFLOWS",
@@ -4750,30 +4753,31 @@
         "promptLogger",
         "agentStateManager",
         "settingsManager",
-        "eventBridge"
+        "eventBridge",
+        "outputChannelManager"
       ],
       "functions": {
         "parseOSC7": {
-          "line": 40,
+          "line": 41,
           "params": [
             "data"
           ],
           "purpose": "on every directory change."
         },
         "getAgentExitTimeout": {
-          "line": 83,
+          "line": 84,
           "calls": [
             "getSetting"
           ]
         },
         "stripTerminalControlSequences": {
-          "line": 110,
+          "line": 111,
           "params": [
             "text"
           ]
         },
         "markShellReady": {
-          "line": 124,
+          "line": 125,
           "params": [
             "terminalId"
           ],
@@ -4782,7 +4786,7 @@
           ]
         },
         "detectShellReady": {
-          "line": 133,
+          "line": 134,
           "params": [
             "terminalId",
             "data"
@@ -4793,13 +4797,13 @@
           ]
         },
         "isSessionFresh": {
-          "line": 183,
+          "line": 184,
           "params": [
             "lastActivityAt"
           ]
         },
         "correlateSession": {
-          "line": 195,
+          "line": 196,
           "params": [
             "terminalId"
           ],
@@ -4809,7 +4813,7 @@
           ]
         },
         "broadcastClaudeStatus": {
-          "line": 236,
+          "line": 237,
           "params": [
             "terminalId",
             "active"
@@ -4821,7 +4825,7 @@
           ]
         },
         "detectClaudeOutput": {
-          "line": 297,
+          "line": 298,
           "params": [
             "terminalId",
             "data"
@@ -4832,14 +4836,14 @@
           ]
         },
         "appendTerminalBacklog": {
-          "line": 359,
+          "line": 360,
           "params": [
             "terminalId",
             "data"
           ]
         },
         "handleTerminalOutput": {
-          "line": 367,
+          "line": 368,
           "params": [
             "terminalId",
             "data"
@@ -4853,7 +4857,7 @@
           ]
         },
         "handleTerminalExit": {
-          "line": 396,
+          "line": 397,
           "params": [
             "terminalId",
             "exitCode"
@@ -4863,7 +4867,7 @@
           ]
         },
         "bindPtyLifecycle": {
-          "line": 417,
+          "line": 419,
           "params": [
             "terminalId",
             "ptyProcess"
@@ -4874,13 +4878,13 @@
           ]
         },
         "getMaxTerminals": {
-          "line": 441,
+          "line": 443,
           "calls": [
             "getSetting"
           ]
         },
         "init": {
-          "line": 450,
+          "line": 452,
           "params": [
             "window"
           ],
@@ -4892,18 +4896,18 @@
           ]
         },
         "getDefaultShell": {
-          "line": 504,
+          "line": 506,
           "purpose": "Get default shell based on platform"
         },
         "getAvailableShells": {
-          "line": 520,
+          "line": 522,
           "purpose": "Get available shells on the system",
           "calls": [
             "getDefaultShell"
           ]
         },
         "createTerminal": {
-          "line": 600,
+          "line": 602,
           "params": [
             "workingDir",
             "projectPath",
@@ -4915,7 +4919,7 @@
           "purpose": "Create a new terminal instance"
         },
         "spawnDirect": {
-          "line": 667,
+          "line": 670,
           "params": [
             "command",
             "args",
@@ -4931,35 +4935,35 @@
           ]
         },
         "getShellArgs": {
-          "line": 724,
+          "line": 727,
           "params": [
             "shell"
           ],
           "purpose": "Get shell arguments based on shell type (reusable helper)."
         },
         "restartTerminal": {
-          "line": 739,
+          "line": 742,
           "params": [
             "terminalId"
           ],
           "purpose": "The renderer xterm instance keeps running; it receives output from the new PTY."
         },
         "getTerminalsByProject": {
-          "line": 791,
+          "line": 794,
           "params": [
             "projectPath"
           ],
           "purpose": "Get terminals for a specific project"
         },
         "getTerminalInfo": {
-          "line": 804,
+          "line": 807,
           "params": [
             "terminalId"
           ],
           "purpose": "Get terminal info"
         },
         "writeToTerminal": {
-          "line": 815,
+          "line": 818,
           "params": [
             "terminalId",
             "data"
@@ -4967,7 +4971,7 @@
           "purpose": "Write data to specific terminal"
         },
         "injectTerminalOutput": {
-          "line": 827,
+          "line": 830,
           "params": [
             "terminalId",
             "data"
@@ -4978,7 +4982,7 @@
           ]
         },
         "resizeTerminal": {
-          "line": 835,
+          "line": 838,
           "params": [
             "terminalId",
             "cols",
@@ -4987,40 +4991,40 @@
           "purpose": "Resize specific terminal"
         },
         "destroyTerminal": {
-          "line": 845,
+          "line": 848,
           "params": [
             "terminalId"
           ],
           "purpose": "Destroy specific terminal"
         },
         "destroyAll": {
-          "line": 866,
+          "line": 869,
           "purpose": "Destroy all terminals"
         },
         "getTerminalCount": {
-          "line": 888,
+          "line": 891,
           "purpose": "Get terminal count"
         },
         "getTerminalIds": {
-          "line": 895,
+          "line": 898,
           "purpose": "Get all terminal IDs"
         },
         "hasTerminal": {
-          "line": 902,
+          "line": 905,
           "params": [
             "terminalId"
           ],
           "purpose": "Check if terminal exists"
         },
         "isClaudeActive": {
-          "line": 909,
+          "line": 912,
           "params": [
             "terminalId"
           ],
           "purpose": "Check if Claude Code is currently active in a terminal"
         },
         "waitForExit": {
-          "line": 918,
+          "line": 921,
           "params": [
             "terminalId",
             "timeoutMs"
@@ -5028,7 +5032,7 @@
           "purpose": "Returns 'exited' if the terminal process ends, or 'timeout' if the deadline passes."
         },
         "setupIPC": {
-          "line": 940,
+          "line": 943,
           "params": [
             "ipcMain"
           ],
@@ -5044,54 +5048,54 @@
           ]
         },
         "startCapturing": {
-          "line": 1098,
+          "line": 1101,
           "params": [
             "terminalId"
           ],
           "purpose": "─── Output Capture API ──────────────────────────────────────────────────────"
         },
         "stopCapturing": {
-          "line": 1103,
+          "line": 1106,
           "params": [
             "terminalId"
           ]
         },
         "registerPopoutWebContents": {
-          "line": 1110,
+          "line": 1113,
           "params": [
             "terminalId",
             "wc"
           ]
         },
         "unregisterPopoutWebContents": {
-          "line": 1115,
+          "line": 1118,
           "params": [
             "terminalId"
           ]
         },
         "addOutputHandler": {
-          "line": 1120,
+          "line": 1123,
           "params": [
             "terminalId",
             "handler"
           ]
         },
         "removeOutputHandler": {
-          "line": 1130,
+          "line": 1133,
           "params": [
             "terminalId",
             "handlerId"
           ]
         },
         "getTerminalBacklog": {
-          "line": 1145,
+          "line": 1148,
           "params": [
             "terminalId"
           ],
           "purpose": "Get the raw backlog for a terminal (used by onboardingManager for MCP analysis output)."
         }
       },
-      "loc": 1159,
+      "loc": 1162,
       "ipc": {
         "listens": [
           "GET_AVAILABLE_SHELLS",
@@ -5134,15 +5138,16 @@
         "shared/ipcChannels",
         "eventBridge",
         "settingsManager",
+        "outputChannelManager",
         "ptyManager"
       ],
       "functions": {
         "pickEnvVars": {
-          "line": 93,
+          "line": 94,
           "purpose": "── Helpers ────────────────────────────────────────────────────────────────"
         },
         "init": {
-          "line": 110,
+          "line": 111,
           "params": [
             "window",
             "app"
@@ -5150,7 +5155,7 @@
           "purpose": "Must be called after settingsManager and ptyManager are initialized."
         },
         "saveSnapshot": {
-          "line": 120,
+          "line": 122,
           "params": [
             "reason"
           ],
@@ -5160,15 +5165,15 @@
           ]
         },
         "readSnapshot": {
-          "line": 171,
+          "line": 176,
           "purpose": "Does NOT delete the file — call clearSnapshot() after successful restore."
         },
         "clearSnapshot": {
-          "line": 194,
+          "line": 201,
           "purpose": "Delete the snapshot file after successful restore."
         },
         "restoreFromSnapshot": {
-          "line": 211,
+          "line": 218,
           "purpose": "Respects user settings: restoreOnStartup, restoreScrollback, autoResumeAgent.",
           "calls": [
             "broadcast",
@@ -5178,15 +5183,15 @@
           ]
         },
         "isUpdateRestart": {
-          "line": 311,
+          "line": 323,
           "purpose": "Whether this session was started after an update (snapshot reason was 'update')."
         },
         "hasPendingSnapshot": {
-          "line": 318,
+          "line": 330,
           "purpose": "Whether a pending snapshot exists (check before restore)."
         },
         "setupIPC": {
-          "line": 325,
+          "line": 337,
           "params": [
             "ipc"
           ],
@@ -5197,7 +5202,7 @@
           ]
         }
       },
-      "loc": 349
+      "loc": 361
     },
     "main/settingsManager": {
       "file": "src\\main\\settingsManager.ts",
@@ -5689,11 +5694,12 @@
         "electron",
         "shared/ipcChannels",
         "settingsManager",
-        "eventBridge"
+        "eventBridge",
+        "outputChannelManager"
       ],
       "functions": {
         "sendStatus": {
-          "line": 31,
+          "line": 32,
           "params": [
             "status"
           ],
@@ -5703,7 +5709,7 @@
           ]
         },
         "sendProgress": {
-          "line": 40,
+          "line": 41,
           "params": [
             "progress"
           ],
@@ -5713,7 +5719,7 @@
           ]
         },
         "init": {
-          "line": 50,
+          "line": 51,
           "params": [
             "window",
             "app"
@@ -5726,43 +5732,44 @@
           ]
         },
         "reloadRenderer": {
-          "line": 150,
+          "line": 164,
           "purpose": "Returns true if reload was triggered, false if no window is available."
         },
         "setupIPC": {
-          "line": 160,
+          "line": 174,
           "params": [
             "ipc"
           ],
           "purpose": "Setup IPC handlers for updater actions.",
           "calls": [
-            "reloadRenderer"
+            "reloadRenderer",
+            "sendStatus"
           ]
         },
         "checkForUpdates": {
-          "line": 226,
+          "line": 243,
           "purpose": "In dev mode, sends a no-op status to the renderer.",
           "calls": [
             "sendStatus"
           ]
         },
         "destroy": {
-          "line": 245,
+          "line": 262,
           "purpose": "Cleanup on shutdown"
         },
         "setBeforeInstallHook": {
-          "line": 256,
+          "line": 273,
           "params": [
             "hook"
           ],
           "purpose": "Return false to defer install (e.g. to perform graceful shutdown first)."
         },
         "performQuitAndInstall": {
-          "line": 263,
+          "line": 280,
           "purpose": "Programmatically call quitAndInstall (e.g. after graceful shutdown completes)."
         }
       },
-      "loc": 270,
+      "loc": 287,
       "ipc": {
         "listens": [
           "RENDERER_RELOADED"
@@ -7741,6 +7748,7 @@
         "ui/scroll-area",
         "lib/utils",
         "hooks/usePipeline",
+        "hooks/useAgentState",
         "stores/useUIStore",
         "PipelineTimeline",
         "WorkflowEditor",
@@ -7748,21 +7756,21 @@
       ],
       "functions": {
         "formatRelativeTime": {
-          "line": 59,
+          "line": 61,
           "params": [
             "dateString"
           ],
           "purpose": "─── Utilities ───────────────────────────────────────────────────────────────"
         },
         "StatusBadge": {
-          "line": 97,
+          "line": 99,
           "params": [
             "{ status }"
           ],
           "purpose": "─── Sub-components ──────────────────────────────────────────────────────────"
         },
         "RunListItem": {
-          "line": 108,
+          "line": 110,
           "params": [
             "{\r\n  run",
             "isSelected",
@@ -7771,44 +7779,45 @@
           ]
         },
         "OverviewTab": {
-          "line": 156,
+          "line": 158,
           "params": [
             "{ run",
-            "onStageClick }"
+            "onStageClick",
+            "activeAgentSession }"
           ]
         },
         "ArtifactCard": {
-          "line": 190,
+          "line": 192,
           "params": [
             "{ artifact }"
           ]
         },
         "ContentArtifactCard": {
-          "line": 203,
+          "line": 205,
           "params": [
             "{ artifact }"
           ]
         },
         "CommentArtifactCard": {
-          "line": 216,
+          "line": 218,
           "params": [
             "{ artifact }"
           ]
         },
         "PatchArtifactSummary": {
-          "line": 238,
+          "line": 240,
           "params": [
             "{ artifact }"
           ]
         },
         "CritiqueView": {
-          "line": 263,
+          "line": 265,
           "params": [
             "{ run }"
           ]
         },
         "PatchReview": {
-          "line": 306,
+          "line": 308,
           "params": [
             "{\r\n  run",
             "onApplyPatch",
@@ -7816,23 +7825,24 @@
           ]
         },
         "PipelineLogView": {
-          "line": 373,
+          "line": 375,
           "params": [
             "{\r\n  run",
             "logs",
             "initialStageId",
+            "activeAgentSession",
             "}: {\r\n  run: PipelineRun;\r\n  logs",
-            "string[]>;\r\n  initialStageId?: string | null;\r\n}"
+            "string[]>;\r\n  initialStageId?: string | null;\r\n  activeAgentSession?: AgentSession | null;\r\n}"
           ]
         },
         "PipelinePanel": {
-          "line": 468,
+          "line": 490,
           "params": [
             "{ isFullView"
           ]
         }
       },
-      "loc": 931
+      "loc": 954
     },
     "renderer/components/PipelineTimeline": {
       "file": "src\\renderer\\components\\PipelineTimeline.tsx",
@@ -7848,27 +7858,28 @@
       ],
       "functions": {
         "formatDuration": {
-          "line": 20,
+          "line": 23,
           "params": [
             "ms"
           ]
         },
         "countFinished": {
-          "line": 30,
+          "line": 33,
           "params": [
             "stages"
           ]
         },
         "PipelineTimeline": {
-          "line": 34,
+          "line": 37,
           "params": [
             "{ stages",
             "onStageClick",
-            "compact }"
+            "compact",
+            "activeAgentSession }"
           ]
         },
         "useElapsed": {
-          "line": 114,
+          "line": 119,
           "params": [
             "startedAt",
             "isRunning"
@@ -7879,17 +7890,18 @@
           ]
         },
         "StageNode": {
-          "line": 132,
+          "line": 137,
           "params": [
             "{ stage",
             "index",
             "total",
             "prevStatus",
-            "onClick }"
+            "onClick",
+            "activeAgentSession }"
           ]
         }
       },
-      "loc": 290
+      "loc": 301
     },
     "renderer/components/PluginsPanel": {
       "file": "src\\renderer\\components\\PluginsPanel.tsx",
@@ -8532,12 +8544,12 @@
         "WorkspacePillAppearanceRow": {
           "line": 658,
           "params": [
-            "{\n  workspace",
+            "{\r\n  workspace",
             "index",
             "display",
             "highlighted",
             "onSaved",
-            "}: {\n  workspace: WorkspaceListResult['workspaces'][number];\n  index: number;\n  display: WorkspacePillDisplaySettings;\n  highlighted?: boolean;\n  onSaved"
+            "}: {\r\n  workspace: WorkspaceListResult['workspaces'][number];\r\n  index: number;\r\n  display: WorkspacePillDisplaySettings;\r\n  highlighted?: boolean;\r\n  onSaved"
           ]
         },
         "SettingsPanel": {
@@ -8558,7 +8570,7 @@
           ]
         }
       },
-      "loc": 4037,
+      "loc": 4041,
       "ipc": {
         "listens": [
           "SUBFRAME_UNINSTALLED",
@@ -9316,30 +9328,31 @@
         "react-markdown",
         "remark-gfm",
         "lib/transportProvider",
-        "lib/activityBarEvents"
+        "lib/activityBarEvents",
+        "hooks/useAgentState"
       ],
       "functions": {
         "markdownToForm": {
-          "line": 122,
+          "line": 123,
           "params": [
             "md"
           ]
         },
         "formatDate": {
-          "line": 191,
+          "line": 192,
           "params": [
             "iso"
           ]
         },
         "SortHeader": {
-          "line": 219,
+          "line": 220,
           "params": [
             "{ column",
             "label }"
           ]
         },
         "TaskActions": {
-          "line": 241,
+          "line": 242,
           "params": [
             "{\r\n  task",
             "onUpdateStatus",
@@ -9352,13 +9365,13 @@
           ]
         },
         "TasksPanel": {
-          "line": 326,
+          "line": 327,
           "params": [
             "{ isFullView"
           ]
         },
         "TaskDetail": {
-          "line": 1695,
+          "line": 1707,
           "params": [
             "{ task",
             "updateTask",
@@ -9368,7 +9381,7 @@
           ]
         }
       },
-      "loc": 1878,
+      "loc": 1890,
       "ipc": {
         "listens": [],
         "emits": [
@@ -9746,7 +9759,7 @@
           ]
         }
       },
-      "loc": 164
+      "loc": 166
     },
     "renderer/components/ViewTabBar": {
       "file": "src\\renderer\\components\\ViewTabBar.tsx",
@@ -12845,7 +12858,7 @@
         "...ipcChannels"
       ],
       "functions": {},
-      "loc": 1981
+      "loc": 2039
     },
     "shared/logoSVG": {
       "file": "src\\shared\\logoSVG.ts",

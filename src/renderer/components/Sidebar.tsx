@@ -410,6 +410,9 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Workspace selector — above tabs to establish scope hierarchy */}
+      <WorkspaceSelector />
+
       {/* Tab bar */}
       <div className="flex border-b border-border-subtle flex-shrink-0">
         {SIDEBAR_TABS.map((tab) => {
@@ -433,9 +436,6 @@ export function Sidebar() {
           );
         })}
       </div>
-
-      {/* Workspace selector — always visible above tab content */}
-      <WorkspaceSelector />
 
       {/* Tab content */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">

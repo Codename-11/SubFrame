@@ -859,6 +859,55 @@ export interface CreateGitHubIssueResult {
   url?: string;
 }
 
+/**
+ * AI tool feature/capability flags.
+ *
+ * These describe what a tool's CLI supports at the protocol level.
+ * Values are set from known defaults in AI_TOOLS and should be
+ * periodically verified against each tool's live documentation
+ * (links in `docsUrl` / `hooksDocsUrl`).
+ */
+export interface AIToolFeatures {
+  /** Tool supports a hook/event system (any hook events at all) */
+  hooks: boolean;
+  /** Supports pre-tool-use hooks (PreToolUse / BeforeTool) */
+  preToolUse: boolean;
+  /** Supports post-tool-use hooks (PostToolUse / AfterTool) */
+  postToolUse: boolean;
+  /** Supports notification hooks */
+  notification: boolean;
+  /** Supports stop / after-agent hooks */
+  stop: boolean;
+  /** Supports session start hooks */
+  sessionStart: boolean;
+  /** Supports session end hooks */
+  sessionEnd: boolean;
+  /** Supports user prompt submit / before-agent hooks */
+  userPromptSubmit: boolean;
+  /** Supports streaming structured output (stream-json / NDJSON) */
+  streamingOutput: boolean;
+  /** Supports plugins or extension system */
+  plugins: boolean;
+  /** Supports agent-based hooks (type: "agent") */
+  agentHooks: boolean;
+  /** Supports prompt-based hooks (type: "prompt") */
+  promptHooks: boolean;
+  /** Supports HTTP hooks (type: "http") */
+  httpHooks: boolean;
+  /** Supports plugin hooks (npm package discovery) */
+  pluginHooks: boolean;
+  /** Hook system maturity: 'mature' (10+), 'comprehensive' (6-9), 'early' (1-5) */
+  hookMaturity: 'mature' | 'comprehensive' | 'early' | 'none';
+  /** Streaming output CLI flag (e.g. '--output-format stream-json', '--json') */
+  streamingFlag?: string;
+  /** Hook config file location relative to project root */
+  hookConfigPath?: string;
+  /** Pre-tool hook event name in this tool's terminology */
+  preToolEventName?: string;
+  /** Post-tool hook event name in this tool's terminology */
+  postToolEventName?: string;
+}
+
 /** Individual AI tool definition */
 export interface AITool {
   id: string;
@@ -868,9 +917,18 @@ export interface AITool {
   description: string;
   commands: Record<string, string>;
   menuLabel: string;
+  /** @deprecated Use features.plugins instead */
   supportsPlugins: boolean;
+  /** Structured feature/capability flags */
+  features: AIToolFeatures;
   /** URL to install/setup page */
   installUrl?: string;
+  /** Primary documentation URL */
+  docsUrl?: string;
+  /** Hooks-specific documentation URL — check for updates periodically */
+  hooksDocsUrl?: string;
+  /** CLI reference documentation URL */
+  cliDocsUrl?: string;
   /** Whether the tool's command is available on PATH (checked at runtime) */
   installed?: boolean;
 }

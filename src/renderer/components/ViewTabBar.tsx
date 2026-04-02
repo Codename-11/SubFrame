@@ -29,6 +29,7 @@ import {
   BookMarked,
   Cpu,
   Plus,
+  MoreHorizontal,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -636,6 +637,20 @@ export function ViewTabBar() {
     window.dispatchEvent(new Event('open-workspace-create'));
   }, []);
 
+  // Keyboard navigation for workspace pills (WAI-ARIA toolbar pattern)
+  const handleWsPillKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const buttons = (e.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('button:not([disabled])');
+    const focused = document.activeElement;
+    const idx = Array.from(buttons).indexOf(focused as HTMLButtonElement);
+    if (idx < 0) return;
+    const next = e.key === 'ArrowRight'
+      ? (idx + 1) % buttons.length
+      : (idx - 1 + buttons.length) % buttons.length;
+    buttons[next].focus();
+  }, []);
+
   // Ctrl+Alt+W highlight pulse
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -803,7 +818,7 @@ export function ViewTabBar() {
             wsPulse ? 'ring-1 ring-accent/40 rounded-md bg-accent/5' : ''
           }`}
         >
-          <div className="flex items-center overflow-x-auto overflow-y-visible scrollbar-none">
+          <div className="flex items-center overflow-visible" role="toolbar" onKeyDown={handleWsPillKeyDown}>
             {/* Collapsed pills — always visible */}
           <Reorder.Group
             axis="x"
@@ -845,6 +860,12 @@ export function ViewTabBar() {
               );
             })}
           </Reorder.Group>
+          {/* Overflow hint — fades out as hidden pills animate in on hover */}
+          {needsExpand && (
+            <span className="flex items-center text-text-muted opacity-50 group-hover/ws-pills:opacity-0 transition-opacity duration-200 pointer-events-none mx-0.5">
+              <MoreHorizontal className="w-3 h-3" />
+            </span>
+          )}
           </div>
           {/* Add workspace button */}
           <TooltipProvider delayDuration={400}>

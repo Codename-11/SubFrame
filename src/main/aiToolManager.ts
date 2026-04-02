@@ -7,25 +7,12 @@ import { ipcMain, type App, type BrowserWindow, type IpcMain } from 'electron';
 import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { IPC } from '../shared/ipcChannels';
+import { IPC, type AITool, type AIToolFeatures } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
 import type { RoutableIPC } from './ipcRouter';
 
 interface AIToolCommands {
   [key: string]: string;
-}
-
-interface AITool {
-  id: string;
-  name: string;
-  command: string;
-  fallbackCommand?: string;
-  description: string;
-  commands: AIToolCommands;
-  menuLabel: string;
-  supportsPlugins: boolean;
-  installUrl?: string;
-  installed?: boolean;
 }
 
 interface AIToolConfig {
@@ -42,6 +29,83 @@ let mainWindow: BrowserWindow | null = null;
 let configPath: string | null = null;
 let onToolChanged: (() => void) | null = null;
 
+/**
+ * Default feature flags for each built-in AI tool.
+ *
+ * IMPORTANT: These capabilities change frequently as tools release updates.
+ * Verify against live documentation before relying on a flag:
+ *   Claude — https://code.claude.com/docs/en/hooks
+ *   Codex  — https://developers.openai.com/codex/hooks
+ *   Gemini — https://geminicli.com/docs/hooks/reference/
+ *
+ * Last verified: 2026-03-31
+ */
+const CLAUDE_FEATURES: AIToolFeatures = {
+  hooks: true,
+  preToolUse: true,
+  postToolUse: true,
+  notification: true,
+  stop: true,
+  sessionStart: true,
+  sessionEnd: true,
+  userPromptSubmit: true,
+  streamingOutput: true,
+  plugins: true,
+  agentHooks: true,
+  promptHooks: true,
+  httpHooks: true,
+  pluginHooks: false,
+  hookMaturity: 'mature',
+  streamingFlag: '--output-format stream-json',
+  hookConfigPath: '.claude/settings.json',
+  preToolEventName: 'PreToolUse',
+  postToolEventName: 'PostToolUse',
+};
+
+const CODEX_FEATURES: AIToolFeatures = {
+  hooks: true,
+  preToolUse: true,
+  postToolUse: true,
+  notification: false,
+  stop: true,
+  sessionStart: true,
+  sessionEnd: false,
+  userPromptSubmit: true,
+  streamingOutput: true,
+  plugins: false,
+  agentHooks: false,
+  promptHooks: false,
+  httpHooks: false,
+  pluginHooks: false,
+  hookMaturity: 'early',
+  streamingFlag: '--json',
+  hookConfigPath: '.codex/hooks.json',
+  preToolEventName: 'PreToolUse',
+  postToolEventName: 'PostToolUse',
+};
+
+const GEMINI_FEATURES: AIToolFeatures = {
+  hooks: true,
+  preToolUse: true,
+  postToolUse: true,
+  notification: true,
+  stop: true,
+  sessionStart: true,
+  sessionEnd: true,
+  userPromptSubmit: true,
+  streamingOutput: true,
+  plugins: false,
+  agentHooks: false,
+  promptHooks: false,
+  httpHooks: false,
+  pluginHooks: true,
+  hookMaturity: 'comprehensive',
+  streamingFlag: '--output-format stream-json',
+  hookConfigPath: 'settings.json',
+  preToolEventName: 'BeforeTool',
+  postToolEventName: 'AfterTool',
+};
+
 // Default AI tools configuration
 const AI_TOOLS: Record<string, AITool> = {
   claude: {
@@ -57,7 +121,11 @@ const AI_TOOLS: Record<string, AITool> = {
     },
     menuLabel: 'Claude Commands',
     supportsPlugins: true,
-    installUrl: 'https://docs.anthropic.com/en/docs/claude-code/overview'
+    features: CLAUDE_FEATURES,
+    installUrl: 'https://docs.anthropic.com/en/docs/claude-code/overview',
+    docsUrl: 'https://code.claude.com/docs/en/hooks-guide',
+    hooksDocsUrl: 'https://code.claude.com/docs/en/hooks',
+    cliDocsUrl: 'https://code.claude.com/docs/en/cli',
   },
   codex: {
     id: 'codex',
@@ -72,7 +140,11 @@ const AI_TOOLS: Record<string, AITool> = {
     },
     menuLabel: 'Codex Commands',
     supportsPlugins: false,
-    installUrl: 'https://github.com/openai/codex'
+    features: CODEX_FEATURES,
+    installUrl: 'https://github.com/openai/codex',
+    docsUrl: 'https://developers.openai.com/codex/cli',
+    hooksDocsUrl: 'https://developers.openai.com/codex/hooks',
+    cliDocsUrl: 'https://developers.openai.com/codex/cli/reference',
   },
   gemini: {
     id: 'gemini',
@@ -89,7 +161,11 @@ const AI_TOOLS: Record<string, AITool> = {
     },
     menuLabel: 'Gemini Commands',
     supportsPlugins: false,
-    installUrl: 'https://github.com/google-gemini/gemini-cli'
+    features: GEMINI_FEATURES,
+    installUrl: 'https://github.com/google-gemini/gemini-cli',
+    docsUrl: 'https://geminicli.com/docs/',
+    hooksDocsUrl: 'https://geminicli.com/docs/hooks/reference/',
+    cliDocsUrl: 'https://geminicli.com/docs/',
   }
 };
 
@@ -296,12 +372,19 @@ async function getConfig(): Promise<AIToolConfigResponse> {
  */
 function addCustomTool(tool: Partial<AITool> & { id: string; name: string; command: string }): boolean {
   if (tool.id && tool.name && tool.command) {
+    const defaultFeatures: AIToolFeatures = {
+      hooks: false, preToolUse: false, postToolUse: false, notification: false,
+      stop: false, sessionStart: false, sessionEnd: false, userPromptSubmit: false,
+      streamingOutput: false, plugins: false, agentHooks: false, promptHooks: false,
+      httpHooks: false, pluginHooks: false, hookMaturity: 'none',
+    };
     config.customTools[tool.id] = {
       ...tool,
       description: tool.description || '',
       commands: tool.commands || {},
       menuLabel: tool.menuLabel || `${tool.name} Commands`,
-      supportsPlugins: tool.supportsPlugins || false
+      supportsPlugins: tool.supportsPlugins || false,
+      features: tool.features || defaultFeatures,
     };
     saveConfig();
     return true;

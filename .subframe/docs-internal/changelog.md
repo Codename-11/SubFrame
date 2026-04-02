@@ -6,6 +6,16 @@ Notable changes grouped by date and domain.
 
 ## [Unreleased]
 
+### AI Tool Capabilities Model & Pipeline Status Feedback (2026-03-31)
+
+- **`AIToolFeatures` type added to shared IPC types** — replaces the single `supportsPlugins` boolean with a structured 18-field capability map covering hooks, streaming output, hook maturity, event names, config paths, and doc URLs. Defined in `ipcChannels.ts`, consumed everywhere via the existing `AITool` interface.
+- **Per-tool feature defaults** — `CLAUDE_FEATURES`, `CODEX_FEATURES`, `GEMINI_FEATURES` constants in `aiToolManager.ts` with verified data (last checked 2026-03-31). Includes `docsUrl`, `hooksDocsUrl`, `cliDocsUrl` on each tool for live verification.
+- **Agent state wired into Pipeline UI** — `PipelineTimeline` running stages now show the active agent's current tool name (e.g. "Read", "Edit") below the elapsed timer. `PipelinePanel` log view shows a live status bar with pulsing indicator + tool name + step count when hook data is available.
+- **Agent status during task enhance** — the AI Enhance button in `TasksPanel` now shows a compact agent activity indicator with current tool name while enhancement is running.
+- **Internal docs reference** — `.subframe/docs-internal/refs/ai-tool-capabilities.md` with full hook event matrix, feature support matrix, streaming output flags, and ACP integration notes for all three tools.
+- **CLAUDE.md guidance** — new "AI Tool Capabilities" section with live doc links and instruction to always verify against current docs before assuming capabilities. Added to "Keeping Docs in Sync" table.
+- **menu.ts cleanup** — removed duplicate `AITool` interface, now imports from shared `ipcChannels.ts`.
+
 ### AI Session Runtime Parity (2026-03-26)
 
 - **Shared AI sessions now complete on explicit structured-result markers** — task enhancement and pipeline AI stages no longer wait for a shell prompt that interactive tools may never return to. Their prompts are wrapped with per-run start/end markers, and the live session runner completes as soon as that marked result arrives.
