@@ -172,6 +172,26 @@ function getFileExtension(filePath: string): string {
 }
 
 /**
+ * Resolve and validate that a target path lives inside the project directory.
+ * Returns the normalised absolute path, or null if the path escapes.
+ */
+function safeResolvePath(filePath: string): string | null {
+  try {
+    return path.resolve(filePath);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check whether a path (or any ancestor) is a .git directory.
+ */
+function isInsideGitDir(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, '/');
+  return normalized.includes('/.git/') || normalized.endsWith('/.git') || normalized.split('/').includes('.git');
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIPC(ipcMain: IpcMain): void {
@@ -190,6 +210,72 @@ function setupIPC(ipcMain: IpcMain): void {
   ipcMain.on(IPC.READ_FILE_IMAGE, (event, filePath: string) => {
     const result = readImageFile(filePath);
     event.sender.send(IPC.IMAGE_CONTENT, result);
+  });
+
+  // ── File CRUD (invoke/handle) ──────────────────────────────────────────────
+
+  ipcMain.handle(IPC.CREATE_FILE, (_event, { filePath, content }: { filePath: string; content?: string }) => {
+    try {
+      const resolved = safeResolvePath(filePath);
+      if (!resolved) return { success: false, error: 'Invalid file path' };
+      if (isInsideGitDir(resolved)) return { success: false, error: 'Cannot create files inside .git directory' };
+      if (fs.existsSync(resolved)) return { success: false, error: 'File already exists' };
+      // Ensure parent directory exists
+      const parentDir = path.dirname(resolved);
+      fs.mkdirSync(parentDir, { recursive: true });
+      fs.writeFileSync(resolved, content ?? '', 'utf8');
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.CREATE_DIRECTORY, (_event, { dirPath }: { dirPath: string }) => {
+    try {
+      const resolved = safeResolvePath(dirPath);
+      if (!resolved) return { success: false, error: 'Invalid directory path' };
+      if (isInsideGitDir(resolved)) return { success: false, error: 'Cannot create directories inside .git directory' };
+      if (fs.existsSync(resolved)) return { success: false, error: 'Directory already exists' };
+      fs.mkdirSync(resolved, { recursive: true });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.RENAME_FILE, (_event, { oldPath, newPath }: { oldPath: string; newPath: string }) => {
+    try {
+      const resolvedOld = safeResolvePath(oldPath);
+      const resolvedNew = safeResolvePath(newPath);
+      if (!resolvedOld || !resolvedNew) return { success: false, error: 'Invalid file path' };
+      if (isInsideGitDir(resolvedOld)) return { success: false, error: 'Cannot rename files inside .git directory' };
+      if (isInsideGitDir(resolvedNew)) return { success: false, error: 'Cannot move files into .git directory' };
+      if (!fs.existsSync(resolvedOld)) return { success: false, error: 'Source file does not exist' };
+      if (fs.existsSync(resolvedNew)) return { success: false, error: 'A file with that name already exists' };
+      fs.renameSync(resolvedOld, resolvedNew);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.DELETE_FILE, (_event, { filePath, isDirectory }: { filePath: string; isDirectory: boolean }) => {
+    try {
+      const resolved = safeResolvePath(filePath);
+      if (!resolved) return { success: false, error: 'Invalid file path' };
+      if (isInsideGitDir(resolved)) return { success: false, error: 'Cannot delete files inside .git directory' };
+      // Prevent deleting the .git directory itself
+      if (path.basename(resolved) === '.git') return { success: false, error: 'Cannot delete the .git directory' };
+      if (!fs.existsSync(resolved)) return { success: false, error: 'File does not exist' };
+      if (isDirectory) {
+        fs.rmSync(resolved, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(resolved);
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
   });
 }
 
