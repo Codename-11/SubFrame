@@ -196,6 +196,10 @@ export function Sidebar() {
           if (activeTerminalId && isCurrentProject) {
             const isAgentRunning = await typedInvoke(IPC.IS_TERMINAL_CLAUDE_ACTIVE, activeTerminalId);
             if (!isAgentRunning) {
+              // Brief delay so the user can release modifier keys from the shortcut
+              // (Ctrl+Shift+Enter). On Windows, ConPTY can interpret 'c' as Ctrl+C if
+              // the physical Ctrl key is still held when the first byte reaches the shell.
+              await new Promise(resolve => setTimeout(resolve, 80));
               // Reuse existing idle terminal — just send the command
               getTransport().send(IPC.TERMINAL_INPUT_ID, {
                 terminalId: activeTerminalId,
