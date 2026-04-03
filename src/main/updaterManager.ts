@@ -194,19 +194,14 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
     }
   });
 
-  if (!isPackaged) {
-    // Dev mode stubs — return safe defaults
-    ipc.handle(IPC.UPDATER_CHECK, () => ({
-      updateAvailable: false,
-    }));
-    ipc.handle(IPC.UPDATER_DOWNLOAD, () => {});
-    ipc.handle(IPC.UPDATER_INSTALL, () => {});
-    return;
-  }
-
-  const { autoUpdater } = require('electron-updater');
+  // NOTE: setupIPC() is called BEFORE init() sets isPackaged, so we cannot
+  // branch on isPackaged here — the flag is still false at registration time.
+  // Instead, each handler checks isPackaged at invocation time (by which point
+  // init() has run and the flag is correct).
 
   ipc.handle(IPC.UPDATER_CHECK, async () => {
+    if (!isPackaged) return { updateAvailable: false };
+    const { autoUpdater } = require('electron-updater');
     try {
       isManualCheck = true;
       const result = await autoUpdater.checkForUpdates();
@@ -227,6 +222,8 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
   });
 
   ipc.handle(IPC.UPDATER_DOWNLOAD, async () => {
+    if (!isPackaged) return;
+    const { autoUpdater } = require('electron-updater');
     try {
       outputLog('system', 'Starting update download...');
       sendStatus({ status: 'downloading', manual: true });
@@ -241,6 +238,8 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
   });
 
   ipc.handle(IPC.UPDATER_INSTALL, () => {
+    if (!isPackaged) return;
+    const { autoUpdater } = require('electron-updater');
     // If a before-install hook is set and returns false, defer to graceful shutdown
     if (beforeInstallHook && !beforeInstallHook()) {
       return;
