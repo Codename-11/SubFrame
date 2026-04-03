@@ -955,6 +955,11 @@ export function ViewTabBar() {
                   role="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    // Guard: confirm before closing a dirty editor tab
+                    if (isDirty) {
+                      const fileName = tab.label || 'this file';
+                      if (!window.confirm(`"${fileName}" has unsaved changes. Close anyway?`)) return;
+                    }
                     closeTab(tab.id);
                   }}
                   className={`ml-1 p-0.5 rounded hover:bg-bg-tertiary transition-colors ${

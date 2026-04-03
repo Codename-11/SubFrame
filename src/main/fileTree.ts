@@ -233,17 +233,21 @@ function startWatcher(projectPath: string): void {
     }
   }
 
-  activeWatcher = chokidar.watch(projectPath, {
-    ignoreInitial: true,
-    ignored: ignoredPaths,
-    depth: 20,
-    // Don't follow symlinks by default
-    followSymlinks: false,
-    // Use polling fallback on Windows for reliability
-    usePolling: false,
-    // Ignore permission errors gracefully
-    ignorePermissionErrors: true,
-  });
+  try {
+    activeWatcher = chokidar.watch(projectPath, {
+      ignoreInitial: true,
+      ignored: ignoredPaths,
+      depth: 20,
+      followSymlinks: false,
+      usePolling: false,
+      ignorePermissionErrors: true,
+    });
+  } catch (err) {
+    console.error('[FileTree] Failed to start watcher:', err instanceof Error ? err.message : String(err));
+    activeProjectPath = null;
+    activeWatcher = null;
+    return;
+  }
 
   const emitChange = (event: string, filePath: string) => {
     if (!activeProjectPath) return;

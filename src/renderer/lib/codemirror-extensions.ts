@@ -447,8 +447,10 @@ export function getCssLinter(): Extension {
         if (inString) {
           if (ch === '\\') { i++; continue; } // skip escaped char
           if (ch === inString) inString = null;
-          else if (ch === '\n' && inString !== '`') {
+          else if ((ch === '\n' || ch === '\r') && inString !== '`') {
             // Unterminated string (newline inside single/double quote)
+            // Check for \r\n to avoid double-reporting
+            if (ch === '\r' && text[i + 1] === '\n') i++;
             diagnostics.push({
               from: i,
               to: Math.min(i + 1, docLen),
@@ -535,81 +537,135 @@ export function getCssLinter(): Extension {
 /**
  * Returns a linter extension that validates HTML for common issues:
  * mismatched tags and unclosed tags.
+ *
+ * Uses a character-level scanner to properly handle:
+ * - Quoted attributes containing `>` characters
+ * - HTML comments (<!-- ... -->)
+ * - Script/style tag contents (skipped entirely)
  */
 export function getHtmlLinter(): Extension {
-  // Void elements that don't need closing tags
   const VOID_ELEMENTS = new Set([
     'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
     'link', 'meta', 'param', 'source', 'track', 'wbr',
   ]);
+  // Tags whose content is raw text (not parsed as HTML)
+  const RAW_TEXT_TAGS = new Set(['script', 'style', 'textarea']);
 
   return linter((view) => {
     const diagnostics: Diagnostic[] = [];
     const text = view.state.doc.toString();
-
     if (text.trim().length === 0) return diagnostics;
 
     try {
-      const docLen = view.state.doc.length;
-      // Stack of open tags: { tag, from }
+      const docLen = text.length;
       const stack: { tag: string; from: number }[] = [];
+      let i = 0;
 
-      // Match opening and closing tags
-      const tagPattern = /<\/?([a-zA-Z][a-zA-Z0-9-]*)\b[^>]*?\/?>/g;
-      let match: RegExpExecArray | null;
+      while (i < docLen) {
+        // Skip HTML comments: <!-- ... -->
+        if (text[i] === '<' && text.startsWith('<!--', i)) {
+          const end = text.indexOf('-->', i + 4);
+          i = end >= 0 ? end + 3 : docLen;
+          continue;
+        }
 
-      while ((match = tagPattern.exec(text)) !== null) {
-        const fullMatch = match[0];
-        const tagName = match[1].toLowerCase();
-        const pos = match.index;
+        // Skip doctype: <!DOCTYPE ...>
+        if (text[i] === '<' && text.startsWith('<!', i) && !text.startsWith('<!--', i)) {
+          const end = text.indexOf('>', i + 2);
+          i = end >= 0 ? end + 1 : docLen;
+          continue;
+        }
 
-        // Skip void elements and self-closing tags
-        if (VOID_ELEMENTS.has(tagName) || fullMatch.endsWith('/>')) continue;
+        // Detect tag start
+        if (text[i] === '<' && i + 1 < docLen && (text[i + 1] === '/' || /[a-zA-Z]/.test(text[i + 1]))) {
+          const tagStart = i;
+          const isClosing = text[i + 1] === '/';
+          const nameStart = isClosing ? i + 2 : i + 1;
 
-        // Skip comments, doctype, script/style content detection is complex —
-        // we keep it simple and just track open/close tags
-        if (fullMatch.startsWith('</')) {
-          // Closing tag
-          if (stack.length === 0) {
-            diagnostics.push({
-              from: pos,
-              to: Math.min(pos + fullMatch.length, docLen),
-              severity: 'error',
-              message: `Closing tag </${tagName}> has no matching opening tag`,
-            });
-          } else if (stack[stack.length - 1].tag === tagName) {
-            stack.pop();
-          } else {
-            // Look for the matching tag deeper in the stack
-            const idx = stack.map(s => s.tag).lastIndexOf(tagName);
-            if (idx >= 0) {
-              // All tags between idx+1 and stack.length-1 are unclosed
-              for (let i = stack.length - 1; i > idx; i--) {
-                const unclosed = stack[i];
-                diagnostics.push({
-                  from: unclosed.from,
-                  to: Math.min(unclosed.from + unclosed.tag.length + 2, docLen),
-                  severity: 'warning',
-                  message: `Tag <${unclosed.tag}> is not closed before </${tagName}>`,
-                });
-              }
-              stack.splice(idx); // remove from idx to end
+          // Extract tag name
+          let nameEnd = nameStart;
+          while (nameEnd < docLen && /[a-zA-Z0-9-]/.test(text[nameEnd])) nameEnd++;
+          if (nameEnd === nameStart) { i++; continue; } // not a valid tag
+
+          const tagName = text.slice(nameStart, nameEnd).toLowerCase();
+
+          // Scan to closing `>`, respecting quoted attributes
+          let j = nameEnd;
+          let selfClosing = false;
+          while (j < docLen && text[j] !== '>') {
+            if (text[j] === '"' || text[j] === "'") {
+              const quote = text[j];
+              j++;
+              while (j < docLen && text[j] !== quote) j++;
+              if (j < docLen) j++; // skip closing quote
             } else {
+              if (text[j] === '/' && j + 1 < docLen && text[j + 1] === '>') {
+                selfClosing = true;
+              }
+              j++;
+            }
+          }
+          if (j < docLen) j++; // skip >
+          i = j;
+
+          // Skip void and self-closing tags
+          if (VOID_ELEMENTS.has(tagName) || selfClosing) continue;
+
+          if (isClosing) {
+            // Closing tag
+            if (stack.length === 0) {
               diagnostics.push({
-                from: pos,
-                to: Math.min(pos + fullMatch.length, docLen),
+                from: tagStart,
+                to: Math.min(j, docLen),
                 severity: 'error',
                 message: `Closing tag </${tagName}> has no matching opening tag`,
               });
+            } else if (stack[stack.length - 1].tag === tagName) {
+              stack.pop();
+            } else {
+              const idx = stack.map(s => s.tag).lastIndexOf(tagName);
+              if (idx >= 0) {
+                for (let k = stack.length - 1; k > idx; k--) {
+                  const unclosed = stack[k];
+                  diagnostics.push({
+                    from: unclosed.from,
+                    to: Math.min(unclosed.from + unclosed.tag.length + 2, docLen),
+                    severity: 'warning',
+                    message: `Tag <${unclosed.tag}> is not closed before </${tagName}>`,
+                  });
+                }
+                stack.splice(idx); // remove matched + everything above
+              } else {
+                diagnostics.push({
+                  from: tagStart,
+                  to: Math.min(j, docLen),
+                  severity: 'error',
+                  message: `Closing tag </${tagName}> has no matching opening tag`,
+                });
+              }
+            }
+          } else {
+            // Opening tag
+            stack.push({ tag: tagName, from: tagStart });
+
+            // Skip raw text content for script/style/textarea
+            if (RAW_TEXT_TAGS.has(tagName)) {
+              const closeTag = `</${tagName}`;
+              const closeIdx = text.toLowerCase().indexOf(closeTag, i);
+              if (closeIdx >= 0) {
+                i = closeIdx; // will be parsed as closing tag on next iteration
+              } else {
+                i = docLen; // no closing tag found — will be reported as unclosed
+              }
             }
           }
-        } else {
-          // Opening tag
-          stack.push({ tag: tagName, from: pos });
+          continue;
         }
+
+        i++;
       }
 
-      // Any remaining tags on the stack are unclosed
+      // Remaining unclosed tags
       for (const unclosed of stack) {
         diagnostics.push({
           from: unclosed.from,

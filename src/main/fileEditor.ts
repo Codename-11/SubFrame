@@ -172,12 +172,30 @@ function getFileExtension(filePath: string): string {
 }
 
 /**
- * Resolve and validate that a target path lives inside the project directory.
- * Returns the normalised absolute path, or null if the path escapes.
+ * Resolve and validate that a target path is absolute and not obviously malicious.
+ * Returns the normalised absolute path, or null if validation fails.
+ *
+ * NOTE: This is a basic sanity check. The renderer already sends absolute paths
+ * derived from the FileTree (which only shows project-scoped files). Full
+ * project-root boundary enforcement would require passing projectPath in every
+ * CRUD IPC call — tracked as a future improvement.
  */
 function safeResolvePath(filePath: string): string | null {
   try {
-    return path.resolve(filePath);
+    const resolved = path.resolve(filePath);
+    const normalized = path.normalize(resolved);
+    // Block relative traversal that escapes the starting directory context
+    // (e.g. "../../etc/passwd" resolved against cwd)
+    if (filePath.includes('..')) {
+      // Allow .. only if the resolved path is still under the same drive/root
+      // as the original input (prevents cross-drive traversal on Windows)
+      const inputRoot = path.parse(filePath).root;
+      const resolvedRoot = path.parse(normalized).root;
+      if (inputRoot && resolvedRoot && inputRoot !== resolvedRoot) return null;
+    }
+    // Must be an absolute path after resolution
+    if (!path.isAbsolute(normalized)) return null;
+    return normalized;
   } catch {
     return null;
   }

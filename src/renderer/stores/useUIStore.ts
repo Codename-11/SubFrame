@@ -409,31 +409,30 @@ export const useUIStore = create<UIState>((set, get) => ({
       } catch { /* ignore */ }
 
       if (openInTabs) {
-        // Add as a ViewTabBar tab
-        const tabId = makeEditorTabId(path);
-        const { editorOpenFiles } = get();
-        let { openTabs } = get();
-
-        if (!openTabs.some(t => t.id === tabId)) {
-          openTabs = [...openTabs, { id: tabId, label: basename(path), closable: true }];
-        }
-
-        const nextEditorFiles = editorOpenFiles.includes(path)
-          ? editorOpenFiles
-          : [...editorOpenFiles, path];
-
-        set({
-          openTabs,
-          fullViewContent: null, // Clear any active full-view panel
-          editorOpenFiles: nextEditorFiles,
-          activeEditorFile: path,
-          editorFilePath: path,
+        // Add as a ViewTabBar tab — use set() callback for atomic read+write
+        // to prevent duplicate entries from rapid double-clicks
+        set((state) => {
+          const tabId = makeEditorTabId(path);
+          const nextTabs = state.openTabs.some(t => t.id === tabId)
+            ? state.openTabs
+            : [...state.openTabs, { id: tabId, label: basename(path), closable: true }];
+          const nextEditorFiles = state.editorOpenFiles.includes(path)
+            ? state.editorOpenFiles
+            : [...state.editorOpenFiles, path];
+          persistTabs(nextTabs);
+          return {
+            openTabs: nextTabs,
+            fullViewContent: null,
+            editorOpenFiles: nextEditorFiles,
+            activeEditorFile: path,
+            editorFilePath: path,
+          };
         });
-        persistTabs(openTabs);
         return;
       }
     }
-    set({ editorFilePath: path });
+    // path is null — clear editor state (overlay close, etc.)
+    set({ editorFilePath: null, activeEditorFile: null });
   },
 
   // Editor tabs (tab view mode)

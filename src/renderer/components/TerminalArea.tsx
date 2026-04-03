@@ -620,17 +620,28 @@ export function TerminalArea() {
         let nextOpenTabs = uiStore.openTabs.filter(t => !isEditorTab(t.id));
 
         if (session.editorOpenFiles && session.editorOpenFiles.length > 0) {
-          for (const fp of session.editorOpenFiles) {
+          // Filter to files that are within the current project (prevents cross-project ghost tabs).
+          // Normalise separators for comparison.
+          const normProject = (currentProjectPath ?? '').replace(/\\/g, '/');
+          const validFiles = session.editorOpenFiles.filter((fp) => {
+            const norm = fp.replace(/\\/g, '/');
+            return normProject && norm.startsWith(normProject);
+          });
+
+          for (const fp of validFiles) {
             const tabId = makeEditorTabId(fp);
             if (!nextOpenTabs.some(t => t.id === tabId)) {
               const fileName = fp.replace(/\\/g, '/').split('/').pop() ?? fp;
               nextOpenTabs = [...nextOpenTabs, { id: tabId, label: fileName, closable: true }];
             }
           }
+          const validActive = session.activeEditorFile && validFiles.includes(session.activeEditorFile)
+            ? session.activeEditorFile
+            : (validFiles[0] ?? null);
           useUIStore.setState({
-            editorOpenFiles: session.editorOpenFiles,
-            activeEditorFile: session.activeEditorFile ?? null,
-            editorFilePath: session.activeEditorFile ?? null,
+            editorOpenFiles: validFiles,
+            activeEditorFile: validActive,
+            editorFilePath: validActive,
             openTabs: nextOpenTabs,
             dirtyEditorFiles: new Set<string>(),
           });

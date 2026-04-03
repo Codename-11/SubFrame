@@ -410,16 +410,25 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     const copyName = `${baseName} (copy)${ext}`;
     const copyPath = `${parentDir}/${copyName}`;
 
-    // Read original file content first
-    const content = await new Promise<string>((resolve) => {
-      const unsub = getTransport().on(IPC.FILE_CONTENT, (_event: unknown, data: { content?: string; filePath: string }) => {
-        if (data.filePath === filePath) {
-          unsub();
-          resolve(data.content ?? '');
-        }
-      });
-      getTransport().send(IPC.READ_FILE, filePath);
+    // Read original file content first (with timeout to prevent hanging)
+    const content = await Promise.race([
+      new Promise<string>((resolve) => {
+        const unsub = getTransport().on(IPC.FILE_CONTENT, (_event: unknown, data: { content?: string; filePath: string }) => {
+          if (data.filePath === filePath) {
+            unsub();
+            resolve(data.content ?? '');
+          }
+        });
+        getTransport().send(IPC.READ_FILE, filePath);
+      }),
+      new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error('Read timeout')), 5000)
+      ),
+    ]).catch((err) => {
+      toast.error(`Failed to read file: ${(err as Error).message}`);
+      return null;
     });
+    if (content === null) return;
 
     const result = await getTransport().invoke(IPC.CREATE_FILE, { filePath: copyPath, content });
     if (result.success) {
@@ -453,6 +462,7 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
 
   const collapseAll = useCallback(() => {
     setExpandedPaths(new Set());
+    setLoadingPaths(new Set());
   }, []);
 
   const handleInlineInputConfirm = useCallback((value: string) => {
