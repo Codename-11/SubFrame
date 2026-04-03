@@ -571,6 +571,15 @@ export function ViewTabBar() {
         toast.error('Failed to deactivate workspace');
       } finally {
         setWsSwitching(false);
+        // Safety: Radix modal menus add pointer-events:none to <body> while open.
+        // If the workspace pill (context menu trigger) unmounts before the menu's
+        // close animation completes, that style can be orphaned — blocking all UI
+        // interaction. Schedule a cleanup after animations settle.
+        setTimeout(() => {
+          if (document.body.style.pointerEvents === 'none') {
+            document.body.style.pointerEvents = '';
+          }
+        }, 300);
       }
       return;
     }
@@ -581,6 +590,13 @@ export function ViewTabBar() {
       toast.success('Workspace deactivated');
     } catch {
       toast.error('Failed to deactivate workspace');
+    } finally {
+      // Safety: same pointer-events cleanup as above
+      setTimeout(() => {
+        if (document.body.style.pointerEvents === 'none') {
+          document.body.style.pointerEvents = '';
+        }
+      }, 300);
     }
   }, [refetchWorkspaces, wsParsed, wsReordering, wsSwitching, wsWorkspaces]);
 

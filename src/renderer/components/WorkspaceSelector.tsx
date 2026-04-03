@@ -290,6 +290,12 @@ export function WorkspaceSelector() {
       toast.error('Failed to delete workspace');
     } finally {
       setLoading(false);
+      // Safety: restore body pointer-events (Radix modal menu cleanup)
+      setTimeout(() => {
+        if (document.body.style.pointerEvents === 'none') {
+          document.body.style.pointerEvents = '';
+        }
+      }, 300);
     }
     setDeleteTarget(null);
   }, [deleteTarget, refetch, loading]);
@@ -360,6 +366,14 @@ export function WorkspaceSelector() {
         toast.error('Failed to deactivate workspace');
       } finally {
         setLoading(false);
+        // Safety: Radix modal menus add pointer-events:none to <body> while open.
+        // If the menu trigger unmounts (workspace removed from list) before the
+        // close animation completes, that style can be orphaned — blocking all UI.
+        setTimeout(() => {
+          if (document.body.style.pointerEvents === 'none') {
+            document.body.style.pointerEvents = '';
+          }
+        }, 300);
       }
       return;
     }
@@ -374,6 +388,12 @@ export function WorkspaceSelector() {
       toast.error('Failed to update workspace');
     } finally {
       setLoading(false);
+      // Safety: same pointer-events cleanup
+      setTimeout(() => {
+        if (document.body.style.pointerEvents === 'none') {
+          document.body.style.pointerEvents = '';
+        }
+      }, 300);
     }
   }, [workspaces, activeWorkspaces, loading, refetch]);
 

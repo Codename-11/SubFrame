@@ -540,17 +540,21 @@ export function Terminal({ terminalId, className }: TerminalProps) {
       }
 
       // Pass app-level shortcuts through (return false = SubFrame handles, not terminal)
+      // IMPORTANT: preventDefault() is required even though we return false.
+      // Returning false tells xterm to skip key processing, but without preventDefault()
+      // the browser's default action (textarea input) still fires, leaking characters
+      // to the PTY — causing terminal bells and swallowed first-characters on AI launch.
       // Ctrl+Shift+* combos are always SubFrame shortcuts (panels, new terminal, etc.)
-      if (modKey && event.shiftKey) return false;
+      if (modKey && event.shiftKey) { event.preventDefault(); return false; }
       // Ctrl+1-9: switch terminal tabs
-      if (modKey && event.key >= '1' && event.key <= '9') return false;
+      if (modKey && event.key >= '1' && event.key <= '9') { event.preventDefault(); return false; }
       // Ctrl+B: toggle sidebar | Ctrl+G: toggle grid | Ctrl+K: command palette
-      if (modKey && !event.shiftKey && key === 'b') return false;
-      if (modKey && !event.shiftKey && key === 'g') return false;
-      if (modKey && key === 'k') return false;
+      if (modKey && !event.shiftKey && key === 'b') { event.preventDefault(); return false; }
+      if (modKey && !event.shiftKey && key === 'g') { event.preventDefault(); return false; }
+      if (modKey && key === 'k') { event.preventDefault(); return false; }
       // Ctrl+[/]: project switching | Ctrl+Tab: terminal switching
-      if (modKey && (event.key === '[' || event.key === ']')) return false;
-      if (modKey && event.key === 'Tab') return false;
+      if (modKey && (event.key === '[' || event.key === ']')) { event.preventDefault(); return false; }
+      if (modKey && event.key === 'Tab') { event.preventDefault(); return false; }
       // Note: Ctrl+T, Ctrl+I, Ctrl+H, Ctrl+E pass through to the terminal
       // so Claude Code's native shortcuts (task toggle, etc.) work
 
