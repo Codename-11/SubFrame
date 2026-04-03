@@ -1,22 +1,13 @@
-Fixes workspace pill scrollbar glitches, terminal bell on first input, and adds UI/UX polish across the workspace and terminal systems.
+Stability release focused on fixing the updater download toast lifecycle, filling the nearly-empty Output panel with meaningful system logs, and improving editor keyboard handling.
 
 ## What's Changed
 
 ### Bug Fixes
-- **Workspace pill scrollbar** — Vertical and horizontal scrollbars no longer appear on the workspace pill container. Root cause was a CSS spec quirk where `overflow-y: visible` computes as `auto` when the other axis is `auto`.
-- **Terminal bell on first input** — Bell sound now suppressed by default (opt-in via Settings). Previously, async settings load could leave the bell handler unregistered, causing beeps from shell OSC sequences.
-- **Multi-project workspace mixing** — Workspaces with multiple directories now default to combined terminal view. No more clicking "Mix" every time you switch workspaces.
+- **Updater toast download flow** — Clicking "Download" on the update notification no longer silently dismisses the toast. Fixed three independent root causes: sonner action auto-dismiss race condition, TanStack Query mutation identity churn causing spurious effect re-runs, and updater status loss after renderer hot-reloads
+- **Editor F11 fullscreen toggle** — Global keydown listener for fullscreen no longer tears down and re-registers on every settings mutation, eliminating brief gaps where the shortcut wouldn't respond
+- **SystemPanel layout** — Refactored to sidebar-nav settings layout with categorical grouping
 
-### UI/UX Improvements
-- **Workspace pill overflow indicator** — Ellipsis icon appears when hidden pills exist, fades out as they animate in on hover.
-- **Workspace pill keyboard navigation** — ArrowLeft/Right cycles focus between pills (WAI-ARIA toolbar pattern).
-- **Terminal tab rename buttons** — Confirm and cancel buttons alongside rename input for pointer/touch users.
-- **Terminal creation loading state** — Spinner replaces empty state during creation; New Terminal button shows loading indicator and prevents double-clicks.
-- **Grid overflow badge** — Readable "overflow" text badge replaces the barely-visible dot on terminals exceeding grid capacity.
-- **Project badges in combine mode** — All terminal tabs show project name badge when workspace mixing is active, with 3-tier styling (native/foreign/pinned).
-- **Sidebar workspace selector** moved above Projects/Files tab bar for clearer scope hierarchy.
-- **StatusBar agent tooltip** shows dynamic agent count and click action hint.
-
-### Added
-- **AI tool capability model** — Structured `AIToolFeatures` interface tracks hooks, streaming, event names, config paths, and docs URLs for Claude Code, Codex CLI, and Gemini CLI.
-- **Pipeline agent status feedback** — Running pipeline stages show active AI agent tool usage in timeline and log view.
+### Improvements
+- **Output channel coverage** — 7 managers now write to the Output panel (updater, plugins, settings, agent state, sessions, AI sessions, pipeline). The Extensions channel is no longer permanently empty. System-level events like update checks, plugin operations, AI session lifecycle, and pipeline errors are now visible in the Output tab instead of only in Electron DevTools
+- **Updater hot-reload recovery** — The main process now tracks and re-broadcasts the last updater status when the renderer reloads, so download progress or "Restart Now" notifications survive hot-reloads
+- **Global hooks IPC** — New `GET_GLOBAL_HOOKS` channel reads hooks configuration from `~/.claude/settings.json` with source label extraction for the System panel

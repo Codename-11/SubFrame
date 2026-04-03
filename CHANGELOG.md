@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2-beta] - 2026-04-02
+
+### Fixed
+- **Updater toast lifecycle** — clicking "Download" on the update-available toast no longer silently dismisses it. Three root causes fixed: sonner action auto-dismiss race (deferred via `requestAnimationFrame`), TanStack Query mutation identity churn in useEffect deps (moved to refs), and status loss on renderer hot-reload (re-broadcast `lastStatus` on `RENDERER_RELOADED`)
+- **Editor F11 keydown stability** — global keyboard listener for fullscreen toggle no longer tears down and re-registers on every settings mutation (moved `updateSetting` to ref)
+- **SystemPanel refactor** — sidebar-nav settings layout with global hooks viewer and granular AI tool configuration
+
+### Added
+- **Output channel logging coverage** — 7 managers now write to the Output panel (previously only 3-4 did). Extensions channel is no longer permanently empty. Wired: updater (checking/not-available/download lifecycle), plugins (toggle/clone/refresh), settings (load/save errors), agent state (watcher errors), sessions (read/rename/delete errors), AI sessions (create/complete/fail), pipeline (persist/load/abort/execution errors)
+- **Global hooks IPC** — new `GET_GLOBAL_HOOKS` channel reads hooks from `~/.claude/settings.json` with source label extraction
+
 ## [0.14.1-beta] - 2026-04-01
 
 ### Fixed
@@ -644,6 +655,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.9.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.8.0-beta...v0.9.0-beta
 [0.8.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.7.0-beta...v0.8.0-beta
 [0.7.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.6.0-beta...v0.7.0-beta
+[0.14.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.1-beta...v0.14.2-beta
 [0.6.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.4-beta...v0.6.0-beta
 [0.5.4-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.3-beta...v0.5.4-beta
 [0.5.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.2-beta...v0.5.3-beta
