@@ -35,7 +35,7 @@ import {
 } from './ui/alert-dialog';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
-import { useUIStore, getTabIdForContent } from '../stores/useUIStore';
+import { useUIStore, getTabIdForContent, isEditorTab, makeEditorTabId } from '../stores/useUIStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
 import { typedSend } from '../lib/ipc';
 import { typedInvoke } from '../lib/ipc';
@@ -61,6 +61,8 @@ interface SessionData {
   terminalCwds?: Record<string, string>;      // id -> last known cwd
   terminalShells?: Record<string, string>;     // id -> shell path
   terminalSessionIds?: Record<string, string>; // id -> claude session id
+  editorOpenFiles?: string[];                  // open editor file paths
+  activeEditorFile?: string | null;            // currently active editor file
 }
 
 /** Terminal state snapshot from main process (cached during save) */
@@ -96,6 +98,11 @@ function buildSessionData(
     }
   }
 
+  // Include editor state from UI store
+  const uiState = useUIStore.getState();
+  const editorOpenFiles = uiState.editorOpenFiles.length > 0 ? uiState.editorOpenFiles : undefined;
+  const activeEditorFile = uiState.activeEditorFile ?? undefined;
+
   // Save even when terminals.length === 0 so stale session data gets cleared
   const data: SessionData = {
     viewMode: store.viewMode,
@@ -113,6 +120,8 @@ function buildSessionData(
     terminalCwds: Object.keys(terminalCwds).length > 0 ? terminalCwds : undefined,
     terminalShells: Object.keys(terminalShells).length > 0 ? terminalShells : undefined,
     terminalSessionIds: Object.keys(terminalSessionIds).length > 0 ? terminalSessionIds : undefined,
+    editorOpenFiles,
+    activeEditorFile: activeEditorFile ?? null,
   };
 
   return data;
@@ -191,11 +200,9 @@ export function TerminalArea() {
   const toggleFullView = useUIStore((s) => s.toggleFullView);
   const closeTab = useUIStore((s) => s.closeTab);
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
-  const editorOpenFiles = useUIStore((s) => s.editorOpenFiles);
   const activeEditorFile = useUIStore((s) => s.activeEditorFile);
-  const setActiveEditorFile = useUIStore((s) => s.setActiveEditorFile);
   const closeEditorFile = useUIStore((s) => s.closeEditorFile);
-  const editorViewMode = (localStorage.getItem('editor-view-mode') || 'overlay') as 'overlay' | 'tab';
+  const openTabs = useUIStore((s) => s.openTabs);
   const { settings } = useSettings();
   const { config: aiToolConfig } = useAIToolConfig();
   const aiToolName = aiToolConfig?.activeTool.name || 'AI Tool';
@@ -607,6 +614,37 @@ export function TerminalArea() {
           useTerminalStore.getState().setGridSlots(session.gridSlots, normalizedPath);
         }
 
+        // ── Editor Restore: Reopen saved editor files as view tabs ──
+        // First, remove old editor tabs from openTabs (they belong to the previous project)
+        const uiStore = useUIStore.getState();
+        let nextOpenTabs = uiStore.openTabs.filter(t => !isEditorTab(t.id));
+
+        if (session.editorOpenFiles && session.editorOpenFiles.length > 0) {
+          for (const fp of session.editorOpenFiles) {
+            const tabId = makeEditorTabId(fp);
+            if (!nextOpenTabs.some(t => t.id === tabId)) {
+              const fileName = fp.replace(/\\/g, '/').split('/').pop() ?? fp;
+              nextOpenTabs = [...nextOpenTabs, { id: tabId, label: fileName, closable: true }];
+            }
+          }
+          useUIStore.setState({
+            editorOpenFiles: session.editorOpenFiles,
+            activeEditorFile: session.activeEditorFile ?? null,
+            editorFilePath: session.activeEditorFile ?? null,
+            openTabs: nextOpenTabs,
+            dirtyEditorFiles: new Set<string>(),
+          });
+        } else {
+          // Clear editor state from previous project
+          useUIStore.setState({
+            editorOpenFiles: [],
+            activeEditorFile: null,
+            editorFilePath: null,
+            openTabs: nextOpenTabs,
+            dirtyEditorFiles: new Set<string>(),
+          });
+        }
+
         // ── Terminal Restore: Create terminals with saved cwd/shell ──
         // When the session has saved terminal state and restoreOnStartup is enabled,
         // create the terminals now instead of waiting for them to appear.
@@ -859,6 +897,16 @@ export function TerminalArea() {
         return;
       }
 
+      // Ctrl+W — Close active editor tab (when an editor tab is active)
+      if (modKey && !e.shiftKey && key === 'w') {
+        const currentActiveEditor = useUIStore.getState().activeEditorFile;
+        if (currentActiveEditor) {
+          e.preventDefault();
+          closeEditorFile(currentActiveEditor);
+          return;
+        }
+      }
+
       // Ctrl+Shift+D — Pop out active terminal
       if (modKey && e.shiftKey && key === 'd') {
         e.preventDefault();
@@ -1022,10 +1070,13 @@ export function TerminalArea() {
   const fullViewTitle = fullViewContent ? fullViewTitles[fullViewContent] ?? '' : '';
   const activeTerminalInfo = activeTerminalId ? terminals.get(activeTerminalId) : null;
 
+  // Determine if an editor tab is active in the ViewTabBar
+  const isEditorTabActive = !fullViewContent && !!activeEditorFile && openTabs.some(t => isEditorTab(t.id) && t.id === makeEditorTabId(activeEditorFile));
+
   return (
     <div className="flex flex-col h-full w-full">
       <ViewTabBar />
-      {!fullViewContent && (
+      {!fullViewContent && !isEditorTabActive && (
         <TerminalTabBar
           onCreateTerminal={createTerminal}
           onCloseTerminal={closeTerminal}
@@ -1040,13 +1091,6 @@ export function TerminalArea() {
             ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
             : undefined}
           terminalCreating={terminalPending}
-          onTerminalTabClick={editorViewMode === 'tab' ? () => setActiveEditorFile(null) : undefined}
-          editorFiles={editorViewMode === 'tab' ? editorOpenFiles : undefined}
-          activeEditorFile={editorViewMode === 'tab' ? activeEditorFile : undefined}
-          onSelectEditorFile={editorViewMode === 'tab' ? (fp) => {
-            setActiveEditorFile(fp);
-          } : undefined}
-          onCloseEditorFile={editorViewMode === 'tab' ? closeEditorFile : undefined}
         />
       )}
 
@@ -1111,8 +1155,8 @@ export function TerminalArea() {
               </ErrorBoundary>
             </div>
           </div>
-        ) : editorViewMode === 'tab' && activeEditorFile ? (
-          /* Editor tab — inline editor replaces terminal content */
+        ) : isEditorTabActive && activeEditorFile ? (
+          /* Editor tab — inline editor in ViewTabBar */
           <ErrorBoundary name="Editor">
             <Editor
               filePath={activeEditorFile}

@@ -160,7 +160,7 @@ const SECTION_LABELS: Record<string, string[]> = {
   editor: [
     'Font Size', 'Font Family', 'Tab Size', 'Theme',
     'Word Wrap', 'Minimap', 'Line Numbers', 'Bracket Matching',
-    'Font', 'Display',
+    'Font', 'Display', 'Open in Tabs', 'Behavior',
   ],
   'ai-tool': [
     'AI Tools', 'Start Command', 'Custom Tools',
@@ -938,6 +938,9 @@ export function SettingsPanel() {
   const [editorBracketMatching, setEditorBracketMatching] = useState(true);
   const [editorTabSize, setEditorTabSize] = useState(2);
   const [editorTheme, setEditorTheme] = useState<string>('subframe-dark');
+  const [editorOpenInTabs, setEditorOpenInTabs] = useState(() => {
+    try { return localStorage.getItem('editor-open-in-tabs') !== 'false'; } catch { return true; }
+  });
 
   // Updater settings
   const [autoCheck, setAutoCheck] = useState(true);
@@ -1393,6 +1396,8 @@ export function SettingsPanel() {
     updateSetting.mutate([{ key: 'editor.bracketMatching', value: editorBracketMatching }]);
     updateSetting.mutate([{ key: 'editor.tabSize', value: editorTabSize }]);
     updateSetting.mutate([{ key: 'editor.theme', value: editorTheme }]);
+    // Open in tabs is stored in localStorage (renderer-only, no IPC needed)
+    try { localStorage.setItem('editor-open-in-tabs', String(editorOpenInTabs)); } catch { /* ignore */ }
     toast.success('Editor settings saved');
   }
 
@@ -2547,6 +2552,20 @@ export function SettingsPanel() {
             {/* ===== Editor ===== */}
             {activeTab === 'editor' && (
               <>
+                {/* Behavior group */}
+                {(matchesSearch('Open in Tabs') || matchesSearch('Behavior')) && (
+                  <SettingGroup label="Behavior">
+                    {matchesSearch('Open in Tabs') && (
+                      <SettingToggle
+                        label="Open Files in Tabs"
+                        description="Open files as ViewTabBar tabs alongside terminals. When disabled, files open in an overlay dialog."
+                        value={editorOpenInTabs}
+                        onChange={setEditorOpenInTabs}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
+
                 {/* Font group */}
                 {(matchesSearch('Font Size') || matchesSearch('Font Family') || matchesSearch('Tab Size') || matchesSearch('Font')) && (
                   <SettingGroup label="Font">

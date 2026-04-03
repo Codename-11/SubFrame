@@ -5,6 +5,26 @@ type PanelId = 'tasks' | 'plugins' | 'sessions' | 'aiSessions' | 'gitChanges' | 
 type SidebarState = 'expanded' | 'collapsed' | 'hidden';
 export type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts' | 'system' | null;
 
+/** Check if a tab ID represents an editor file tab */
+export function isEditorTab(tabId: string): boolean {
+  return tabId.startsWith('editor:');
+}
+
+/** Extract the file path from an editor tab ID */
+export function getEditorTabPath(tabId: string): string | null {
+  return isEditorTab(tabId) ? tabId.slice('editor:'.length) : null;
+}
+
+/** Create an editor tab ID from a file path */
+export function makeEditorTabId(filePath: string): string {
+  return `editor:${filePath}`;
+}
+
+/** Extract the basename from a file path */
+function basename(filePath: string): string {
+  return filePath.replace(/\\/g, '/').split('/').pop() ?? filePath;
+}
+
 export interface ViewTab {
   id: string;       // 'terminal' | any FullViewContent value
   label: string;    // Display name for the tab
@@ -154,6 +174,10 @@ interface UIState {
   // Recent editor files
   recentEditorFiles: string[];
 
+  // Dirty editor files (unsaved changes)
+  dirtyEditorFiles: Set<string>;
+  setEditorDirty: (filePath: string, dirty: boolean) => void;
+
   // Focus
   /** Incremented to signal sidebar should focus a specific tab */
   sidebarFocusRequest: { tab: 'projects' | 'files'; seq: number };
@@ -265,13 +289,16 @@ export const useUIStore = create<UIState>((set, get) => ({
       }
     }
 
+    // Clear active editor when switching to a full-view panel
+    const editorClear = content !== null ? { activeEditorFile: null as string | null } : {};
+
     // Sync shortcutsHelpOpen
     if (prev === 'shortcuts' && content !== 'shortcuts') {
-      set({ fullViewContent: content, shortcutsHelpOpen: false, openTabs });
+      set({ fullViewContent: content, shortcutsHelpOpen: false, openTabs, ...editorClear });
     } else if (content === 'shortcuts') {
-      set({ fullViewContent: content, shortcutsHelpOpen: true, openTabs });
+      set({ fullViewContent: content, shortcutsHelpOpen: true, openTabs, ...editorClear });
     } else {
-      set({ fullViewContent: content, openTabs });
+      set({ fullViewContent: content, openTabs, ...editorClear });
     }
     persistTabs(openTabs);
   },
@@ -293,15 +320,30 @@ export const useUIStore = create<UIState>((set, get) => ({
         openTabs = [...openTabs, { id: tabId, label: VIEW_TAB_LABELS[tabId] || tabId, closable: true }];
       }
       if (content === 'shortcuts') {
-        set({ fullViewContent: content, shortcutsHelpOpen: true, openTabs });
+        set({ fullViewContent: content, shortcutsHelpOpen: true, openTabs, activeEditorFile: null });
       } else {
-        set({ fullViewContent: content, openTabs, ...(current === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+        set({ fullViewContent: content, openTabs, activeEditorFile: null, ...(current === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
       }
       persistTabs(openTabs);
     }
   },
   openTab: (id, label) => {
     const { openTabs } = get();
+
+    // Handle editor tabs
+    if (isEditorTab(id)) {
+      const filePath = getEditorTabPath(id);
+      if (filePath) {
+        set({
+          fullViewContent: null,
+          activeEditorFile: filePath,
+          editorFilePath: filePath,
+          ...(get().fullViewContent === 'shortcuts' ? { shortcutsHelpOpen: false } : {}),
+        });
+      }
+      return;
+    }
+
     // Sub-views use their parent tab (e.g., stats → overview)
     const tabId = getTabIdForContent(id);
     let next = openTabs;
@@ -311,24 +353,40 @@ export const useUIStore = create<UIState>((set, get) => ({
     // Switch to this content (may be a sub-view rendered within the parent tab)
     const content = id === 'terminal' ? null : id as FullViewContent;
     if (id === 'shortcuts') {
-      set({ openTabs: next, fullViewContent: content, shortcutsHelpOpen: true });
+      set({ openTabs: next, fullViewContent: content, shortcutsHelpOpen: true, activeEditorFile: null });
     } else {
       const prev = get().fullViewContent;
-      set({ openTabs: next, fullViewContent: content, ...(prev === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+      set({ openTabs: next, fullViewContent: content, activeEditorFile: null, ...(prev === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
     }
     persistTabs(next);
   },
   closeTab: (id) => {
     if (id === 'terminal') return; // Can't close terminal
+
+    // If it's an editor tab, delegate to closeEditorFile
+    if (isEditorTab(id)) {
+      const filePath = getEditorTabPath(id);
+      if (filePath) get().closeEditorFile(filePath);
+      return;
+    }
+
     const { openTabs, fullViewContent } = get();
     const next = openTabs.filter(t => t.id !== id);
     // If closing the active tab (or its parent for sub-views), switch to fallback
-    const currentActiveId = fullViewContent ? getTabIdForContent(fullViewContent) : 'terminal';
+    const activeFile = get().activeEditorFile;
+    const currentActiveId = activeFile
+      ? makeEditorTabId(activeFile)
+      : (fullViewContent ? getTabIdForContent(fullViewContent) : 'terminal');
     if (currentActiveId === id) {
       const closedIdx = openTabs.findIndex(t => t.id === id);
-      const fallback = (closedIdx > 0 ? openTabs[closedIdx - 1] : next[0]) ?? next[0];
-      const fallbackContent = !fallback || fallback.id === 'terminal' ? null : fallback.id as FullViewContent;
-      set({ openTabs: next, fullViewContent: fallbackContent, ...(id === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+      const fallback = (closedIdx > 0 ? next[closedIdx - 1] : next[0]) ?? next[0];
+      if (fallback && isEditorTab(fallback.id)) {
+        const fp = getEditorTabPath(fallback.id);
+        set({ openTabs: next, fullViewContent: null, activeEditorFile: fp, editorFilePath: fp, ...(id === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+      } else {
+        const fallbackContent = !fallback || fallback.id === 'terminal' ? null : fallback.id as FullViewContent;
+        set({ openTabs: next, fullViewContent: fallbackContent, activeEditorFile: null, editorFilePath: null, ...(id === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
+      }
     } else {
       set({ openTabs: next, ...(id === 'shortcuts' ? { shortcutsHelpOpen: false } : {}) });
     }
@@ -343,11 +401,36 @@ export const useUIStore = create<UIState>((set, get) => ({
       set({ recentEditorFiles: recent });
       try { localStorage.setItem('recent-editor-files', JSON.stringify(recent)); } catch { /* ignore */ }
 
-      // In tab mode, also add as an editor tab
-      const editorViewMode = localStorage.getItem('editor-view-mode') || 'overlay';
-      if (editorViewMode === 'tab') {
-        get().addEditorFile(path);
-        return; // addEditorFile already sets editorFilePath
+      // Check setting: open in tabs (default true) or overlay
+      let openInTabs = true;
+      try {
+        const stored = localStorage.getItem('editor-open-in-tabs');
+        if (stored !== null) openInTabs = stored !== 'false';
+      } catch { /* ignore */ }
+
+      if (openInTabs) {
+        // Add as a ViewTabBar tab
+        const tabId = makeEditorTabId(path);
+        const { editorOpenFiles } = get();
+        let { openTabs } = get();
+
+        if (!openTabs.some(t => t.id === tabId)) {
+          openTabs = [...openTabs, { id: tabId, label: basename(path), closable: true }];
+        }
+
+        const nextEditorFiles = editorOpenFiles.includes(path)
+          ? editorOpenFiles
+          : [...editorOpenFiles, path];
+
+        set({
+          openTabs,
+          fullViewContent: null, // Clear any active full-view panel
+          editorOpenFiles: nextEditorFiles,
+          activeEditorFile: path,
+          editorFilePath: path,
+        });
+        persistTabs(openTabs);
+        return;
       }
     }
     set({ editorFilePath: path });
@@ -363,15 +446,52 @@ export const useUIStore = create<UIState>((set, get) => ({
     activeEditorFile: filePath,
     editorFilePath: filePath,
   })),
-  closeEditorFile: (filePath) => set((state) => {
+  closeEditorFile: (filePath) => {
+    const state = get();
+    const tabId = makeEditorTabId(filePath);
     const remaining = state.editorOpenFiles.filter((f) => f !== filePath);
     const wasActive = state.activeEditorFile === filePath;
-    return {
+    const nextTabs = state.openTabs.filter(t => t.id !== tabId);
+
+    // Remove from dirty set
+    const nextDirty = new Set(state.dirtyEditorFiles);
+    nextDirty.delete(filePath);
+
+    // If closing the active editor tab, determine fallback
+    let nextActiveFile = wasActive ? (remaining[remaining.length - 1] ?? null) : state.activeEditorFile;
+    let nextFullViewContent = state.fullViewContent;
+
+    // If this was the active tab in the ViewTabBar, switch to a neighbor tab
+    const currentActiveTabId = state.fullViewContent
+      ? getTabIdForContent(state.fullViewContent)
+      : (state.activeEditorFile ? makeEditorTabId(state.activeEditorFile) : 'terminal');
+
+    if (currentActiveTabId === tabId) {
+      // Find fallback: next editor tab or terminal
+      const closedIdx = state.openTabs.findIndex(t => t.id === tabId);
+      const fallback = (closedIdx > 0 ? nextTabs[closedIdx - 1] : nextTabs[0]) ?? nextTabs[0];
+      if (fallback && isEditorTab(fallback.id)) {
+        nextActiveFile = getEditorTabPath(fallback.id);
+        nextFullViewContent = null;
+      } else if (fallback && fallback.id !== 'terminal') {
+        nextActiveFile = null;
+        nextFullViewContent = fallback.id as FullViewContent;
+      } else {
+        nextActiveFile = null;
+        nextFullViewContent = null;
+      }
+    }
+
+    set({
       editorOpenFiles: remaining,
-      activeEditorFile: wasActive ? (remaining[remaining.length - 1] ?? null) : state.activeEditorFile,
-      editorFilePath: wasActive ? (remaining[remaining.length - 1] ?? null) : state.editorFilePath,
-    };
-  }),
+      activeEditorFile: nextActiveFile,
+      editorFilePath: nextActiveFile,
+      openTabs: nextTabs,
+      fullViewContent: nextFullViewContent,
+      dirtyEditorFiles: nextDirty,
+    });
+    persistTabs(nextTabs);
+  },
   setActiveEditorFile: (filePath) => set({
     activeEditorFile: filePath,
     editorFilePath: filePath,
@@ -381,6 +501,15 @@ export const useUIStore = create<UIState>((set, get) => ({
   recentEditorFiles: (() => {
     try { return JSON.parse(localStorage.getItem('recent-editor-files') || '[]'); } catch { return []; }
   })(),
+
+  // Dirty editor files
+  dirtyEditorFiles: new Set<string>(),
+  setEditorDirty: (filePath, dirty) => {
+    const next = new Set(get().dirtyEditorFiles);
+    if (dirty) next.add(filePath);
+    else next.delete(filePath);
+    set({ dirtyEditorFiles: next });
+  },
 
   sidebarFocusRequest: { tab: 'projects', seq: 0 },
   requestSidebarFocus: (tab) => {

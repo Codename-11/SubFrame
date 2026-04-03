@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useUIStore, type FullViewContent, getTabIdForContent } from '../stores/useUIStore';
+import { useUIStore, type FullViewContent, getTabIdForContent, isEditorTab, getEditorTabPath, makeEditorTabId } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
@@ -30,6 +30,7 @@ import {
   Cpu,
   Plus,
   MoreHorizontal,
+  FileText,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -345,6 +346,9 @@ export function ViewTabBar() {
   const toggleFullView = useUIStore(s => s.toggleFullView);
   const sidebarState = useUIStore(s => s.sidebarState);
   const setSidebarState = useUIStore(s => s.setSidebarState);
+  const activeEditorFile = useUIStore(s => s.activeEditorFile);
+  const setActiveEditorFile = useUIStore(s => s.setActiveEditorFile);
+  const dirtyEditorFiles = useUIStore(s => s.dirtyEditorFiles);
   const currentProjectPath = useProjectStore(s => s.currentProjectPath);
   const workspaceName = useProjectStore(s => s.workspaceName);
   const projects = useProjectStore(s => s.projects);
@@ -691,7 +695,12 @@ export function ViewTabBar() {
   const [usageFetching, setUsageFetching] = useState(false);
 
   // Map sub-views to their parent tab for active highlighting
-  const activeTabId = fullViewContent ? getTabIdForContent(fullViewContent) : 'terminal';
+  // Editor tabs take precedence when an editor file is active and no full-view content
+  const activeTabId = fullViewContent
+    ? getTabIdForContent(fullViewContent)
+    : activeEditorFile
+      ? makeEditorTabId(activeEditorFile)
+      : 'terminal';
 
   // Extract project folder name from path
   const projectName = currentProjectPath
@@ -908,22 +917,39 @@ export function ViewTabBar() {
       <div className="flex items-center overflow-x-auto scrollbar-none flex-1 min-w-0">
         {openTabs.map(tab => {
           const isActive = tab.id === activeTabId;
-          const Icon = TAB_ICONS[tab.id];
+          const isEditor = isEditorTab(tab.id);
+          const editorPath = isEditor ? getEditorTabPath(tab.id) : null;
+          const isDirty = editorPath ? dirtyEditorFiles.has(editorPath) : false;
+          const Icon = isEditor ? FileText : TAB_ICONS[tab.id];
           return (
             <button
               key={tab.id}
               onClick={() => {
-                const content = tab.id === 'terminal' ? null : (tab.id as FullViewContent);
-                setFullViewContent(content);
+                if (isEditor && editorPath) {
+                  // Switch to this editor file
+                  setActiveEditorFile(editorPath);
+                  useUIStore.getState().setFullViewContent(null);
+                } else if (tab.id === 'terminal') {
+                  // Switch to terminal — clear both full-view and editor
+                  setFullViewContent(null);
+                  setActiveEditorFile(null);
+                } else {
+                  const content = tab.id as FullViewContent;
+                  setFullViewContent(content);
+                }
               }}
               className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors shrink-0 cursor-pointer ${
                 isActive
                   ? 'bg-bg-primary text-text-primary border-accent'
                   : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover border-transparent'
               }`}
+              title={editorPath ?? tab.label}
             >
+              {isDirty && (
+                <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" />
+              )}
               {Icon && <Icon className="w-3.5 h-3.5" />}
-              <span>{tab.label}</span>
+              <span className={isEditor ? 'max-w-[140px] truncate' : ''}>{tab.label}</span>
               {tab.closable && (
                 <span
                   role="button"

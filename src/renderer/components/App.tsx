@@ -816,7 +816,7 @@ export function App() {
       </div>
 
       {/* File editor dialog — overlay mode only (tab mode renders inside TerminalArea) */}
-      {(localStorage.getItem('editor-view-mode') || 'overlay') === 'overlay' && (
+      {localStorage.getItem('editor-open-in-tabs') === 'false' && (
         <Editor filePath={editorFilePath} onClose={() => setEditorFilePath(null)} />
       )}
 
