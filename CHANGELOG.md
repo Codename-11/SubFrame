@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.4-beta] - 2026-04-03
+
+### Fixed
+- **Ctrl+Shift+Enter drops first character** — AI tool launch via keyboard shortcut no longer types "laude" instead of "claude". On the reuse-terminal path, the command was sent only ~5-20ms after the keypress — while the user still held Ctrl. ConPTY on Windows interpreted the first byte `'c'` as Ctrl+C (0x03), which the shell swallowed silently. Added an 80ms delay before the PTY write to allow modifier key release
+
 ## [0.14.3-beta] - 2026-04-02
 
 ### Fixed
@@ -662,6 +667,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.9.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.8.0-beta...v0.9.0-beta
 [0.8.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.7.0-beta...v0.8.0-beta
 [0.7.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.6.0-beta...v0.7.0-beta
+[0.14.4-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.3-beta...v0.14.4-beta
 [0.14.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.2-beta...v0.14.3-beta
 [0.14.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.1-beta...v0.14.2-beta
 [0.6.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.5.4-beta...v0.6.0-beta
