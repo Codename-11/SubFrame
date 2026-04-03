@@ -24,6 +24,11 @@ export const IPC = {
   // File Tree
   LOAD_FILE_TREE: 'load-file-tree',
   FILE_TREE_DATA: 'file-tree-data',
+  LOAD_DIRECTORY_CHILDREN: 'load-directory-children',
+  DIRECTORY_CHILDREN_DATA: 'directory-children-data',
+  FILE_TREE_CHANGED: 'file-tree-changed',
+  START_FILE_WATCHER: 'start-file-watcher',
+  STOP_FILE_WATCHER: 'stop-file-watcher',
 
   // History
   LOAD_PROMPT_HISTORY: 'load-prompt-history',
@@ -554,6 +559,8 @@ export interface FileTreeNode {
   path: string;
   isDirectory: boolean;
   children?: FileTreeNode[];
+  hasChildren?: boolean;
+  childrenLoaded?: boolean;
 }
 
 /** A single step in a task checklist (parsed from markdown checkboxes) */
@@ -1805,6 +1812,9 @@ export interface IPCSendMap {
 
   // File Tree
   [IPC.LOAD_FILE_TREE]: { path: string; showDotfiles?: boolean };
+  [IPC.LOAD_DIRECTORY_CHILDREN]: { path: string; showDotfiles: boolean };
+  [IPC.START_FILE_WATCHER]: { projectPath: string };
+  [IPC.STOP_FILE_WATCHER]: void;
 
   // History
   [IPC.LOAD_PROMPT_HISTORY]: void;
@@ -1925,6 +1935,8 @@ export interface IPCSendMap {
 export interface IPCEventMap {
   [IPC.PROJECT_SELECTED]: string; // selectedPath
   [IPC.FILE_TREE_DATA]: FileTreeNode[];
+  [IPC.DIRECTORY_CHILDREN_DATA]: { path: string; children: FileTreeNode[] };
+  [IPC.FILE_TREE_CHANGED]: { projectPath: string; event: string; path: string };
   [IPC.PROMPT_HISTORY_DATA]: unknown;
   [IPC.TOGGLE_HISTORY_PANEL]: void;
   [IPC.RUN_COMMAND]: string; // command
