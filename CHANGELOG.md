@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0-beta] - 2026-04-03
+
+### Added
+- **First-class editor tabs** — files open as ViewTabBar tabs alongside the terminal tab, allowing simultaneous access to code and terminals without switching modes. Includes persistent editor sessions across reloads and project switches
+- **Split code + preview** — side-by-side code editor and live preview for Markdown, HTML, CSS, and SVG files
+- **Breadcrumb navigation** — clickable `project > folder > file` path bar above inline editor
+- **Editor linting** — real-time syntax diagnostics for JSON (enhanced), YAML, CSS/SCSS/LESS, and HTML files
+- **New language modes** — syntax highlighting for Go, Shell/Bash, Dockerfile, TOML, and PowerShell
+- **File CRUD operations** — VS Code-style context menu with New File, New Folder, Rename, Duplicate, and Delete (with confirmation dialog and inline input)
+- **Enhanced context menu** — Open in Integrated Terminal, Copy Relative Path, Copy File Name, Collapse All, with icons on all items
+- **`.gitignore` filtering** — FileTree now respects `.gitignore` rules (including nested) via the `ignore` package
+- **Lazy directory loading** — no more 5-level depth cap; directories load children on demand with loading spinners
+- **File watcher** — chokidar-based auto-refresh when files change on disk (debounced, gitignore-aware)
+- **Dynamic workspace pills** — auto-sort by activity (agents first, terminals, then idle), three-tier activity indicators (pulsing green for agents, static blue for terminals, muted for idle), smooth Framer Motion animations
+- **Workspace pill configurability** — settings for auto-sort toggle and max visible pills (auto-expands for active projects)
+- **Editor settings** — "Open Files in Tabs" toggle (default: on) in Settings panel
+
+### Fixed
+- **Path traversal hardening** — file CRUD operations now validate absolute paths and block cross-drive `..` traversal
+- **Dirty tab close guard** — closing an editor tab with unsaved changes now prompts for confirmation
+- **Session restore validation** — editor tabs are filtered to the current project scope, preventing cross-project ghost tabs
+- **HTML linter accuracy** — rewrote with character-level scanner that properly handles `>` in quoted attributes, skips comments and script/style contents
+- **CSS linter CRLF** — handles `\r\n` line endings on Windows without false "unterminated string" errors
+- **Duplicate file timeout** — file duplication has a 5-second timeout to prevent hanging on IPC failure
+- **Editor state race condition** — atomic Zustand updates prevent duplicate entries from rapid double-clicks
+- **`setEditorFilePath(null)`** — now properly clears active editor state
+- **File watcher resilience** — chokidar initialization wrapped in try/catch to prevent incomplete state on failure
+- **Collapse All** — now clears directory loading spinners
+
+### Changed
+- **Editor tabs replace old overlay/tab mode** — unified into ViewTabBar-based tabs with overlay as opt-in fallback
+- **TerminalTabBar** — no longer renders editor file tabs (moved to ViewTabBar)
+- **Workspace pills** — manual drag reorder disables auto-sort; reset button re-enables it
+
 ## [0.14.5-beta] - 2026-04-03
 
 ### Fixed
@@ -667,7 +701,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard shortcuts with macOS compatibility
 - Project-based terminal session management
 
-[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.10.0-beta...HEAD
+[Unreleased]: https://github.com/Codename-11/SubFrame/compare/v0.15.0-beta...HEAD
+[0.15.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.5-beta...v0.15.0-beta
 [0.10.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.9.0-beta...v0.10.0-beta
 [0.9.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.8.0-beta...v0.9.0-beta
 [0.8.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.7.0-beta...v0.8.0-beta
