@@ -7,6 +7,9 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   ChevronRight,
+  ChevronsDownUp,
+  Clipboard,
+  ClipboardCopy,
   Folder,
   FolderOpen,
   File,
@@ -14,8 +17,11 @@ import {
   FileJson,
   FileText,
   Copy,
-  ExternalLink,
-  FileSearch,
+  FilePlus,
+  FolderPlus,
+  Pencil,
+  Trash2,
+  TerminalSquare,
   List,
   FolderTree,
   Search,
@@ -28,8 +34,19 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { IPC } from '../../shared/ipcChannels';
 import { useFileTree } from '../hooks/useFileTree';
 import { useGitStatus } from '../hooks/useGithub';
 import { getTransport } from '../lib/transportProvider';
@@ -114,6 +131,26 @@ function dirHasChanges(dirPath: string, projectPath: string, gitMap: Map<string,
 
 type ViewMode = 'tree' | 'flat';
 
+/** State for inline input (new file, new folder, rename) */
+interface InlineInputState {
+  type: 'newFile' | 'newFolder' | 'rename';
+  /** The directory path where the new item will be created, or the parent of the item being renamed */
+  parentPath: string;
+  /** For rename: the full path of the item being renamed */
+  targetPath?: string;
+  /** For rename: the current name pre-filled in the input */
+  currentName?: string;
+  /** Whether the target is a directory (for rename) */
+  isDirectory?: boolean;
+}
+
+/** State for the delete confirmation dialog */
+interface DeleteConfirmState {
+  filePath: string;
+  fileName: string;
+  isDirectory: boolean;
+}
+
 /** Flatten tree nodes recursively into a single sorted list of files (no directories) */
 function flattenTree(nodes: FileTreeNode[], projectPath: string): { node: FileTreeNode; relativePath: string }[] {
   const result: { node: FileTreeNode; relativePath: string }[] = [];
@@ -167,7 +204,7 @@ function collectDirPaths(nodes: FileTreeNode[]): Set<string> {
 
 export function FileTree({ onFileOpen }: FileTreeProps) {
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
-  const { data: treeData, isLoading } = useFileTree(currentProjectPath);
+  const { data: treeData, isLoading, refresh } = useFileTree(currentProjectPath);
   const { files: gitFiles } = useGitStatus();
   const gitStatusMap = useMemo(() => buildGitStatusMap(gitFiles), [gitFiles]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
@@ -177,6 +214,10 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // ── CRUD state ───────────────────────────────────────────────────────────
+  const [inlineInput, setInlineInput] = useState<InlineInputState | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
 
   // Filtered tree data (for search in tree mode)
   const filteredTreeData = useMemo(() => {
@@ -256,9 +297,145 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     );
   }, []);
 
-  const handleRevealInExplorer = useCallback((path: string) => {
-    getTransport().platform.showItemInFolder(path);
+  const handleRevealInExplorer = useCallback((filePath: string) => {
+    getTransport().platform.showItemInFolder(filePath);
   }, []);
+
+  // ── CRUD handlers ──────────────────────────────────────────────────────────
+
+  const handleCreateFile = useCallback(async (parentDir: string, fileName: string) => {
+    if (!fileName.trim()) return;
+    const filePath = `${parentDir}/${fileName}`.replace(/\\/g, '/');
+    const result = await getTransport().invoke(IPC.CREATE_FILE, { filePath });
+    if (result.success) {
+      toast.success(`Created ${fileName}`);
+      refresh();
+      onFileOpen?.(filePath);
+    } else {
+      toast.error(result.error ?? 'Failed to create file');
+    }
+  }, [refresh, onFileOpen]);
+
+  const handleCreateDirectory = useCallback(async (parentDir: string, dirName: string) => {
+    if (!dirName.trim()) return;
+    const dirPath = `${parentDir}/${dirName}`.replace(/\\/g, '/');
+    const result = await getTransport().invoke(IPC.CREATE_DIRECTORY, { dirPath });
+    if (result.success) {
+      toast.success(`Created folder ${dirName}`);
+      refresh();
+      // Auto-expand the parent so the new folder is visible
+      setExpandedPaths((prev) => new Set([...prev, parentDir]));
+    } else {
+      toast.error(result.error ?? 'Failed to create folder');
+    }
+  }, [refresh]);
+
+  const handleRename = useCallback(async (oldPath: string, newName: string, wasDirectory: boolean) => {
+    if (!newName.trim()) return;
+    const parentDir = oldPath.replace(/\\/g, '/').replace(/\/[^/]+$/, '');
+    const newPath = `${parentDir}/${newName}`.replace(/\\/g, '/');
+    if (newPath === oldPath.replace(/\\/g, '/')) return; // No change
+    const result = await getTransport().invoke(IPC.RENAME_FILE, { oldPath, newPath });
+    if (result.success) {
+      toast.success(`Renamed to ${newName}`);
+      refresh();
+      // If renamed file was active in editor, open the new path
+      if (!wasDirectory && activeFilePath === oldPath) {
+        setActiveFilePath(newPath);
+        onFileOpen?.(newPath);
+      }
+    } else {
+      toast.error(result.error ?? 'Failed to rename');
+    }
+  }, [refresh, activeFilePath, onFileOpen]);
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteConfirm) return;
+    const { filePath, isDirectory } = deleteConfirm;
+    const result = await getTransport().invoke(IPC.DELETE_FILE, { filePath, isDirectory });
+    if (result.success) {
+      toast.success(`Deleted ${deleteConfirm.fileName}`);
+      refresh();
+      // If deleted file was active in editor, clear it
+      if (activeFilePath === filePath || (isDirectory && activeFilePath?.startsWith(filePath))) {
+        setActiveFilePath(null);
+      }
+    } else {
+      toast.error(result.error ?? 'Failed to delete');
+    }
+    setDeleteConfirm(null);
+  }, [deleteConfirm, refresh, activeFilePath]);
+
+  const handleDuplicate = useCallback(async (filePath: string) => {
+    const normalized = filePath.replace(/\\/g, '/');
+    const parentDir = normalized.replace(/\/[^/]+$/, '');
+    const fileName = normalized.split('/').pop() ?? '';
+    const dotIndex = fileName.lastIndexOf('.');
+    const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+    const ext = dotIndex > 0 ? fileName.slice(dotIndex) : '';
+    const copyName = `${baseName} (copy)${ext}`;
+    const copyPath = `${parentDir}/${copyName}`;
+
+    // Read original file content first
+    const content = await new Promise<string>((resolve) => {
+      const unsub = getTransport().on(IPC.FILE_CONTENT, (_event: unknown, data: { content?: string; filePath: string }) => {
+        if (data.filePath === filePath) {
+          unsub();
+          resolve(data.content ?? '');
+        }
+      });
+      getTransport().send(IPC.READ_FILE, filePath);
+    });
+
+    const result = await getTransport().invoke(IPC.CREATE_FILE, { filePath: copyPath, content });
+    if (result.success) {
+      toast.success(`Duplicated as ${copyName}`);
+      refresh();
+    } else {
+      toast.error(result.error ?? 'Failed to duplicate file');
+    }
+  }, [refresh]);
+
+  const handleCopyRelativePath = useCallback((filePath: string) => {
+    if (!currentProjectPath) return;
+    const rel = filePath.replace(currentProjectPath, '').replace(/^[\\/]+/, '').replace(/\\/g, '/');
+    navigator.clipboard.writeText(rel).then(
+      () => toast.success('Relative path copied'),
+      () => toast.error('Failed to copy path')
+    );
+  }, [currentProjectPath]);
+
+  const handleCopyFileName = useCallback((filePath: string) => {
+    const fileName = filePath.replace(/\\/g, '/').split('/').pop() ?? '';
+    navigator.clipboard.writeText(fileName).then(
+      () => toast.success('File name copied'),
+      () => toast.error('Failed to copy name')
+    );
+  }, []);
+
+  const handleOpenTerminalAt = useCallback((dirPath: string) => {
+    window.dispatchEvent(new CustomEvent('create-terminal-at', { detail: { cwd: dirPath } }));
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    setExpandedPaths(new Set());
+  }, []);
+
+  const handleInlineInputConfirm = useCallback((value: string) => {
+    if (!inlineInput || !value.trim()) {
+      setInlineInput(null);
+      return;
+    }
+    const { type, parentPath, targetPath, isDirectory: wasDirectory } = inlineInput;
+    setInlineInput(null);
+    if (type === 'newFile') {
+      handleCreateFile(parentPath, value.trim());
+    } else if (type === 'newFolder') {
+      handleCreateDirectory(parentPath, value.trim());
+    } else if (type === 'rename' && targetPath) {
+      handleRename(targetPath, value.trim(), !!wasDirectory);
+    }
+  }, [inlineInput, handleCreateFile, handleCreateDirectory, handleRename]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -393,62 +570,140 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0">
-        <div
-          ref={containerRef}
-          className="py-1 outline-none"
-          tabIndex={0}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (!focusedPath && visibleNodes.length > 0) {
-              setFocusedPath(visibleNodes[0].node.path);
-            }
-          }}
-        >
-          {viewMode === 'tree' ? (
-            /* Tree view */
-            sortNodes(filteredTreeData).map((node) => (
-              <TreeNode
-                key={node.path}
-                node={node}
-                depth={0}
-                expandedPaths={effectiveExpandedPaths}
-                activeFilePath={activeFilePath}
-                focusedPath={focusedPath}
-                onToggle={toggleExpand}
-                onClick={handleFileClick}
-                onCopyPath={handleCopyPath}
-                onRevealInExplorer={handleRevealInExplorer}
-                onFileOpen={onFileOpen}
-                gitStatusMap={gitStatusMap}
-                projectPath={currentProjectPath ?? ''}
-              />
-            ))
-          ) : (
-            /* Flat list view */
-            flatItems.map((item) => (
-              <FlatFileRow
-                key={item.node.path}
-                node={item.node}
-                relativePath={item.relativePath}
-                isActive={activeFilePath === item.node.path}
-                isFocused={focusedPath === item.node.path}
-                onClick={handleFileClick}
-                onCopyPath={handleCopyPath}
-                onRevealInExplorer={handleRevealInExplorer}
-                onFileOpen={onFileOpen}
-                gitStatusMap={gitStatusMap}
-                projectPath={currentProjectPath ?? ''}
-              />
-            ))
-          )}
-          {visibleNodes.length === 0 && searchQuery && (
-            <div className="flex items-center justify-center text-text-tertiary text-xs py-6">
-              No matching files
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <ScrollArea className="flex-1 min-h-0">
+            <div
+              ref={containerRef}
+              className="py-1 outline-none min-h-full"
+              tabIndex={0}
+              onKeyDown={handleKeyDown}
+              onFocus={() => {
+                if (!focusedPath && visibleNodes.length > 0) {
+                  setFocusedPath(visibleNodes[0].node.path);
+                }
+              }}
+            >
+              {viewMode === 'tree' ? (
+                /* Tree view */
+                <>
+                  {sortNodes(filteredTreeData).map((node) => (
+                    <TreeNode
+                      key={node.path}
+                      node={node}
+                      depth={0}
+                      expandedPaths={effectiveExpandedPaths}
+                      activeFilePath={activeFilePath}
+                      focusedPath={focusedPath}
+                      onToggle={toggleExpand}
+                      onClick={handleFileClick}
+                      onCopyPath={handleCopyPath}
+                      onCopyRelativePath={handleCopyRelativePath}
+                      onCopyFileName={handleCopyFileName}
+                      onRevealInExplorer={handleRevealInExplorer}
+                      onFileOpen={onFileOpen}
+                      onOpenTerminalAt={handleOpenTerminalAt}
+                      onStartInlineInput={setInlineInput}
+                      onRequestDelete={setDeleteConfirm}
+                      onDuplicate={handleDuplicate}
+                      onCollapseAll={collapseAll}
+                      inlineInput={inlineInput}
+                      onInlineInputConfirm={handleInlineInputConfirm}
+                      onInlineInputCancel={() => setInlineInput(null)}
+                      gitStatusMap={gitStatusMap}
+                      projectPath={currentProjectPath ?? ''}
+                    />
+                  ))}
+                  {/* Inline input for new item at project root */}
+                  {inlineInput && inlineInput.parentPath === currentProjectPath && inlineInput.type !== 'rename' && (
+                    <InlineInputRow
+                      depth={0}
+                      defaultValue=""
+                      isDirectory={inlineInput.type === 'newFolder'}
+                      onConfirm={handleInlineInputConfirm}
+                      onCancel={() => setInlineInput(null)}
+                    />
+                  )}
+                </>
+              ) : (
+                /* Flat list view */
+                flatItems.map((item) => (
+                  <FlatFileRow
+                    key={item.node.path}
+                    node={item.node}
+                    relativePath={item.relativePath}
+                    isActive={activeFilePath === item.node.path}
+                    isFocused={focusedPath === item.node.path}
+                    onClick={handleFileClick}
+                    onCopyPath={handleCopyPath}
+                    onCopyRelativePath={handleCopyRelativePath}
+                    onCopyFileName={handleCopyFileName}
+                    onRevealInExplorer={handleRevealInExplorer}
+                    onFileOpen={onFileOpen}
+                    onOpenTerminalAt={handleOpenTerminalAt}
+                    onStartInlineInput={setInlineInput}
+                    onRequestDelete={setDeleteConfirm}
+                    onDuplicate={handleDuplicate}
+                    inlineInput={inlineInput}
+                    onInlineInputConfirm={handleInlineInputConfirm}
+                    onInlineInputCancel={() => setInlineInput(null)}
+                    gitStatusMap={gitStatusMap}
+                    projectPath={currentProjectPath ?? ''}
+                  />
+                ))
+              )}
+              {visibleNodes.length === 0 && searchQuery && (
+                <div className="flex items-center justify-center text-text-tertiary text-xs py-6">
+                  No matching files
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </ScrollArea>
+          </ScrollArea>
+        </ContextMenuTrigger>
+        {/* Background context menu (empty area) */}
+        <ContextMenuContent className="bg-bg-elevated border-border-subtle">
+          <ContextMenuItem
+            onClick={() => currentProjectPath && setInlineInput({ type: 'newFile', parentPath: currentProjectPath })}
+            className="text-xs gap-2"
+          >
+            <FilePlus className="w-3.5 h-3.5" />
+            New File...
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => currentProjectPath && setInlineInput({ type: 'newFolder', parentPath: currentProjectPath })}
+            className="text-xs gap-2"
+          >
+            <FolderPlus className="w-3.5 h-3.5" />
+            New Folder...
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent className="bg-bg-elevated border-border-subtle">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-text-primary">
+              Delete {deleteConfirm?.isDirectory ? 'folder' : 'file'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-text-secondary">
+              Are you sure you want to delete{' '}
+              <span className="font-mono text-text-primary">{deleteConfirm?.fileName}</span>?
+              {deleteConfirm?.isDirectory && (
+                <span className="block mt-1 text-warning">
+                  This will recursively delete all contents inside the folder.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" className="text-xs" onClick={handleDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -462,8 +717,18 @@ interface TreeNodeProps {
   onToggle: (path: string) => void;
   onClick: (node: FileTreeNode) => void;
   onCopyPath: (path: string) => void;
+  onCopyRelativePath: (path: string) => void;
+  onCopyFileName: (path: string) => void;
   onRevealInExplorer: (path: string) => void;
   onFileOpen?: (filePath: string) => void;
+  onOpenTerminalAt: (dirPath: string) => void;
+  onStartInlineInput: (state: InlineInputState) => void;
+  onRequestDelete: (state: DeleteConfirmState) => void;
+  onDuplicate: (filePath: string) => void;
+  onCollapseAll: () => void;
+  inlineInput: InlineInputState | null;
+  onInlineInputConfirm: (value: string) => void;
+  onInlineInputCancel: () => void;
   gitStatusMap: Map<string, GitFileStatus>;
   projectPath: string;
 }
@@ -477,8 +742,18 @@ function TreeNode({
   onToggle,
   onClick,
   onCopyPath,
+  onCopyRelativePath,
+  onCopyFileName,
   onRevealInExplorer,
   onFileOpen,
+  onOpenTerminalAt,
+  onStartInlineInput,
+  onRequestDelete,
+  onDuplicate,
+  onCollapseAll,
+  inlineInput,
+  onInlineInputConfirm,
+  onInlineInputCancel,
   gitStatusMap,
   projectPath,
 }: TreeNodeProps) {
@@ -498,6 +773,12 @@ function TreeNode({
   const gitFile = gitStatusMap.get(relPath);
   const gitIndicator = gitFile ? getGitIndicator(gitFile) : null;
   const showDirDot = node.isDirectory && dirHasChanges(node.path, projectPath, gitStatusMap);
+
+  // Is this node currently being renamed?
+  const isBeingRenamed = inlineInput?.type === 'rename' && inlineInput.targetPath === node.path;
+
+  // Parent path for file context menu (new file / new folder in parent dir)
+  const parentPath = node.path.replace(/\\/g, '/').replace(/\/[^/]+$/, '');
 
   return (
     <>
@@ -528,42 +809,184 @@ function TreeNode({
                 node.isDirectory ? 'text-accent' : 'text-text-tertiary'
               }`}
             />
-            <span className="truncate">{node.name}</span>
-            {gitIndicator && (
+            {isBeingRenamed ? (
+              <InlineInputRow
+                depth={0}
+                defaultValue={node.name}
+                isDirectory={node.isDirectory}
+                inline
+                onConfirm={onInlineInputConfirm}
+                onCancel={onInlineInputCancel}
+              />
+            ) : (
+              <span className="truncate">{node.name}</span>
+            )}
+            {gitIndicator && !isBeingRenamed && (
               <span className={`ml-auto flex-shrink-0 text-[10px] font-mono font-bold ${gitIndicator.color}`} title={gitIndicator.title} aria-label={`File status: ${gitIndicator.title}`}>
                 {gitIndicator.label}
               </span>
             )}
-            {showDirDot && !gitIndicator && (
+            {showDirDot && !gitIndicator && !isBeingRenamed && (
               <span className="ml-auto flex-shrink-0 w-1.5 h-1.5 rounded-full bg-warning/60" title="Contains changes" aria-label="Contains changes" />
             )}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="bg-bg-elevated border-border-subtle">
-          {!node.isDirectory && (
-            <ContextMenuItem
-              onClick={() => onFileOpen?.(node.path)}
-              className="text-xs gap-2"
-            >
-              <FileSearch className="w-3.5 h-3.5" />
-              Open in Editor
-            </ContextMenuItem>
+          {node.isDirectory ? (
+            <>
+              {/* Directory context menu */}
+              <ContextMenuItem
+                onClick={() => onOpenTerminalAt(node.path)}
+                className="text-xs gap-2"
+              >
+                <TerminalSquare className="w-3.5 h-3.5" />
+                Open in Integrated Terminal
+              </ContextMenuItem>
+              <ContextMenuSeparator className="border-border-subtle" />
+              <ContextMenuItem
+                onClick={() => onStartInlineInput({ type: 'newFile', parentPath: node.path })}
+                className="text-xs gap-2"
+              >
+                <FilePlus className="w-3.5 h-3.5" />
+                New File...
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onStartInlineInput({ type: 'newFolder', parentPath: node.path })}
+                className="text-xs gap-2"
+              >
+                <FolderPlus className="w-3.5 h-3.5" />
+                New Folder...
+              </ContextMenuItem>
+              <ContextMenuSeparator className="border-border-subtle" />
+              <ContextMenuItem
+                onClick={() => onStartInlineInput({ type: 'rename', parentPath, targetPath: node.path, currentName: node.name, isDirectory: true })}
+                className="text-xs gap-2"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Rename...
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onRequestDelete({ filePath: node.path, fileName: node.name, isDirectory: true })}
+                className="text-xs gap-2 text-error"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </ContextMenuItem>
+              <ContextMenuSeparator className="border-border-subtle" />
+              <ContextMenuItem
+                onClick={onCollapseAll}
+                className="text-xs gap-2"
+              >
+                <ChevronsDownUp className="w-3.5 h-3.5" />
+                Collapse All
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onCopyPath(node.path)}
+                className="text-xs gap-2"
+              >
+                <Clipboard className="w-3.5 h-3.5" />
+                Copy Path
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onCopyRelativePath(node.path)}
+                className="text-xs gap-2"
+              >
+                <ClipboardCopy className="w-3.5 h-3.5" />
+                Copy Relative Path
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onRevealInExplorer(node.path)}
+                className="text-xs gap-2"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                Reveal in Explorer
+              </ContextMenuItem>
+            </>
+          ) : (
+            <>
+              {/* File context menu */}
+              <ContextMenuItem
+                onClick={() => onFileOpen?.(node.path)}
+                className="text-xs gap-2"
+              >
+                <FileCode className="w-3.5 h-3.5" />
+                Open in Editor
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onOpenTerminalAt(parentPath)}
+                className="text-xs gap-2"
+              >
+                <TerminalSquare className="w-3.5 h-3.5" />
+                Open in Integrated Terminal
+              </ContextMenuItem>
+              <ContextMenuSeparator className="border-border-subtle" />
+              <ContextMenuItem
+                onClick={() => onStartInlineInput({ type: 'newFile', parentPath })}
+                className="text-xs gap-2"
+              >
+                <FilePlus className="w-3.5 h-3.5" />
+                New File...
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onStartInlineInput({ type: 'newFolder', parentPath })}
+                className="text-xs gap-2"
+              >
+                <FolderPlus className="w-3.5 h-3.5" />
+                New Folder...
+              </ContextMenuItem>
+              <ContextMenuSeparator className="border-border-subtle" />
+              <ContextMenuItem
+                onClick={() => onStartInlineInput({ type: 'rename', parentPath, targetPath: node.path, currentName: node.name, isDirectory: false })}
+                className="text-xs gap-2"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Rename...
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onDuplicate(node.path)}
+                className="text-xs gap-2"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Duplicate
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onRequestDelete({ filePath: node.path, fileName: node.name, isDirectory: false })}
+                className="text-xs gap-2 text-error"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </ContextMenuItem>
+              <ContextMenuSeparator className="border-border-subtle" />
+              <ContextMenuItem
+                onClick={() => onCopyPath(node.path)}
+                className="text-xs gap-2"
+              >
+                <Clipboard className="w-3.5 h-3.5" />
+                Copy Path
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onCopyRelativePath(node.path)}
+                className="text-xs gap-2"
+              >
+                <ClipboardCopy className="w-3.5 h-3.5" />
+                Copy Relative Path
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onCopyFileName(node.path)}
+                className="text-xs gap-2"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Copy File Name
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => onRevealInExplorer(node.path)}
+                className="text-xs gap-2"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                Reveal in Explorer
+              </ContextMenuItem>
+            </>
           )}
-          <ContextMenuItem
-            onClick={() => onRevealInExplorer(node.path)}
-            className="text-xs gap-2"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Reveal in Explorer
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onClick={() => onCopyPath(node.path)}
-            className="text-xs gap-2"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            Copy Path
-          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
 
@@ -581,13 +1004,44 @@ function TreeNode({
               onToggle={onToggle}
               onClick={onClick}
               onCopyPath={onCopyPath}
+              onCopyRelativePath={onCopyRelativePath}
+              onCopyFileName={onCopyFileName}
               onRevealInExplorer={onRevealInExplorer}
               onFileOpen={onFileOpen}
+              onOpenTerminalAt={onOpenTerminalAt}
+              onStartInlineInput={onStartInlineInput}
+              onRequestDelete={onRequestDelete}
+              onDuplicate={onDuplicate}
+              onCollapseAll={onCollapseAll}
+              inlineInput={inlineInput}
+              onInlineInputConfirm={onInlineInputConfirm}
+              onInlineInputCancel={onInlineInputCancel}
               gitStatusMap={gitStatusMap}
               projectPath={projectPath}
             />
           ))}
+          {/* Inline input for new item inside this directory */}
+          {inlineInput && inlineInput.parentPath === node.path && inlineInput.type !== 'rename' && (
+            <InlineInputRow
+              depth={depth + 1}
+              defaultValue=""
+              isDirectory={inlineInput.type === 'newFolder'}
+              onConfirm={onInlineInputConfirm}
+              onCancel={onInlineInputCancel}
+            />
+          )}
         </>
+      )}
+
+      {/* If new file/folder requested in this dir but dir was collapsed, expand and show input */}
+      {node.isDirectory && !isExpanded && inlineInput && inlineInput.parentPath === node.path && inlineInput.type !== 'rename' && (
+        <InlineInputRow
+          depth={depth + 1}
+          defaultValue=""
+          isDirectory={inlineInput.type === 'newFolder'}
+          onConfirm={onInlineInputConfirm}
+          onCancel={onInlineInputCancel}
+        />
       )}
     </>
   );
@@ -600,8 +1054,17 @@ interface FlatFileRowProps {
   isFocused: boolean;
   onClick: (node: FileTreeNode) => void;
   onCopyPath: (path: string) => void;
+  onCopyRelativePath: (path: string) => void;
+  onCopyFileName: (path: string) => void;
   onRevealInExplorer: (path: string) => void;
   onFileOpen?: (filePath: string) => void;
+  onOpenTerminalAt: (dirPath: string) => void;
+  onStartInlineInput: (state: InlineInputState) => void;
+  onRequestDelete: (state: DeleteConfirmState) => void;
+  onDuplicate: (filePath: string) => void;
+  inlineInput: InlineInputState | null;
+  onInlineInputConfirm: (value: string) => void;
+  onInlineInputCancel: () => void;
   gitStatusMap: Map<string, GitFileStatus>;
   projectPath: string;
 }
@@ -613,8 +1076,17 @@ function FlatFileRow({
   isFocused,
   onClick,
   onCopyPath,
+  onCopyRelativePath,
+  onCopyFileName,
   onRevealInExplorer,
   onFileOpen,
+  onOpenTerminalAt,
+  onStartInlineInput,
+  onRequestDelete,
+  onDuplicate,
+  inlineInput,
+  onInlineInputConfirm,
+  onInlineInputCancel,
   gitStatusMap,
   projectPath,
 }: FlatFileRowProps) {
@@ -627,6 +1099,9 @@ function FlatFileRow({
   const lastSlash = relativePath.lastIndexOf('/');
   const dirPrefix = lastSlash > -1 ? relativePath.slice(0, lastSlash + 1) : '';
   const fileName = lastSlash > -1 ? relativePath.slice(lastSlash + 1) : relativePath;
+
+  const parentPath = node.path.replace(/\\/g, '/').replace(/\/[^/]+$/, '');
+  const isBeingRenamed = inlineInput?.type === 'rename' && inlineInput.targetPath === node.path;
 
   return (
     <ContextMenu>
@@ -641,11 +1116,22 @@ function FlatFileRow({
           onClick={() => onClick(node)}
         >
           <Icon className="w-3.5 h-3.5 flex-shrink-0 text-text-tertiary" />
-          <span className="truncate">
-            {dirPrefix && <span className="text-text-muted">{dirPrefix}</span>}
-            <span className="text-text-primary">{fileName}</span>
-          </span>
-          {gitIndicator && (
+          {isBeingRenamed ? (
+            <InlineInputRow
+              depth={0}
+              defaultValue={node.name}
+              isDirectory={false}
+              inline
+              onConfirm={onInlineInputConfirm}
+              onCancel={onInlineInputCancel}
+            />
+          ) : (
+            <span className="truncate">
+              {dirPrefix && <span className="text-text-muted">{dirPrefix}</span>}
+              <span className="text-text-primary">{fileName}</span>
+            </span>
+          )}
+          {gitIndicator && !isBeingRenamed && (
             <span className={`ml-auto flex-shrink-0 text-[10px] font-mono font-bold ${gitIndicator.color}`} title={gitIndicator.title} aria-label={`File status: ${gitIndicator.title}`}>
               {gitIndicator.label}
             </span>
@@ -657,25 +1143,168 @@ function FlatFileRow({
           onClick={() => onFileOpen?.(node.path)}
           className="text-xs gap-2"
         >
-          <FileSearch className="w-3.5 h-3.5" />
+          <FileCode className="w-3.5 h-3.5" />
           Open in Editor
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onOpenTerminalAt(parentPath)}
+          className="text-xs gap-2"
+        >
+          <TerminalSquare className="w-3.5 h-3.5" />
+          Open in Integrated Terminal
+        </ContextMenuItem>
+        <ContextMenuSeparator className="border-border-subtle" />
+        <ContextMenuItem
+          onClick={() => onStartInlineInput({ type: 'newFile', parentPath })}
+          className="text-xs gap-2"
+        >
+          <FilePlus className="w-3.5 h-3.5" />
+          New File...
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onStartInlineInput({ type: 'newFolder', parentPath })}
+          className="text-xs gap-2"
+        >
+          <FolderPlus className="w-3.5 h-3.5" />
+          New Folder...
+        </ContextMenuItem>
+        <ContextMenuSeparator className="border-border-subtle" />
+        <ContextMenuItem
+          onClick={() => onStartInlineInput({ type: 'rename', parentPath, targetPath: node.path, currentName: node.name, isDirectory: false })}
+          className="text-xs gap-2"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Rename...
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onDuplicate(node.path)}
+          className="text-xs gap-2"
+        >
+          <Copy className="w-3.5 h-3.5" />
+          Duplicate
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onRequestDelete({ filePath: node.path, fileName: node.name, isDirectory: false })}
+          className="text-xs gap-2 text-error"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Delete
+        </ContextMenuItem>
+        <ContextMenuSeparator className="border-border-subtle" />
+        <ContextMenuItem
+          onClick={() => onCopyPath(node.path)}
+          className="text-xs gap-2"
+        >
+          <Clipboard className="w-3.5 h-3.5" />
+          Copy Path
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onCopyRelativePath(node.path)}
+          className="text-xs gap-2"
+        >
+          <ClipboardCopy className="w-3.5 h-3.5" />
+          Copy Relative Path
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onCopyFileName(node.path)}
+          className="text-xs gap-2"
+        >
+          <FileText className="w-3.5 h-3.5" />
+          Copy File Name
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() => onRevealInExplorer(node.path)}
           className="text-xs gap-2"
         >
-          <ExternalLink className="w-3.5 h-3.5" />
+          <FolderOpen className="w-3.5 h-3.5" />
           Reveal in Explorer
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onClick={() => onCopyPath(node.path)}
-          className="text-xs gap-2"
-        >
-          <Copy className="w-3.5 h-3.5" />
-          Copy Path
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
+  );
+}
+
+/** Inline input row for creating new files/folders or renaming */
+function InlineInputRow({
+  depth,
+  defaultValue,
+  isDirectory,
+  inline,
+  onConfirm,
+  onCancel,
+}: {
+  depth: number;
+  defaultValue: string;
+  isDirectory: boolean;
+  /** If true, renders just the input (no wrapper row) — used for inline rename inside an existing row */
+  inline?: boolean;
+  onConfirm: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Auto-focus and select the name (without extension for files)
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    if (defaultValue) {
+      const dotIndex = defaultValue.lastIndexOf('.');
+      if (!isDirectory && dotIndex > 0) {
+        input.setSelectionRange(0, dotIndex);
+      } else {
+        input.select();
+      }
+    }
+  }, [defaultValue, isDirectory]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      onConfirm(inputRef.current?.value ?? '');
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      onCancel();
+    }
+  };
+
+  const paddingLeft = inline ? 0 : 8 + depth * 16;
+  const Icon = isDirectory ? FolderPlus : FilePlus;
+
+  if (inline) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        defaultValue={defaultValue}
+        onKeyDown={handleKeyDown}
+        onBlur={() => onCancel()}
+        className="flex-1 min-w-0 h-5 px-1 text-xs bg-bg-secondary border border-accent/50 rounded
+          text-text-primary focus:outline-none focus:border-accent"
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center gap-1.5 py-[3px] pr-2 text-xs"
+      style={{ paddingLeft }}
+    >
+      <span className="w-3.5 flex-shrink-0" />
+      <Icon className="w-3.5 h-3.5 flex-shrink-0 text-accent" />
+      <input
+        ref={inputRef}
+        type="text"
+        defaultValue={defaultValue}
+        onKeyDown={handleKeyDown}
+        onBlur={() => onCancel()}
+        className="flex-1 min-w-0 h-5 px-1 text-xs bg-bg-secondary border border-accent/50 rounded
+          text-text-primary focus:outline-none focus:border-accent"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
   );
 }

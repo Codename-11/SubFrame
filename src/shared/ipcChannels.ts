@@ -74,6 +74,10 @@ export const IPC = {
   FILE_SAVED: 'file-saved',
   READ_FILE_IMAGE: 'read-file-image',
   IMAGE_CONTENT: 'image-content',
+  CREATE_FILE: 'create-file',
+  CREATE_DIRECTORY: 'create-directory',
+  RENAME_FILE: 'rename-file',
+  DELETE_FILE: 'delete-file',
 
   // Multi-Terminal
   TERMINAL_CREATE: 'terminal-create',
@@ -1787,6 +1791,12 @@ export interface IPCHandleMap {
     args: [];
     return: { success: boolean; copied: string[]; message: string };
   };
+
+  // File CRUD (handle)
+  [IPC.CREATE_FILE]: { args: [payload: { filePath: string; content?: string }]; return: { success: boolean; error?: string } };
+  [IPC.CREATE_DIRECTORY]: { args: [payload: { dirPath: string }]; return: { success: boolean; error?: string } };
+  [IPC.RENAME_FILE]: { args: [payload: { oldPath: string; newPath: string }]; return: { success: boolean; error?: string } };
+  [IPC.DELETE_FILE]: { args: [payload: { filePath: string; isDirectory: boolean }]; return: { success: boolean; error?: string } };
 }
 
 // ─── Send Map (ipcRenderer.send → ipcMain.on) ───────────────────────────────
