@@ -148,6 +148,7 @@ const SECTION_LABELS: Record<string, string[]> = {
     'Highlight user messages', 'Default Project Directory',
     'Startup', 'Behavior', 'Paths', 'Git', 'Auto-fetch', 'Install CLI', 'CLI',
     'Collapsed Workspace Count', 'Max Visible Workspaces', 'Workspace Bar', 'Collapsed Pill Count',
+    'Auto-sort Workspace Pills', 'Max Visible Workspace Pills',
   ],
   terminal: [
     'Font Size', 'Font Family', 'Line Height', 'Scrollback Lines',
@@ -2297,8 +2298,34 @@ export function SettingsPanel() {
                 )}
 
                 {/* Workspace Bar */}
-                {(matchesSearch('Collapsed Workspace Count') || matchesSearch('Max Visible Workspaces') || matchesSearch('Workspace Bar')) && (
+                {(matchesSearch('Collapsed Workspace Count') || matchesSearch('Max Visible Workspaces') || matchesSearch('Workspace Bar') || matchesSearch('Auto-sort Workspace Pills') || matchesSearch('Max Visible Workspace Pills')) && (
                   <SettingGroup label="Workspace Bar">
+                    {matchesSearch('Auto-sort Workspace Pills') && (
+                      <SettingToggle
+                        label="Auto-sort workspace pills by activity"
+                        description="Active projects (with running agents/terminals) appear first in the pill bar"
+                        value={(settings?.general as Record<string, unknown>)?.autoSortWorkspacePills !== false}
+                        onChange={(v) => updateSetting.mutate([{ key: 'general.autoSortWorkspacePills', value: v }])}
+                      />
+                    )}
+                    {matchesSearch('Max Visible Workspace Pills') && (
+                      <SettingSelect
+                        label="Max visible workspace pills"
+                        description="0 = auto (expand for active workspaces). Otherwise cap at this number, always showing active ones"
+                        value={String((settings?.general as Record<string, unknown>)?.maxVisibleWorkspacePills ?? 0)}
+                        onChange={(v) => updateSetting.mutate([{ key: 'general.maxVisibleWorkspacePills', value: parseInt(v, 10) }])}
+                        options={[
+                          { value: '0', label: '0 (auto)' },
+                          { value: '3', label: '3' },
+                          { value: '4', label: '4' },
+                          { value: '5', label: '5' },
+                          { value: '6', label: '6' },
+                          { value: '8', label: '8' },
+                          { value: '10', label: '10' },
+                          { value: '12', label: '12' },
+                        ]}
+                      />
+                    )}
                     {matchesSearch('Collapsed Workspace Count') && (
                       <SettingSelect
                         label="Collapsed pill count"
