@@ -165,18 +165,45 @@ function collectDirPaths(nodes: FileTreeNode[]): Set<string> {
   return paths;
 }
 
+/** Find a node in the tree by its path */
+function findNodeByPath(nodes: FileTreeNode[], targetPath: string): FileTreeNode | null {
+  for (const node of nodes) {
+    if (node.path === targetPath) return node;
+    if (node.isDirectory && node.children) {
+      const found = findNodeByPath(node.children, targetPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 export function FileTree({ onFileOpen }: FileTreeProps) {
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
-  const { data: treeData, isLoading } = useFileTree(currentProjectPath);
+  const { data: treeData, isLoading, loadChildren } = useFileTree(currentProjectPath);
   const { files: gitFiles } = useGitStatus();
   const gitStatusMap = useMemo(() => buildGitStatusMap(gitFiles), [gitFiles]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('tree');
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Clear loading state when tree data updates (children loaded)
+  useEffect(() => {
+    if (!treeData || loadingPaths.size === 0) return;
+    setLoadingPaths((prev) => {
+      const next = new Set<string>();
+      for (const p of prev) {
+        const node = findNodeByPath(treeData, p);
+        // Keep in loading set only if children still not loaded
+        if (node && !node.childrenLoaded) next.add(p);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [treeData, loadingPaths.size]);
 
   // Filtered tree data (for search in tree mode)
   const filteredTreeData = useMemo(() => {
@@ -224,17 +251,24 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     return result;
   }, [viewMode, flatItems, filteredTreeData, effectiveExpandedPaths]);
 
-  const toggleExpand = useCallback((path: string) => {
+  const toggleExpand = useCallback((dirPath: string) => {
     setExpandedPaths((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
+      if (next.has(dirPath)) {
+        next.delete(dirPath);
       } else {
-        next.add(path);
+        next.add(dirPath);
+
+        // Lazy-load children if not yet loaded
+        const node = findNodeByPath(treeData ?? [], dirPath);
+        if (node && node.isDirectory && !node.childrenLoaded && node.hasChildren) {
+          setLoadingPaths((prevLoading) => new Set(prevLoading).add(dirPath));
+          loadChildren(dirPath);
+        }
       }
       return next;
     });
-  }, []);
+  }, [treeData, loadChildren]);
 
   const handleFileClick = useCallback(
     (node: FileTreeNode) => {
@@ -413,6 +447,7 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
                 node={node}
                 depth={0}
                 expandedPaths={effectiveExpandedPaths}
+                loadingPaths={loadingPaths}
                 activeFilePath={activeFilePath}
                 focusedPath={focusedPath}
                 onToggle={toggleExpand}
@@ -457,6 +492,7 @@ interface TreeNodeProps {
   node: FileTreeNode;
   depth: number;
   expandedPaths: Set<string>;
+  loadingPaths: Set<string>;
   activeFilePath: string | null;
   focusedPath: string | null;
   onToggle: (path: string) => void;
@@ -472,6 +508,7 @@ function TreeNode({
   node,
   depth,
   expandedPaths,
+  loadingPaths,
   activeFilePath,
   focusedPath,
   onToggle,
@@ -568,14 +605,24 @@ function TreeNode({
       </ContextMenu>
 
       {/* Render children if directory is expanded */}
-      {node.isDirectory && isExpanded && node.children && (
+      {node.isDirectory && isExpanded && (
         <>
-          {sortNodes(node.children).map((child) => (
+          {loadingPaths.has(node.path) && !node.childrenLoaded && (
+            <div
+              className="flex items-center gap-1.5 py-[3px] pr-2 text-xs text-text-muted"
+              style={{ paddingLeft: 8 + (depth + 1) * 16 }}
+            >
+              <span className="w-3.5 h-3.5 flex-shrink-0 animate-spin rounded-full border border-text-muted border-t-transparent" />
+              <span>Loading...</span>
+            </div>
+          )}
+          {node.children && sortNodes(node.children).map((child) => (
             <TreeNode
               key={child.path}
               node={child}
               depth={depth + 1}
               expandedPaths={expandedPaths}
+              loadingPaths={loadingPaths}
               activeFilePath={activeFilePath}
               focusedPath={focusedPath}
               onToggle={onToggle}
