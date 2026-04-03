@@ -77,6 +77,9 @@ import {
   getLanguageExtension,
   getMinimapExtension,
   getJsonLinter,
+  getYamlLinter,
+  getCssLinter,
+  getHtmlLinter,
   getIndentExtension,
   minimapCompartment,
   wordWrapCompartment,
@@ -410,6 +413,12 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
     const ext_ = fileName?.split('.').pop()?.toLowerCase();
     if (ext_ === 'json') {
       exts.push(getJsonLinter());
+    } else if (ext_ === 'yaml' || ext_ === 'yml') {
+      exts.push(getYamlLinter());
+    } else if (ext_ === 'css' || ext_ === 'scss' || ext_ === 'less') {
+      exts.push(getCssLinter());
+    } else if (ext_ === 'html' || ext_ === 'htm') {
+      exts.push(getHtmlLinter());
     }
 
     // Custom save keymap (Ctrl/Cmd+S)

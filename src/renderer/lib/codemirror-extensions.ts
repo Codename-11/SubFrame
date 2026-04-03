@@ -58,9 +58,15 @@ import { sass } from '@codemirror/lang-sass';
 import { less } from '@codemirror/lang-less';
 import { vue } from '@codemirror/lang-vue';
 import { wast } from '@codemirror/lang-wast';
+import { go } from '@codemirror/lang-go';
+import { StreamLanguage } from '@codemirror/language';
+import { shell } from '@codemirror/legacy-modes/mode/shell';
+import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile';
+import { toml as tomlMode } from '@codemirror/legacy-modes/mode/toml';
+import { powerShell } from '@codemirror/legacy-modes/mode/powershell';
 
-// TODO: install @codemirror/lang-go for Go support
-// TODO: install @codemirror/legacy-modes for Dockerfile, shell, TOML, PowerShell support
+// YAML parser for linting
+import YAML from 'yaml';
 
 // Re-export search commands for programmatic use in Editor.tsx
 export { openSearchPanel, gotoLine };
@@ -76,15 +82,27 @@ const languageCache = new Map<string, Extension>();
  * or null if the file type is not recognized. Results are cached per extension.
  */
 export function getLanguageExtension(filename: string): Extension | null {
+  const baseName = filename.split(/[/\\]/).pop()?.toLowerCase() ?? '';
   const ext = filename.split('.').pop()?.toLowerCase();
-  if (!ext) return null;
 
-  const cached = languageCache.get(ext);
+  // Handle extensionless filenames (e.g., Dockerfile)
+  const key = resolveFilenameKey(baseName, ext);
+  if (!key) return null;
+
+  const cached = languageCache.get(key);
   if (cached) return cached;
 
-  const lang = resolveLanguage(ext);
-  if (lang) languageCache.set(ext, lang);
+  const lang = resolveLanguage(key);
+  if (lang) languageCache.set(key, lang);
   return lang;
+}
+
+/** Maps special filenames (without extensions) to language keys. */
+function resolveFilenameKey(baseName: string, ext: string | undefined): string | null {
+  // Dockerfile, Dockerfile.dev, etc.
+  if (baseName === 'dockerfile' || baseName.startsWith('dockerfile.')) return 'dockerfile';
+  if (ext) return ext;
+  return null;
 }
 
 function resolveLanguage(ext: string): Extension | null {
@@ -142,6 +160,21 @@ function resolveLanguage(ext: string): Extension | null {
     case 'wat':
     case 'wast':
       return wast();
+    case 'go':
+      return go();
+    case 'sh':
+    case 'bash':
+    case 'zsh':
+    case 'fish':
+      return StreamLanguage.define(shell);
+    case 'dockerfile':
+      return StreamLanguage.define(dockerFile);
+    case 'toml':
+      return StreamLanguage.define(tomlMode);
+    case 'ps1':
+    case 'psm1':
+    case 'psd1':
+      return StreamLanguage.define(powerShell);
     default:
       return null;
   }
@@ -269,11 +302,17 @@ export function reconfigureFontFamily(view: EditorView, family: string): void {
 
 /**
  * Returns a linter extension that validates JSON syntax using JSON.parse.
+ * Handles edge cases: empty files, BOM, and improved position extraction.
  */
 export function getJsonLinter(): Extension {
   return linter((view) => {
     const diagnostics: Diagnostic[] = [];
-    const text = view.state.doc.toString();
+    let text = view.state.doc.toString();
+
+    // Strip BOM if present
+    if (text.charCodeAt(0) === 0xFEFF) {
+      text = text.slice(1);
+    }
 
     if (text.trim().length === 0) return diagnostics;
 
@@ -281,17 +320,306 @@ export function getJsonLinter(): Extension {
       JSON.parse(text);
     } catch (e) {
       if (e instanceof SyntaxError) {
+        const docLen = view.state.doc.length;
+
         // Try to extract position from error message (e.g., "at position 42")
         const posMatch = e.message.match(/position\s+(\d+)/i);
-        const pos = posMatch ? Math.min(Number(posMatch[1]), text.length) : 0;
+        // Also try "at line X column Y" format (some engines)
+        const lineColMatch = e.message.match(/line\s+(\d+)\s+column\s+(\d+)/i);
 
+        let from = 0;
+        if (posMatch) {
+          from = Math.min(Number(posMatch[1]), docLen);
+        } else if (lineColMatch) {
+          const line = Math.min(Number(lineColMatch[1]), view.state.doc.lines);
+          const col = Number(lineColMatch[2]);
+          const lineInfo = view.state.doc.line(line);
+          from = Math.min(lineInfo.from + col - 1, docLen);
+        }
+
+        // Ensure valid range
+        from = Math.max(0, Math.min(from, docLen));
+        const to = Math.min(from + 1, docLen);
+
+        // Clean up the error message — strip the verbose position suffix
+        let message = e.message;
+        const cleanMatch = message.match(/^(.+?)(?:\s+at position \d+)?$/i);
+        if (cleanMatch) message = cleanMatch[1];
+
+        diagnostics.push({ from, to: Math.max(to, from), severity: 'error', message });
+      }
+    }
+
+    return diagnostics;
+  });
+}
+
+/**
+ * Returns a linter extension that validates YAML syntax using the `yaml` package.
+ * Reports all parse errors and warnings with accurate positions.
+ */
+export function getYamlLinter(): Extension {
+  return linter((view) => {
+    const diagnostics: Diagnostic[] = [];
+    let text = view.state.doc.toString();
+
+    // Strip BOM if present
+    if (text.charCodeAt(0) === 0xFEFF) {
+      text = text.slice(1);
+    }
+
+    if (text.trim().length === 0) return diagnostics;
+
+    try {
+      const doc = YAML.parseDocument(text);
+      const docLen = view.state.doc.length;
+
+      for (const error of doc.errors) {
+        const [from, to] = error.pos ?? [0, 1];
         diagnostics.push({
-          from: pos,
-          to: Math.min(pos + 1, text.length),
+          from: Math.max(0, Math.min(from, docLen)),
+          to: Math.max(0, Math.min(Math.max(to, from + 1), docLen)),
           severity: 'error',
-          message: e.message,
+          message: error.code ? `[${error.code}] ${error.message.split('\n')[0]}` : error.message.split('\n')[0],
         });
       }
+
+      for (const warning of doc.warnings) {
+        const [from, to] = warning.pos ?? [0, 1];
+        diagnostics.push({
+          from: Math.max(0, Math.min(from, docLen)),
+          to: Math.max(0, Math.min(Math.max(to, from + 1), docLen)),
+          severity: 'warning',
+          message: warning.code ? `[${warning.code}] ${warning.message.split('\n')[0]}` : warning.message.split('\n')[0],
+        });
+      }
+    } catch {
+      // Gracefully handle unexpected errors — never throw from a linter
+    }
+
+    return diagnostics;
+  });
+}
+
+/**
+ * Returns a linter extension that validates CSS for common syntax errors:
+ * unclosed braces, unclosed strings, and unclosed comments.
+ * Works for CSS, SCSS, and LESS files.
+ */
+export function getCssLinter(): Extension {
+  return linter((view) => {
+    const diagnostics: Diagnostic[] = [];
+    const text = view.state.doc.toString();
+
+    if (text.trim().length === 0) return diagnostics;
+
+    try {
+      const docLen = view.state.doc.length;
+
+      // Track brace balance
+      let braceDepth = 0;
+      let lastOpenBrace = -1;
+      let inString: string | null = null;
+      let inComment = false;
+      let inLineComment = false;
+      let commentStart = -1;
+
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+
+        // Handle line comments (SCSS/LESS only — // style)
+        if (inLineComment) {
+          if (ch === '\n') inLineComment = false;
+          continue;
+        }
+
+        // Handle block comments
+        if (inComment) {
+          if (ch === '*' && next === '/') {
+            inComment = false;
+            i++; // skip /
+          }
+          continue;
+        }
+
+        // Handle strings
+        if (inString) {
+          if (ch === '\\') { i++; continue; } // skip escaped char
+          if (ch === inString) inString = null;
+          else if (ch === '\n' && inString !== '`') {
+            // Unterminated string (newline inside single/double quote)
+            diagnostics.push({
+              from: i,
+              to: Math.min(i + 1, docLen),
+              severity: 'error',
+              message: `Unterminated string`,
+            });
+            inString = null;
+          }
+          continue;
+        }
+
+        // Detect comment starts
+        if (ch === '/' && next === '*') {
+          inComment = true;
+          commentStart = i;
+          i++; // skip *
+          continue;
+        }
+        if (ch === '/' && next === '/') {
+          inLineComment = true;
+          i++;
+          continue;
+        }
+
+        // Detect string starts
+        if (ch === '"' || ch === "'") {
+          inString = ch;
+          continue;
+        }
+
+        // Track braces
+        if (ch === '{') {
+          braceDepth++;
+          lastOpenBrace = i;
+        } else if (ch === '}') {
+          if (braceDepth <= 0) {
+            diagnostics.push({
+              from: i,
+              to: Math.min(i + 1, docLen),
+              severity: 'error',
+              message: 'Unexpected closing brace',
+            });
+          } else {
+            braceDepth--;
+          }
+        }
+      }
+
+      // Report unclosed constructs
+      if (braceDepth > 0 && lastOpenBrace >= 0) {
+        diagnostics.push({
+          from: lastOpenBrace,
+          to: Math.min(lastOpenBrace + 1, docLen),
+          severity: 'error',
+          message: `Unclosed brace — ${braceDepth} opening brace(s) without matching close`,
+        });
+      }
+
+      if (inComment) {
+        diagnostics.push({
+          from: commentStart,
+          to: Math.min(commentStart + 2, docLen),
+          severity: 'error',
+          message: 'Unterminated comment',
+        });
+      }
+
+      if (inString) {
+        diagnostics.push({
+          from: Math.max(0, docLen - 1),
+          to: docLen,
+          severity: 'error',
+          message: 'Unterminated string at end of file',
+        });
+      }
+    } catch {
+      // Gracefully handle unexpected errors
+    }
+
+    return diagnostics;
+  });
+}
+
+/**
+ * Returns a linter extension that validates HTML for common issues:
+ * mismatched tags and unclosed tags.
+ */
+export function getHtmlLinter(): Extension {
+  // Void elements that don't need closing tags
+  const VOID_ELEMENTS = new Set([
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+    'link', 'meta', 'param', 'source', 'track', 'wbr',
+  ]);
+
+  return linter((view) => {
+    const diagnostics: Diagnostic[] = [];
+    const text = view.state.doc.toString();
+
+    if (text.trim().length === 0) return diagnostics;
+
+    try {
+      const docLen = view.state.doc.length;
+      // Stack of open tags: { tag, from }
+      const stack: { tag: string; from: number }[] = [];
+
+      // Match opening and closing tags
+      const tagPattern = /<\/?([a-zA-Z][a-zA-Z0-9-]*)\b[^>]*?\/?>/g;
+      let match: RegExpExecArray | null;
+
+      while ((match = tagPattern.exec(text)) !== null) {
+        const fullMatch = match[0];
+        const tagName = match[1].toLowerCase();
+        const pos = match.index;
+
+        // Skip void elements and self-closing tags
+        if (VOID_ELEMENTS.has(tagName) || fullMatch.endsWith('/>')) continue;
+
+        // Skip comments, doctype, script/style content detection is complex —
+        // we keep it simple and just track open/close tags
+        if (fullMatch.startsWith('</')) {
+          // Closing tag
+          if (stack.length === 0) {
+            diagnostics.push({
+              from: pos,
+              to: Math.min(pos + fullMatch.length, docLen),
+              severity: 'error',
+              message: `Closing tag </${tagName}> has no matching opening tag`,
+            });
+          } else if (stack[stack.length - 1].tag === tagName) {
+            stack.pop();
+          } else {
+            // Look for the matching tag deeper in the stack
+            const idx = stack.map(s => s.tag).lastIndexOf(tagName);
+            if (idx >= 0) {
+              // All tags between idx+1 and stack.length-1 are unclosed
+              for (let i = stack.length - 1; i > idx; i--) {
+                const unclosed = stack[i];
+                diagnostics.push({
+                  from: unclosed.from,
+                  to: Math.min(unclosed.from + unclosed.tag.length + 2, docLen),
+                  severity: 'warning',
+                  message: `Tag <${unclosed.tag}> is not closed before </${tagName}>`,
+                });
+              }
+              stack.splice(idx); // remove from idx to end
+            } else {
+              diagnostics.push({
+                from: pos,
+                to: Math.min(pos + fullMatch.length, docLen),
+                severity: 'error',
+                message: `Closing tag </${tagName}> has no matching opening tag`,
+              });
+            }
+          }
+        } else {
+          // Opening tag
+          stack.push({ tag: tagName, from: pos });
+        }
+      }
+
+      // Any remaining tags on the stack are unclosed
+      for (const unclosed of stack) {
+        diagnostics.push({
+          from: unclosed.from,
+          to: Math.min(unclosed.from + unclosed.tag.length + 2, docLen),
+          severity: 'warning',
+          message: `Tag <${unclosed.tag}> is never closed`,
+        });
+      }
+    } catch {
+      // Gracefully handle unexpected errors
     }
 
     return diagnostics;
