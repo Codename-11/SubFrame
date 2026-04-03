@@ -1,6 +1,6 @@
-Hotfix for the Ctrl+Shift+Enter AI tool launch dropping the first character on Windows.
+Critical fix for the updater download that never starts — the root cause of the "Starting download..." stuck toast across all previous 0.14.x releases.
 
 ## What's Changed
 
 ### Bug Fixes
-- **Ctrl+Shift+Enter drops first character** — launching an AI tool via keyboard shortcut no longer types "laude" instead of "claude". Root cause: on the reuse-terminal path, the command was written to the PTY only ~5-20ms after the keypress (just IPC round-trip time). ConPTY on Windows interpreted the first byte `'c'` as Ctrl+C (0x03) because the physical Ctrl key was still held, and the shell silently swallowed it. Added an 80ms delay before the PTY write to allow modifier key release
+- **Updater download never starts** — `setupIPC()` runs before `init()` sets `isPackaged`, so the `if (!isPackaged)` early return in `setupIPC` always triggered in packaged builds. This registered dev-mode no-op stubs (`() => {}`) for `UPDATER_DOWNLOAD`, `UPDATER_CHECK`, and `UPDATER_INSTALL` instead of the real `autoUpdater` handlers. The download mutation resolved instantly with `undefined`, no download ever started, and no error was reported. Fixed by moving the `isPackaged` check inside each handler (evaluated at invocation time when `init()` has already run)

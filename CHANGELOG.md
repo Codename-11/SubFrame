@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.5-beta] - 2026-04-03
+
+### Fixed
+- **Updater download never starts (root cause)** — the updater's IPC handlers were registered as dev-mode no-ops in packaged builds. `setupIPC()` runs before `init()` sets `isPackaged`, so the early-return guard always fired, registering stub handlers that resolve instantly. `UPDATER_DOWNLOAD` did nothing — the toast stuck at "Starting download..." forever. Fixed by checking `isPackaged` at handler invocation time instead of registration time
+
 ## [0.14.4-beta] - 2026-04-03
 
 ### Fixed
@@ -667,6 +672,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.9.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.8.0-beta...v0.9.0-beta
 [0.8.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.7.0-beta...v0.8.0-beta
 [0.7.0-beta]: https://github.com/Codename-11/SubFrame/compare/v0.6.0-beta...v0.7.0-beta
+[0.14.5-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.4-beta...v0.14.5-beta
 [0.14.4-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.3-beta...v0.14.4-beta
 [0.14.3-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.2-beta...v0.14.3-beta
 [0.14.2-beta]: https://github.com/Codename-11/SubFrame/compare/v0.14.1-beta...v0.14.2-beta
