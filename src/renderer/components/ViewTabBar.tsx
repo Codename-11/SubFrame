@@ -31,6 +31,7 @@ import {
   Plus,
   MoreHorizontal,
   FileText,
+  ArrowUpDown,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -44,7 +45,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from './ui/context-menu';
-import { Reorder, useDragControls } from 'framer-motion';
+import { Reorder, useDragControls, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { IPC } from '../../shared/ipcChannels';
 import type { ClaudeUsageData, UsageWindow, UsageSource, WorkspaceListResult } from '../../shared/ipcChannels';
@@ -274,7 +275,11 @@ function WorkspacePillButton({
                     ${presentation.indexText && !presentation.text && !WorkspaceIcon ? 'font-mono' : 'tracking-wide'}
                     ${workspace.active
                       ? 'bg-accent/20 text-accent border border-accent/30'
-                      : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
+                      : hasAgents
+                        ? 'text-text-primary bg-success/8 border border-success/25 hover:bg-success/12'
+                        : hasTerminals
+                          ? 'text-text-secondary border border-info/15 hover:text-text-primary hover:bg-bg-hover/50'
+                          : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
                     }`}
                   style={workspace.active ? activeAccentStyle ?? undefined : inactiveAccentStyle ?? undefined}
                 >
@@ -291,6 +296,11 @@ function WorkspacePillButton({
                     <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
                       <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-success animate-ping opacity-40" />
                       <span className="block w-1.5 h-1.5 rounded-full bg-success" />
+                    </span>
+                  )}
+                  {!hasAgents && hasTerminals && (
+                    <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
+                      <span className="block w-1.5 h-1.5 rounded-full bg-info/60" />
                     </span>
                   )}
                   {hasTerminals && (
@@ -379,6 +389,8 @@ export function ViewTabBar() {
   const generalSettings = (settings?.general as Record<string, unknown>) || {};
   const maxVisibleWorkspaces = typeof generalSettings.maxVisibleWorkspaces === 'number' ? generalSettings.maxVisibleWorkspaces : 12;
   const collapsedWorkspaceCount = typeof generalSettings.collapsedWorkspaceCount === 'number' ? generalSettings.collapsedWorkspaceCount : 3;
+  const autoSortWorkspacePills = generalSettings.autoSortWorkspacePills !== false; // default true
+  const maxVisibleWorkspacePills = typeof generalSettings.maxVisibleWorkspacePills === 'number' ? generalSettings.maxVisibleWorkspacePills : 0; // 0 = auto
   const inactiveWorkspaceKeys = useMemo(
     () => wsParsed?.workspaces?.filter(ws => ws.inactive)?.map(ws => ws.key) ?? [],
     [wsParsed]
@@ -405,6 +417,7 @@ export function ViewTabBar() {
   const [wsSwitching, setWsSwitching] = useState(false);
   const [wsReordering, setWsReordering] = useState(false);
   const [wsPulse, setWsPulse] = useState(false);
+  const [wsManualReorder, setWsManualReorder] = useState(false);
   const [workspaceOrderKeys, setWorkspaceOrderKeys] = useState<string[]>([]);
   const workspaceOrderKeysRef = useRef<string[]>([]);
   const workspaceByKey = useMemo(
@@ -646,12 +659,49 @@ export function ViewTabBar() {
     }
   }, [inactiveWorkspaceKeys, refetchWorkspaces, workspaceByKey, wsReordering, wsWorkspaces]);
 
+  // Compute which workspace keys have active agents or terminals
+  const activeWorkspaceKeysSet = useMemo(() => {
+    const active = new Set<string>();
+    for (const [key, act] of workspaceActivity.entries()) {
+      if (act.agentCount > 0 || act.terminalCount > 0) active.add(key);
+    }
+    return active;
+  }, [workspaceActivity]);
+
   const displayedWorkspaceKeys = useMemo(() => {
     const validKeys = new Set(workspaceOrderKeys.filter((key) => workspaceByKey.has(key)));
     const pinned = dedupeWorkspaceKeys(pinnedWorkspaceKeys, validKeys);
     const overflow = workspaceOrderKeys.filter((key) => validKeys.has(key) && !pinned.includes(key));
-    return [...pinned, ...overflow];
-  }, [pinnedWorkspaceKeys, workspaceByKey, workspaceOrderKeys]);
+    const baseOrder = [...pinned, ...overflow];
+
+    // Activity-based sorting: active-first when enabled and no manual reorder
+    if (autoSortWorkspacePills && !wsManualReorder) {
+      const withAgents: string[] = [];
+      const withTerminals: string[] = [];
+      const inactive: string[] = [];
+      for (const key of baseOrder) {
+        const act = workspaceActivity.get(key);
+        if (act && act.agentCount > 0) withAgents.push(key);
+        else if (act && act.terminalCount > 0) withTerminals.push(key);
+        else inactive.push(key);
+      }
+      return [...withAgents, ...withTerminals, ...inactive];
+    }
+
+    return baseOrder;
+  }, [autoSortWorkspacePills, pinnedWorkspaceKeys, workspaceActivity, workspaceByKey, workspaceOrderKeys, wsManualReorder]);
+
+  // Determine effective visible pill count: always show active pills + fill up to max
+  const effectiveCollapsedCount = useMemo(() => {
+    if (maxVisibleWorkspacePills > 0) {
+      // User specified a max — always show active ones even if exceeds max
+      const activeCount = displayedWorkspaceKeys.filter(k => activeWorkspaceKeysSet.has(k)).length;
+      return Math.max(maxVisibleWorkspacePills, activeCount);
+    }
+    // Auto mode (0): use collapsedWorkspaceCount but always show active pills
+    const activeCount = displayedWorkspaceKeys.filter(k => activeWorkspaceKeysSet.has(k)).length;
+    return Math.max(collapsedWorkspaceCount, activeCount);
+  }, [activeWorkspaceKeysSet, collapsedWorkspaceCount, displayedWorkspaceKeys, maxVisibleWorkspacePills]);
 
   const handleWsCreate = useCallback(() => {
     window.dispatchEvent(new Event('open-workspace-create'));
@@ -835,7 +885,7 @@ export function ViewTabBar() {
 
       {/* ── Workspace pills (left side, expands rightward on hover) ── */}
       {wsWorkspaces.length > 0 && (() => {
-        const needsExpand = displayedWorkspaceKeys.length > collapsedWorkspaceCount;
+        const needsExpand = displayedWorkspaceKeys.length > effectiveCollapsedCount;
 
         return (
         <div
@@ -849,9 +899,10 @@ export function ViewTabBar() {
             axis="x"
             values={displayedWorkspaceKeys}
             onReorder={(nextOrder) => {
+              setWsManualReorder(true);
               workspaceOrderKeysRef.current = nextOrder;
               setWorkspaceOrderKeys(nextOrder);
-              const nextPinned = nextOrder.slice(0, collapsedWorkspaceCount);
+              const nextPinned = nextOrder.slice(0, effectiveCollapsedCount);
               pinnedWorkspaceKeysRef.current = nextPinned;
               setPinnedWorkspaceKeys(nextPinned);
             }}
@@ -861,12 +912,16 @@ export function ViewTabBar() {
               const ws = workspaceByKey.get(workspaceKey);
               if (!ws) return null;
               const activity = workspaceActivity.get(ws.key) ?? { terminalCount: 0, agentCount: 0 };
-              const isOverflow = i >= collapsedWorkspaceCount;
+              const isOverflow = i >= effectiveCollapsedCount;
               return (
-                <div
+                <motion.div
                   key={ws.key}
+                  layout
+                  layoutId={`ws-pill-${ws.key}`}
+                  initial={false}
+                  transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
                   className={isOverflow && needsExpand
-                    ? 'max-w-0 opacity-0 overflow-hidden transition-all duration-300 ease-in-out group-hover/ws-pills:max-w-[60px] group-hover/ws-pills:opacity-100'
+                    ? 'max-w-0 opacity-0 overflow-hidden transition-[max-width,opacity] duration-300 ease-in-out group-hover/ws-pills:max-w-[60px] group-hover/ws-pills:opacity-100'
                     : ''
                   }
                 >
@@ -881,7 +936,7 @@ export function ViewTabBar() {
                     onDeactivate={handleWorkspaceDeactivate}
                     onReorderCommit={handleWorkspaceReorderCommit}
                   />
-                </div>
+                </motion.div>
               );
             })}
           </Reorder.Group>
@@ -892,6 +947,25 @@ export function ViewTabBar() {
             </span>
           )}
           </div>
+          {/* Auto-sort toggle — shows when manual reorder overrode auto-sort */}
+          {autoSortWorkspacePills && wsManualReorder && (
+            <TooltipProvider delayDuration={400}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setWsManualReorder(false)}
+                    className="flex items-center justify-center h-5 w-5 rounded-md text-warning hover:text-text-primary hover:bg-bg-hover/50
+                      transition-colors cursor-pointer mx-0.5 border border-transparent"
+                  >
+                    <ArrowUpDown className="w-2.5 h-2.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Re-enable auto-sort by activity</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {/* Add workspace button */}
           <TooltipProvider delayDuration={400}>
             <Tooltip>
