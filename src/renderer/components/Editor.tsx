@@ -21,6 +21,8 @@ import {
   Search,
   Hash,
   ExternalLink,
+  Columns2,
+  ChevronRight,
 } from 'lucide-react';
 import { MarkdownPreview } from './previews/MarkdownPreview';
 import { HtmlPreview } from './previews/HtmlPreview';
@@ -62,6 +64,7 @@ import { typedSend, typedInvoke } from '../lib/ipc';
 import { useSettings } from '../hooks/useSettings';
 import { toast } from 'sonner';
 import { useProjectStore } from '../stores/useProjectStore';
+import { useUIStore } from '../stores/useUIStore';
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { keymap, EditorView } from '@codemirror/view';
 import { EditorState as CMState, type Extension } from '@codemirror/state';
@@ -99,7 +102,7 @@ const PREVIEWABLE_EXTENSIONS = new Set([
   'md', 'markdown', 'html', 'htm', 'css', 'svg',
 ]);
 
-type ViewMode = 'code' | 'preview';
+type ViewMode = 'code' | 'preview' | 'split';
 
 interface EditorProps {
   filePath: string | null;
@@ -175,6 +178,14 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
 
   const isModified = content !== originalContent;
   const isOpen = filePath !== null;
+
+  // Sync dirty state to UI store for ViewTabBar indicator
+  const setEditorDirty = useUIStore((s) => s.setEditorDirty);
+  useEffect(() => {
+    if (filePath && inline) {
+      setEditorDirty(filePath, isModified);
+    }
+  }, [filePath, isModified, setEditorDirty, inline]);
 
   // Extract filename and extension for display
   const fileName = filePath?.split(/[/\\]/).pop() ?? '';
@@ -463,7 +474,7 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
 
   // ── Shared editor content blocks (used by both dialog and inline modes) ──
 
-  const editorToolbar = editorState === 'ready' && !isImage && viewMode === 'code' ? (
+  const editorToolbar = editorState === 'ready' && !isImage && (viewMode === 'code' || viewMode === 'split') ? (
     <div className="flex items-center gap-0.5 mr-1 border-r border-border-subtle pr-2">
       {/* Find & Replace */}
       <ToolbarBtn onClick={() => { const v = getView(); if (v) openSearchPanel(v); }} title="Find & Replace (Ctrl+H)">
@@ -551,6 +562,17 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
         Code
       </button>
       <button
+        onClick={() => setViewMode('split')}
+        className={`flex items-center gap-1 px-2 py-0.5 text-[10px] rounded transition-colors cursor-pointer ${
+          viewMode === 'split'
+            ? 'bg-bg-elevated text-text-primary'
+            : 'text-text-tertiary hover:text-text-secondary'
+        }`}
+      >
+        <Columns2 className="w-3 h-3" />
+        Split
+      </button>
+      <button
         onClick={() => setViewMode('preview')}
         className={`flex items-center gap-1 px-2 py-0.5 text-[10px] rounded transition-colors cursor-pointer ${
           viewMode === 'preview'
@@ -591,6 +613,14 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
     </Tooltip>
   );
 
+  /** Render the preview pane for the current file type */
+  const renderPreviewPane = () => {
+    if (fileExt === 'md' || fileExt === 'markdown') return <MarkdownPreview content={content} />;
+    if ((fileExt === 'html' || fileExt === 'htm' || fileExt === 'css') && filePath) return <HtmlPreview content={content} filePath={filePath} />;
+    if (fileExt === 'svg') return <ImagePreview dataUrl={`data:image/svg+xml;utf8,${encodeURIComponent(content)}`} fileName={fileName} />;
+    return null;
+  };
+
   const editorBody = (
     <div className="flex-1 min-h-0 overflow-hidden [&_.cm-editor]:h-full [&_.cm-editor_.cm-scroller]:overflow-auto">
       {editorState === 'loading' && (
@@ -617,20 +647,7 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
         />
       )}
 
-      {editorState === 'ready' && !isImage && viewMode === 'preview' && (fileExt === 'md' || fileExt === 'markdown') && (
-        <MarkdownPreview content={content} />
-      )}
-
-      {editorState === 'ready' && !isImage && viewMode === 'preview' && (fileExt === 'html' || fileExt === 'htm' || fileExt === 'css') && filePath && (
-        <HtmlPreview content={content} filePath={filePath} />
-      )}
-
-      {editorState === 'ready' && !isImage && viewMode === 'preview' && fileExt === 'svg' && (
-        <ImagePreview
-          dataUrl={`data:image/svg+xml;utf8,${encodeURIComponent(content)}`}
-          fileName={fileName}
-        />
-      )}
+      {editorState === 'ready' && !isImage && viewMode === 'preview' && renderPreviewPane()}
 
       {editorState === 'ready' && !isImage && viewMode === 'code' && (
         <CodeMirror
@@ -646,10 +663,34 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
           autoFocus
         />
       )}
+
+      {editorState === 'ready' && !isImage && viewMode === 'split' && (
+        <div className="flex h-full">
+          {/* Code pane */}
+          <div className="flex-1 min-w-0 overflow-hidden [&_.cm-editor]:h-full [&_.cm-editor_.cm-scroller]:overflow-auto border-r border-border-subtle">
+            <CodeMirror
+              ref={cmRef}
+              value={content}
+              extensions={extensions}
+              onChange={readOnly ? undefined : (value) => setContent(value)}
+              basicSetup={false}
+              theme="none"
+              className="h-full"
+              height="100%"
+              style={{ height: '100%' }}
+              autoFocus
+            />
+          </div>
+          {/* Preview pane */}
+          <div className="flex-1 min-w-0 overflow-auto">
+            {renderPreviewPane()}
+          </div>
+        </div>
+      )}
     </div>
   );
 
-  const editorStatusBar = editorState === 'ready' && !isImage && viewMode === 'code' ? (
+  const editorStatusBar = editorState === 'ready' && !isImage && (viewMode === 'code' || viewMode === 'split') ? (
     <div className="px-4 py-1 border-t border-border-subtle flex items-center justify-between text-[10px] font-mono text-text-muted flex-shrink-0 bg-bg-primary">
       <span>
         Ln {cursorLine}, Col {cursorCol} · {totalLines} lines
@@ -683,6 +724,24 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
     </AlertDialog>
   );
 
+  // ── Breadcrumb segments for inline mode ──────────────────────────────
+
+  const breadcrumbSegments = useMemo(() => {
+    if (!filePath || !currentProjectPath) return [];
+    const rel = getRelativePath(filePath, currentProjectPath);
+    const parts = rel.replace(/\\/g, '/').split('/');
+    // Project name is the first segment context
+    const projectName = currentProjectPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? '';
+    return [projectName, ...parts];
+  }, [filePath, currentProjectPath]);
+
+  const handleBreadcrumbClick = useCallback((segmentIndex: number) => {
+    // Clicking a folder segment focuses the sidebar file tree
+    if (segmentIndex < breadcrumbSegments.length - 1) {
+      useUIStore.getState().requestSidebarFocus('files');
+    }
+  }, [breadcrumbSegments.length]);
+
   // ── Inline mode: render directly without Dialog wrapper ──────────────
 
   if (inline) {
@@ -690,6 +749,26 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
     return (
       <div className="flex flex-col h-full w-full bg-bg-primary">
         <TooltipProvider delayDuration={400}>
+          {/* Breadcrumb navigation */}
+          <div className="px-4 py-1.5 border-b border-border-subtle flex-shrink-0 bg-bg-secondary">
+            <div className="flex items-center gap-0.5 text-[11px] text-text-tertiary min-w-0 overflow-hidden">
+              {breadcrumbSegments.map((segment, i) => (
+                <span key={i} className="flex items-center gap-0.5 min-w-0">
+                  {i > 0 && <ChevronRight className="w-3 h-3 flex-shrink-0 text-text-muted" />}
+                  {i < breadcrumbSegments.length - 1 ? (
+                    <button
+                      onClick={() => handleBreadcrumbClick(i)}
+                      className="hover:underline hover:text-text-secondary transition-colors cursor-pointer truncate max-w-[120px]"
+                    >
+                      {segment}
+                    </button>
+                  ) : (
+                    <span className="text-text-secondary font-medium truncate">{segment}</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
           {/* Inline header */}
           <div className="px-4 py-2 border-b border-border-subtle flex-shrink-0">
             <div className="flex items-center justify-between">
@@ -744,9 +823,6 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
                 )}
               </div>
             </div>
-            <p className="text-[10px] font-mono text-text-muted truncate mt-1">
-              {relativePath}
-            </p>
           </div>
           {editorBody}
           {editorStatusBar}
