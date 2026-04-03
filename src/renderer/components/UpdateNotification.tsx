@@ -99,17 +99,18 @@ export function UpdateNotification() {
           duration: Infinity,
           action: {
             label: 'Download',
-            onClick: () => {
+            onClick: (event) => {
+              // Prevent sonner's auto-dismiss — without this, sonner calls deleteToast()
+              // after onClick returns, starting an exit animation that swallows any
+              // subsequent toast.loading() calls with the same id (the Toast component's
+              // local `removed` state is never reset by data updates from the Observer).
+              event.preventDefault();
               clearSnooze();
+              toast.loading('Starting download...', { id: 'updater', duration: Infinity });
               downloadRef.current.mutate([], {
                 onError: () => {
                   toast.error('Download failed — try again later', { id: 'updater', duration: 6000 });
                 },
-              });
-              // Sonner auto-dismisses the toast after action onClick returns.
-              // Defer the loading toast to the next frame so it survives the dismiss cycle.
-              requestAnimationFrame(() => {
-                toast.loading('Starting download...', { id: 'updater', duration: Infinity });
               });
             },
           },
