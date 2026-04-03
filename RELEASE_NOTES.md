@@ -1,13 +1,7 @@
-Stability release focused on fixing the updater download toast lifecycle, filling the nearly-empty Output panel with meaningful system logs, and improving editor keyboard handling.
+Stability release fixing the terminal bell/character-drop when launching AI tools via Ctrl+Shift+Enter, and a workspace deactivation bug that could leave the entire UI unresponsive.
 
 ## What's Changed
 
 ### Bug Fixes
-- **Updater toast download flow** — Clicking "Download" on the update notification no longer silently dismisses the toast. Fixed three independent root causes: sonner action auto-dismiss race condition, TanStack Query mutation identity churn causing spurious effect re-runs, and updater status loss after renderer hot-reloads
-- **Editor F11 fullscreen toggle** — Global keydown listener for fullscreen no longer tears down and re-registers on every settings mutation, eliminating brief gaps where the shortcut wouldn't respond
-- **SystemPanel layout** — Refactored to sidebar-nav settings layout with categorical grouping
-
-### Improvements
-- **Output channel coverage** — 7 managers now write to the Output panel (updater, plugins, settings, agent state, sessions, AI sessions, pipeline). The Extensions channel is no longer permanently empty. System-level events like update checks, plugin operations, AI session lifecycle, and pipeline errors are now visible in the Output tab instead of only in Electron DevTools
-- **Updater hot-reload recovery** — The main process now tracks and re-broadcasts the last updater status when the renderer reloads, so download progress or "Restart Now" notifications survive hot-reloads
-- **Global hooks IPC** — New `GET_GLOBAL_HOOKS` channel reads hooks configuration from `~/.claude/settings.json` with source label extraction for the System panel
+- **Terminal bell on AI tool launch** — Pressing Ctrl+Shift+Enter to start an AI tool no longer triggers a terminal bell or drops the first character of the command (typing "laude" instead of "claude"). Root cause: xterm's `attachCustomKeyEventHandler` returning `false` skips xterm's key processing but does not call `preventDefault()`, so the browser's default textarea input still leaked through to the PTY
+- **Workspace deactivation UI freeze** — Deactivating a workspace no longer leaves the entire UI unresponsive to clicks. Radix modal context menus set `pointer-events:none` on `<body>` while open; if the workspace pill (menu trigger) unmounted before the close animation completed, this style was permanently orphaned. Added post-operation safety cleanup for workspace deactivation and deletion

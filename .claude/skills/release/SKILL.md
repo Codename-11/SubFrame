@@ -2,7 +2,7 @@
 name: release
 description: Create a new release with version bump, release notes, commit, and tag
 argument-hint: <patch|minor|major|x.y.z[-prerelease]>
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
