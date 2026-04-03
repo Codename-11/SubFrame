@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.14.3-beta] - 2026-04-02
 
 ### Fixed
+- **Updater download toast (round 2)** — clicking "Download" on the update-available toast now correctly transitions to a "Starting download..." loading state. The previous `requestAnimationFrame` workaround was insufficient: sonner's `deleteToast()` sets a component-local `removed` flag that ignores all subsequent data updates during the ~200ms exit animation. The correct fix uses sonner's own escape hatch: `event.preventDefault()` in the action onClick to skip auto-dismiss, then updates the toast in-place
 - **Terminal bell on Ctrl+Shift+Enter** — launching an AI tool via the keyboard shortcut no longer triggers a terminal bell or drops the first character of the command. Added `preventDefault()` to all keyboard shortcut intercepts in xterm's custom key handler — returning `false` alone only skips xterm processing but lets the browser's default textarea input leak through to the PTY
 - **Workspace deactivation UI freeze** — deactivating a workspace no longer leaves the entire UI unresponsive. Radix modal context menus add `pointer-events:none` to `<body>`; when the workspace pill unmounts before the menu's close animation completes, this style was orphaned. Added safety cleanup after workspace operations settle
 
