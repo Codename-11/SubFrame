@@ -9,6 +9,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { IPC } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
+import { log as outputLog } from './outputChannelManager';
 import type { RoutableIPC } from './ipcRouter';
 
 let mainWindow: BrowserWindow | null = null;
@@ -201,6 +202,7 @@ function loadSettings(): Record<string, unknown> {
     }
   } catch (error) {
     console.error('Error loading settings:', error);
+    outputLog('system', `Settings load error: ${(error as Error).message}`);
     settings = structuredClone(DEFAULT_SETTINGS) as Record<string, unknown>;
   }
   return settings!;
@@ -216,6 +218,7 @@ function saveSettings(): void {
     }
   } catch (error) {
     console.error('Error saving settings:', error);
+    outputLog('system', `Settings save error: ${(error as Error).message}`);
   }
 }
 
@@ -404,6 +407,42 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
       gemini,
       codex,
     };
+  });
+
+  // Global hooks — read hooks from ~/.claude/settings.json (user-level, not project-level)
+  ipc.handle(IPC.GET_GLOBAL_HOOKS, () => {
+    const home = os.homedir();
+    const settingsPath = path.join(home, '.claude', 'settings.json');
+    try {
+      const raw = fs.readFileSync(settingsPath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      const hooks: Record<string, unknown[]> = parsed.hooks || {};
+
+      // Build source labels from hook commands (best-effort: extract plugin/config origin from command string)
+      const sources: Record<string, string> = {};
+      for (const [event, entries] of Object.entries(hooks)) {
+        if (!Array.isArray(entries)) continue;
+        for (const entry of entries) {
+          const cmds = (entry as { hooks?: Array<{ command?: string }> }).hooks || [];
+          for (const cmd of cmds) {
+            if (!cmd.command) continue;
+            // Try to extract a source label from the command path
+            if (cmd.command.includes('claude-plugins-official')) {
+              const match = cmd.command.match(/cache[\\/]([^\\/]+)[\\/]/);
+              sources[cmd.command] = match ? `${match[1]} plugin` : 'claude plugin';
+            } else if (cmd.command.includes('openai-codex')) {
+              sources[cmd.command] = 'codex plugin';
+            } else {
+              sources[cmd.command] = 'user config';
+            }
+          }
+        }
+      }
+
+      return { hooks, sources, settingsPath };
+    } catch {
+      return null;
+    }
   });
 }
 

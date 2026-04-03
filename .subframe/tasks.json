@@ -2,12 +2,12 @@
   "_frame_metadata": {
     "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-04-01",
+    "lastUpdated": "2026-04-03",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-04-01T03:02:31.443Z",
+  "lastUpdated": "2026-04-03T00:52:49.413Z",
   "tasks": {
     "pending": [
       {
@@ -846,6 +846,36 @@
             "label": "Update Last verified date in ai-tool-capabilities.md"
           }
         ]
+      },
+      {
+        "id": "task-mni6vy55-djk1",
+        "title": "Add RENDERER_RELOADED handlers to managers with sticky broadcast state",
+        "status": "pending",
+        "priority": "medium",
+        "category": "fix",
+        "context": "Session 2026-04-03",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-04-03T00:52:43.288Z",
+        "updatedAt": "2026-04-03T00:52:43.288Z",
+        "completedAt": null,
+        "description": "5 managers broadcast sticky state but don't re-send on RENDERER_RELOADED: aiSessionManager, ptyManager (CLAUDE_ACTIVE_STATUS), aiToolManager, webServerManager, popoutManager/editorPopoutManager. Follow the pattern from updaterManager (track lastStatus, re-broadcast on RENDERER_RELOADED). Each is ~5 lines.",
+        "steps": []
+      },
+      {
+        "id": "task-mni6w2tx-upp8",
+        "title": "Stabilize mutation object identity in useCallback deps across codebase",
+        "status": "pending",
+        "priority": "low",
+        "category": "refactor",
+        "context": "Session 2026-04-03",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-04-03T00:52:49.364Z",
+        "updatedAt": "2026-04-03T00:52:49.364Z",
+        "completedAt": null,
+        "description": "43 useCallback instances have TanStack Query mutation objects in dependency arrays, causing unnecessary callback recreation on every mutation state tick. Low severity (perf, not functional bugs). The ref pattern from UpdateNotification.tsx and useActivity.ts is the fix. Key files: Editor.tsx (6), PromptLibrary.tsx (3), PromptsPanel.tsx (4), useOnboarding.ts (5), AIAnalysisPanel.tsx (1), AIToolPalette.tsx (1).",
+        "steps": []
       }
     ],
     "inProgress": [

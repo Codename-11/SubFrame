@@ -364,6 +364,7 @@ export const IPC = {
 
   // Claude Configuration
   GET_CLAUDE_CONFIG_STATUS: 'get-claude-config-status',
+  GET_GLOBAL_HOOKS: 'get-global-hooks',
 
   // Renderer Hot Reload
   RENDERER_HOT_RELOAD: 'renderer-hot-reload',
@@ -1760,6 +1761,15 @@ export interface IPCHandleMap {
         privateMd: { exists: boolean; path: string };
       } | null;
     };
+  };
+
+  [IPC.GET_GLOBAL_HOOKS]: {
+    args: [];
+    return: {
+      hooks: Record<string, Array<{ matcher?: string; hooks: Array<{ type: string; command: string }> }>>;
+      sources: Record<string, string>;
+      settingsPath: string;
+    } | null;
   };
 
   // Session Snapshot

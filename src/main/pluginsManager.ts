@@ -10,6 +10,7 @@ import { execSync } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
+import { log as outputLog } from './outputChannelManager';
 
 interface PluginConfig {
   name?: string;
@@ -180,6 +181,7 @@ function togglePlugin(pluginId: string): ToggleResult {
   enabledPlugins[pluginId] = !currentStatus;
 
   const success = writeJsonFile(SETTINGS_FILE, settings);
+  outputLog('extensions', `Plugin ${pluginId} ${!currentStatus ? 'enabled' : 'disabled'}${success ? '' : ' (save failed)'}`);
 
   return {
     success,
@@ -204,15 +206,17 @@ function ensureOfficialMarketplace(): boolean {
       fs.mkdirSync(MARKETPLACES_DIR, { recursive: true });
     }
 
-    console.log('Cloning official plugins repository...');
+    outputLog('extensions', 'Cloning official plugins repository...');
     execSync('git clone https://github.com/anthropics/claude-plugins-official.git', {
       cwd: MARKETPLACES_DIR,
       stdio: 'pipe',
       timeout: 60000
     });
+    outputLog('extensions', 'Official marketplace cloned successfully');
     return true;
   } catch (err) {
     console.error('Error cloning official marketplace:', err);
+    outputLog('extensions', `Failed to clone marketplace: ${(err as Error).message}`);
     return false;
   }
 }
@@ -233,14 +237,17 @@ function refreshMarketplace(): RefreshResult {
   }
 
   try {
+    outputLog('extensions', 'Refreshing marketplace plugins...');
     execSync('git pull', {
       cwd: officialMarketplace,
       stdio: 'pipe',
       timeout: 30000
     });
+    outputLog('extensions', 'Marketplace refreshed successfully');
     return { success: true };
   } catch (err) {
     console.error('Error refreshing marketplace:', err);
+    outputLog('extensions', `Failed to refresh marketplace: ${(err as Error).message}`);
     return { success: false, error: (err as Error).message };
   }
 }

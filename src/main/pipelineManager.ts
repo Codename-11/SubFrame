@@ -137,6 +137,7 @@ function persistRuns(projectPath: string): void {
     );
   } catch (err) {
     console.error('Error persisting pipeline runs:', (err as Error).message);
+    outputLog('pipeline', `Failed to persist pipeline runs: ${(err as Error).message}`);
   }
 }
 
@@ -162,6 +163,7 @@ function loadPersistedRuns(projectPath: string): void {
     }
   } catch (err) {
     console.error('Error loading persisted runs:', (err as Error).message);
+    outputLog('pipeline', `Failed to load persisted runs: ${(err as Error).message}`);
   }
 }
 
@@ -341,6 +343,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
     persistRuns(projectPath);
     activeRuns.delete(run.id);
     console.error(`Pipeline run aborted: ${errMsg}`);
+    outputLog('pipeline', `Pipeline run aborted: ${errMsg}`);
     return;
   }
 
@@ -569,6 +572,7 @@ async function executeRun(runCtx: PipelineRunContext, workflow: WorkflowDefiniti
   } catch (err) {
     run.status = 'failed';
     console.error('Pipeline execution error:', (err as Error).message);
+    outputLog('pipeline', `Pipeline execution error: ${(err as Error).message}`);
   }
 
   run.completedAt = now();
@@ -694,6 +698,7 @@ function setupIPC(ipcMain: IpcMain): void {
       // Start execution asynchronously
       executeRun(runCtx, workflow).catch((err) => {
         console.error('Pipeline run error:', (err as Error).message);
+        outputLog('pipeline', `Pipeline run error: ${(err as Error).message}`);
       });
 
       return { runId: run.id };
@@ -934,6 +939,7 @@ async function startPipelineFromTrigger(
 
   if (!workflow) {
     console.error(`Workflow '${workflowId}' not found for trigger '${trigger}'`);
+    outputLog('pipeline', `Workflow '${workflowId}' not found for trigger '${trigger}'`);
     return;
   }
 
@@ -978,6 +984,7 @@ async function startPipelineFromTrigger(
 
   executeRun(runCtx, workflow).catch((err) => {
     console.error('Pipeline run error:', (err as Error).message);
+    outputLog('pipeline', `Pipeline run error: ${(err as Error).message}`);
   });
 }
 

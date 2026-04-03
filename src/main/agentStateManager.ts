@@ -10,6 +10,7 @@ import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
 import type { AgentStatePayload } from '../shared/agentStateTypes';
 import { broadcast } from './eventBridge';
+import { log as outputLog } from './outputChannelManager';
 
 const AGENT_STATE_FILE = 'agent-state.json';
 const SUBFRAME_DIR = '.subframe';
@@ -106,10 +107,12 @@ function watchAgentState(projectPath: string): void {
     });
     stateWatcher.on('error', (err) => {
       console.warn('[AgentState] Watcher error (path may have been deleted):', (err as NodeJS.ErrnoException).code);
+      outputLog('agent', `Agent state watcher error: ${(err as NodeJS.ErrnoException).code}`);
       unwatchAgentState();
     });
   } catch (err) {
     console.error('Error watching agent state directory:', err);
+    outputLog('agent', `Failed to watch agent state: ${(err as Error).message}`);
   }
 }
 

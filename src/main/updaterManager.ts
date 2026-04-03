@@ -25,11 +25,14 @@ let updateDownloaded = false;
 const FOCUS_CHECK_DEBOUNCE_MS = 5 * 60_000;
 /** Optional hook called before install — returns false to defer (e.g. for graceful shutdown) */
 let beforeInstallHook: (() => boolean) | null = null;
+/** Last status sent — re-broadcast on renderer reload so the UI doesn't lose state */
+let lastStatus: UpdaterStatus | null = null;
 
 /**
  * Send updater status to the renderer process
  */
 function sendStatus(status: UpdaterStatus): void {
+  lastStatus = status;
   if (mainWindow && !mainWindow.isDestroyed()) {
     broadcast(IPC.UPDATER_STATUS, status);
   }
@@ -78,6 +81,7 @@ function init(window: BrowserWindow, app: App): void {
 
   // Wire autoUpdater events → renderer (include manual flag so UI knows when to show feedback)
   autoUpdater.on('checking-for-update', () => {
+    outputLog('system', `Checking for updates${isManualCheck ? ' (manual)' : ''}...`);
     sendStatus({ status: 'checking', manual: isManualCheck });
   });
 
@@ -88,6 +92,7 @@ function init(window: BrowserWindow, app: App): void {
   });
 
   autoUpdater.on('update-not-available', () => {
+    outputLog('system', 'No updates available');
     sendStatus({ status: 'not-available', manual: isManualCheck });
     isManualCheck = false;
   });
@@ -178,9 +183,15 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
     return { success };
   });
 
-  // Renderer sends this after remounting post-reload to signal readiness
+  // Renderer sends this after remounting post-reload to signal readiness.
+  // Re-broadcast the last updater status so the UI doesn't lose state (e.g. a
+  // pending download or ready-to-install notification that was sent while React
+  // was mid-remount and hadn't registered its IPC event listeners yet).
   ipcMain.on(IPC.RENDERER_RELOADED, () => {
     console.log('[updater] Renderer reloaded and re-synced successfully');
+    if (lastStatus) {
+      sendStatus(lastStatus);
+    }
   });
 
   if (!isPackaged) {
@@ -217,12 +228,14 @@ function setupIPC(ipc: RoutableIPC | IpcMain = ipcMain): void {
 
   ipc.handle(IPC.UPDATER_DOWNLOAD, async () => {
     try {
+      outputLog('system', 'Starting update download...');
       sendStatus({ status: 'downloading', manual: true });
       await autoUpdater.downloadUpdate();
     } catch (err) {
       console.error('[updater] Download failed:', err);
       const msg = err instanceof Error ? err.message : 'Download failed';
       const friendly = msg.includes('404') ? 'Update not available yet — try again shortly' : msg;
+      outputLog('system', `Download error: ${friendly}`);
       sendStatus({ status: 'error', error: friendly, manual: true });
     }
   });

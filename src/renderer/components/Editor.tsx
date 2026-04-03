@@ -142,6 +142,9 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
 
   // Settings
   const { settings, updateSetting } = useSettings();
+  // Ref avoids tearing down the F11 keydown listener on every mutation state tick
+  const updateSettingRef = useRef(updateSetting);
+  updateSettingRef.current = updateSetting;
   const editorSettings = (settings as Record<string, unknown>)?.editor as {
     minimap?: boolean;
     fullscreen?: boolean;
@@ -332,14 +335,14 @@ export function Editor({ filePath, onClose, inline }: EditorProps) {
         e.preventDefault();
         setIsFullscreen((prev) => {
           const next = !prev;
-          updateSetting.mutate([{ key: 'editor.fullscreen', value: next }]);
+          updateSettingRef.current.mutate([{ key: 'editor.fullscreen', value: next }]);
           return next;
         });
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, updateSetting]);
+  }, [isOpen]);
 
   // ── Toolbar handlers ─────────────────────────────────────────────────
 

@@ -57,6 +57,12 @@ function formatSnoozeRemaining(): string {
 export function UpdateNotification() {
   const { status, version, error, progress, manual, downloadUpdate, installUpdate } = useUpdater();
   const prevStatus = useRef(status);
+  // Refs to avoid mutation objects in the effect dependency array — their identity
+  // changes on every mutation state tick (idle→pending→success), causing spurious re-runs.
+  const downloadRef = useRef(downloadUpdate);
+  downloadRef.current = downloadUpdate;
+  const installRef = useRef(installUpdate);
+  installRef.current = installUpdate;
 
   const handleSnooze = useCallback(() => {
     snooze();
@@ -95,11 +101,15 @@ export function UpdateNotification() {
             label: 'Download',
             onClick: () => {
               clearSnooze();
-              toast.loading('Starting download...', { id: 'updater', duration: Infinity });
-              downloadUpdate.mutate([], {
+              downloadRef.current.mutate([], {
                 onError: () => {
                   toast.error('Download failed — try again later', { id: 'updater', duration: 6000 });
                 },
+              });
+              // Sonner auto-dismisses the toast after action onClick returns.
+              // Defer the loading toast to the next frame so it survives the dismiss cycle.
+              requestAnimationFrame(() => {
+                toast.loading('Starting download...', { id: 'updater', duration: Infinity });
               });
             },
           },
@@ -124,7 +134,7 @@ export function UpdateNotification() {
           duration: Infinity,
           action: {
             label: 'Restart Now',
-            onClick: () => installUpdate.mutate([]),
+            onClick: () => installRef.current.mutate([]),
           },
           cancel: {
             label: 'Later',
@@ -149,7 +159,7 @@ export function UpdateNotification() {
         }
         break;
     }
-  }, [status, version, error, manual, downloadUpdate, installUpdate, handleSnooze]);
+  }, [status, version, error, manual, handleSnooze]);
 
   // Update progress toast description when downloading
   useEffect(() => {

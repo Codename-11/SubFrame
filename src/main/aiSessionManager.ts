@@ -20,6 +20,7 @@ import {
 } from '../shared/ipcChannels';
 import type { ActivitySource } from '../shared/activityTypes';
 import { appendTerminalTranscriptChunk, renderTerminalTranscript } from '../shared/terminalTranscript';
+import { log as outputLog } from './outputChannelManager';
 
 export type AISessionStatus = 'starting' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -194,6 +195,7 @@ function createSession(options: CreateAISessionOptions): AISession {
   }, outputHandlerId);
 
   sessions.set(id, session);
+  outputLog('agent', `AI session created: "${options.name}" (${options.toolId})`);
   broadcastSessionsUpdated();
   return session;
 }
@@ -421,6 +423,11 @@ function markSessionStatus(sessionId: string, status: AISessionStatus, error?: s
     session.completedAt = nowIso();
   }
   session.error = error ?? null;
+  if (status === 'failed' || status === 'cancelled') {
+    outputLog('agent', `AI session ${status}: "${session.name}" (${session.toolId})${error ? ` — ${error}` : ''}`);
+  } else if (status === 'completed') {
+    outputLog('agent', `AI session completed: "${session.name}" (${session.toolId})`);
+  }
   broadcastSessionsUpdated();
   return session;
 }

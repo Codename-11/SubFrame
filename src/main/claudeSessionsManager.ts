@@ -10,6 +10,7 @@ import * as os from 'os';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC, type SessionSegment } from '../shared/ipcChannels';
 import * as ptyManager from './ptyManager';
+import { log as outputLog } from './outputChannelManager';
 
 interface SessionEntry {
   sessionId?: string;
@@ -279,6 +280,7 @@ function getSessionsForProject(projectPath: string): GroupedSession[] {
     return grouped.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
   } catch (err) {
     console.error('Error reading sessions directory:', err);
+    outputLog('system', `Sessions directory read error: ${(err as Error).message}`);
     return [];
   }
 }
@@ -354,6 +356,7 @@ function renameSession(projectPath: string, sessionId: string, name: string): bo
     return true;
   } catch (err) {
     console.error('Error renaming session:', err);
+    outputLog('system', `Session rename error: ${(err as Error).message}`);
     return false;
   }
 }
@@ -405,6 +408,7 @@ function deleteSession(projectPath: string, sessionId: string, slug: string): bo
     return deleted;
   } catch (err) {
     console.error('Error deleting session:', err);
+    outputLog('system', `Session delete error: ${(err as Error).message}`);
     return false;
   }
 }
@@ -439,6 +443,7 @@ function deleteAllSessions(projectPath: string): { deleted: number } {
     return { deleted: count };
   } catch (err) {
     console.error('Error deleting all sessions:', err);
+    outputLog('system', `Session bulk delete error: ${(err as Error).message}`);
     return { deleted: 0 };
   }
 }
