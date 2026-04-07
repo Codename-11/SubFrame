@@ -400,9 +400,19 @@ async function launchInteractiveSession(
   promptFilePath: string,
   config: AIInteractiveToolConfig,
 ): Promise<void> {
-  await delay(config.startupDelayMs);
+  // Wait for the shell to finish rendering its prompt and escape sequences.
+  // Previously a fixed delay (startupDelayMs, e.g. 300ms), which was fragile —
+  // if the shell profile was slow (oh-my-posh on Windows can take 800ms+) the
+  // delay wasn't enough, and if it was fast the delay was wasted time.
+  // waitForOutputQuiet resolves once PTY output has been silent for 100ms,
+  // ensuring ConPTY has finished processing before we write input.
   const session = getSession(sessionId);
   if (session) {
+    // Give the shell at least a moment to start producing output before
+    // we begin polling for quiescence — otherwise we'd resolve immediately
+    // on a terminal that hasn't emitted anything yet.
+    await delay(Math.min(config.startupDelayMs, 300));
+    await ptyManager.waitForOutputQuiet(session.terminalId, 100, config.readyTimeoutMs);
     try {
       ptyManager.resizeTerminal(session.terminalId, 200, 50);
       await delay(50);

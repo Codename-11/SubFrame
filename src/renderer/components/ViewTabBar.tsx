@@ -183,26 +183,26 @@ function WorkspacePillButton({
   activity,
   display,
   disabled,
+  suppressClickUntil,
+  onPointerDown,
+  onPointerUp,
   onSwitch,
   onDuplicate,
   onManageIdentity,
   onDeactivate,
-  onReorderCommit,
 }: {
   workspace: WorkspacePillInfo;
   activity: { terminalCount: number; agentCount: number };
   display: ReturnType<typeof normalizeWorkspacePillDisplay>;
   disabled: boolean;
+  suppressClickUntil: React.MutableRefObject<number>;
+  onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  onPointerUp: () => void;
   onSwitch: (key: string) => void;
   onDuplicate: (key: string) => void;
   onManageIdentity: (key: string) => void;
   onDeactivate: (key: string) => void;
-  onReorderCommit: () => void;
 }) {
-  const dragControls = useDragControls();
-  const holdTimerRef = useRef<number | null>(null);
-  const suppressClickUntilRef = useRef(0);
-
   const hasTerminals = activity.terminalCount > 0;
   const hasAgents = activity.agentCount > 0;
   const presentation = getWorkspacePillPresentation({
@@ -224,92 +224,62 @@ function WorkspacePillButton({
     borderColor: withWorkspaceAccentAlpha(accentColor, '33') ?? undefined,
   } : undefined;
 
-  const clearHoldTimer = useCallback(() => {
-    if (holdTimerRef.current != null) {
-      window.clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  }, []);
-
-  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    if (disabled) return;
-    clearHoldTimer();
-    holdTimerRef.current = window.setTimeout(() => {
-      suppressClickUntilRef.current = Date.now() + 250;
-      dragControls.start(event, { snapToCursor: false });
-    }, 180);
-  }, [clearHoldTimer, disabled, dragControls]);
-
-  useEffect(() => clearHoldTimer, [clearHoldTimer]);
-
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
           <ContextMenu>
             <ContextMenuTrigger asChild>
-              <Reorder.Item
-                value={workspace.key}
-                dragListener={false}
-                dragControls={dragControls}
-                onDragEnd={() => {
-                  clearHoldTimer();
-                  suppressClickUntilRef.current = Date.now() + 250;
-                  onReorderCommit();
+              <button
+                onPointerDown={onPointerDown}
+                onPointerUp={onPointerUp}
+                onPointerLeave={onPointerUp}
+                onPointerCancel={onPointerUp}
+                onClick={() => {
+                  if (suppressClickUntil.current > Date.now()) return;
+                  onSwitch(workspace.key);
                 }}
-                className="list-none"
+                disabled={disabled}
+                className={`group/pill relative flex items-center h-5 rounded-md text-[10px] font-semibold
+                  transition-all duration-200 cursor-pointer disabled:opacity-50 mx-0.5 touch-none
+                  ${usesCompactWidth ? 'min-w-[24px] px-1.5' : 'min-w-[28px] px-2 gap-1'}
+                  ${presentation.indexText && !presentation.text && !WorkspaceIcon ? 'font-mono' : 'tracking-wide'}
+                  ${workspace.active
+                    ? 'bg-accent/20 text-accent border border-accent/30'
+                    : hasAgents
+                      ? 'text-text-primary bg-success/8 border border-success/25 hover:bg-success/12'
+                      : hasTerminals
+                        ? 'text-text-secondary border border-info/15 hover:text-text-primary hover:bg-bg-hover/50'
+                        : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
+                  }`}
+                style={workspace.active ? activeAccentStyle ?? undefined : inactiveAccentStyle ?? undefined}
               >
-                <button
-                  onPointerDown={handlePointerDown}
-                  onPointerUp={clearHoldTimer}
-                  onPointerLeave={clearHoldTimer}
-                  onPointerCancel={clearHoldTimer}
-                  onClick={() => {
-                    if (suppressClickUntilRef.current > Date.now()) return;
-                    onSwitch(workspace.key);
-                  }}
-                  disabled={disabled}
-                  className={`group/pill relative flex items-center h-5 rounded-md text-[10px] font-semibold
-                    transition-all duration-200 cursor-pointer disabled:opacity-50 mx-0.5 touch-none
-                    ${usesCompactWidth ? 'min-w-[24px] px-1.5' : 'min-w-[28px] px-2 gap-1'}
-                    ${presentation.indexText && !presentation.text && !WorkspaceIcon ? 'font-mono' : 'tracking-wide'}
-                    ${workspace.active
-                      ? 'bg-accent/20 text-accent border border-accent/30'
-                      : hasAgents
-                        ? 'text-text-primary bg-success/8 border border-success/25 hover:bg-success/12'
-                        : hasTerminals
-                          ? 'text-text-secondary border border-info/15 hover:text-text-primary hover:bg-bg-hover/50'
-                          : 'text-text-muted hover:text-text-primary hover:bg-bg-hover/50 border border-transparent'
-                    }`}
-                  style={workspace.active ? activeAccentStyle ?? undefined : inactiveAccentStyle ?? undefined}
-                >
-                  {presentation.indexText && <span className="font-mono shrink-0">{presentation.indexText}</span>}
-                  {!workspace.active && accentColor && (
-                    <span
-                      className="h-1.5 w-1.5 rounded-full flex-shrink-0 border border-black/20"
-                      style={{ backgroundColor: accentColor }}
-                    />
-                  )}
-                  {WorkspaceIcon && <WorkspaceIcon className="w-3 h-3 flex-shrink-0" />}
-                  {presentation.text && <span className="truncate max-w-[48px]">{presentation.text}</span>}
-                  {hasAgents && (
-                    <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
-                      <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-success animate-ping opacity-40" />
-                      <span className="block w-1.5 h-1.5 rounded-full bg-success" />
-                    </span>
-                  )}
-                  {!hasAgents && hasTerminals && (
-                    <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
-                      <span className="block w-1.5 h-1.5 rounded-full bg-info/60" />
-                    </span>
-                  )}
-                  {hasTerminals && (
-                    <span className="absolute -bottom-0.5 -right-1.5 min-w-[12px] h-3 px-0.5 rounded-full bg-info/90 text-[8px] leading-3 text-bg-deep font-bold text-center shadow-sm z-10">
-                      {activity.terminalCount > 9 ? '9+' : activity.terminalCount}
-                    </span>
-                  )}
-                </button>
-              </Reorder.Item>
+                {presentation.indexText && <span className="font-mono shrink-0">{presentation.indexText}</span>}
+                {!workspace.active && accentColor && (
+                  <span
+                    className="h-1.5 w-1.5 rounded-full flex-shrink-0 border border-black/20"
+                    style={{ backgroundColor: accentColor }}
+                  />
+                )}
+                {WorkspaceIcon && <WorkspaceIcon className="w-3 h-3 flex-shrink-0" />}
+                {presentation.text && <span className="truncate max-w-[48px]">{presentation.text}</span>}
+                {hasAgents && (
+                  <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
+                    <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-success animate-ping opacity-40" />
+                    <span className="block w-1.5 h-1.5 rounded-full bg-success" />
+                  </span>
+                )}
+                {!hasAgents && hasTerminals && (
+                  <span className="absolute -top-0.5 -right-0.5 flex-shrink-0">
+                    <span className="block w-1.5 h-1.5 rounded-full bg-info/60" />
+                  </span>
+                )}
+                {hasTerminals && (
+                  <span className="absolute -bottom-0.5 -right-1.5 min-w-[12px] h-3 px-0.5 rounded-full bg-info/90 text-[8px] leading-3 text-bg-deep font-bold text-center shadow-sm z-10">
+                    {activity.terminalCount > 9 ? '9+' : activity.terminalCount}
+                  </span>
+                )}
+              </button>
             </ContextMenuTrigger>
             <ContextMenuContent className="min-w-[150px]">
               {!workspace.active && (
@@ -342,6 +312,96 @@ function WorkspacePillButton({
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+/**
+ * Wrapper that owns the Reorder.Item + drag controls for a single workspace pill.
+ * Reorder.Item must be the outermost layout element so Framer Motion can
+ * measure its bounding box for swap detection during drag.
+ */
+function WorkspacePillReorderItem({
+  workspaceKey,
+  ws,
+  activity,
+  display,
+  disabled,
+  isOverflow,
+  needsExpand,
+  onSwitch,
+  onDuplicate,
+  onManageIdentity,
+  onDeactivate,
+  onReorderCommit,
+}: {
+  workspaceKey: string;
+  ws: WorkspacePillInfo;
+  activity: { terminalCount: number; agentCount: number };
+  display: ReturnType<typeof normalizeWorkspacePillDisplay>;
+  disabled: boolean;
+  isOverflow: boolean;
+  needsExpand: boolean;
+  onSwitch: (key: string) => void;
+  onDuplicate: (key: string) => void;
+  onManageIdentity: (key: string) => void;
+  onDeactivate: (key: string) => void;
+  onReorderCommit: () => void;
+}) {
+  const dragControls = useDragControls();
+  const holdTimerRef = useRef<number | null>(null);
+  const suppressClickUntilRef = useRef(0);
+
+  const clearHoldTimer = useCallback(() => {
+    if (holdTimerRef.current != null) {
+      window.clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }, []);
+
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    clearHoldTimer();
+    holdTimerRef.current = window.setTimeout(() => {
+      suppressClickUntilRef.current = Date.now() + 250;
+      dragControls.start(event, { snapToCursor: false });
+    }, 180);
+  }, [clearHoldTimer, disabled, dragControls]);
+
+  useEffect(() => clearHoldTimer, [clearHoldTimer]);
+
+  return (
+    <Reorder.Item
+      value={workspaceKey}
+      layout
+      layoutId={`ws-pill-${ws.key}`}
+      initial={false}
+      transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+      dragListener={false}
+      dragControls={dragControls}
+      onDragEnd={() => {
+        clearHoldTimer();
+        suppressClickUntilRef.current = Date.now() + 250;
+        onReorderCommit();
+      }}
+      className={`list-none ${isOverflow && needsExpand
+        ? 'max-w-0 opacity-0 overflow-hidden transition-[max-width,opacity] duration-300 ease-in-out group-hover/ws-pills:max-w-[60px] group-hover/ws-pills:opacity-100'
+        : ''
+      }`}
+    >
+      <WorkspacePillButton
+        workspace={ws}
+        activity={activity}
+        display={display}
+        disabled={disabled}
+        suppressClickUntil={suppressClickUntilRef}
+        onPointerDown={handlePointerDown}
+        onPointerUp={clearHoldTimer}
+        onSwitch={onSwitch}
+        onDuplicate={onDuplicate}
+        onManageIdentity={onManageIdentity}
+        onDeactivate={onDeactivate}
+      />
+    </Reorder.Item>
   );
 }
 
@@ -674,22 +734,29 @@ export function ViewTabBar() {
     const overflow = workspaceOrderKeys.filter((key) => validKeys.has(key) && !pinned.includes(key));
     const baseOrder = [...pinned, ...overflow];
 
-    // Activity-based sorting: active-first when enabled and no manual reorder
+    // Activity-based sorting: active-first when enabled and no manual reorder.
+    // Within each tier, sort by most-recently-selected (activation time) so the
+    // user's manual workspace selections are respected within activity groups.
     if (autoSortWorkspacePills && !wsManualReorder) {
       const withAgents: string[] = [];
       const withTerminals: string[] = [];
-      const inactive: string[] = [];
+      const idle: string[] = [];
       for (const key of baseOrder) {
         const act = workspaceActivity.get(key);
         if (act && act.agentCount > 0) withAgents.push(key);
         else if (act && act.terminalCount > 0) withTerminals.push(key);
-        else inactive.push(key);
+        else idle.push(key);
       }
-      return [...withAgents, ...withTerminals, ...inactive];
+      const byRecent = (a: string, b: string) =>
+        (workspaceActivationTimes[b] ?? 0) - (workspaceActivationTimes[a] ?? 0);
+      withAgents.sort(byRecent);
+      withTerminals.sort(byRecent);
+      idle.sort(byRecent);
+      return [...withAgents, ...withTerminals, ...idle];
     }
 
     return baseOrder;
-  }, [autoSortWorkspacePills, pinnedWorkspaceKeys, workspaceActivity, workspaceByKey, workspaceOrderKeys, wsManualReorder]);
+  }, [autoSortWorkspacePills, pinnedWorkspaceKeys, workspaceActivity, workspaceActivationTimes, workspaceByKey, workspaceOrderKeys, wsManualReorder]);
 
   // Determine effective visible pill count: always show active pills + fill up to max
   const effectiveCollapsedCount = useMemo(() => {
@@ -911,32 +978,24 @@ export function ViewTabBar() {
             {displayedWorkspaceKeys.map((workspaceKey, i) => {
               const ws = workspaceByKey.get(workspaceKey);
               if (!ws) return null;
-              const activity = workspaceActivity.get(ws.key) ?? { terminalCount: 0, agentCount: 0 };
+              const act = workspaceActivity.get(ws.key) ?? { terminalCount: 0, agentCount: 0 };
               const isOverflow = i >= effectiveCollapsedCount;
               return (
-                <motion.div
+                <WorkspacePillReorderItem
                   key={ws.key}
-                  layout
-                  layoutId={`ws-pill-${ws.key}`}
-                  initial={false}
-                  transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
-                  className={isOverflow && needsExpand
-                    ? 'max-w-0 opacity-0 overflow-hidden transition-[max-width,opacity] duration-300 ease-in-out group-hover/ws-pills:max-w-[60px] group-hover/ws-pills:opacity-100'
-                    : ''
-                  }
-                >
-                  <WorkspacePillButton
-                    workspace={{ ...ws, index: workspaceOrderKeys.indexOf(workspaceKey) + 1 }}
-                    activity={activity}
-                    display={workspacePillDisplay}
-                    disabled={wsSwitching || wsReordering}
-                    onSwitch={handleWsSwitch}
-                    onDuplicate={handleWorkspaceDuplicate}
-                    onManageIdentity={openWorkspaceSettings}
-                    onDeactivate={handleWorkspaceDeactivate}
-                    onReorderCommit={handleWorkspaceReorderCommit}
-                  />
-                </motion.div>
+                  workspaceKey={workspaceKey}
+                  ws={{ ...ws, index: workspaceOrderKeys.indexOf(workspaceKey) + 1 }}
+                  activity={act}
+                  display={workspacePillDisplay}
+                  disabled={wsSwitching || wsReordering}
+                  isOverflow={isOverflow}
+                  needsExpand={needsExpand}
+                  onSwitch={handleWsSwitch}
+                  onDuplicate={handleWorkspaceDuplicate}
+                  onManageIdentity={openWorkspaceSettings}
+                  onDeactivate={handleWorkspaceDeactivate}
+                  onReorderCommit={handleWorkspaceReorderCommit}
+                />
               );
             })}
           </Reorder.Group>

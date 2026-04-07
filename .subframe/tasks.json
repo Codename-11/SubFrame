@@ -1,13 +1,33 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
+    "purpose": "Sub-Task tracking index (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-04-03",
+    "lastUpdated": "2026-04-05",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-04-03T00:52:49.413Z",
+  "lastUpdated": "2026-04-05T04:34:21.648Z",
+  "taskSchema": {
+    "_comment": "This schema shows the expected structure for each task",
+    "id": "unique-id (task-xxx format)",
+    "title": "Short actionable title (max 60 chars)",
+    "description": "Claude's detailed explanation - what, how, which files affected",
+    "userRequest": "Original user prompt/request - copy verbatim",
+    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
+    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
+    "status": "pending | in_progress | completed",
+    "priority": "high | medium | low",
+    "category": "feature | fix | refactor | docs | test",
+    "context": "Session date and context",
+    "blockedBy": "Array of task IDs this task is blocked by",
+    "blocks": "Array of task IDs this task blocks",
+    "steps": "Array of { label, completed } step objects",
+    "private": "boolean — if true, task is stored locally and excluded from git",
+    "createdAt": "ISO timestamp",
+    "updatedAt": "ISO timestamp",
+    "completedAt": "ISO timestamp | null"
+  },
   "tasks": {
     "pending": [
       {
@@ -66,6 +86,20 @@
         "updatedAt": "2026-03-25T01:58:20.645Z",
         "completedAt": null,
         "description": "Terminals should have a feature once 'popped-out' to allow 'detaching' from SubFrame process so updating/restarting etc will be unaffected. Secondarily/If-Possible - allow 'Re-Attach' to new process. This should include a built-in system to find SubFrame process and if more than one allow selecting somehow intelligently.",
+        "steps": []
+      },
+      {
+        "id": "task-1775363661609-tqwx1yb4y",
+        "title": "Enhance 'Add Projects' to Workspace",
+        "status": "pending",
+        "priority": "medium",
+        "category": "enhancement",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-04-05T04:34:21.609Z",
+        "updatedAt": "2026-04-05T04:34:21.609Z",
+        "completedAt": null,
+        "description": "Currently we can add projects/folders to a workspace - this seems limited however. For example it would be nice to create a new folder with optional init from the start - maybe even an optional guided enhanced project initi. Also maybe import\nfrom github/extrnal sourcs, etc",
         "steps": []
       },
       {
@@ -2161,5 +2195,9 @@
         "steps": []
       }
     ]
+  },
+  "metadata": {
+    "totalCreated": 139,
+    "totalCompleted": 84
   }
 }

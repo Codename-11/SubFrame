@@ -91,6 +91,7 @@ export const IPC = {
   TERMINAL_DESTROY: 'terminal-destroy',
   TERMINAL_DESTROYED: 'terminal-destroyed',
   TERMINAL_INPUT_ID: 'terminal-input-id',
+  TERMINAL_WRITE_SAFE: 'terminal-write-safe',
   TERMINAL_OUTPUT_ID: 'terminal-output-id',
   TERMINAL_RESIZE_ID: 'terminal-resize-id',
   TERMINAL_FOCUS: 'terminal-focus',
@@ -1605,6 +1606,9 @@ export interface IPCHandleMap {
 
   // Terminal Agent Status
   [IPC.IS_TERMINAL_CLAUDE_ACTIVE]: { args: [terminalId: string]; return: boolean };
+
+  // Safe terminal write (waits for PTY output quiescence before writing)
+  [IPC.TERMINAL_WRITE_SAFE]: { args: [payload: { terminalId: string; data: string; quietMs?: number; timeoutMs?: number }]; return: { success: boolean } };
 
   // Pop-Out Terminal
   [IPC.TERMINAL_POPOUT]: { args: [terminalId: string]; return: { success: boolean } };

@@ -196,12 +196,11 @@ export function Sidebar() {
           if (activeTerminalId && isCurrentProject) {
             const isAgentRunning = await typedInvoke(IPC.IS_TERMINAL_CLAUDE_ACTIVE, activeTerminalId);
             if (!isAgentRunning) {
-              // Brief delay so the user can release modifier keys from the shortcut
-              // (Ctrl+Shift+Enter). On Windows, ConPTY can interpret 'c' as Ctrl+C if
-              // the physical Ctrl key is still held when the first byte reaches the shell.
-              await new Promise(resolve => setTimeout(resolve, 80));
-              // Reuse existing idle terminal — just send the command
-              getTransport().send(IPC.TERMINAL_INPUT_ID, {
+              // Use safe write: waits for PTY output quiescence before writing.
+              // On Windows ConPTY, writing while the PTY is still emitting output
+              // (prompt escape sequences, oh-my-posh cursor positioning) drops the
+              // first byte of input — turning "claude" into "laude".
+              await typedInvoke(IPC.TERMINAL_WRITE_SAFE, {
                 terminalId: activeTerminalId,
                 data: startCommand + '\r',
               });
@@ -221,12 +220,16 @@ export function Sidebar() {
             const newTerminalId = data.terminalId;
             let resolved = false;
             let unsubShellReady: (() => void) | null = null;
-            const finishStart = () => {
+            const finishStart = async () => {
               if (resolved) return;
               resolved = true;
               clearTimeout(shellReadyFallback);
               unsubShellReady?.();
-              getTransport().send(IPC.TERMINAL_INPUT_ID, {
+              // Use safe write: waits for PTY output quiescence after shell-ready.
+              // Shell-ready fires when the prompt text appears, but oh-my-posh may
+              // still be emitting trailing escape sequences. Safe write waits for
+              // those to settle before writing, preventing the first-byte-drop.
+              await typedInvoke(IPC.TERMINAL_WRITE_SAFE, {
                 terminalId: newTerminalId,
                 data: startCommand + '\r',
               });

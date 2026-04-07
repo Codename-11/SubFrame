@@ -65,6 +65,15 @@ const CLAUDE_OUTPUT_BUFFERS = new Map<string, string>();
 const CLAUDE_TIMEOUT_HANDLES = new Map<string, ReturnType<typeof setTimeout>>();
 const CLAUDE_BUFFER_MAX = 2048;
 const SHELL_READY_BUFFER_MAX = 4096;
+
+/**
+ * Quiescence timers for shell-ready detection.
+ * When prompt patterns don't match (e.g. oh-my-posh with custom glyphs), we fall
+ * back to output quiescence: if the terminal has produced output but then goes
+ * quiet for SHELL_READY_QUIET_MS, we consider the shell ready.
+ */
+const shellReadyQuiescenceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const SHELL_READY_QUIET_MS = 250;
 const TERMINAL_BACKLOG_MAX_CHARS = 256 * 1024;
 
 // ─── Output Capture ──────────────────────────────────────────────────────────
@@ -143,9 +152,29 @@ function detectShellReady(terminalId: string, data: string): void {
     .filter((line) => line.trim().length > 0)
     .slice(-4);
 
+  // Fast path: prompt pattern matches immediately
   if (promptCandidates.some((line) => SHELL_PROMPT_PATTERNS.some((pattern) => pattern.test(line.trim())))) {
+    const existing = shellReadyQuiescenceTimers.get(terminalId);
+    if (existing) { clearTimeout(existing); shellReadyQuiescenceTimers.delete(terminalId); }
     markShellReady(terminalId);
+    return;
   }
+
+  // Slow path: quiescence fallback for non-standard prompts (oh-my-posh, etc.).
+  // If the terminal has produced output but goes quiet for SHELL_READY_QUIET_MS,
+  // assume the shell has finished rendering its prompt.
+  const existing = shellReadyQuiescenceTimers.get(terminalId);
+  if (existing) clearTimeout(existing);
+  shellReadyQuiescenceTimers.set(
+    terminalId,
+    setTimeout(() => {
+      shellReadyQuiescenceTimers.delete(terminalId);
+      const inst = ptyInstances.get(terminalId);
+      if (inst && !inst.shellReady) {
+        markShellReady(terminalId);
+      }
+    }, SHELL_READY_QUIET_MS),
+  );
 }
 
 /**
@@ -823,6 +852,47 @@ function writeToTerminal(terminalId: string, data: string): void {
 }
 
 /**
+ * Wait until a terminal's PTY output has been quiet for `quietMs` milliseconds.
+ * On Windows ConPTY, writing input while the PTY is still emitting output
+ * (prompt escape sequences, oh-my-posh cursor positioning, etc.) can cause the
+ * first byte of input to be dropped. This helper polls `lastOutputTimestamp`
+ * and resolves once a sufficient gap is observed, or after `timeoutMs` total.
+ */
+function waitForOutputQuiet(terminalId: string, quietMs = 100, timeoutMs = 5000): Promise<void> {
+  return new Promise((resolve) => {
+    const instance = ptyInstances.get(terminalId);
+    if (!instance) { resolve(); return; }
+    const startTime = Date.now();
+    const check = () => {
+      const inst = ptyInstances.get(terminalId);
+      if (!inst) { resolve(); return; }
+      if (Date.now() - startTime >= timeoutMs) { resolve(); return; }
+      const gap = Date.now() - inst.lastOutputTimestamp;
+      if (gap >= quietMs) { resolve(); return; }
+      setTimeout(check, Math.min(25, quietMs - gap + 5));
+    };
+    check();
+  });
+}
+
+/**
+ * Write data to a terminal after ensuring PTY output has settled.
+ * Combines waitForOutputQuiet + pty.write for safe programmatic command entry.
+ */
+async function writeWhenQuiet(
+  terminalId: string,
+  data: string,
+  quietMs = 100,
+  timeoutMs = 5000,
+): Promise<void> {
+  await waitForOutputQuiet(terminalId, quietMs, timeoutMs);
+  const instance = ptyInstances.get(terminalId);
+  if (instance) {
+    instance.pty.write(data);
+  }
+}
+
+/**
  * Inject synthetic output into a terminal stream.
  * Used when SubFrame needs the shared transcript to reflect a command launch
  * before the shell has echoed anything back.
@@ -859,6 +929,8 @@ function destroyTerminal(terminalId: string): void {
     claudeActiveFlags.delete(terminalId);
     const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
     if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
+    const qt = shellReadyQuiescenceTimers.get(terminalId);
+    if (qt) { clearTimeout(qt); shellReadyQuiescenceTimers.delete(terminalId); }
     console.log(`Destroyed terminal ${terminalId}`);
   }
 }
@@ -881,6 +953,8 @@ function destroyAll(): void {
   claudeActiveFlags.clear();
   for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
   CLAUDE_TIMEOUT_HANDLES.clear();
+  for (const qt of shellReadyQuiescenceTimers.values()) clearTimeout(qt);
+  shellReadyQuiescenceTimers.clear();
   if (staleSessionTimer) { clearInterval(staleSessionTimer); staleSessionTimer = null; }
   if (stallCheckTimer) { clearInterval(stallCheckTimer); stallCheckTimer = null; }
 }
@@ -989,6 +1063,14 @@ function setupIPC(ipcMain: IpcMain): void {
     if (isClaudeActive(terminalId)) {
       promptLogger.logInput(terminalId, data);
     }
+  });
+
+  // Safe write: wait for PTY output quiescence before writing.
+  // Prevents ConPTY first-byte-drop when output (prompt escape sequences,
+  // oh-my-posh cursor positioning, etc.) is still being processed.
+  ipcMain.handle(IPC.TERMINAL_WRITE_SAFE, async (_event, { terminalId, data, quietMs, timeoutMs }: { terminalId: string; data: string; quietMs?: number; timeoutMs?: number }) => {
+    await writeWhenQuiet(terminalId, data, quietMs, timeoutMs);
+    return { success: true };
   });
 
   // Resize specific terminal
@@ -1150,7 +1232,8 @@ function getTerminalBacklog(terminalId: string): string {
 }
 
 export {
-  init, createTerminal, spawnDirect, restartTerminal, writeToTerminal, injectTerminalOutput, resizeTerminal,
+  init, createTerminal, spawnDirect, restartTerminal, writeToTerminal, writeWhenQuiet, waitForOutputQuiet,
+  injectTerminalOutput, resizeTerminal,
   destroyTerminal, destroyAll, getTerminalCount, getTerminalIds,
   hasTerminal, isClaudeActive, getTerminalsByProject, getTerminalInfo,
   getAvailableShells, setupIPC, waitForExit,
