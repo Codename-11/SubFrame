@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1-beta] - 2026-04-07
+
+### Fixed
+- **ConPTY first-byte-drop (root cause fix)** — replaced the fragile 80ms fixed delay with quiescence-based detection. New `waitForOutputQuiet` polls PTY output timestamps and resolves once output has been silent for 100ms, handling slow shell profiles (oh-my-posh on Windows can take 800ms+) without wasting time on fast ones
+- **Shell-ready detection for non-standard prompts** — added quiescence fallback when prompt regex patterns don't match (e.g. oh-my-posh with custom glyphs). If the terminal produces output then goes quiet for 250ms, it's considered ready
+- **AI session launch reliability** — interactive AI sessions (analysis, critique) now use `waitForOutputQuiet` instead of a fixed `startupDelayMs` delay, adapting to actual shell startup time
+
+### Changed
+- **New `TERMINAL_WRITE_SAFE` IPC channel** — quiescence-aware terminal write that waits for PTY output to settle before sending input. Used by Sidebar agent launch and AI session manager
+- **Workspace pill sorting** — activity-based auto-sort now respects most-recently-selected order within each activity tier (agents, terminals, idle) instead of arbitrary insertion order
+- **Workspace pill drag refactor** — extracted `WorkspacePillReorderItem` wrapper component, separating drag/reorder concerns from pill rendering for cleaner component boundaries
+
 ## [0.15.0-beta] - 2026-04-03
 
 ### Added
