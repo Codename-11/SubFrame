@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { BrowserWindow, IpcMain } from 'electron';
 import { IPC } from '../shared/ipcChannels';
-import type { AgentStatePayload } from '../shared/agentStateTypes';
+import type { AgentStatePayload, TerminalStatusEntry } from '../shared/agentStateTypes';
 import { broadcast } from './eventBridge';
 import { log as outputLog } from './outputChannelManager';
 
@@ -21,6 +21,31 @@ let stateWatcher: fs.FSWatcher | null = null;
 let watchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let lastUpdatedTimestamp: string | null = null; // Dedup: skip sending unchanged data
 let lastUserMessageTimestamp: string | null = null; // Track user message signals
+/** Per-terminal last-forwarded status entry — dedup before calling ptyManager.setTerminalStatus */
+const lastForwardedTerminalStatus = new Map<string, number>();
+
+/**
+ * Forward the terminalStatus map from agent-state.json into ptyManager.
+ * Called on every debounced file-watch tick. Lazy-required to avoid the
+ * agentStateManager ↔ ptyManager import cycle.
+ */
+function forwardTerminalStatus(status: Record<string, TerminalStatusEntry> | undefined): void {
+  if (!status) return;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const ptyManager = require('./ptyManager') as typeof import('./ptyManager');
+  if (typeof ptyManager.setTerminalStatus !== 'function') return;
+  for (const [terminalId, entry] of Object.entries(status)) {
+    if (!entry || typeof entry.status !== 'string') continue;
+    const lastTs = lastForwardedTerminalStatus.get(terminalId) ?? 0;
+    if (entry.lastUpdated && entry.lastUpdated <= lastTs) continue;
+    lastForwardedTerminalStatus.set(terminalId, entry.lastUpdated ?? Date.now());
+    try {
+      ptyManager.setTerminalStatus(terminalId, entry.status, entry.message);
+    } catch (err) {
+      outputLog('agent', `setTerminalStatus failed for ${terminalId}: ${(err as Error).message}`);
+    }
+  }
+}
 
 /**
  * Initialize agent state manager
@@ -90,6 +115,9 @@ function watchAgentState(projectPath: string): void {
           if (state.lastUpdated && state.lastUpdated === lastUpdatedTimestamp) return;
           lastUpdatedTimestamp = state.lastUpdated;
 
+          // Mirror hook-written terminalStatus into ptyManager → IPC broadcast.
+          forwardTerminalStatus(state.terminalStatus);
+
           broadcast(IPC.AGENT_STATE_DATA, state);
 
           // Emit dedicated user message signal when a new one is detected
@@ -128,6 +156,7 @@ function unwatchAgentState(): void {
   }
   lastUpdatedTimestamp = null;
   lastUserMessageTimestamp = null;
+  lastForwardedTerminalStatus.clear();
 }
 
 /**
@@ -138,6 +167,7 @@ function setupIPC(ipc: IpcMain): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
       const state = loadAgentState(projectPath);
       lastUpdatedTimestamp = state.lastUpdated; // Keep dedup in sync
+      forwardTerminalStatus(state.terminalStatus);
       broadcast(IPC.AGENT_STATE_DATA, state);
     }
   });

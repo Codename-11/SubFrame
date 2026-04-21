@@ -898,6 +898,17 @@ function WorkspacePillAppearanceRow({
 export function SettingsPanel() {
   const settingsOpenStore = useUIStore((s) => s.settingsOpen);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
+
+  // Overlays & Extras toggles (Maestro-absorbed features)
+  const showTamagotchi = useUIStore((s) => s.showTamagotchi);
+  const toggleTamagotchi = useUIStore((s) => s.toggleTamagotchi);
+  const feedTamagotchi = useUIStore((s) => s.feedTamagotchi);
+  const showQuickActionPills = useUIStore((s) => s.showQuickActionPills);
+  const toggleQuickActionPills = useUIStore((s) => s.toggleQuickActionPills);
+  const showStatusLegend = useUIStore((s) => s.showStatusLegend);
+  const toggleStatusLegend = useUIStore((s) => s.toggleStatusLegend);
+  const restoreLayoutOnLaunch = useUIStore((s) => s.restoreLayoutOnLaunch);
+  const toggleRestoreLayoutOnLaunch = useUIStore((s) => s.toggleRestoreLayoutOnLaunch);
   // Don't render the Dialog tree at all when closed — prevents Radix Presence
   // ref errors (React #185) in web mode where the portal mount races with hydration.
   const settingsOpen = settingsOpenStore;
@@ -2069,6 +2080,50 @@ export function SettingsPanel() {
                     </div>
                   </SettingGroup>
                 )}
+
+                {/* Overlays & Extras — Tamagotchi, quick action pills, status legend */}
+                {(matchesSearch('Mascot') || matchesSearch('Tamagotchi') || matchesSearch('Quick Action Pills') || matchesSearch('Status Legend') || matchesSearch('Overlays')) && (
+                  <SettingGroup label="Overlays & Extras">
+                    {(matchesSearch('Tamagotchi') || matchesSearch('Mascot')) && (
+                      <SettingToggle
+                        label="Tamagotchi Mascot"
+                        description="Floating companion overlay. Ctrl+Shift+T to toggle. Drag to reposition."
+                        value={showTamagotchi}
+                        onChange={() => toggleTamagotchi()}
+                        extra={
+                          showTamagotchi ? (
+                            <button
+                              onClick={() => {
+                                feedTamagotchi();
+                                toast.success('Fed the pet');
+                              }}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-secondary hover:bg-bg-hover cursor-pointer"
+                              title="Reset the pet's last-fed timestamp"
+                            >
+                              Feed
+                            </button>
+                          ) : undefined
+                        }
+                      />
+                    )}
+                    {matchesSearch('Quick Action Pills') && (
+                      <SettingToggle
+                        label="Quick Action Pills"
+                        description="Floating row of prompt shortcuts above the focused terminal"
+                        value={showQuickActionPills}
+                        onChange={() => toggleQuickActionPills()}
+                      />
+                    )}
+                    {matchesSearch('Status Legend') && (
+                      <SettingToggle
+                        label="Terminal Status Legend"
+                        description="Colored chip row in the status bar showing active terminal states"
+                        value={showStatusLegend}
+                        onChange={() => toggleStatusLegend()}
+                      />
+                    )}
+                  </SettingGroup>
+                )}
               </>
             )}
 
@@ -2076,7 +2131,7 @@ export function SettingsPanel() {
             {activeTab === 'general' && (
               <>
                 {/* Startup group */}
-                {(matchesSearch('Open terminal on startup') || matchesSearch('Reuse idle terminal for agent') || matchesSearch('Show hidden files (.dotfiles)') || matchesSearch('Startup')) && (
+                {(matchesSearch('Open terminal on startup') || matchesSearch('Reuse idle terminal for agent') || matchesSearch('Show hidden files (.dotfiles)') || matchesSearch('Restore layout on launch') || matchesSearch('Startup')) && (
                   <SettingGroup label="Startup">
                     {matchesSearch('Open terminal on startup') && (
                       <SettingToggle
@@ -2084,6 +2139,14 @@ export function SettingsPanel() {
                         description="Automatically create a terminal when SubFrame launches"
                         value={autoCreateTerminal}
                         onChange={(v) => saveToggle('general.autoCreateTerminal', v)}
+                      />
+                    )}
+                    {matchesSearch('Restore layout on launch') && (
+                      <SettingToggle
+                        label="Restore layout on launch"
+                        description="Re-hydrate the split-tree editor groups (terminals, open files, panels) for each project on next launch"
+                        value={restoreLayoutOnLaunch}
+                        onChange={() => toggleRestoreLayoutOnLaunch()}
                       />
                     )}
                     {matchesSearch('Reuse idle terminal for agent') && (

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.15.0-beta
+// @subframe-version 0.15.1-beta
 // @subframe-managed
 /**
  * SubFrame PreToolUse Hook
@@ -223,6 +223,19 @@ function main() {
   // Cap steps at MAX_STEPS (trim oldest)
   if (session.steps.length > MAX_STEPS) {
     session.steps = session.steps.slice(session.steps.length - MAX_STEPS);
+  }
+
+  // Formal terminal status (Maestro-style 7-state enum) — PreToolUse → working
+  if (sfTerminalId) {
+    if (!state.terminalStatus || typeof state.terminalStatus !== 'object') {
+      state.terminalStatus = {};
+    }
+    state.terminalStatus[sfTerminalId] = {
+      terminalId: sfTerminalId,
+      status: 'working',
+      message: label,
+      lastUpdated: now,
+    };
   }
 
   state.lastUpdated = nowISO;

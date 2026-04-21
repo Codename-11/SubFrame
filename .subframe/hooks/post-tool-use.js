@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @subframe-version 0.15.0-beta
+// @subframe-version 0.15.1-beta
 // @subframe-managed
 /**
  * SubFrame PostToolUse Hook
@@ -89,8 +89,21 @@ function main() {
 
   const sessionId = hookData.session_id;
   const toolName = hookData.tool_name;
+  const toolResponse = hookData.tool_response;
 
   if (!sessionId || !toolName) process.exit(0);
+
+  // Error detection from the tool response payload.
+  // Claude Code surfaces failures via `tool_response.error`, `is_error: true`,
+  // or a non-zero `exit_code` on Bash. Any of these → formal 'error' status.
+  function detectError(resp) {
+    if (!resp || typeof resp !== 'object') return false;
+    if (resp.is_error === true) return true;
+    if (typeof resp.error === 'string' && resp.error.length > 0) return true;
+    if (typeof resp.exit_code === 'number' && resp.exit_code !== 0) return true;
+    return false;
+  }
+  const hadError = detectError(toolResponse);
 
   const projectRoot = findProjectRoot(hookData.cwd) || findProjectRoot(process.cwd());
   if (!projectRoot) process.exit(0);
@@ -143,10 +156,28 @@ function main() {
     });
   }
 
+  if (matchedStep && hadError) {
+    matchedStep.status = 'failed';
+  }
+
   // Check if any steps are still running
   const hasRunning = session.steps.some(s => s.status === 'running');
   if (!hasRunning) {
     session.currentTool = undefined;
+  }
+
+  // Formal terminal status — PostToolUse → 'idle' (success) or 'error' (failure).
+  // Stop hook will later flip idle → done when Claude finishes responding.
+  if (sfTerminalId) {
+    if (!state.terminalStatus || typeof state.terminalStatus !== 'object') {
+      state.terminalStatus = {};
+    }
+    state.terminalStatus[sfTerminalId] = {
+      terminalId: sfTerminalId,
+      status: hadError ? 'error' : 'idle',
+      message: hadError ? ('Error: ' + toolName) : undefined,
+      lastUpdated: now,
+    };
   }
 
   state.lastUpdated = nowISO;

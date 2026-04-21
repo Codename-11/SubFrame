@@ -225,6 +225,19 @@ function main() {
     session.steps = session.steps.slice(session.steps.length - MAX_STEPS);
   }
 
+  // Formal terminal status (Maestro-style 7-state enum) — PreToolUse → working
+  if (sfTerminalId) {
+    if (!state.terminalStatus || typeof state.terminalStatus !== 'object') {
+      state.terminalStatus = {};
+    }
+    state.terminalStatus[sfTerminalId] = {
+      terminalId: sfTerminalId,
+      status: 'working',
+      message: label,
+      lastUpdated: now,
+    };
+  }
+
   state.lastUpdated = nowISO;
 
   writeState(statePath, state);

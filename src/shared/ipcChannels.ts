@@ -3,7 +3,7 @@
  * Single source of truth for all IPC channel names and their type signatures.
  */
 
-import type { AgentStatePayload } from './agentStateTypes';
+import type { AgentStatePayload, TerminalStatusEntry } from './agentStateTypes';
 import type { ActivityOutputEvent, ActivityStatusEvent, ActivityListPayload, OutputChannelEvent, OutputChannel, OutputChannelListPayload, OutputChannelLogPayload } from './activityTypes';
 
 // ─── Channel Constants ───────────────────────────────────────────────────────
@@ -98,6 +98,8 @@ export const IPC = {
   GET_AVAILABLE_SHELLS: 'get-available-shells',
   AVAILABLE_SHELLS_DATA: 'available-shells-data',
   CLAUDE_ACTIVE_STATUS: 'claude-active-status',
+  /** Formal per-terminal status enum (Maestro-style 7 states). Supersedes CLAUDE_ACTIVE_STATUS. */
+  TERMINAL_STATUS_CHANGED: 'terminal-status-changed',
   IS_TERMINAL_CLAUDE_ACTIVE: 'is-terminal-claude-active',
   GET_TERMINAL_SESSION_NAME: 'get-terminal-session-name',
   GET_TERMINAL_STATE: 'get-terminal-state',
@@ -179,6 +181,9 @@ export const IPC = {
   LOAD_GIT_STATUS: 'load-git-status',
   GIT_START_AUTO_FETCH: 'git-start-auto-fetch',
   GIT_STOP_AUTO_FETCH: 'git-stop-auto-fetch',
+  LOAD_GIT_COMMIT_GRAPH: 'load-git-commit-graph',
+  CHECKOUT_GIT_COMMIT: 'checkout-git-commit',
+  CREATE_BRANCH_AT_COMMIT: 'create-branch-at-commit',
 
   // AI Tool Settings
   GET_AI_TOOL_CONFIG: 'get-ai-tool-config',
@@ -388,6 +393,13 @@ export const IPC = {
 
   // Dev tools
   DEV_SYNC_FROM_PRODUCTION: 'dev-sync-from-production',
+
+  // MCP Marketplace
+  MCP_LOAD_MARKETPLACE: 'mcp-load-marketplace',
+  MCP_LIST_INSTALLED: 'mcp-list-installed',
+  MCP_INSTALL_SERVER: 'mcp-install-server',
+  MCP_UNINSTALL_SERVER: 'mcp-uninstall-server',
+  MCP_INSTALLED_CHANGED: 'mcp-installed-changed',
 } as const;
 
 export type IPCChannel = (typeof IPC)[keyof typeof IPC];
@@ -446,6 +458,7 @@ export interface WebSessionState {
       | 'githubWorktrees'
       | 'githubWorkflows'
       | 'githubNotifications'
+      | 'githubGraph'
       | 'history'
       | 'overview'
       | 'aiFiles'
@@ -456,6 +469,7 @@ export interface WebSessionState {
       | 'pipeline'
       | 'system'
       | 'aiAnalysis'
+      | 'mcp'
       | null;
     rightPanelCollapsed: boolean;
     rightPanelWidth: number;
@@ -729,6 +743,24 @@ export interface GitStatusResult {
   staged: number;
   modified: number;
   untracked: number;
+}
+
+/** Commit graph entry (matches renderer's `CommitInfo` in gitGraphLayout.ts) */
+export interface GitCommitInfo {
+  hash: string;
+  parentHashes: string[];
+  authorName: string;
+  authorEmail: string;
+  /** Unix epoch seconds (git `%at`). */
+  timestamp: number;
+  summary: string;
+  refs?: string[];
+}
+
+/** Result wrapper for LOAD_GIT_COMMIT_GRAPH */
+export interface GitCommitGraphResult {
+  error: string | null;
+  commits: GitCommitInfo[];
 }
 
 /** Saved prompt for the prompt library */
@@ -1485,6 +1517,26 @@ export interface PipelineProgressEvent {
 // ─── Handle Map (ipcMain.handle → ipcRenderer.invoke) ───────────────────────
 
 /** Maps invoke channels to their argument tuple and return type */
+/** MCP Marketplace: a single server entry in the registry */
+export interface MCPServerEntry {
+  id: string;
+  name: string;
+  description: string;
+  publisher: 'Anthropic' | 'Community';
+  packageName: string;
+  tags: string[];
+  installCount: number;
+  homepage: string;
+}
+
+/** MCP Marketplace: an installed server record */
+export interface MCPInstalledEntry {
+  id: string;
+  packageName: string;
+  installedAt: string;
+  config?: Record<string, unknown>;
+}
+
 export interface IPCHandleMap {
   // Workspace (handle)
   [IPC.SCAN_PROJECT_DIR]: { args: [dirPath: string]; return: WorkspaceProject[] };
@@ -1574,6 +1626,9 @@ export interface IPCHandleMap {
   [IPC.ADD_GIT_WORKTREE]: { args: [payload: { projectPath: string; worktreePath: string; branchName: string; createBranch?: boolean }]; return: GitOperationResult };
   [IPC.REMOVE_GIT_WORKTREE]: { args: [payload: { projectPath: string; worktreePath: string; force?: boolean }]; return: GitOperationResult };
   [IPC.LOAD_GIT_STATUS]: { args: [projectPath: string]; return: GitStatusResult };
+  [IPC.LOAD_GIT_COMMIT_GRAPH]: { args: [payload: { projectPath: string; limit?: number; skip?: number }]; return: GitCommitGraphResult };
+  [IPC.CHECKOUT_GIT_COMMIT]: { args: [payload: { projectPath: string; hash: string }]; return: { success: boolean; error?: string } };
+  [IPC.CREATE_BRANCH_AT_COMMIT]: { args: [payload: { projectPath: string; hash: string; branchName: string }]; return: { success: boolean; error?: string } };
 
   // Plugins
   [IPC.LOAD_PLUGINS]: { args: []; return: Plugin[] };
@@ -1808,6 +1863,18 @@ export interface IPCHandleMap {
   [IPC.CREATE_DIRECTORY]: { args: [payload: { dirPath: string }]; return: { success: boolean; error?: string } };
   [IPC.RENAME_FILE]: { args: [payload: { oldPath: string; newPath: string }]; return: { success: boolean; error?: string } };
   [IPC.DELETE_FILE]: { args: [payload: { filePath: string; isDirectory: boolean }]; return: { success: boolean; error?: string } };
+
+  // MCP Marketplace
+  [IPC.MCP_LOAD_MARKETPLACE]: { args: []; return: MCPServerEntry[] };
+  [IPC.MCP_LIST_INSTALLED]: { args: []; return: MCPInstalledEntry[] };
+  [IPC.MCP_INSTALL_SERVER]: {
+    args: [payload: { id: string; config?: Record<string, unknown> }];
+    return: { success: boolean; error?: string; installed?: MCPInstalledEntry };
+  };
+  [IPC.MCP_UNINSTALL_SERVER]: {
+    args: [payload: { id: string }];
+    return: { success: boolean; error?: string };
+  };
 }
 
 // ─── Send Map (ipcRenderer.send → ipcMain.on) ───────────────────────────────
@@ -1963,6 +2030,7 @@ export interface IPCEventMap {
   [IPC.TERMINAL_OUTPUT_ID]: { terminalId: string; data: string };
   [IPC.AVAILABLE_SHELLS_DATA]: { shells: ShellInfo[]; success: boolean; error?: string };
   [IPC.CLAUDE_ACTIVE_STATUS]: { terminalId: string; active: boolean; sessionId?: string };
+  [IPC.TERMINAL_STATUS_CHANGED]: TerminalStatusEntry;
   [IPC.TASKS_DATA]: TasksPayload;
   [IPC.TASK_UPDATED]: { projectPath: string; taskId: string; action: string; success: boolean; error?: string };
   [IPC.PLUGINS_DATA]: Plugin[];
@@ -2065,6 +2133,9 @@ export interface IPCEventMap {
 
   // Renderer Hot Reload
   [IPC.RENDERER_RELOADED]: void;
+
+  // MCP Marketplace
+  [IPC.MCP_INSTALLED_CHANGED]: { installed: MCPInstalledEntry[] };
 }
 
 // ─── CommonJS compat (keep old require('...ipcChannels') working) ────────────

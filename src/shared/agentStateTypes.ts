@@ -72,6 +72,33 @@ export interface UserMessageSignal {
   promptPreview?: string;
 }
 
+// ─── Terminal Status (7-state enum, driven by AI tool hook events) ──────────
+//
+// Ported from Maestro (https://github.com/its-maestro-baby/maestro).
+// Unlike the loose xterm-output-based `claudeActive` boolean, these states
+// are driven by AI tool hook events (PreToolUse → working, Stop → done, etc.)
+// and are the formal status model for each terminal.
+
+export type TerminalStatus =
+  | 'starting'
+  | 'idle'
+  | 'working'
+  | 'needs-input'
+  | 'done'
+  | 'error'
+  | 'timeout';
+
+export interface TerminalStatusEntry {
+  /** SubFrame terminal ID the status applies to */
+  terminalId: string;
+  /** Current 7-state status */
+  status: TerminalStatus;
+  /** Optional human-readable reason/context (e.g. "Running: Bash") */
+  message?: string;
+  /** Epoch millis when this entry was last written */
+  lastUpdated: number;
+}
+
 // ─── Agent State Payload (full state sent over IPC) ──────────────────────────
 
 export interface AgentStatePayload {
@@ -83,4 +110,9 @@ export interface AgentStatePayload {
   lastUpdated: string;
   /** Last user message signal (written by prompt-submit hook) */
   lastUserMessage?: UserMessageSignal;
+  /**
+   * Per-terminal status map (keyed by terminalId). Written by the tool hooks
+   * and mirrored into the renderer via `TERMINAL_STATUS_CHANGED` broadcasts.
+   */
+  terminalStatus?: Record<string, TerminalStatusEntry>;
 }

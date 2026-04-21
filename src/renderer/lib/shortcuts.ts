@@ -75,6 +75,18 @@ export type ShortcutId =
   | 'FREEZE_TERMINAL'
   | 'RESTART_SHELL'
   | 'SEARCH_TERMINAL'
+  | 'TERMINAL_SPLIT_RIGHT'
+  | 'TERMINAL_SPLIT_DOWN'
+  | 'TERMINAL_CLOSE_PANE'
+  | 'TERMINAL_FOCUS_PANE_1'
+  | 'TERMINAL_FOCUS_PANE_2'
+  | 'TERMINAL_FOCUS_PANE_3'
+  | 'TERMINAL_FOCUS_PANE_4'
+  | 'TERMINAL_FOCUS_PANE_5'
+  | 'TERMINAL_FOCUS_PANE_6'
+  | 'TERMINAL_FOCUS_PANE_7'
+  | 'TERMINAL_FOCUS_PANE_8'
+  | 'TERMINAL_FOCUS_PANE_9'
   // Views (full-view overlays)
   | 'VIEW_OVERVIEW'
   | 'VIEW_TASKS'
@@ -137,6 +149,18 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutEntry> = {
   FREEZE_TERMINAL:     { keys: 'Ctrl+Shift+F',  description: 'Freeze/resume output', category: 'Terminal' },
   RESTART_SHELL:       { keys: 'Ctrl+Shift+R',  description: 'Restart terminal shell', category: 'Terminal' },
   SEARCH_TERMINAL:     { keys: 'Ctrl+F',        description: 'Search in terminal',   category: 'Terminal' },
+  TERMINAL_SPLIT_RIGHT:  { keys: 'Ctrl+D',         description: 'Split pane right',     category: 'Terminal' },
+  TERMINAL_SPLIT_DOWN:   { keys: 'Ctrl+Alt+D',     description: 'Split pane down',      category: 'Terminal' },
+  TERMINAL_CLOSE_PANE:   { keys: 'Ctrl+W',         description: 'Close focused pane',   category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_1: { keys: 'Ctrl+1',         description: 'Focus pane #1',        category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_2: { keys: 'Ctrl+2',         description: 'Focus pane #2',        category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_3: { keys: 'Ctrl+3',         description: 'Focus pane #3',        category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_4: { keys: 'Ctrl+4',         description: 'Focus pane #4',        category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_5: { keys: 'Ctrl+5',         description: 'Focus pane #5',        category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_6: { keys: 'Ctrl+6',         description: 'Focus pane #6',        category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_7: { keys: 'Ctrl+7',         description: 'Focus pane #7',        category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_8: { keys: 'Ctrl+8',         description: 'Focus pane #8',        category: 'Terminal' },
+  TERMINAL_FOCUS_PANE_9: { keys: 'Ctrl+9',         description: 'Focus pane #9',        category: 'Terminal' },
 
   // ── Views (full-view overlays) ────────────────────
   VIEW_OVERVIEW:       { keys: 'Ctrl+Shift+O',  description: 'Project overview',     category: 'Views' },

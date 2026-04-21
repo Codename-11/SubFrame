@@ -19,6 +19,7 @@ import { StatusBar } from './StatusBar';
 import { TasksPalette } from './TasksPalette';
 import { AIToolPalette } from './AIToolPalette';
 import { RemoteCursorOverlay, RemotePointerPublisher } from './RemoteCursorOverlay';
+import { Tamagotchi } from './Tamagotchi';
 import { applyLiveUIStateSnapshot, buildLiveUIStateSnapshot, consumeMirroredUISyncSuppression, useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
@@ -66,6 +67,7 @@ export function App() {
   const setPendingEnhance = useUIStore((s) => s.setPendingEnhance);
   const isResizing = useUIStore((s) => s.isResizing);
   const editorFilePath = useUIStore((s) => s.editorFilePath);
+  const showTamagotchi = useUIStore((s) => s.showTamagotchi);
   const setEditorFilePath = useUIStore((s) => s.setEditorFilePath);
   const requestSidebarFocus = useUIStore((s) => s.requestSidebarFocus);
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
@@ -932,6 +934,9 @@ export function App() {
           }
         }}
       />
+
+      {/* Cosmetic mascot overlay (Ctrl/Cmd+Shift+T to toggle) */}
+      {showTamagotchi && <Tamagotchi />}
     </div>
   );
 }

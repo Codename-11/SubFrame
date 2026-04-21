@@ -10,6 +10,7 @@ import {
   FileText,
   FolderGit2,
   GitBranch,
+  GitCommitHorizontal,
   GitPullRequest,
   Heart,
   LayoutDashboard,
@@ -17,6 +18,7 @@ import {
   MessageSquare,
   PlayCircle,
   Puzzle,
+  Store,
   TerminalSquare,
   Workflow,
   Zap,
@@ -28,7 +30,8 @@ import { AIFilesPanel } from '../AIFilesPanel';
 import { SubFrameHealthPanel } from '../SubFrameHealthPanel';
 import { SystemPanel } from '../SystemPanel';
 import { TasksPanel } from '../TasksPanel';
-import { GithubBranchesPanel, GithubChangesPanel, GithubIssuesPanel, GithubNotificationsPanel, GithubPRsPanel, GithubWorkflowsPanel, GithubWorktreesPanel } from '../GithubPanel';
+import { GithubBranchesPanel, GithubChangesPanel, GithubGraphPanel, GithubIssuesPanel, GithubNotificationsPanel, GithubPRsPanel, GithubWorkflowsPanel, GithubWorktreesPanel } from '../GithubPanel';
+import { MCPMarketplacePanel } from '../MCPMarketplacePanel';
 import { AgentStateView } from '../AgentStateView';
 import { AISessionsPanel } from '../AISessionsPanel';
 import { SessionsPanel } from '../SessionsPanel';
@@ -48,6 +51,7 @@ type MobilePanelId =
   | 'githubIssues'
   | 'githubPRs'
   | 'githubBranches'
+  | 'githubGraph'
   | 'githubWorktrees'
   | 'githubWorkflows'
   | 'githubNotifications'
@@ -58,7 +62,8 @@ type MobilePanelId =
   | 'skills'
   | 'plugins'
   | 'prompts'
-  | 'pipeline';
+  | 'pipeline'
+  | 'mcp';
 
 const PANEL_SECTIONS: Array<{
   title: string;
@@ -86,6 +91,7 @@ const PANEL_SECTIONS: Array<{
       { id: 'githubIssues', label: 'Issues', icon: CircleDot },
       { id: 'githubPRs', label: 'PRs', icon: GitPullRequest },
       { id: 'githubBranches', label: 'Branches', icon: GitBranch },
+      { id: 'githubGraph', label: 'Graph', icon: GitCommitHorizontal },
       { id: 'githubWorktrees', label: 'Worktrees', icon: FolderGit2 },
       { id: 'githubWorkflows', label: 'Workflows', icon: PlayCircle },
       { id: 'githubNotifications', label: 'Alerts', icon: Bell },
@@ -107,6 +113,12 @@ const PANEL_SECTIONS: Array<{
     panels: [
       { id: 'prompts', label: 'Prompts', icon: BookMarked },
       { id: 'pipeline', label: 'Pipeline', icon: Workflow },
+    ],
+  },
+  {
+    title: 'Marketplace',
+    panels: [
+      { id: 'mcp', label: 'MCP', icon: Store },
     ],
   },
 ];
@@ -131,6 +143,8 @@ function PanelBody({ panel }: { panel: MobilePanelId }) {
       return <GithubPRsPanel />;
     case 'githubBranches':
       return <GithubBranchesPanel />;
+    case 'githubGraph':
+      return <GithubGraphPanel />;
     case 'githubWorktrees':
       return <GithubWorktreesPanel />;
     case 'githubWorkflows':
@@ -153,6 +167,8 @@ function PanelBody({ panel }: { panel: MobilePanelId }) {
       return <PromptsPanel />;
     case 'pipeline':
       return <PipelinePanel isFullView />;
+    case 'mcp':
+      return <MCPMarketplacePanel />;
     default:
       return null;
   }

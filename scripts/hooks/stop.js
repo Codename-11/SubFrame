@@ -47,6 +47,42 @@ function getModifiedSourceFiles(projectRoot) {
   }
 }
 
+function updateTerminalStatusDone(projectRoot) {
+  // Formal terminal status — Stop hook → 'done'.
+  // Mirror the write pattern from pre-tool-use so agent-state.json stays in sync.
+  const sfTerminalId = process.env.SUBFRAME_TERMINAL_ID;
+  if (!sfTerminalId) return;
+  const statePath = path.join(projectRoot, '.subframe', 'agent-state.json');
+  let state;
+  try {
+    state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+  } catch {
+    state = { projectPath: projectRoot, sessions: [], lastUpdated: new Date().toISOString() };
+  }
+  if (!state.terminalStatus || typeof state.terminalStatus !== 'object') {
+    state.terminalStatus = {};
+  }
+  const now = Date.now();
+  state.terminalStatus[sfTerminalId] = {
+    terminalId: sfTerminalId,
+    status: 'done',
+    lastUpdated: now,
+  };
+  state.lastUpdated = new Date(now).toISOString();
+  try {
+    const dir = path.dirname(statePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const content = JSON.stringify(state, null, 2);
+    const tmp = statePath + '.tmp.' + process.pid;
+    fs.writeFileSync(tmp, content, 'utf8');
+    try { fs.renameSync(tmp, statePath); }
+    catch {
+      try { fs.writeFileSync(statePath, content, 'utf8'); } catch { /* ignore */ }
+      try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+}
+
 function main() {
   let input = '';
   try { input = fs.readFileSync(0, 'utf8'); } catch { process.exit(0); }
@@ -55,6 +91,10 @@ function main() {
 
   const projectRoot = findProjectRoot(hookData.cwd) || findProjectRoot(process.cwd());
   if (!projectRoot) process.exit(0);
+
+  // Mark this terminal 'done' in the formal status map (before anything else
+  // so even early exits still surface the state transition).
+  try { updateTerminalStatusDone(projectRoot); } catch { /* ignore */ }
 
   const tasksPath = findTasksFile(hookData.cwd) || findTasksFile(process.cwd());
   if (!tasksPath) process.exit(0);

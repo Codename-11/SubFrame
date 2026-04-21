@@ -33,6 +33,8 @@ import {
   Workflow,
   Cpu,
   Check,
+  GitCommitHorizontal,
+  Store,
 } from 'lucide-react';
 import {
   CommandDialog,
@@ -178,6 +180,10 @@ export function CommandPalette() {
             <span>GitHub</span>
             <CommandShortcut>{SHORTCUTS.PANEL_GITHUB.keys}</CommandShortcut>
           </CommandItem>
+          <CommandItem onSelect={() => runAction(() => togglePanel('githubGraph'))}>
+            <GitCommitHorizontal className="text-text-tertiary" />
+            <span>Commit Graph</span>
+          </CommandItem>
           <CommandItem onSelect={() => runAction(() => togglePanel('plugins'))}>
             <Plug className="text-text-tertiary" />
             <span>Plugins</span>
@@ -213,6 +219,10 @@ export function CommandPalette() {
           <CommandItem onSelect={() => runAction(() => togglePanel('subframeHealth'))}>
             <Shield className="text-text-tertiary" />
             <span>SubFrame Health</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runAction(() => togglePanel('mcp'))}>
+            <Store className="text-text-tertiary" />
+            <span>MCP Marketplace</span>
           </CommandItem>
           <CommandItem onSelect={() => runAction(() => togglePanel('system'))}>
             <Cpu className="text-text-tertiary" />

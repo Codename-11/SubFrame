@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { SortingState } from '@tanstack/react-table';
 
-type PanelId = 'tasks' | 'plugins' | 'sessions' | 'aiSessions' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system' | 'aiAnalysis' | null;
+type PanelId = 'tasks' | 'plugins' | 'sessions' | 'aiSessions' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'githubGraph' | 'overview' | 'aiFiles' | 'subframeHealth' | 'history' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system' | 'aiAnalysis' | 'mcp' | null;
 type SidebarState = 'expanded' | 'collapsed' | 'hidden';
 export type FullViewContent = 'overview' | 'structureMap' | 'tasks' | 'stats' | 'decisions' | 'pipeline' | 'agentState' | 'shortcuts' | 'system' | null;
 
@@ -217,6 +217,98 @@ interface UIState {
   } | null;
   setPendingEnhance: (v: UIState['pendingEnhance']) => void;
   clearPendingEnhance: () => void;
+
+  // Tamagotchi mascot (cosmetic overlay)
+  showTamagotchi: boolean;
+  tamagotchiPosition: { x: number; y: number };
+  tamagotchiLastFed: number;
+  toggleTamagotchi: () => void;
+  setTamagotchiPosition: (pos: { x: number; y: number }) => void;
+  feedTamagotchi: () => void;
+
+  // Quick Action Pills bar (floating row above focused terminal)
+  showQuickActionPills: boolean;
+  toggleQuickActionPills: () => void;
+
+  // Status legend (7-state chip row in status bar)
+  showStatusLegend: boolean;
+  toggleStatusLegend: () => void;
+
+  // Restore split-tree layout on launch (per-project)
+  restoreLayoutOnLaunch: boolean;
+  toggleRestoreLayoutOnLaunch: () => void;
+
+  // Combine terminals across all workspace projects (Mix pill)
+  combineWorkspaceTerminals: boolean;
+  setCombineWorkspaceTerminals: (v: boolean | ((prev: boolean) => boolean)) => void;
+}
+
+/** Load persisted tamagotchi enabled flag (default: true) */
+function loadTamagotchiEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem('subframe-tamagotchi-enabled');
+    if (raw === null) return true;
+    return raw !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+/** Load persisted tamagotchi position (default: { x: 20, y: 20 }) */
+function loadTamagotchiPosition(): { x: number; y: number } {
+  try {
+    const raw = localStorage.getItem('subframe-tamagotchi-position');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.x === 'number' && typeof parsed?.y === 'number') {
+        return { x: parsed.x, y: parsed.y };
+      }
+    }
+  } catch { /* ignore */ }
+  return { x: 20, y: 20 };
+}
+
+/** Load persisted last-fed timestamp (default: now) */
+function loadTamagotchiLastFed(): number {
+  try {
+    const raw = localStorage.getItem('subframe-tamagotchi-last-fed');
+    if (raw) {
+      const n = Number(raw);
+      if (Number.isFinite(n)) return n;
+    }
+  } catch { /* ignore */ }
+  return Date.now();
+}
+
+/** Load persisted quick-action-pills visibility flag (default: true) */
+function loadQuickActionPillsEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem('subframe-show-quick-action-pills');
+    if (raw === null) return true;
+    return raw !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function loadStatusLegendEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem('subframe-show-status-legend');
+    if (raw === null) return true;
+    return raw !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function loadRestoreLayoutOnLaunch(): boolean {
+  try {
+    const raw = localStorage.getItem('subframe-restore-layout-on-launch');
+    if (raw === null) return true;
+    return raw !== 'false';
+  } catch {
+    return true;
+  }
 }
 
 type LiveUIStateSource = Pick<
@@ -566,6 +658,52 @@ export const useUIStore = create<UIState>((set, get) => ({
   pendingEnhance: null,
   setPendingEnhance: (v) => set({ pendingEnhance: v }),
   clearPendingEnhance: () => set({ pendingEnhance: null }),
+
+  // Tamagotchi mascot
+  showTamagotchi: loadTamagotchiEnabled(),
+  tamagotchiPosition: loadTamagotchiPosition(),
+  tamagotchiLastFed: loadTamagotchiLastFed(),
+  toggleTamagotchi: () => {
+    const next = !get().showTamagotchi;
+    try { localStorage.setItem('subframe-tamagotchi-enabled', String(next)); } catch { /* ignore */ }
+    set({ showTamagotchi: next });
+  },
+  setTamagotchiPosition: (pos) => {
+    try { localStorage.setItem('subframe-tamagotchi-position', JSON.stringify(pos)); } catch { /* ignore */ }
+    set({ tamagotchiPosition: pos });
+  },
+  feedTamagotchi: () => {
+    const now = Date.now();
+    try { localStorage.setItem('subframe-tamagotchi-last-fed', String(now)); } catch { /* ignore */ }
+    set({ tamagotchiLastFed: now });
+  },
+
+  // Quick Action Pills
+  showQuickActionPills: loadQuickActionPillsEnabled(),
+  toggleQuickActionPills: () => {
+    const next = !get().showQuickActionPills;
+    try { localStorage.setItem('subframe-show-quick-action-pills', String(next)); } catch { /* ignore */ }
+    set({ showQuickActionPills: next });
+  },
+
+  showStatusLegend: loadStatusLegendEnabled(),
+  toggleStatusLegend: () => {
+    const next = !get().showStatusLegend;
+    try { localStorage.setItem('subframe-show-status-legend', String(next)); } catch { /* ignore */ }
+    set({ showStatusLegend: next });
+  },
+
+  restoreLayoutOnLaunch: loadRestoreLayoutOnLaunch(),
+  toggleRestoreLayoutOnLaunch: () => {
+    const next = !get().restoreLayoutOnLaunch;
+    try { localStorage.setItem('subframe-restore-layout-on-launch', String(next)); } catch { /* ignore */ }
+    set({ restoreLayoutOnLaunch: next });
+  },
+
+  combineWorkspaceTerminals: false,
+  setCombineWorkspaceTerminals: (v) => set((s) => ({
+    combineWorkspaceTerminals: typeof v === 'function' ? v(s.combineWorkspaceTerminals) : v,
+  })),
 }));
 
 export function buildLiveUIStateSnapshot(state: LiveUIStateSource = useUIStore.getState()): LiveUIStateSnapshot {

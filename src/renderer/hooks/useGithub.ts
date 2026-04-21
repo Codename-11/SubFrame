@@ -2,11 +2,11 @@
  * TanStack Query hooks for GitHub integration (issues, branches, worktrees).
  */
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useIpcQuery, useIpcMutation } from './useIpc';
 import { useProjectStore } from '../stores/useProjectStore';
-import { IPC } from '../../shared/ipcChannels';
-import { typedSend } from '../lib/ipc';
+import { IPC, type GitCommitInfo } from '../../shared/ipcChannels';
+import { typedSend, typedInvoke } from '../lib/ipc';
 
 export function useGithubIssues(state: string = 'open') {
   const projectPath = useProjectStore((s) => s.currentProjectPath);
@@ -203,4 +203,67 @@ export function useGithubNotifications() {
 
 export function useMarkNotificationRead() {
   return useIpcMutation(IPC.MARK_GITHUB_NOTIFICATION_READ);
+}
+
+/**
+ * Commit graph hook — loads an initial page of commits and exposes
+ * `loadMore` for pagination plus checkout / branch mutations.
+ */
+export function useCommitGraph(repoPath: string, initialLimit: number = 200) {
+  const query = useIpcQuery(
+    IPC.LOAD_GIT_COMMIT_GRAPH,
+    [{ projectPath: repoPath, limit: initialLimit, skip: 0 }],
+    { enabled: !!repoPath }
+  );
+
+  const [extra, setExtra] = useState<GitCommitInfo[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Reset pagination state when the repo or the initial query reloads.
+  useEffect(() => {
+    setExtra([]);
+    setHasMore(true);
+    setIsLoadingMore(false);
+  }, [repoPath, query.dataUpdatedAt]);
+
+  const base = query.data?.commits ?? [];
+  const commits = extra.length > 0 ? [...base, ...extra] : base;
+
+  const loadMore = useCallback(async () => {
+    if (!repoPath || isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const result = await typedInvoke(IPC.LOAD_GIT_COMMIT_GRAPH, {
+        projectPath: repoPath,
+        limit: initialLimit,
+        skip: base.length + extra.length,
+      });
+      if (result.error) {
+        setHasMore(false);
+      } else if (!result.commits || result.commits.length === 0) {
+        setHasMore(false);
+      } else {
+        setExtra((prev) => [...prev, ...result.commits]);
+        if (result.commits.length < initialLimit) setHasMore(false);
+      }
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [repoPath, initialLimit, base.length, extra.length, isLoadingMore, hasMore]);
+
+  const checkoutCommit = useIpcMutation(IPC.CHECKOUT_GIT_COMMIT);
+  const createBranchAtCommit = useIpcMutation(IPC.CREATE_BRANCH_AT_COMMIT);
+
+  return {
+    commits,
+    error: query.data?.error ?? null,
+    isLoading: query.isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMore,
+    refetch: query.refetch,
+    checkoutCommit,
+    createBranchAtCommit,
+  };
 }

@@ -10,8 +10,8 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import type { BrowserWindow, IpcMain, WebContents } from 'electron';
 import { IPC } from '../shared/ipcChannels';
+import type { TerminalStatus } from '../shared/agentStateTypes';
 import * as promptLogger from './promptLogger';
-import * as agentStateManager from './agentStateManager';
 import { getSetting } from './settingsManager';
 import { broadcast } from './eventBridge';
 import { log as outputLog } from './outputChannelManager';
@@ -20,11 +20,25 @@ interface PTYInstance {
   pty: IPty;
   cwd: string;
   projectPath: string | null;
+  /**
+   * @deprecated Use the formal `status` enum instead. This field is retained
+   * only for back-compat with existing consumers (see GET_TERMINAL_STATE /
+   * TERMINAL_RESYNC payloads) and is no longer set by any detection logic —
+   * it is initialized to `false` and never flipped in the main process. The
+   * renderer store derives its own `claudeActive` boolean from `status`
+   * transitions (`working` / `needs-input` → true).
+   */
   claudeActive: boolean;
+  /** Formal 7-state terminal status (Maestro-style). Driven by AI tool hooks. */
+  status: TerminalStatus;
+  /** Optional human-readable status reason (e.g. "Running: Bash") */
+  statusMessage?: string;
   shell: string;
   shellReady: boolean;
   shellReadyBuffer: string;
   lastOutputTimestamp: number;
+  /** Keyboard input buffered while shell is still starting up (pre-shellReady) */
+  pendingInput: string[];
 }
 
 // ── Pop-out Window WebContents ────────────────────────────────────────────────
@@ -50,20 +64,17 @@ function parseOSC7(data: string): string | null {
   }
 }
 
-// ── Claude Code Detection ────────────────────────────────────────────────────
+// ── Shell Ready Detection ────────────────────────────────────────────────────
+//
+// Claude Code activity is no longer inferred from PTY output pattern matching.
+// The formal 7-state `status` enum (populated by AI tool hooks via
+// agentStateManager → ptyManager.setTerminalStatus) is the authoritative source
+// of truth, and the renderer store derives the legacy `claudeActive` boolean
+// from it. The pattern-matching detection, 4-second silence timer, and
+// rolling output buffer were removed — they were fragile (false positives
+// from non-Claude output, 4s lag on exit) and superseded by deterministic
+// hook-driven state.
 
-/**
- * Lightweight detector for Claude Code TUI activity in a PTY.
- * Watches recent output for known patterns that indicate Claude Code is running.
- *
- * Detection uses a rolling buffer of recent output (last ~2KB) per terminal.
- * A terminal is marked active when patterns match and inactive after a
- * configurable timeout with no further matches.
- */
-
-const CLAUDE_OUTPUT_BUFFERS = new Map<string, string>();
-const CLAUDE_TIMEOUT_HANDLES = new Map<string, ReturnType<typeof setTimeout>>();
-const CLAUDE_BUFFER_MAX = 2048;
 const SHELL_READY_BUFFER_MAX = 4096;
 
 /**
@@ -86,21 +97,6 @@ const terminalBacklogs = new Map<string, string>();
 // Per-terminal callbacks for real-time output monitoring (e.g. trust prompt detection).
 /** Per-terminal output handlers — supports multiple named handlers per terminal */
 const outputHandlers = new Map<string, Map<string, (data: string) => void>>();
-/** How long (ms) after the last Claude pattern match before marking inactive */
-const CLAUDE_INACTIVE_DELAY = 4000;
-
-/** Read the user-configurable agent exit timeout, falling back to the constant */
-function getAgentExitTimeout(): number {
-  const val = getSetting('terminal.agentExitTimeout') as number | undefined;
-  if (typeof val === 'number' && val >= 1000 && val <= 30000) return val;
-  return CLAUDE_INACTIVE_DELAY;
-}
-
-/** Tracks the current claude-active state per terminal for shell-prompt exit detection */
-const claudeActiveFlags = new Map<string, boolean>();
-
-/** Handle for periodic stale-session check interval (cancellable) */
-let staleSessionTimer: ReturnType<typeof setInterval> | null = null;
 
 /** Handle for periodic TUI stall check interval (cancellable) */
 let stallCheckTimer: ReturnType<typeof setInterval> | null = null;
@@ -131,12 +127,57 @@ function stripTerminalControlSequences(text: string): string {
     );
 }
 
+/**
+ * Public status setter — updates the instance's formal `status` enum and
+ * broadcasts `TERMINAL_STATUS_CHANGED` to the renderer. Used by the hook
+ * bridge (agentStateManager → ptyManager) and any future internal caller
+ * that wants to formally mark a terminal.
+ */
+function setTerminalStatus(
+  terminalId: string,
+  status: TerminalStatus,
+  message?: string,
+): void {
+  const instance = ptyInstances.get(terminalId);
+  if (!instance) return;
+  if (instance.status === status && instance.statusMessage === message) return;
+  instance.status = status;
+  instance.statusMessage = message;
+  broadcast(IPC.TERMINAL_STATUS_CHANGED, {
+    terminalId,
+    status,
+    message,
+    lastUpdated: Date.now(),
+  });
+}
+
 function markShellReady(terminalId: string): void {
   const instance = ptyInstances.get(terminalId);
   if (!instance || instance.shellReady) return;
 
   instance.shellReady = true;
   instance.shellReadyBuffer = '';
+  // Transition from 'starting' to 'idle' — the shell is up and awaiting input.
+  if (instance.status === 'starting') {
+    setTerminalStatus(terminalId, 'idle');
+  }
+
+  // Flush any keyboard input that arrived before the shell was ready.
+  // Uses a brief quiescence wait to ensure ConPTY has fully settled before
+  // writing, preventing the first-byte-drop bug on Windows.
+  if (instance.pendingInput.length > 0) {
+    const pending = instance.pendingInput;
+    instance.pendingInput = [];
+    waitForOutputQuiet(terminalId, 50, 2000).then(() => {
+      const inst = ptyInstances.get(terminalId);
+      if (inst) {
+        for (const data of pending) {
+          inst.pty.write(data);
+        }
+      }
+    });
+  }
+
   broadcast(IPC.TERMINAL_SHELL_READY, { terminalId });
 }
 
@@ -178,213 +219,14 @@ function detectShellReady(terminalId: string, data: string): void {
 }
 
 /**
- * Patterns that strongly indicate Claude Code TUI is active.
- * Tested against a rolling buffer of recent raw terminal output (includes ANSI).
+ * Maps terminalId → sessionId for jump-to-terminal correlation.
+ * Historically populated by the pattern-matching detection path; that path is
+ * gone. The map is now only written by the public `setClaudeSessionId` helper
+ * (currently unused from the main process — hooks that know a session ID can
+ * wire it through) and remains present so `GET_TERMINAL_STATE` / `TERMINAL_RESYNC`
+ * payloads still carry the field. Consumers tolerate `null` here.
  */
-const CLAUDE_PATTERNS: RegExp[] = [
-  // ANSI terminal title set to something containing "claude"
-  // eslint-disable-next-line no-control-regex
-  /\x1b\]0;[^\x07]*claude/i,
-  // eslint-disable-next-line no-control-regex
-  /\x1b\]2;[^\x07]*claude/i,
-  // Claude banner / status lines
-  /\bclaude[\s-]?code\b/i,
-  // Tool-use indicators unique to Claude Code TUI (Braille spinner characters)
-  /⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏/,
-  // Cost display pattern from Claude Code
-  /\$\d+\.\d{2}\s+[│|]/,
-  // Claude's "Thinking" indicator
-  /\bThinking\.\.\./,
-  // Subagent / slash command output (e.g. "feature-dev:code-reviewer(...)")
-  /\b\w+(?::\w+)?\([^)]*\)/,
-  // Claude status line patterns: "Mustering...", "Crunched for", "Done ("
-  /\b(?:Mustering|Crunched for|Done \()/,
-  // Tool use count indicators (e.g. "30 tool uses", "50.9k tokens")
-  /\d+\s+tool\s+uses/i,
-];
-
-/** Maps terminalId → sessionId for jump-to-terminal correlation */
 const terminalSessionMap = new Map<string, string>();
-
-/** Max age (ms) for a session to be considered "fresh" — matches claudeSessionsManager's 2-min active threshold */
-const SESSION_STALE_MS = 2 * 60 * 1000;
-
-/** Check if a session's lastActivityAt is recent enough to be from the current run */
-function isSessionFresh(lastActivityAt: string): boolean {
-  return (Date.now() - new Date(lastActivityAt).getTime()) < SESSION_STALE_MS;
-}
-
-/**
- * When a terminal becomes claude-active, try to correlate it with
- * a session in agent-state.json.
- *
- * Priority:
- * 1. Direct match by terminalId (written by hooks via SUBFRAME_TERMINAL_ID env var)
- * 2. Heuristic: most recently active unclaimed session (fresh only, <2 min)
- */
-function correlateSession(terminalId: string): string | undefined {
-  const instance = ptyInstances.get(terminalId);
-  if (!instance?.projectPath) return undefined;
-
-  try {
-    const state = agentStateManager.loadAgentState(instance.projectPath);
-    if (!state.sessions.length) return undefined;
-
-    // 1. Direct match — hooks wrote our SUBFRAME_TERMINAL_ID into the session
-    //    Must also be fresh (prevents cross-session ID reuse after app restart)
-    //    Sort by lastActivityAt to handle subagents sharing the same terminalId
-    const directMatches = state.sessions
-      .filter((s) =>
-        s.terminalId === terminalId &&
-        (s.status === 'active' || s.status === 'busy') &&
-        isSessionFresh(s.lastActivityAt)
-      )
-      .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime());
-    if (directMatches.length > 0) return directMatches[0].sessionId;
-
-    // 2. Heuristic fallback — most recently active unclaimed fresh session
-    const claimed = new Set<string>();
-    for (const [tid, sid] of terminalSessionMap) {
-      if (tid !== terminalId) claimed.add(sid);
-    }
-
-    const candidates = state.sessions
-      .filter((s) =>
-        (s.status === 'active' || s.status === 'busy') &&
-        !claimed.has(s.sessionId) &&
-        !s.terminalId && // Skip sessions already bound to a terminal
-        isSessionFresh(s.lastActivityAt)
-      )
-      .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime());
-
-    return candidates[0]?.sessionId;
-  } catch {
-    return undefined;
-  }
-}
-
-function broadcastClaudeStatus(terminalId: string, active: boolean): void {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-
-  let sessionId: string | undefined;
-  if (active) {
-    // Check if we already have a valid mapping for this terminal
-    const existingId = terminalSessionMap.get(terminalId);
-    if (existingId) {
-      // Validate: is the mapped session still active/busy? If so, keep it.
-      // If it's gone idle/completed, the user may have started a new session — re-correlate.
-      const instance = ptyInstances.get(terminalId);
-      if (instance?.projectPath) {
-        try {
-          const state = agentStateManager.loadAgentState(instance.projectPath);
-          const mapped = state.sessions.find((s) => s.sessionId === existingId);
-          if (mapped && (mapped.status === 'active' || mapped.status === 'busy') && isSessionFresh(mapped.lastActivityAt)) {
-            sessionId = existingId; // Existing mapping is still valid and fresh
-          } else {
-            // Mapped session went idle — may be a new Claude session in this terminal
-            sessionId = correlateSession(terminalId);
-          }
-        } catch {
-          sessionId = existingId; // On error, keep existing mapping
-        }
-      } else {
-        sessionId = existingId;
-      }
-    } else {
-      sessionId = correlateSession(terminalId);
-    }
-
-    if (sessionId) {
-      terminalSessionMap.set(terminalId, sessionId);
-    } else if (!terminalSessionMap.has(terminalId)) {
-      // Session may not be written yet — retry once after hooks have had time to fire
-      setTimeout(() => {
-        if (!terminalSessionMap.has(terminalId)) {
-          const retryId = correlateSession(terminalId);
-          if (retryId && mainWindow && !mainWindow.isDestroyed()) {
-            terminalSessionMap.set(terminalId, retryId);
-            broadcast(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active: true, sessionId: retryId });
-          }
-        }
-      }, 5000);
-    }
-  }
-  // Don't delete the mapping when going inactive — preserve terminal↔session association
-  // across idle transitions to prevent cross-contamination. Mapping is cleared only when
-  // the terminal is destroyed (PTY exit handler / destroyTerminal).
-
-  // When inactive, include the existing mapping so the renderer retains the session name
-  sessionId = sessionId ?? terminalSessionMap.get(terminalId);
-  broadcast(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active, sessionId });
-
-  // Also send to pop-out window if one exists for this terminal
-  const popoutWC = popoutWebContents.get(terminalId);
-  if (popoutWC && !popoutWC.isDestroyed()) {
-    popoutWC.send(IPC.CLAUDE_ACTIVE_STATUS, { terminalId, active, sessionId });
-  }
-}
-
-function detectClaudeOutput(terminalId: string, data: string): void {
-  // Append to rolling buffer
-  let buf = (CLAUDE_OUTPUT_BUFFERS.get(terminalId) || '') + data;
-  if (buf.length > CLAUDE_BUFFER_MAX) {
-    buf = buf.slice(buf.length - CLAUDE_BUFFER_MAX);
-  }
-  CLAUDE_OUTPUT_BUFFERS.set(terminalId, buf);
-
-  // Check patterns against the buffer
-  const matched = CLAUDE_PATTERNS.some((re) => re.test(buf));
-
-  if (matched) {
-    const instance = ptyInstances.get(terminalId);
-    if (!instance) return;
-
-    // Clear any pending inactive timeout
-    const existing = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-    if (existing) clearTimeout(existing);
-
-    // Broadcast on transition to active
-    const wasActive = instance.claudeActive;
-    instance.claudeActive = true;
-    claudeActiveFlags.set(terminalId, true);
-    if (!wasActive) {
-      broadcastClaudeStatus(terminalId, true);
-    }
-
-    // Schedule inactive transition (use configurable timeout)
-    const timeout = getAgentExitTimeout();
-    CLAUDE_TIMEOUT_HANDLES.set(
-      terminalId,
-      setTimeout(() => {
-        const inst = ptyInstances.get(terminalId);
-        if (inst && inst.claudeActive) {
-          inst.claudeActive = false;
-          claudeActiveFlags.set(terminalId, false);
-          broadcastClaudeStatus(terminalId, false);
-        }
-        CLAUDE_TIMEOUT_HANDLES.delete(terminalId);
-      }, timeout)
-    );
-    return;
-  }
-
-  // If agent is active and we see a shell prompt, agent likely exited
-  if (claudeActiveFlags.get(terminalId) && !matched) {
-    const lastLine = data.split('\n').pop()?.trim() ?? '';
-    if (SHELL_PROMPT_PATTERNS.some((p) => p.test(lastLine))) {
-      // Shell prompt appeared without any Claude patterns — agent exited
-      const pendingTimeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-      if (pendingTimeout) clearTimeout(pendingTimeout);
-      CLAUDE_TIMEOUT_HANDLES.delete(terminalId);
-      const instance = ptyInstances.get(terminalId);
-      if (instance) {
-        instance.claudeActive = false;
-      }
-      claudeActiveFlags.set(terminalId, false);
-      broadcastClaudeStatus(terminalId, false);
-    }
-  }
-}
 
 function appendTerminalBacklog(terminalId: string, data: string): void {
   const next = (terminalBacklogs.get(terminalId) || '') + data;
@@ -400,12 +242,17 @@ function handleTerminalOutput(terminalId: string, data: string): void {
     broadcast(IPC.TERMINAL_OUTPUT_ID, { terminalId, data });
   }
   detectShellReady(terminalId, data);
-  detectClaudeOutput(terminalId, data);
 
   const instForStall = ptyInstances.get(terminalId);
   if (instForStall) {
     instForStall.lastOutputTimestamp = Date.now();
-    if (instForStall.claudeActive && mainWindow && !mainWindow.isDestroyed()) {
+    // Clear any active stall indicator — if the terminal is in 'working' status
+    // and was flagged as stalled, fresh output means it's no longer stalled.
+    if (
+      (instForStall.status === 'working' || instForStall.status === 'needs-input') &&
+      mainWindow &&
+      !mainWindow.isDestroyed()
+    ) {
       broadcast(IPC.TERMINAL_STALL_CLEARED, { terminalId });
     }
   }
@@ -427,14 +274,10 @@ function handleTerminalExit(terminalId: string, exitCode: number | undefined): v
   console.log(`Terminal ${terminalId} exited:`, exitCode);
   outputLog('agent', `Terminal exited: ${terminalId} (code: ${exitCode ?? 'unknown'})`);
   ptyInstances.delete(terminalId);
-  CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
   captureBuffers.delete(terminalId);
   outputHandlers.delete(terminalId);
   terminalBacklogs.delete(terminalId);
   terminalSessionMap.delete(terminalId);
-  claudeActiveFlags.delete(terminalId);
-  const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-  if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
   if (mainWindow && !mainWindow.isDestroyed()) {
     broadcast(IPC.TERMINAL_DESTROYED, { terminalId, exitCode });
   }
@@ -481,29 +324,9 @@ function getMaxTerminals(): number {
 function init(window: BrowserWindow): void {
   mainWindow = window;
 
-  // Periodic stale-session check: if agent-state.json shows a correlated session
-  // as idle/completed, immediately mark the terminal as inactive.
-  staleSessionTimer = setInterval(() => {
-    for (const [terminalId, sessionId] of terminalSessionMap.entries()) {
-      if (!claudeActiveFlags.get(terminalId)) continue;
-      const instance = ptyInstances.get(terminalId);
-      if (!instance?.projectPath) continue;
-      try {
-        const state = agentStateManager.loadAgentState(instance.projectPath);
-        const session = state.sessions.find((s) => s.sessionId === sessionId);
-        if (session && (session.status === 'idle' || session.status === 'completed')) {
-          instance.claudeActive = false;
-          claudeActiveFlags.set(terminalId, false);
-          // Clear any pending inactivity timeout since we know the agent exited
-          const pending = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-          if (pending) { clearTimeout(pending); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
-          broadcastClaudeStatus(terminalId, false);
-        }
-      } catch { /* ignore read errors */ }
-    }
-  }, 3000);
-
-  // Periodic TUI stall check (every 2 seconds) — experimental feature
+  // Periodic TUI stall check (every 2 seconds) — experimental feature.
+  // Only considers terminals whose formal status indicates active work
+  // ('working' or 'needs-input'); idle terminals cannot be "stalled".
   stallCheckTimer = setInterval(() => {
     const enabled = getSetting('experimental.tuiRecovery');
     if (!enabled) return;
@@ -512,7 +335,7 @@ function init(window: BrowserWindow): void {
     const now = Date.now();
 
     for (const [terminalId, instance] of ptyInstances) {
-      if (!instance.claudeActive) continue;
+      if (instance.status !== 'working' && instance.status !== 'needs-input') continue;
       const stallDuration = now - instance.lastOutputTimestamp;
       if (stallDuration > threshold) {
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -675,10 +498,12 @@ function createTerminal(
     cwd,
     projectPath,
     claudeActive: false,
+    status: 'starting',
     shell,
     shellReady: false,
     shellReadyBuffer: '',
     lastOutputTimestamp: Date.now(),
+    pendingInput: [],
   });
   bindPtyLifecycle(terminalId, ptyProcess);
   console.log(`Created terminal ${terminalId} in ${cwd} (shell: ${shell}, project: ${projectPath || 'global'})`);
@@ -739,10 +564,12 @@ function spawnDirect(
     cwd,
     projectPath,
     claudeActive: false,
+    status: 'starting',
     shell: spawnCmd,
     shellReady: false,
     shellReadyBuffer: '',
     lastOutputTimestamp: Date.now(),
+    pendingInput: [],
   });
   bindPtyLifecycle(terminalId, ptyProcess);
   console.log(`Spawned direct terminal ${terminalId} in ${cwd} (command: ${command} ${args.join(' ')}, project: ${projectPath || 'global'})`);
@@ -779,11 +606,7 @@ function restartTerminal(terminalId: string): { success: boolean; error?: string
   // Kill the old PTY
   try { instance.pty.kill(); } catch { /* ignore */ }
 
-  // Clean up detection state
-  CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
-  claudeActiveFlags.delete(terminalId);
-  const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-  if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
+  // Clean up session correlation state
   terminalSessionMap.delete(terminalId);
 
   // Spawn new PTY with fresh environment
@@ -811,6 +634,10 @@ function restartTerminal(terminalId: string): { success: boolean; error?: string
   instance.shellReady = false;
   instance.shellReadyBuffer = '';
   instance.lastOutputTimestamp = Date.now();
+  instance.pendingInput = [];
+  // Force-broadcast a 'starting' transition (reset message + notify renderer).
+  instance.status = 'idle'; // Ensure setTerminalStatus doesn't dedup.
+  setTerminalStatus(terminalId, 'starting');
   bindPtyLifecycle(terminalId, newPty);
 
   console.log(`Restarted terminal ${terminalId} shell (${shell}) in ${cwd}`);
@@ -920,15 +747,11 @@ function destroyTerminal(terminalId: string): void {
   if (instance) {
     instance.pty.kill();
     ptyInstances.delete(terminalId);
-    // Clean up Claude detection + capture + session correlation state
-    CLAUDE_OUTPUT_BUFFERS.delete(terminalId);
+    // Clean up capture + session correlation + shell-ready state
     captureBuffers.delete(terminalId);
     outputHandlers.delete(terminalId);
     terminalBacklogs.delete(terminalId);
     terminalSessionMap.delete(terminalId);
-    claudeActiveFlags.delete(terminalId);
-    const timeout = CLAUDE_TIMEOUT_HANDLES.get(terminalId);
-    if (timeout) { clearTimeout(timeout); CLAUDE_TIMEOUT_HANDLES.delete(terminalId); }
     const qt = shellReadyQuiescenceTimers.get(terminalId);
     if (qt) { clearTimeout(qt); shellReadyQuiescenceTimers.delete(terminalId); }
     console.log(`Destroyed terminal ${terminalId}`);
@@ -944,18 +767,13 @@ function destroyAll(): void {
     console.log(`Destroyed terminal ${terminalId}`);
   }
   ptyInstances.clear();
-  // Clean up all detection + capture + session correlation state
-  CLAUDE_OUTPUT_BUFFERS.clear();
+  // Clean up capture + session correlation + shell-ready state
   captureBuffers.clear();
   outputHandlers.clear();
   terminalBacklogs.clear();
   terminalSessionMap.clear();
-  claudeActiveFlags.clear();
-  for (const timeout of CLAUDE_TIMEOUT_HANDLES.values()) clearTimeout(timeout);
-  CLAUDE_TIMEOUT_HANDLES.clear();
   for (const qt of shellReadyQuiescenceTimers.values()) clearTimeout(qt);
   shellReadyQuiescenceTimers.clear();
-  if (staleSessionTimer) { clearInterval(staleSessionTimer); staleSessionTimer = null; }
   if (stallCheckTimer) { clearInterval(stallCheckTimer); stallCheckTimer = null; }
 }
 
@@ -981,11 +799,16 @@ function hasTerminal(terminalId: string): boolean {
 }
 
 /**
- * Check if Claude Code is currently active in a terminal
+ * Check if Claude Code is currently active in a terminal.
+ * Derived from the formal `status` enum: a terminal is considered "claude active"
+ * when it's in `working` or `needs-input` state (driven by AI tool hooks).
+ * The legacy `instance.claudeActive` field is no longer written in this module
+ * and is preserved only for external consumers still reading it via payloads.
  */
 function isClaudeActive(terminalId: string): boolean {
   const instance = ptyInstances.get(terminalId);
-  return instance?.claudeActive ?? false;
+  if (!instance) return false;
+  return instance.status === 'working' || instance.status === 'needs-input';
 }
 
 /**
@@ -1057,8 +880,14 @@ function setupIPC(ipcMain: IpcMain): void {
     return isClaudeActive(terminalId);
   });
 
-  // Input to specific terminal — only log prompts when Claude is active
+  // Input to specific terminal — buffer until shell is ready to prevent
+  // ConPTY first-byte-drop on Windows. Only log prompts when Claude is active.
   ipcMain.on(IPC.TERMINAL_INPUT_ID, (_event, { terminalId, data }: { terminalId: string; data: string }) => {
+    const instance = ptyInstances.get(terminalId);
+    if (instance && !instance.shellReady) {
+      instance.pendingInput.push(data);
+      return;
+    }
     writeToTerminal(terminalId, data);
     if (isClaudeActive(terminalId)) {
       promptLogger.logInput(terminalId, data);
@@ -1086,7 +915,9 @@ function setupIPC(ipcMain: IpcMain): void {
         id,
         cwd: instance.cwd,
         shell: instance.shell,
-        claudeActive: instance.claudeActive,
+        // Derive from the formal status enum so the payload is consistent with
+        // the renderer store's derived `claudeActive` (see useTerminalStore).
+        claudeActive: instance.status === 'working' || instance.status === 'needs-input',
         sessionId: terminalSessionMap.get(id) ?? null,
         projectPath: instance.projectPath ?? null,
       });
@@ -1166,7 +997,7 @@ function setupIPC(ipcMain: IpcMain): void {
         cwd: instance.cwd,
         shell: instance.shell,
         projectPath: instance.projectPath,
-        claudeActive: instance.claudeActive,
+        claudeActive: instance.status === 'working' || instance.status === 'needs-input',
         cols: instance.pty.cols,
         rows: instance.pty.rows,
         sessionId: terminalSessionMap.get(id) ?? null,
@@ -1240,5 +1071,6 @@ export {
   startCapturing, stopCapturing,
   addOutputHandler, removeOutputHandler,
   registerPopoutWebContents, unregisterPopoutWebContents,
-  getTerminalBacklog
+  getTerminalBacklog,
+  setTerminalStatus,
 };

@@ -44,6 +44,7 @@ import * as editorPopoutManager from './editorPopoutManager';
 import * as apiServerManager from './apiServerManager';
 import * as webServerManager from './webServerManager';
 import * as sessionSnapshotManager from './sessionSnapshotManager';
+import * as mcpMarketplaceManager from './mcpMarketplaceManager';
 import { initEventBridge, broadcast } from './eventBridge';
 import { createRoutableIPC } from './ipcRouter';
 import { getLogoSVG, LOGO_COLORS } from '../shared/logoSVG';
@@ -572,6 +573,8 @@ function setupAllIPC(): void {
   webServerManager.setupIPC(routedIpc);
   updaterManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   sessionSnapshotManager.setupIPC(routedIpc as unknown as typeof ipcMain);
+  mcpMarketplaceManager.init();
+  mcpMarketplaceManager.setupIPC(routedIpc as unknown as typeof ipcMain);
   // Note: updaterManager.init() still owns updater lifecycle wiring because it
   // needs app.isPackaged to be set first.
 

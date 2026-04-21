@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useUIStore, type FullViewContent, getTabIdForContent, isEditorTab, getEditorTabPath, makeEditorTabId } from '../stores/useUIStore';
+import { useUIStore } from '../stores/useUIStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useSettings, useAIToolConfig } from '../hooks/useSettings';
@@ -7,20 +7,13 @@ import { useIpcQuery } from '../hooks/useIpc';
 import { useActivity } from '../hooks/useActivity';
 import { typedInvoke, typedSend } from '../lib/ipc';
 import {
-  X,
-  TerminalSquare,
   LayoutDashboard,
-  GitFork,
-  CheckSquare,
-  BarChart3,
-  Lightbulb,
   Workflow,
-  Bot,
-  Keyboard,
   ListTodo,
   Activity,
   FileDiff,
   Github,
+  GitCommitHorizontal,
   PanelRight,
   FolderOpen,
   Loader2,
@@ -30,8 +23,8 @@ import {
   Cpu,
   Plus,
   MoreHorizontal,
-  FileText,
   ArrowUpDown,
+  Store,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -60,27 +53,17 @@ import {
   withWorkspaceAccentAlpha,
 } from '../lib/workspacePills';
 
-const TAB_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  terminal: TerminalSquare,
-  overview: LayoutDashboard,
-  structureMap: GitFork,
-  tasks: CheckSquare,
-  stats: BarChart3,
-  decisions: Lightbulb,
-  pipeline: Workflow,
-  agentState: Bot,
-  shortcuts: Keyboard,
-};
-
 /** Panel shortcut buttons shown on the right side of the tab bar — open right sidebar */
 const PANEL_SHORTCUTS = [
   { id: 'tasks' as const, label: 'Sub-Tasks', icon: ListTodo, shortcut: 'Ctrl+Shift+S' },
   { id: 'gitChanges' as const, label: 'GitHub', icon: Github, shortcut: 'Ctrl+Shift+G' },
+  { id: 'githubGraph' as const, label: 'Commit Graph', icon: GitCommitHorizontal, shortcut: 'Ctrl+Shift+J' },
   { id: 'agentState' as const, label: 'Agents', icon: Activity, shortcut: 'Ctrl+Shift+A' },
   { id: 'prompts' as const, label: 'Prompts', icon: BookMarked, shortcut: 'Ctrl+Shift+L' },
   { id: 'pipeline' as const, label: 'Pipeline', icon: Workflow, shortcut: 'Ctrl+Shift+Y' },
   { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard, shortcut: 'Ctrl+Shift+O' },
   { id: 'system' as const, label: 'System', icon: Cpu, shortcut: 'Ctrl+Shift+U' },
+  { id: 'mcp' as const, label: 'MCP Marketplace', icon: Store, shortcut: 'Ctrl+Shift+M' },
 ] as const;
 
 // ── Source indicator helpers ─────────────────────────────────────────────────
@@ -406,25 +389,36 @@ function WorkspacePillReorderItem({
 }
 
 export function ViewTabBar() {
-  const openTabs = useUIStore(s => s.openTabs);
   const fullViewContent = useUIStore(s => s.fullViewContent);
-  const setFullViewContent = useUIStore(s => s.setFullViewContent);
-  const closeTab = useUIStore(s => s.closeTab);
   const activePanel = useUIStore(s => s.activePanel);
   const togglePanel = useUIStore(s => s.togglePanel);
   const closeRightPanel = useUIStore(s => s.closeRightPanel);
   const toggleFullView = useUIStore(s => s.toggleFullView);
   const sidebarState = useUIStore(s => s.sidebarState);
   const setSidebarState = useUIStore(s => s.setSidebarState);
-  const activeEditorFile = useUIStore(s => s.activeEditorFile);
-  const setActiveEditorFile = useUIStore(s => s.setActiveEditorFile);
-  const dirtyEditorFiles = useUIStore(s => s.dirtyEditorFiles);
+  const combineWorkspaceTerminals = useUIStore(s => s.combineWorkspaceTerminals);
+  const setCombineWorkspaceTerminals = useUIStore(s => s.setCombineWorkspaceTerminals);
   const currentProjectPath = useProjectStore(s => s.currentProjectPath);
   const workspaceName = useProjectStore(s => s.workspaceName);
   const projects = useProjectStore(s => s.projects);
   const { settings, updateSetting } = useSettings();
   const { config: aiToolConfig } = useAIToolConfig();
   const terminals = useTerminalStore(s => s.terminals);
+
+  const canCombineWorkspaceTerminals = useMemo(
+    () => projects.some((p) => p.path !== currentProjectPath),
+    [projects, currentProjectPath]
+  );
+  const workspaceProjectPaths = useMemo(
+    () => new Set(projects.map((p) => p.path)),
+    [projects]
+  );
+  const workspaceTerminalCount = useMemo(
+    () => Array.from(terminals.values()).filter(
+      (t) => workspaceProjectPaths.has(t.projectPath || '')
+    ).length,
+    [terminals, workspaceProjectPaths]
+  );
 
   // ── Workspace pills data ─────────────────────────────────────────────────
   const { data: workspaceListRaw, refetch: refetchWorkspaces } = useIpcQuery(IPC.WORKSPACE_LIST, [], {
@@ -811,14 +805,6 @@ export function ViewTabBar() {
   const [usageData, setUsageData] = useState<ClaudeUsageData | null>(null);
   const [usageFetching, setUsageFetching] = useState(false);
 
-  // Map sub-views to their parent tab for active highlighting
-  // Editor tabs take precedence when an editor file is active and no full-view content
-  const activeTabId = fullViewContent
-    ? getTabIdForContent(fullViewContent)
-    : activeEditorFile
-      ? makeEditorTabId(activeEditorFile)
-      : 'terminal';
-
   // Extract project folder name from path
   const projectName = currentProjectPath
     ? currentProjectPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? null
@@ -1046,69 +1032,38 @@ export function ViewTabBar() {
         );
       })()}
 
-      {/* Open tabs (flex-1 fills remaining space) */}
-      <div className="flex items-center overflow-x-auto scrollbar-none flex-1 min-w-0">
-        {openTabs.map(tab => {
-          const isActive = tab.id === activeTabId;
-          const isEditor = isEditorTab(tab.id);
-          const editorPath = isEditor ? getEditorTabPath(tab.id) : null;
-          const isDirty = editorPath ? dirtyEditorFiles.has(editorPath) : false;
-          const Icon = isEditor ? FileText : TAB_ICONS[tab.id];
-          return (
-            <button
-              key={tab.id}
-              onClick={() => {
-                if (isEditor && editorPath) {
-                  // Switch to this editor file
-                  setActiveEditorFile(editorPath);
-                  useUIStore.getState().setFullViewContent(null);
-                } else if (tab.id === 'terminal') {
-                  // Switch to terminal — clear both full-view and editor
-                  setFullViewContent(null);
-                  setActiveEditorFile(null);
-                } else {
-                  const content = tab.id as FullViewContent;
-                  setFullViewContent(content);
-                }
-              }}
-              className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors shrink-0 cursor-pointer ${
-                isActive
-                  ? 'bg-bg-primary text-text-primary border-accent'
-                  : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover border-transparent'
-              }`}
-              title={editorPath ?? tab.label}
-            >
-              {isDirty && (
-                <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" />
-              )}
-              {Icon && <Icon className="w-3.5 h-3.5" />}
-              <span className={isEditor ? 'max-w-[140px] truncate' : ''}>{tab.label}</span>
-              {tab.closable && (
-                <span
-                  role="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Guard: confirm before closing a dirty editor tab
-                    if (isDirty) {
-                      const fileName = tab.label || 'this file';
-                      if (!window.confirm(`"${fileName}" has unsaved changes. Close anyway?`)) return;
-                    }
-                    closeTab(tab.id);
-                  }}
-                  className={`ml-1 p-0.5 rounded hover:bg-bg-tertiary transition-colors ${
-                    isActive ? 'opacity-60 hover:opacity-100' : 'opacity-0 group-hover:opacity-60 hover:!opacity-100'
-                  }`}
-                >
-                  <X className="w-3 h-3" />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <div className="flex-1 min-w-0" />
 
       {/* Usage pill + view shortcuts + sidebar toggle on the right */}
       <div className="flex items-center gap-1 px-1.5 flex-shrink-0">
+        {/* Mix pill — combine terminals across workspace projects */}
+        {canCombineWorkspaceTerminals && (
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setCombineWorkspaceTerminals((v) => !v)}
+                  className={`flex items-center h-5 px-2 rounded-md transition-colors cursor-pointer text-[10px] font-semibold ${
+                    combineWorkspaceTerminals
+                      ? 'text-info bg-info/10'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+                  }`}
+                  aria-label={combineWorkspaceTerminals ? 'Show current project terminals only' : 'Combine workspace terminal tabs'}
+                >
+                  Mix
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>
+                  {combineWorkspaceTerminals
+                    ? `Combined workspace view active${workspaceTerminalCount ? ` — ${workspaceTerminalCount} terminals visible` : ''}`
+                    : 'Combine tabs from other projects in this workspace'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
         {/* Usage pill */}
         {showPill && (
           <TooltipProvider delayDuration={300}>

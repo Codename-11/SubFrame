@@ -47,6 +47,7 @@ import type {
 import { IPC } from '../../shared/ipcChannels';
 import { toast } from 'sonner';
 import { MarkdownPreview } from './previews/MarkdownPreview';
+import { CommitGraph } from './CommitGraph';
 
 function getContrastColor(hex: string): string {
   const r = parseInt(hex.slice(0, 2), 16);
@@ -133,6 +134,7 @@ export function GithubPRsPanel() { const p = useProjectStore((s) => s.currentPro
 export function GithubBranchesPanel() { const p = useProjectStore((s) => s.currentProjectPath); if (!p) return <NoProject />; return <div className="flex flex-col h-full"><GitSyncStatus /><div className="flex-1 min-h-0"><BranchesTab /></div></div>; }
 export function GithubWorktreesPanel() { const p = useProjectStore((s) => s.currentProjectPath); if (!p) return <NoProject />; return <div className="flex flex-col h-full"><GitSyncStatus /><div className="flex-1 min-h-0"><WorktreesTab /></div></div>; }
 export function GithubChangesPanel() { const p = useProjectStore((s) => s.currentProjectPath); if (!p) return <NoProject />; return <div className="flex flex-col h-full"><GitSyncStatus /><div className="flex-1 min-h-0"><ChangesTab /></div></div>; }
+export function GithubGraphPanel() { const p = useProjectStore((s) => s.currentProjectPath); if (!p) return <NoProject />; return <div className="flex flex-col h-full"><GitSyncStatus /><div className="flex-1 min-h-0"><CommitGraph repoPath={p} /></div></div>; }
 
 // ─── Issue Detail View ───────────────────────────────────────────────────────
 

@@ -5,7 +5,7 @@
 
 import { exec } from 'child_process';
 import type { BrowserWindow, IpcMain } from 'electron';
-import { IPC } from '../shared/ipcChannels';
+import { IPC, type GitCommitInfo, type GitCommitGraphResult } from '../shared/ipcChannels';
 import { broadcast } from './eventBridge';
 import { log as outputLog } from './outputChannelManager';
 
@@ -413,6 +413,82 @@ function stopAutoFetch(): void {
 }
 
 /**
+ * Load a commit graph for the repo.
+ *
+ * Uses `git log --topo-order` so parents always appear after children (matches
+ * what the column-assignment layout expects). NUL-byte separator avoids any
+ * quoting issues with commit summaries that contain `|`.
+ */
+async function loadCommitGraph(projectPath: string, limit: number = 200, skip: number = 0): Promise<GitCommitGraphResult> {
+  if (!projectPath) {
+    return { error: 'No project selected', commits: [] };
+  }
+  try {
+    await execGit('git rev-parse --is-inside-work-tree', projectPath);
+    // NUL-separated fields, LF-separated records. `-z` would NUL-terminate
+    // records, but we want to keep LF to split records and use %x00 for fields.
+    const format = '%H%x00%P%x00%an%x00%ae%x00%at%x00%D%x00%s';
+    const cmd = `git log --topo-order --format=${JSON.stringify(format)} -n ${limit} --skip=${skip}`;
+    const { stdout } = await execGit(cmd, projectPath);
+
+    const commits: GitCommitInfo[] = [];
+    for (const line of stdout.split('\n')) {
+      if (!line) continue;
+      const parts = line.split('\x00');
+      if (parts.length < 7) continue;
+      const [hash, parentStr, authorName, authorEmail, tsStr, refsStr, summary] = parts;
+      const refs = refsStr
+        ? refsStr.split(',').map((r) => r.trim()).filter(Boolean)
+        : undefined;
+      commits.push({
+        hash,
+        parentHashes: parentStr ? parentStr.split(' ').filter(Boolean) : [],
+        authorName,
+        authorEmail,
+        timestamp: parseInt(tsStr, 10) || 0,
+        summary,
+        refs,
+      });
+    }
+    return { error: null, commits };
+  } catch (err) {
+    return { error: (err as GitError).error || (err as Error).message || 'Failed to load commit graph', commits: [] };
+  }
+}
+
+/**
+ * Checkout a specific commit (detached HEAD is expected).
+ */
+async function checkoutCommit(projectPath: string, hash: string): Promise<{ success: boolean; error?: string }> {
+  if (!projectPath || !hash) {
+    return { success: false, error: 'Missing parameters' };
+  }
+  try {
+    await execGit(`git checkout ${JSON.stringify(hash)}`, projectPath);
+    outputLog('git', `Checked out commit: ${hash}`);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as GitError).error || (err as Error).message };
+  }
+}
+
+/**
+ * Create a new branch pointing at a specific commit without switching to it.
+ */
+async function createBranchAtCommit(projectPath: string, hash: string, branchName: string): Promise<{ success: boolean; error?: string }> {
+  if (!projectPath || !hash || !branchName) {
+    return { success: false, error: 'Missing parameters' };
+  }
+  try {
+    await execGit(`git branch ${JSON.stringify(branchName)} ${JSON.stringify(hash)}`, projectPath);
+    outputLog('git', `Created branch ${branchName} at ${hash}`);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as GitError).error || (err as Error).message };
+  }
+}
+
+/**
  * Setup IPC handlers
  */
 function setupIPC(ipcMain: IpcMain): void {
@@ -448,6 +524,18 @@ function setupIPC(ipcMain: IpcMain): void {
     return await getGitStatus(projectPath);
   });
 
+  ipcMain.handle(IPC.LOAD_GIT_COMMIT_GRAPH, async (_event, { projectPath, limit, skip }: { projectPath: string; limit?: number; skip?: number }) => {
+    return await loadCommitGraph(projectPath, limit ?? 200, skip ?? 0);
+  });
+
+  ipcMain.handle(IPC.CHECKOUT_GIT_COMMIT, async (_event, { projectPath, hash }: { projectPath: string; hash: string }) => {
+    return await checkoutCommit(projectPath, hash);
+  });
+
+  ipcMain.handle(IPC.CREATE_BRANCH_AT_COMMIT, async (_event, { projectPath, hash, branchName }: { projectPath: string; hash: string; branchName: string }) => {
+    return await createBranchAtCommit(projectPath, hash, branchName);
+  });
+
   ipcMain.on(IPC.GIT_START_AUTO_FETCH, (_event, { projectPath, intervalMs }: { projectPath: string; intervalMs: number }) => {
     startAutoFetch(projectPath, intervalMs);
   });
@@ -465,5 +553,6 @@ function setupIPC(ipcMain: IpcMain): void {
 
 export {
   init, loadBranches, switchBranch, createBranch, deleteBranch,
-  loadWorktrees, addWorktree, removeWorktree, isWorkingTreeClean, getGitStatus, stopAutoFetch, setupIPC
+  loadWorktrees, addWorktree, removeWorktree, isWorkingTreeClean, getGitStatus,
+  loadCommitGraph, checkoutCommit, createBranchAtCommit, stopAutoFetch, setupIPC
 };

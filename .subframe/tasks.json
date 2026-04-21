@@ -1,33 +1,13 @@
 {
   "_frame_metadata": {
-    "purpose": "Sub-Task tracking index (SubFrame's task system)",
+    "purpose": "Sub-Task tracking for the project (SubFrame's task system)",
     "forAI": "Auto-generated from .subframe/tasks/*.md — edit the .md files directly.",
-    "lastUpdated": "2026-04-05",
+    "lastUpdated": "2026-04-18",
     "generatedBy": "SubFrame"
   },
   "project": "SubFrame",
   "version": "1.2",
-  "lastUpdated": "2026-04-05T04:34:21.648Z",
-  "taskSchema": {
-    "_comment": "This schema shows the expected structure for each task",
-    "id": "unique-id (task-xxx format)",
-    "title": "Short actionable title (max 60 chars)",
-    "description": "Claude's detailed explanation - what, how, which files affected",
-    "userRequest": "Original user prompt/request - copy verbatim",
-    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
-    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
-    "status": "pending | in_progress | completed",
-    "priority": "high | medium | low",
-    "category": "feature | fix | refactor | docs | test",
-    "context": "Session date and context",
-    "blockedBy": "Array of task IDs this task is blocked by",
-    "blocks": "Array of task IDs this task blocks",
-    "steps": "Array of { label, completed } step objects",
-    "private": "boolean — if true, task is stored locally and excluded from git",
-    "createdAt": "ISO timestamp",
-    "updatedAt": "ISO timestamp",
-    "completedAt": "ISO timestamp | null"
-  },
+  "lastUpdated": "2026-04-18T01:08:14.766Z",
   "tasks": {
     "pending": [
       {
@@ -223,24 +203,6 @@
         "steps": []
       },
       {
-        "id": "task-mmbc3vlq-ardz",
-        "title": "Git integration and workflow configuration",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "context": "Session 2026-03-04",
-        "blockedBy": [
-          "task-mmbc3cjb-je2v",
-          "task-mmbc3ly5-o4ih"
-        ],
-        "blocks": [],
-        "createdAt": "2026-03-04T01:04:45.757Z",
-        "updatedAt": "2026-03-04T01:04:45.757Z",
-        "completedAt": null,
-        "description": "Implement git hook integration: optional pre-push hook that triggers pipeline runs, worktree isolation for mutable stages (via gitBranchesManager.addWorktree), branch filtering from workflow YAML (on.push.branches glob matching). Add WorkflowEditor component using CodeMirror for YAML editing. Store workflows per-project in .subframe/workflows/. Add default review.yml workflow template to frameTemplates.ts. See ADR-007 Sections 3.6-3.7.",
-        "steps": []
-      },
-      {
         "id": "task-mmbc442i-3crr",
         "title": "Pipeline extensibility — custom stages, env vars, artifact output",
         "status": "pending",
@@ -360,21 +322,6 @@
         "updatedAt": "2026-03-22T02:05:12.272Z",
         "completedAt": null,
         "description": "Investigate Claude Code's remote execution capabilities AND explore tmux session management + SSH remote terminal support for SubFrame. Two complementary tracks: (1) Claude Code remote/headless API for persistent agent state, background tasks beyond local PTY. (2) tmux integration for session persistence, SSH remote terminal management UI — attach/detach sessions, reconnect to remote machines, manage long-running processes across connections.",
-        "steps": []
-      },
-      {
-        "id": "task-mmgz0wku-ivl2",
-        "title": "Hook-side terminal ID injection for session correlation",
-        "status": "pending",
-        "priority": "medium",
-        "category": "feature",
-        "context": "Session 2026-03-07",
-        "blockedBy": [],
-        "blocks": [],
-        "createdAt": "2026-03-07T23:45:09.101Z",
-        "updatedAt": "2026-03-07T23:45:09.101Z",
-        "completedAt": null,
-        "description": "Have Claude hook scripts (pre-tool-use.js, post-tool-use.js) write terminal PID or env var into agent-state.json session entries, enabling deterministic terminal↔session mapping instead of timestamp heuristic.",
         "steps": []
       },
       {
@@ -923,7 +870,7 @@
         "blockedBy": [],
         "blocks": [],
         "createdAt": "2026-03-23T23:20:19.046Z",
-        "updatedAt": "2026-03-24T14:24:46.745Z",
+        "updatedAt": "2026-04-11T22:42:24.721Z",
         "completedAt": null,
         "description": "Add UI controls in SettingsPanel for the new terminal persistence settings: restoreOnStartup toggle, restoreScrollback toggle, autoResumeAgent dropdown (auto/prompt/never), agentExitTimeout slider, maxScrollbackExport input. These settings exist in settingsManager but have no UI yet.",
         "steps": []
@@ -943,6 +890,45 @@
         "description": "Right panel (Agent group) for sending prompts to AI tools with follow-up feedback. Creates terminal with active AI tool, sends prompt, reuses session for conversation. Quick action chips, prompt history, status indicators.",
         "userRequest": "AI Analysis similar to onboarding but allow user feedback to direct AI changes",
         "steps": []
+      },
+      {
+        "id": "task-mo3m5419-ani5",
+        "title": "Unify terminal/editor/panel tab UI — delete duplicate bars, enhance leaf group",
+        "status": "in_progress",
+        "priority": "high",
+        "category": "refactor",
+        "context": "Session 2026-04-18",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-04-18T00:42:54.764Z",
+        "updatedAt": "2026-04-18T01:08:14.711Z",
+        "completedAt": null,
+        "description": "Eliminate the visual conflict between (1) TerminalTabBar, (2) ViewTabBar's openTabs row, and (3) LeafGroupView's per-leaf tab bar by making LeafGroupView the single source of truth for tabs (VS Code editor-group pattern). Distribute removed features: per-tab actions (pin/freeze/restart/popout/rename) move to leaf-tab right-click context menu; shell selector moves to LeafGroupView '+' menu submenu; workspace-combine toggle moves to ViewTabBar right side; grid layout selector + viewMode tabs/grid toggle are deleted (splits supersede).",
+        "userRequest": "From a UI/UX perspective what's the proper approach with our new features/window view system? ... Proceed with all now use agent team",
+        "acceptanceCriteria": "TerminalTabBar.tsx deleted; ViewTabBar no longer renders openTabs row; LeafGroupView has per-tab context menu (pin/freeze/restart/popout/rename) + shell selector submenu in + menu + drag-to-reorder; workspace-combine pill rendered on right side of ViewTabBar; npm run check green; opening a terminal shows exactly one tab strip (the leaf bar).",
+        "notes": "[2026-04-18] handleOpenFile in LeafGroupView: IPC.SHOW_OPEN_DIALOG channel does not exist in ipcChannels.ts; downgraded the menu item to toast.info('Use the file tree to open files') per blueprint fallback. Adding a new IPC channel was out of scope.",
+        "steps": [
+          {
+            "completed": false,
+            "label": "Architect: produce implementation blueprint for all three phases"
+          },
+          {
+            "completed": false,
+            "label": "Phase A: enhance LeafGroupView (drag-reorder, tab context menu, shell selector submenu)"
+          },
+          {
+            "completed": false,
+            "label": "Phase B: delete TerminalTabBar; move workspace-combine pill to ViewTabBar; remove TerminalTabBar imports/usage from TerminalArea"
+          },
+          {
+            "completed": false,
+            "label": "Phase C: strip openTabs row from ViewTabBar; remove related state plumbing"
+          },
+          {
+            "completed": false,
+            "label": "Run npm run check + manual smoke test (open terminal, open file, open panel, split, close)"
+          }
+        ]
       }
     ],
     "completed": [
@@ -1729,6 +1715,24 @@
         "steps": []
       },
       {
+        "id": "task-mmbc3vlq-ardz",
+        "title": "Git integration and workflow configuration",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-04",
+        "blockedBy": [
+          "task-mmbc3cjb-je2v",
+          "task-mmbc3ly5-o4ih"
+        ],
+        "blocks": [],
+        "createdAt": "2026-03-04T01:04:45.757Z",
+        "updatedAt": "2026-04-11T16:36:15.677Z",
+        "completedAt": "2026-04-11T16:36:15.677Z",
+        "description": "Implement git hook integration: optional pre-push hook that triggers pipeline runs, worktree isolation for mutable stages (via gitBranchesManager.addWorktree), branch filtering from workflow YAML (on.push.branches glob matching). Add WorkflowEditor component using CodeMirror for YAML editing. Store workflows per-project in .subframe/workflows/. Add default review.yml workflow template to frameTemplates.ts. See ADR-007 Sections 3.6-3.7.",
+        "steps": []
+      },
+      {
         "id": "task-mmcsn89b-ob9k",
         "title": "Pipeline engine foundation",
         "status": "completed",
@@ -1771,6 +1775,21 @@
         "updatedAt": "2026-03-08T02:31:08.181Z",
         "completedAt": "2026-03-08T02:31:08.181Z",
         "description": "Add a workflow editor to PipelinePanel with: 1) Visual builder — step list with add/remove/reorder, autofill for uses: (lint/test/describe/critique/freeze/push), with: config fields (scope, mode, focus, prompt), run: command input, approval/continue-on-error toggles. 2) YAML view — CodeMirror editor with YAML syntax highlighting, toggle between visual and YAML. 3) Save/create/delete workflows via IPC. 4) New workflow dialog with template presets. Modern UI with animations matching SubFrame design system.",
+        "steps": []
+      },
+      {
+        "id": "task-mmgz0wku-ivl2",
+        "title": "Hook-side terminal ID injection for session correlation",
+        "status": "completed",
+        "priority": "medium",
+        "category": "feature",
+        "context": "Session 2026-03-07",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-03-07T23:45:09.101Z",
+        "updatedAt": "2026-04-11T16:36:15.902Z",
+        "completedAt": "2026-04-11T16:36:15.902Z",
+        "description": "Have Claude hook scripts (pre-tool-use.js, post-tool-use.js) write terminal PID or env var into agent-state.json session entries, enabling deterministic terminal↔session mapping instead of timestamp heuristic.",
         "steps": []
       },
       {
@@ -2000,6 +2019,40 @@
         "steps": []
       },
       {
+        "id": "task-mnuk4sth-o7xs",
+        "title": "Maestro absorption: split tree, MCP marketplace, Tamagotchi, quick actions, status enum",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-04-11",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-04-11T16:36:45.412Z",
+        "updatedAt": "2026-04-11T16:36:50.237Z",
+        "completedAt": "2026-04-11T16:36:50.237Z",
+        "description": "Absorbed 5 features from Maestro (https://github.com/its-maestro-baby/maestro) in parallel: binary split tree terminal layout, MCP marketplace browse/install panel, Tamagotchi mood mascot overlay, quick action pill bar, and hook-driven 7-state terminal status enum with legend. Also wired shortcut handlers for split/close/focus, auto-derived claudeActive from new status enum (removed ~236 lines of xterm pattern-matching from ptyManager), wired MCP install to ~/.claude.json merge, and added 76 unit tests for new pure modules. Commit graph lives under task-mmbc3vlq-ardz.",
+        "userRequest": "I want to look at Maestro and inspect their features, specifically terminal resize, git commit timeline, terminal status indicators, plus MCP marketplace, Tamagotchi mascot, and quick action pills. Do all of that with an agent team.",
+        "acceptanceCriteria": "All 6 features land, npm run check passes (typecheck + lint + test + verify:hooks + build), follow-ups cleaned up, sub-tasks updated",
+        "steps": []
+      },
+      {
+        "id": "task-mnuw7wxh-py85",
+        "title": "Unify terminal + editor into split-tree editor groups (VS Code style)",
+        "status": "completed",
+        "priority": "high",
+        "category": "feature",
+        "context": "Session 2026-04-11",
+        "blockedBy": [],
+        "blocks": [],
+        "createdAt": "2026-04-11T22:15:06.100Z",
+        "updatedAt": "2026-04-11T22:42:24.592Z",
+        "completedAt": "2026-04-11T22:42:24.592Z",
+        "description": "Generalize LeafNode to hold a tab list of mixed content (terminal | editor file | panel view), making each leaf an editor group. Collapse TerminalArea's 4 mutually-exclusive render branches into a single SplitPaneView. Enables opening a file beside a running terminal, drag-to-split, etc.",
+        "userRequest": "I want to look at our termanal and file editor experience. Currently they're split features rea/space - how can we unifiy to make it easier to work in terminals and edit a file or files like vs-code experience",
+        "acceptanceCriteria": "Leaf can hold terminal/editor/panel tabs; can open file beside terminal; layout persisted with v1->v2 migration; fullViewContent branch removed; npm run check green",
+        "steps": []
+      },
+      {
         "id": "task-qol",
         "title": "UI & QoL enhancements",
         "status": "completed",
@@ -2195,9 +2248,5 @@
         "steps": []
       }
     ]
-  },
-  "metadata": {
-    "totalCreated": 139,
-    "totalCompleted": 84
   }
 }

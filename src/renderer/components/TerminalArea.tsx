@@ -6,23 +6,18 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, ArrowLeft, ExternalLink, Sparkles, Loader2 } from 'lucide-react';
-import { TerminalTabBar } from './TerminalTabBar';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { generateTerminalName, getUsedTerminalNames } from '../lib/terminalNames';
-import { TerminalGrid } from './TerminalGrid';
-import { Terminal } from './Terminal';
-import { OverviewPanel } from './OverviewPanel';
-import { StructureMap } from './StructureMap';
-import { TasksPanel } from './TasksPanel';
-import { StatsDetailView } from './StatsDetailView';
-import { DecisionsDetailView } from './DecisionsDetailView';
-import { PipelinePanel } from './PipelinePanel';
-import { AgentStateView } from './AgentStateView';
-import { ShortcutsPanel } from './ShortcutsPanel';
-import { SystemPanel } from './SystemPanel';
-import { Editor } from './Editor';
+import {
+  collectLeafIds,
+  countTabsByKind,
+  createTerminalTab,
+} from '../lib/splitTree';
+import type { SplitDirection } from '../lib/splitTree';
+import { SplitPaneView } from './SplitPaneView';
+import { LeafGroupView } from './LeafGroupView';
 import { ViewTabBar } from './ViewTabBar';
-import { ErrorBoundary } from './ErrorBoundary';
+import { QuickActionPills } from './QuickActionPills';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +30,8 @@ import {
 } from './ui/alert-dialog';
 import { useTerminalStore } from '../stores/useTerminalStore';
 import { useProjectStore } from '../stores/useProjectStore';
-import { useUIStore, getTabIdForContent, isEditorTab, makeEditorTabId } from '../stores/useUIStore';
-import { useSettings, useAIToolConfig } from '../hooks/useSettings';
+import { useUIStore, isEditorTab, makeEditorTabId } from '../stores/useUIStore';
+import { useAIToolConfig } from '../hooks/useSettings';
 import { typedSend } from '../lib/ipc';
 import { typedInvoke } from '../lib/ipc';
 import { IPC } from '../../shared/ipcChannels';
@@ -191,6 +186,14 @@ export function TerminalArea() {
   const setPoppedOut = useTerminalStore((s) => s.setPoppedOut);
   const switchToProject = useTerminalStore((s) => s.switchToProject);
 
+  // Phase 3 unified tree state
+  const layoutTree = useTerminalStore((s) => s.layoutTree);
+  const activeLeafId = useTerminalStore((s) => s.activeLeafId);
+  const setActiveLeafId = useTerminalStore((s) => s.setActiveLeafId);
+  const resizeLeafSplit = useTerminalStore((s) => s.resizeLeafSplit);
+  const openPanelInActiveLeaf = useTerminalStore((s) => s.openPanelInActiveLeaf);
+  const openFileInActiveLeaf = useTerminalStore((s) => s.openFileInActiveLeaf);
+
   const currentProjectPath = useProjectStore((s) => s.currentProjectPath);
   const isFrameProject = useProjectStore((s) => s.isFrameProject);
   const workspaceName = useProjectStore((s) => s.workspaceName);
@@ -202,11 +205,25 @@ export function TerminalArea() {
   const setShortcutsHelpOpen = useUIStore((s) => s.setShortcutsHelpOpen);
   const activeEditorFile = useUIStore((s) => s.activeEditorFile);
   const closeEditorFile = useUIStore((s) => s.closeEditorFile);
-  const openTabs = useUIStore((s) => s.openTabs);
-  const { settings } = useSettings();
+  // Derived view of the currently-focused leaf (Phase 3 — drives terminal
+  // toolbar visibility). Subscribes via `layoutTree` + `activeLeafId` so any
+  // tree edit re-computes without an extra subscription.
+  const activeLeaf = useMemo(() => {
+    if (!activeLeafId) return null;
+    const walk = (n: import('../lib/splitTree').TreeNode): import('../lib/splitTree').LeafNode | null => {
+      if (n.type === 'leaf') return n.id === activeLeafId ? n : null;
+      return walk(n.children[0]) ?? walk(n.children[1]);
+    };
+    return walk(layoutTree);
+  }, [layoutTree, activeLeafId]);
+  const activeLeafActiveTab = activeLeaf
+    ? activeLeaf.tabs.find((t) => t.id === activeLeaf.activeTabId)
+    : null;
+  const showTerminalToolbars = activeLeafActiveTab?.kind === 'terminal' || !activeLeafActiveTab;
   const { config: aiToolConfig } = useAIToolConfig();
   const aiToolName = aiToolConfig?.activeTool.name || 'AI Tool';
-  const [combineWorkspaceTerminals, setCombineWorkspaceTerminals] = useState(false);
+  const combineWorkspaceTerminals = useUIStore((s) => s.combineWorkspaceTerminals);
+  const setCombineWorkspaceTerminals = useUIStore((s) => s.setCombineWorkspaceTerminals);
   const prevProjectRef = useRef<string | null>(null);
   /** Tracks which project path we have successfully restored terminal-dependent state for.
    *  `null` means restoration is pending (terminals not yet available). */
@@ -322,31 +339,14 @@ export function TerminalArea() {
     ? [...workspaceTerminals, ...pinnedOutsideWorkspace]
     : [...nativeProjectTerminals, ...pinnedFromOtherProjects];
 
-  // Grid overflow detection — when active terminal exceeds grid capacity,
-  // temporarily show it in single view instead of the grid
   const gridLayout = useTerminalStore((s) => s.gridLayout);
-  const general = (settings?.general as Record<string, unknown>) ?? {};
-  const gridOverflowAutoSwitch = general.gridOverflowAutoSwitch !== false;
-  const gridMaxCells = (() => {
-    const m = gridLayout.match(/^(\d+)x(\d+)$/);
-    if (m) return Number(m[1]) * Number(m[2]);
-    // Asymmetric 3-slot layouts
-    if (['2L1R', '1L2R', '2T1B', '1T2B'].includes(gridLayout)) return 3;
-    return 4;
-  })();
-  const gridTerminalIds = new Set(projectTerminals.slice(0, gridMaxCells).map(t => t.id));
-  const activeIsOverflow = viewMode === 'grid'
-    && activeTerminalId != null
-    && projectTerminals.length > gridMaxCells
-    && !gridTerminalIds.has(activeTerminalId);
-  const showOverflowSingle = gridOverflowAutoSwitch && activeIsOverflow;
 
   // Auto-enable combine mode for multi-project workspaces (working on them together
   // is the whole point of grouping dirs into one workspace). The user can still toggle
   // it off via the Mix button; the effect only re-fires when workspace or project count changes.
   useEffect(() => {
     setCombineWorkspaceTerminals(hasOtherWorkspaceProjects);
-  }, [workspaceName, hasOtherWorkspaceProjects]);
+  }, [workspaceName, hasOtherWorkspaceProjects, setCombineWorkspaceTerminals]);
 
   // If combine mode is turned off while focused on a foreign terminal, restore the active terminal for the current project.
   useEffect(() => {
@@ -358,6 +358,7 @@ export function TerminalArea() {
   // Create terminal helper (ref guard prevents double-clicks, with safety timeout)
   const creatingTerminal = useRef(false);
   const [terminalPending, setTerminalPending] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const createTerminal = useCallback(
     (shell?: string) => {
       if (creatingTerminal.current) return;
@@ -407,14 +408,6 @@ export function TerminalArea() {
       forceCloseTerminal(id);
     },
     [forceCloseTerminal]
-  );
-
-  // Pop out terminal handler
-  const popOutTerminal = useCallback(
-    (terminalId: string) => {
-      typedInvoke(IPC.TERMINAL_POPOUT, terminalId).catch(() => {});
-    },
-    []
   );
 
   // Listen for pop-out status changes from main process
@@ -866,28 +859,46 @@ export function TerminalArea() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProjectPath]);
 
+  // ── Phase 3 Intercept: redirect legacy singleton state into the split tree ─
+  // Legacy callers (ViewTabBar, FileTree, shortcut handlers below) still
+  // write to `fullViewContent` / `activeEditorFile` in useUIStore. The split
+  // tree is now the source of truth for rendered content, so whenever those
+  // singletons flip non-null we translate them into an `openPanelInActiveLeaf`
+  // / `openFileInActiveLeaf` call and immediately clear the legacy state so
+  // the old overlay never engages.
+  useEffect(() => {
+    if (!fullViewContent) return;
+    const panelId = fullViewContent;
+    openPanelInActiveLeaf(panelId, normalizedPath || undefined);
+    setFullViewContent(null);
+  }, [fullViewContent, openPanelInActiveLeaf, setFullViewContent, normalizedPath]);
+
+  useEffect(() => {
+    if (!activeEditorFile) return;
+    const filePath = activeEditorFile;
+    openFileInActiveLeaf(filePath, normalizedPath || undefined);
+    // Clear legacy editor singleton state + matching view tab so ViewTabBar
+    // doesn't keep a stale editor tab alive alongside the leaf tab.
+    const editorTabId = makeEditorTabId(filePath);
+    useUIStore.setState((prev) => ({
+      activeEditorFile: null,
+      editorFilePath: null,
+      editorOpenFiles: prev.editorOpenFiles.filter((f) => f !== filePath),
+      openTabs: prev.openTabs.filter((t) => t.id !== editorTabId),
+    }));
+  }, [activeEditorFile, openFileInActiveLeaf, normalizedPath]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const modKey = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
 
-      // Escape — First un-maximize grid cell, then navigate back in full-view overlay
+      // Escape — Un-maximize grid cell if one is active.
       if (key === 'escape') {
         if (useTerminalStore.getState().maximizedTerminalId) {
           e.preventDefault();
           useTerminalStore.getState().setMaximizedTerminal(null);
-          return;
-        }
-        if (fullViewContent) {
-          e.preventDefault();
-          if (fullViewContent === 'stats' || fullViewContent === 'decisions' || fullViewContent === 'structureMap' || fullViewContent === 'tasks') {
-            // Overview sub-views: navigate back to overview (switch tabs, don't close)
-            setFullViewContent('overview');
-          } else {
-            // Standalone views (overview, pipeline, agentState, shortcuts): close the tab
-            closeTab(fullViewContent);
-          }
           return;
         }
       }
@@ -989,13 +1000,6 @@ export function TerminalArea() {
         return;
       }
 
-      // Ctrl+G — Toggle grid/tab view
-      if (modKey && !e.shiftKey && key === 'g') {
-        e.preventDefault();
-        setViewMode(viewMode === 'tabs' ? 'grid' : 'tabs');
-        return;
-      }
-
       // Ctrl+Shift+O — Toggle overview full-view
       if (modKey && e.shiftKey && key === 'o') {
         e.preventDefault();
@@ -1031,9 +1035,151 @@ export function TerminalArea() {
     fullViewContent,
     setFullViewContent,
     closeTab,
-    viewMode,
-    setViewMode,
   ]);
+
+  // ── Split-tree keyboard shortcuts ────────────────────────────────────────
+  // Wires up TERMINAL_SPLIT_RIGHT (Ctrl+D), TERMINAL_SPLIT_DOWN (Ctrl+Alt+D),
+  // TERMINAL_CLOSE_PANE (Ctrl+W), and TERMINAL_FOCUS_PANE_1..9 (Ctrl+1..9).
+  // Uses document capture phase so Ctrl+1-9 beats the tab-mode jump handler
+  // registered above. Phase 3: no longer gated on viewMode — the split tree
+  // is the only layout now.
+  useEffect(() => {
+    /**
+     * Spawn a new backing PTY and split the currently-focused leaf in the
+     * given direction with the new terminal as a fresh tab. Reuses the
+     * standard TERMINAL_CREATE / TERMINAL_CREATED flow: installs a one-shot
+     * listener that runs after addTerminal has populated the store, then
+     * calls splitLeafWithTab.
+     */
+    const createAndSplit = (direction: SplitDirection) => {
+      const projectPath = useProjectStore.getState().currentProjectPath;
+      const targetLeafId = useTerminalStore.getState().activeLeafId;
+      if (!targetLeafId) return;
+
+      let unsub: (() => void) | null = null;
+      const oneShot = (
+        _event: unknown,
+        data: { terminalId?: string; success: boolean; background?: boolean }
+      ) => {
+        if (data.background) return;
+        if (!data.success || !data.terminalId) {
+          if (unsub) { unsub(); unsub = null; }
+          return;
+        }
+        const newId = data.terminalId;
+        // Defer by one microtask so the existing addTerminal has committed.
+        queueMicrotask(() => {
+          const store = useTerminalStore.getState();
+          store.splitLeafWithTab(
+            targetLeafId,
+            createTerminalTab(newId),
+            direction,
+            projectPath ?? ''
+          );
+          store.setActiveTerminal(newId);
+        });
+        if (unsub) { unsub(); unsub = null; }
+      };
+      unsub = getTransport().on(IPC.TERMINAL_CREATED, oneShot);
+      setTimeout(() => { if (unsub) { unsub(); unsub = null; } }, 5000);
+
+      const payload: Record<string, string> = {};
+      if (projectPath) { payload.projectPath = projectPath; payload.cwd = projectPath; }
+      typedSend(IPC.TERMINAL_CREATE, payload as any);
+      setTerminalPending(true);
+      setTimeout(() => setTerminalPending(false), 800);
+    };
+
+    const handler = (e: KeyboardEvent) => {
+      const modKey = e.ctrlKey || e.metaKey;
+      if (!modKey) return;
+
+      // Skip when focus is inside an input / textarea / contenteditable.
+      const target = e.target as HTMLElement | null;
+      if (target && typeof target.closest === 'function') {
+        if (target.closest('input, textarea, [contenteditable="true"]')) return;
+      }
+
+      const key = e.key.toLowerCase();
+
+      // Ctrl+D — Split pane right
+      if (!e.shiftKey && !e.altKey && key === 'd') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        createAndSplit('horizontal');
+        return;
+      }
+
+      // Ctrl+Alt+D — Split pane down
+      if (!e.shiftKey && e.altKey && key === 'd') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        createAndSplit('vertical');
+        return;
+      }
+
+      // Ctrl+W — Close focused tab inside the active leaf.
+      if (!e.shiftKey && !e.altKey && key === 'w') {
+        const store = useTerminalStore.getState();
+        const leafId = store.activeLeafId;
+        if (!leafId) return;
+        const leaf = store.getActiveLeaf();
+        const activeTab = leaf?.tabs.find((t) => t.id === leaf.activeTabId);
+        if (!activeTab) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const projectPath = useProjectStore.getState().currentProjectPath ?? '';
+        // If the tab is a terminal with an active agent, prompt for confirm
+        // before tearing down the backing PTY.
+        if (activeTab.kind === 'terminal') {
+          const info = store.terminals.get(activeTab.terminalId);
+          if (info?.claudeActive) {
+            setPendingCloseId(activeTab.terminalId);
+            return;
+          }
+          store.closeTabInLeaf(leafId, activeTab.id, projectPath);
+          terminalRegistry.dispose(activeTab.terminalId);
+          store.removeTerminal(activeTab.terminalId, projectPath);
+          typedSend(IPC.TERMINAL_DESTROY, activeTab.terminalId);
+        } else {
+          store.closeTabInLeaf(leafId, activeTab.id, projectPath);
+        }
+        return;
+      }
+
+      // Ctrl+1..9 — Focus leaf N in DFS reading order.
+      if (!e.altKey && e.key >= '1' && e.key <= '9') {
+        const n = parseInt(e.key, 10) - 1;
+        const store = useTerminalStore.getState();
+        const leafIds = collectLeafIds(store.layoutTree);
+        if (n < leafIds.length) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          store.setActiveLeafId(leafIds[n]);
+          // If the newly-focused leaf has a terminal tab, also focus the
+          // xterm instance so typing goes where the user expects.
+          const walk = (node: import('../lib/splitTree').TreeNode): import('../lib/splitTree').LeafNode | null => {
+            if (node.type === 'leaf') return node.id === leafIds[n] ? node : null;
+            return walk(node.children[0]) ?? walk(node.children[1]);
+          };
+          const target = walk(store.layoutTree);
+          const activeTab = target?.tabs.find((t) => t.id === target.activeTabId);
+          if (activeTab?.kind === 'terminal') {
+            const termId = activeTab.terminalId;
+            store.setActiveTerminal(termId);
+            setTimeout(() => {
+              const instance = terminalRegistry.get(termId);
+              if (instance) instance.terminal.focus();
+            }, 50);
+          }
+        }
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, []);
 
   // Mouse back/forward buttons — navigate full-view overlay
   useEffect(() => {
@@ -1067,241 +1213,142 @@ export function TerminalArea() {
     return unsub;
   }, [activeTerminalId]);
 
-  /** Full-view title label */
-  const fullViewTitles: Record<string, string> = {
-    overview: 'Project Overview',
-    structureMap: 'Structure Map',
-    tasks: 'Sub-Tasks',
-    stats: 'Repository Stats',
-    decisions: 'Project Decisions',
-    pipeline: 'Pipeline',
-    agentState: 'Agent Activity',
-    shortcuts: 'Keyboard Shortcuts',
-  };
-  const fullViewTitle = fullViewContent ? fullViewTitles[fullViewContent] ?? '' : '';
-  const activeTerminalInfo = activeTerminalId ? terminals.get(activeTerminalId) : null;
+  // Phase 3: no more full-view overlay title — the split tree owns rendering.
+  // Intercept effects above translate legacy singleton state into leaf-tab ops.
 
-  // Determine if an editor tab is active in the ViewTabBar
-  const isEditorTabActive = !fullViewContent && !!activeEditorFile && openTabs.some(t => isEditorTab(t.id) && t.id === makeEditorTabId(activeEditorFile));
+  // Derive whether the unified tree is "truly empty" (no terminals, editors,
+  // or panels). When true we show the rich empty-state CTA instead of the
+  // bare empty-tab placeholder that LeafGroupView would otherwise render.
+  const treeIsEmpty =
+    countTabsByKind(layoutTree, 'terminal') === 0 &&
+    countTabsByKind(layoutTree, 'editor') === 0 &&
+    countTabsByKind(layoutTree, 'panel') === 0 &&
+    projectTerminals.length === 0;
+
+  const emptyStateFallback = terminalPending ? (
+    <div className="flex h-full items-center justify-center">
+      <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
+    </div>
+  ) : (
+    <div className="flex h-full items-center justify-center text-text-tertiary">
+      <div className="text-center max-w-xs">
+        {/* Animated SubFrame logo */}
+        <div
+          className="mx-auto mb-4"
+          style={{ width: 64, height: 64 }}
+          dangerouslySetInnerHTML={{ __html: getLogoSVG({ size: 64, id: 'empty-state-logo', frame: false }) }}
+        />
+
+        <p className="text-sm text-text-secondary font-medium">
+          {currentProjectPath
+            ? (combineWorkspaceTerminals ? 'No terminals in this workspace' : 'No terminals for this project')
+            : 'Select a project to get started'}
+        </p>
+
+        <div className="mt-4 w-full space-y-2.5">
+          {currentProjectPath && !isFrameProject && (
+            <button
+              onClick={() => window.dispatchEvent(new Event('open-frame-init'))}
+              className="w-full bg-accent-subtle text-accent border border-accent/20 hover:bg-accent/20 px-4 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors shadow-sm inline-flex items-center justify-center gap-2"
+            >
+              <Sparkles className="size-4" />
+              Initialize with SubFrame
+            </button>
+          )}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              onClick={() => window.dispatchEvent(new Event('start-ai-tool'))}
+              disabled={!currentProjectPath}
+              className={`w-full px-4 py-2.5 rounded-md text-sm font-semibold transition-colors shadow-sm ${
+                currentProjectPath
+                  ? 'bg-success/20 text-success border border-success/30 hover:bg-success/30 cursor-pointer shadow-success/10'
+                  : 'bg-bg-elevated text-text-muted border border-border-subtle cursor-not-allowed'
+              }`}
+            >
+              Start {aiToolName}
+            </button>
+            <button
+              onClick={() => createTerminal()}
+              className="w-full bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 px-4 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors shadow-sm"
+            >
+              New Terminal
+            </button>
+          </div>
+        </div>
+
+        {/* Keyboard shortcuts section */}
+        <div className="mt-6 pt-4 border-t border-border-subtle">
+          <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Keyboard Shortcuts</p>
+          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+            <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
+              Ctrl+Shift+Enter
+            </kbd>
+            <span className="text-text-tertiary text-left">Start {aiToolName}</span>
+
+            <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
+              Ctrl+Shift+T
+            </kbd>
+            <span className="text-text-tertiary text-left">New Terminal</span>
+
+            <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
+              Ctrl+/
+            </kbd>
+            <span className="text-text-tertiary text-left">Command Palette</span>
+
+            <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
+              Ctrl+B
+            </kbd>
+            <span className="text-text-tertiary text-left">Toggle Sidebar</span>
+
+            <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
+              Ctrl+Shift+O
+            </kbd>
+            <span className="text-text-tertiary text-left">Overview</span>
+
+            <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
+              Ctrl+Shift+/
+            </kbd>
+            <button
+              onClick={() => setShortcutsHelpOpen(true)}
+              className="text-accent cursor-pointer hover:underline text-left text-xs p-0 bg-transparent border-none"
+            >
+              All Shortcuts
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full w-full">
       <ViewTabBar />
-      {!fullViewContent && !isEditorTabActive && (
-        <TerminalTabBar
-          onCreateTerminal={createTerminal}
-          onCloseTerminal={closeTerminal}
-          onPopOutTerminal={popOutTerminal}
-          projectTerminals={projectTerminals}
-          currentProjectPath={normalizedPath}
-          combineWorkspaceTerminals={combineWorkspaceTerminals}
-          canCombineWorkspaceTerminals={hasOtherWorkspaceProjects}
-          workspaceTerminalCount={workspaceTerminals.length}
-          onToggleCombine={() => setCombineWorkspaceTerminals((value) => !value)}
-          gridOverflowIds={viewMode === 'grid' && projectTerminals.length > gridMaxCells
-            ? new Set(projectTerminals.slice(gridMaxCells).map(t => t.id))
-            : undefined}
-          terminalCreating={terminalPending}
-        />
+      {showTerminalToolbars && activeLeaf?.tabs.some((t) => t.kind === 'terminal') && (
+        <QuickActionPills terminalId={activeTerminalId} />
       )}
 
       <div className="flex-1 min-h-0">
-        {fullViewContent ? (
-          /* Full-view overlay — replaces terminal content */
-          <div className="flex flex-col h-full bg-bg-primary">
-            {/* Full-view top bar */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border-subtle bg-bg-secondary shrink-0">
-              <div className="flex items-center gap-2">
-                {fullViewContent && fullViewContent !== 'overview' && fullViewContent !== 'pipeline' && fullViewContent !== 'shortcuts' && (
-                  <button
-                    onClick={() => setFullViewContent('overview')}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                    title="Back to Overview"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    Overview
-                  </button>
-                )}
-                <span className="text-xs font-medium text-text-primary">{fullViewTitle}</span>
-              </div>
-              <button
-                onClick={() => closeTab(getTabIdForContent(fullViewContent!))}
-                className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                title="Close (Esc)"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Full-view content */}
-            <div className="flex-1 min-h-0">
-              <ErrorBoundary name={fullViewTitle} key={fullViewContent}>
-                {fullViewContent === 'overview' && (
-                  <OverviewPanel isFullView />
-                )}
-                {fullViewContent === 'structureMap' && (
-                  <StructureMap open inline onClose={() => closeTab('structureMap')} />
-                )}
-                {fullViewContent === 'tasks' && (
-                  <TasksPanel isFullView />
-                )}
-                {fullViewContent === 'stats' && (
-                  <StatsDetailView />
-                )}
-                {fullViewContent === 'decisions' && (
-                  <DecisionsDetailView />
-                )}
-                {fullViewContent === 'pipeline' && (
-                  <PipelinePanel isFullView />
-                )}
-                {fullViewContent === 'agentState' && (
-                  <AgentStateView isFullView />
-                )}
-                {fullViewContent === 'shortcuts' && (
-                  <ShortcutsPanel />
-                )}
-                {fullViewContent === 'system' && (
-                  <SystemPanel isFullView />
-                )}
-              </ErrorBoundary>
-            </div>
-          </div>
-        ) : isEditorTabActive && activeEditorFile ? (
-          /* Editor tab — inline editor in ViewTabBar */
-          <ErrorBoundary name="Editor">
-            <Editor
-              filePath={activeEditorFile}
-              onClose={() => closeEditorFile(activeEditorFile)}
-              inline
-            />
-          </ErrorBoundary>
-        ) : projectTerminals.length === 0 ? (
-          terminalPending ? (
-            <div className="flex h-full items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
-            </div>
-          ) : (
-          <div className="flex h-full items-center justify-center text-text-tertiary">
-            <div className="text-center max-w-xs">
-              {/* Animated SubFrame logo */}
-              <div
-                className="mx-auto mb-4"
-                style={{ width: 64, height: 64 }}
-                dangerouslySetInnerHTML={{ __html: getLogoSVG({ size: 64, id: 'empty-state-logo', frame: false }) }}
-              />
-
-              <p className="text-sm text-text-secondary font-medium">
-                {currentProjectPath
-                  ? (combineWorkspaceTerminals ? 'No terminals in this workspace' : 'No terminals for this project')
-                  : 'Select a project to get started'}
-              </p>
-
-              <div className="mt-4 w-full space-y-2.5">
-                {currentProjectPath && !isFrameProject && (
-                  <button
-                    onClick={() => window.dispatchEvent(new Event('open-frame-init'))}
-                    className="w-full bg-accent-subtle text-accent border border-accent/20 hover:bg-accent/20 px-4 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors shadow-sm inline-flex items-center justify-center gap-2"
-                  >
-                    <Sparkles className="size-4" />
-                    Initialize with SubFrame
-                  </button>
-                )}
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button
-                    onClick={() => window.dispatchEvent(new Event('start-ai-tool'))}
-                    disabled={!currentProjectPath}
-                    className={`w-full px-4 py-2.5 rounded-md text-sm font-semibold transition-colors shadow-sm ${
-                      currentProjectPath
-                        ? 'bg-success/20 text-success border border-success/30 hover:bg-success/30 cursor-pointer shadow-success/10'
-                        : 'bg-bg-elevated text-text-muted border border-border-subtle cursor-not-allowed'
-                    }`}
-                  >
-                    Start {aiToolName}
-                  </button>
-                  <button
-                    onClick={() => createTerminal()}
-                    className="w-full bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 px-4 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors shadow-sm"
-                  >
-                    New Terminal
-                  </button>
-                </div>
-              </div>
-
-              {/* Keyboard shortcuts section */}
-              <div className="mt-6 pt-4 border-t border-border-subtle">
-                <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Keyboard Shortcuts</p>
-                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
-                  <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
-                    Ctrl+Shift+Enter
-                  </kbd>
-                  <span className="text-text-tertiary text-left">Start {aiToolName}</span>
-
-                  <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
-                    Ctrl+Shift+T
-                  </kbd>
-                  <span className="text-text-tertiary text-left">New Terminal</span>
-
-                  <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
-                    Ctrl+/
-                  </kbd>
-                  <span className="text-text-tertiary text-left">Command Palette</span>
-
-                  <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
-                    Ctrl+B
-                  </kbd>
-                  <span className="text-text-tertiary text-left">Toggle Sidebar</span>
-
-                  <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
-                    Ctrl+Shift+O
-                  </kbd>
-                  <span className="text-text-tertiary text-left">Overview</span>
-
-                  <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-text-tertiary text-right">
-                    Ctrl+Shift+/
-                  </kbd>
-                  <button
-                    onClick={() => setShortcutsHelpOpen(true)}
-                    className="text-accent cursor-pointer hover:underline text-left text-xs p-0 bg-transparent border-none"
-                  >
-                    All Shortcuts
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          )
-        ) : viewMode === 'tabs' || showOverflowSingle ? (
-          /* Single terminal — show only the active one (also used for grid overflow auto-switch) */
-          activeTerminalId ? (
-            activeTerminalInfo?.poppedOut ? (
-              <div className="flex h-full items-center justify-center text-text-tertiary">
-                <div className="text-center">
-                  <ExternalLink className="h-10 w-10 mx-auto mb-3 text-text-muted" />
-                  <p className="text-sm text-text-secondary font-medium mb-1">Terminal in separate window</p>
-                  <p className="text-xs text-text-muted mb-4">This terminal has been popped out to its own window.</p>
-                  <div className="flex items-center gap-2 justify-center">
-                    <button
-                      onClick={() => typedInvoke(IPC.TERMINAL_POPOUT, activeTerminalId!)}
-                      className="px-3 py-1.5 rounded text-xs text-text-secondary hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors cursor-pointer"
-                    >
-                      Focus Window
-                    </button>
-                    <button
-                      onClick={() => typedInvoke(IPC.TERMINAL_DOCK, activeTerminalId!)}
-                      className="px-3 py-1.5 rounded text-xs bg-accent/15 text-accent border border-accent/25 hover:bg-accent/25 transition-colors cursor-pointer"
-                    >
-                      Dock Back
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <Terminal terminalId={activeTerminalId} />
-            )
-          ) : null
+        {treeIsEmpty ? (
+          emptyStateFallback
         ) : (
-          /* Grid view */
-          <TerminalGrid onCloseTerminal={closeTerminal} onCreateTerminal={createTerminal} onPopOutTerminal={popOutTerminal} projectTerminals={projectTerminals} projectPath={normalizedPath} />
+          <SplitPaneView
+            node={layoutTree}
+            renderLeaf={() => null}
+            renderLeafNode={(leaf) => (
+              <LeafGroupView
+                leaf={leaf}
+                isActive={leaf.id === activeLeafId}
+                onFocus={() => setActiveLeafId(leaf.id)}
+                currentProjectPath={normalizedPath}
+              />
+            )}
+            activeLeafSlotId={null}
+            activeLeafId={activeLeafId}
+            onResize={(nodeId, ratio) => resizeLeafSplit(nodeId, ratio, normalizedPath || undefined)}
+            onFocusLeaf={() => { /* legacy — LeafGroupView owns focus */ }}
+            isDragging={isDragging}
+            setIsDragging={setIsDragging}
+          />
         )}
       </div>
 

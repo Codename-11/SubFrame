@@ -21,6 +21,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { useIpcQuery } from '../hooks/useIpc';
 import { IPC } from '../../shared/ipcChannels';
 import { useSessionControlStore } from '../stores/useSessionControlStore';
+import { StatusLegend } from './StatusLegend';
 
 /** Read version at module level — avoids importing frameConstants.ts which uses Node's `path` */
 const FRAME_VERSION: string = require('../../../package.json').version;
@@ -148,6 +149,11 @@ export function StatusBar() {
           <span className="text-text-muted">Idle</span>
         )}
       </Section>
+
+      <Divider />
+
+      {/* Formal terminal status legend (Maestro-style 7 states) */}
+      <StatusLegend />
 
       <Divider />
 

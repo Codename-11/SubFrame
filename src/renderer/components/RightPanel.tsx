@@ -17,6 +17,7 @@ import {
   CircleDot,
   GitPullRequest,
   GitBranch,
+  GitCommitHorizontal,
   FolderGit2,
   FileDiff,
   Clock,
@@ -37,6 +38,7 @@ import {
   Maximize2,
   TerminalSquare,
   Bot,
+  Store,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -57,7 +59,7 @@ import { TasksPanel } from './TasksPanel';
 import { SessionsPanel } from './SessionsPanel';
 import { AISessionsPanel } from './AISessionsPanel';
 import { PluginsPanel } from './PluginsPanel';
-import { GithubIssuesPanel, GithubPRsPanel, GithubBranchesPanel, GithubWorktreesPanel, GithubChangesPanel, GithubWorkflowsPanel, GithubNotificationsPanel } from './GithubPanel';
+import { GithubIssuesPanel, GithubPRsPanel, GithubBranchesPanel, GithubWorktreesPanel, GithubChangesPanel, GithubWorkflowsPanel, GithubNotificationsPanel, GithubGraphPanel } from './GithubPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { OverviewPanel } from './OverviewPanel';
 import { AIFilesPanel } from './AIFilesPanel';
@@ -68,8 +70,9 @@ import { PromptsPanel } from './PromptsPanel';
 import { PipelinePanel } from './PipelinePanel';
 import { SystemPanel } from './SystemPanel';
 import { AIAnalysisPanel } from './AIAnalysisPanel';
+import { MCPMarketplacePanel } from './MCPMarketplacePanel';
 
-type PanelId = 'tasks' | 'sessions' | 'aiSessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system' | 'aiAnalysis';
+type PanelId = 'tasks' | 'sessions' | 'aiSessions' | 'plugins' | 'gitChanges' | 'githubIssues' | 'githubPRs' | 'githubBranches' | 'githubWorktrees' | 'githubWorkflows' | 'githubNotifications' | 'githubGraph' | 'history' | 'overview' | 'aiFiles' | 'subframeHealth' | 'agentState' | 'skills' | 'prompts' | 'pipeline' | 'system' | 'aiAnalysis' | 'mcp';
 
 interface PanelDef {
   id: PanelId;
@@ -88,6 +91,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   githubIssues:    { id: 'githubIssues',    label: 'Issues',     icon: CircleDot },
   githubPRs:       { id: 'githubPRs',       label: 'PRs',        icon: GitPullRequest },
   githubBranches:  { id: 'githubBranches',  label: 'Branches',   icon: GitBranch },
+  githubGraph:     { id: 'githubGraph',     label: 'Graph',      icon: GitCommitHorizontal },
   githubWorktrees: { id: 'githubWorktrees', label: 'Worktrees',  icon: FolderGit2 },
   githubWorkflows: { id: 'githubWorkflows', label: 'Workflows',  icon: PlayCircle, shortcut: '' },
   githubNotifications: { id: 'githubNotifications', label: 'Notifications', icon: Bell },
@@ -101,6 +105,7 @@ const ALL_PANELS: Record<PanelId, PanelDef> = {
   pipeline:        { id: 'pipeline',        label: 'Pipeline',   icon: Workflow,       shortcut: 'Ctrl+Shift+Y' },
   system:          { id: 'system',          label: 'System',     icon: Cpu,            shortcut: 'Ctrl+Shift+U' },
   aiAnalysis:      { id: 'aiAnalysis',      label: 'AI Analysis', icon: Bot,           shortcut: 'Ctrl+Shift+J' },
+  mcp:             { id: 'mcp',             label: 'MCP Marketplace', icon: Store },
 };
 
 /**
@@ -115,11 +120,12 @@ interface PanelGroup {
 
 const PANEL_GROUPS: PanelGroup[] = [
   { panels: ['tasks'],                                                                      label: 'Sub-Tasks' },
-  { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubWorktrees', 'githubWorkflows', 'githubNotifications'], label: 'GitHub' },
+  { panels: ['gitChanges', 'githubIssues', 'githubPRs', 'githubBranches', 'githubGraph', 'githubWorktrees', 'githubWorkflows', 'githubNotifications'], label: 'GitHub' },
   { panels: ['agentState', 'aiAnalysis', 'aiSessions', 'sessions', 'history', 'skills', 'plugins'], label: 'Agent' },
   { panels: ['prompts'],                                                                    label: 'Prompts' },
   { panels: ['pipeline'],                                                                   label: 'Pipeline' },
   { panels: ['overview', 'aiFiles', 'subframeHealth', 'system'],                              label: 'Project' },
+  { panels: ['mcp'],                                                                          label: 'MCP Marketplace' },
 ];
 
 /** Find which group a panel belongs to */
@@ -141,6 +147,7 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   githubIssues: GithubIssuesPanel,
   githubPRs: GithubPRsPanel,
   githubBranches: GithubBranchesPanel,
+  githubGraph: GithubGraphPanel,
   githubWorktrees: GithubWorktreesPanel,
   githubWorkflows: GithubWorkflowsPanel,
   githubNotifications: GithubNotificationsPanel,
@@ -154,6 +161,7 @@ const panelComponents: Record<PanelId, React.ComponentType> = {
   pipeline: PipelinePanel,
   system: SystemPanel,
   aiAnalysis: AIAnalysisPanel,
+  mcp: MCPMarketplacePanel,
 };
 
 /** Panels that can be opened as a full-view tab (maps panel ID to FullViewContent ID) */
