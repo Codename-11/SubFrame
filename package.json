@@ -67,7 +67,7 @@
   "private": true,
   "license": "MIT",
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^9.39.5",
     "@types/node": "^25.3.3",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.16",
