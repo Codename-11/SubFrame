@@ -137,7 +137,7 @@
     "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.12.3",
-    "react-zoom-pan-pinch": "^3.7.0",
+    "react-zoom-pan-pinch": "^4.0.4",
     "recharts": "^2.15.4",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
